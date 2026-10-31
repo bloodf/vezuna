@@ -1,0 +1,236 @@
+{
+  "attachments": [],
+  "document_type": "laboratory",
+  "extraction": {
+    "character_count": 966,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [
+    {
+      "additional_values": [],
+      "analyte": "Hemoglobina",
+      "normalized_unit": "g/L",
+      "normalized_value": 132,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 12,
+        "text": "12,0 a 15,5 g/dL",
+        "unit": "g/dL",
+        "upper": 15.5
+      },
+      "unit": "g/dL",
+      "value": 13.2,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Hematócrito",
+      "normalized_unit": "%",
+      "normalized_value": 40.1,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 36,
+        "text": "36,0 a 46,0 %",
+        "unit": "%",
+        "upper": 46
+      },
+      "unit": "%",
+      "value": 40.1,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "VCM",
+      "normalized_unit": "fL",
+      "normalized_value": 88.4,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 80,
+        "text": "80,0 a 100,0 fL",
+        "unit": "fL",
+        "upper": 100
+      },
+      "unit": "fL",
+      "value": 88.4,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [
+        {
+          "reference": {
+            "kind": "range",
+            "lower": 40,
+            "text": "40,0 a 75,0 %",
+            "unit": "%",
+            "upper": 75
+          },
+          "unit": "%",
+          "value": 43
+        }
+      ],
+      "analyte": "Leucócitos",
+      "normalized_unit": "/µL",
+      "normalized_value": 5600,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 4000,
+        "text": "4.000 a 10.000 /µL",
+        "unit": "/µL",
+        "upper": 10000
+      },
+      "unit": "/µL",
+      "value": 5600,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Contagem de Plaquetas",
+      "normalized_unit": "/µL",
+      "normalized_value": 245000,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 150000,
+        "text": "150.000 a 450.000 /µL",
+        "unit": "/µL",
+        "upper": 450000
+      },
+      "unit": "/µL",
+      "value": 245000,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Vitamina B-12, Dosagem",
+      "normalized_unit": "pg/mL",
+      "normalized_value": 450,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 211,
+        "text": "211 a 911 pg/mL",
+        "unit": "pg/mL",
+        "upper": 911
+      },
+      "unit": "pg/mL",
+      "value": 450,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "25-Hidroxivitamina D (Vitamina D)",
+      "normalized_unit": "µg/L",
+      "normalized_value": 29,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "deferred",
+        "text": "CONFIRA NA TABELA ABAIXO",
+        "unit": null
+      },
+      "unit": "ng/mL",
+      "value": 29,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "1,25-Dihidroxi Vitamina D",
+      "normalized_unit": "pg/mL",
+      "normalized_value": 42.5,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 19.9,
+        "text": "19,90 a 79,30 pg/mL",
+        "unit": "pg/mL",
+        "upper": 79.3
+      },
+      "unit": "pg/mL",
+      "value": 42.5,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "T4 Livre (Tiroxina Livre)",
+      "normalized_unit": "ng/dL",
+      "normalized_value": 1.2,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 0.7,
+        "text": "0,70 a 1,48 ng/dL",
+        "unit": "ng/dL",
+        "upper": 1.48
+      },
+      "unit": "ng/dL",
+      "value": 1.2,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Creatinina",
+      "normalized_unit": "mg/L",
+      "normalized_value": 8.2,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 0.5,
+        "text": "0,50 a 0,90 mg/dL",
+        "unit": "mg/dL",
+        "upper": 0.9
+      },
+      "unit": "mg/dL",
+      "value": 0.82,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Potássio",
+      "normalized_unit": "mmol/L",
+      "normalized_value": 4.4,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 3.5,
+        "text": "3,5 a 5,0 mmol/L",
+        "unit": "mmol/L",
+        "upper": 5
+      },
+      "unit": "mmol/L",
+      "value": 4.4,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "VLDL - Colesterol",
+      "normalized_unit": "mg/L",
+      "normalized_value": 250,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "deferred",
+        "text": "(Vide Intervalo de Referência Abaixo)",
+        "unit": null
+      },
+      "unit": "mg/dL",
+      "value": 25,
+      "value_operator": null,
+      "value_type": "numeric"
+    }
+  ],
+  "study": null
+}

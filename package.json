@@ -1,0 +1,13 @@
+{
+  "name": "vezuna-release-tooling",
+  "private": true,
+  "description": "Pins EAS CLI used only to submit prebuilt native Android/iOS binaries. Vezuna itself is Kotlin Multiplatform + Xcode, not React Native.",
+  "license": "MIT",
+  "scripts": {
+    "submit:android": "eas submit --platform android --profile production --path",
+    "submit:ios": "eas submit --platform ios --profile production --path"
+  },
+  "devDependencies": {
+    "eas-cli": "27.2.0"
+  }
+}

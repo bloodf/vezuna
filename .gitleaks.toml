@@ -1,0 +1,10 @@
+title = "Vezuna secret scanning"
+
+[extend]
+useDefault = true
+
+# Upstream Play LVL names a public JCA algorithm, not a credential.
+[[allowlists]]
+description = "Vendored Play LVL public key-derivation algorithm identifier"
+regexTarget = "secret"
+regexes = ['''^PBEWITHSHAAND256BITAES-CBC-BC$''']

@@ -1,0 +1,30 @@
+{
+  "attachments": [],
+  "document_type": "laboratory",
+  "extraction": {
+    "character_count": 191,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [
+    {
+      "additional_values": [],
+      "analyte": "Selênio sérico",
+      "normalized_unit": "mg/L",
+      "normalized_value": 0.082,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 20,
+        "text": "20 a 100 µg/L",
+        "unit": "µg/L",
+        "upper": 100
+      },
+      "unit": "µg/L",
+      "value": 82,
+      "value_operator": null,
+      "value_type": "numeric"
+    }
+  ],
+  "study": null
+}

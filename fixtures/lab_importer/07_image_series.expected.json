@@ -1,0 +1,16 @@
+{
+  "attachments": [
+    {
+      "page": 1,
+      "role": "source_image"
+    }
+  ],
+  "document_type": "attachment",
+  "extraction": {
+    "character_count": 85,
+    "page_count": 1,
+    "status": "ocr_required"
+  },
+  "observations": [],
+  "study": null
+}

@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Vezuna";
+"NSCameraUsageDescription" = "Vezuna usa la cámara solo para escanear informes de laboratorio en este dispositivo.";
+"NSHealthShareUsageDescription" = "Vezuna importa frecuencia cardíaca, pasos y peso solo cuando lo solicitas.";
+"NSPhotoLibraryUsageDescription" = "Vezuna lee las imágenes de informes de laboratorio seleccionadas para OCR en el dispositivo.";

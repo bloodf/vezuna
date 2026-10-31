@@ -1,0 +1,48 @@
+{
+  "attachments": [],
+  "document_type": "laboratory",
+  "extraction": {
+    "character_count": 228,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [
+    {
+      "additional_values": [],
+      "analyte": "Protozoários",
+      "normalized_unit": "",
+      "normalized_value": null,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "qualitative",
+        "lower": null,
+        "text": "Ausente",
+        "unit": null,
+        "upper": null
+      },
+      "unit": "",
+      "value": "Ausente",
+      "value_operator": null,
+      "value_type": "qualitative"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Helmintos",
+      "normalized_unit": "",
+      "normalized_value": null,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "qualitative",
+        "lower": null,
+        "text": "Ausente",
+        "unit": null,
+        "upper": null
+      },
+      "unit": "",
+      "value": "Ausente",
+      "value_operator": null,
+      "value_type": "qualitative"
+    }
+  ],
+  "study": null
+}

@@ -1,0 +1,51 @@
+/* Vezuna v1.0: load Noto Sans locally. Respect existing framework themes. */
+:root {
+  --vz-background: #F5FAF9;
+  --vz-surface: #FFFFFF;
+  --vz-surfaceSubtle: #E7F3F1;
+  --vz-text: #152E35;
+  --vz-textMuted: #526C74;
+  --vz-border: #8CA7AD;
+  --vz-primary: #087F8C;
+  --vz-onPrimary: #FFFFFF;
+  --vz-accent: #71E2CC;
+  --vz-onAccent: #123B46;
+  --vz-focus: #086A78;
+  --vz-success: #176B50;
+  --vz-warning: #805500;
+  --vz-danger: #B3263B;
+  --vz-info: #245DA8;
+}
+[data-theme="dark"] {
+  --vz-background: #0C2027;
+  --vz-surface: #14313A;
+  --vz-surfaceSubtle: #1A3E48;
+  --vz-text: #E7F5F2;
+  --vz-textMuted: #ADC7CE;
+  --vz-border: #668992;
+  --vz-primary: #71E2CC;
+  --vz-onPrimary: #0C2027;
+  --vz-accent: #35B7B8;
+  --vz-onAccent: #0C2027;
+  --vz-focus: #71E2CC;
+  --vz-success: #87DEB4;
+  --vz-warning: #F5CB73;
+  --vz-danger: #FF9AAA;
+  --vz-info: #9DC4FF;
+}
+:root { --vz-font: "Noto Sans", system-ui, sans-serif; --vz-radius-control: 12px; --vz-radius-card: 20px; --vz-space: 4px; }
+@media (prefers-reduced-motion: reduce) { :root { --vz-motion-duration: 0ms; } }
+
+:root {
+  --vz-motion-duration: 200ms;
+  --vz-font-body: 16px;
+  --vz-line-height-body: 1.5;
+  --vz-radius-pill: 999px;
+  --vz-space-xs: 4px;
+  --vz-space-sm: 8px;
+  --vz-space-md: 16px;
+  --vz-space-lg: 24px;
+  --vz-space-xl: 32px;
+  --vz-space-xxl: 48px;
+}
+@media (prefers-reduced-motion: reduce) { :root { --vz-motion-duration: 0ms; } }

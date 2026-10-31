@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>extraction_results_ocr</key><dict><key>NSStringLocalizedFormatKey</key><string>%#@results@</string><key>results</key><dict><key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string><key>NSStringFormatValueTypeKey</key><string>d</string><key>one</key><string>El OCR sin conexión de Vision produjo %1$d resultado editable. Nada entra en los registros confirmados desde esta pantalla.</string><key>other</key><string>El OCR sin conexión de Vision produjo %1$d resultados editables. Nada entra en los registros confirmados desde esta pantalla.</string></dict></dict>
+    <key>extraction_results_embedded</key><dict><key>NSStringLocalizedFormatKey</key><string>%#@results@</string><key>results</key><dict><key>NSStringFormatSpecTypeKey</key><string>NSStringPluralRuleType</string><key>NSStringFormatValueTypeKey</key><string>d</string><key>one</key><string>El texto incorporado de PDFKit produjo %1$d resultado editable. Nada entra en los registros confirmados desde esta pantalla.</string><key>other</key><string>El texto incorporado de PDFKit produjo %1$d resultados editables. Nada entra en los registros confirmados desde esta pantalla.</string></dict></dict>
+</dict></plist>

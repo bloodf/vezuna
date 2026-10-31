@@ -1,0 +1,22 @@
+{
+  "cli": {
+    "version": ">= 27.2.0",
+    "appVersionSource": "local"
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "$GOOGLE_SERVICE_ACCOUNT_KEY_PATH",
+        "applicationId": "com.bloodf.vitahearth",
+        "track": "internal",
+        "releaseStatus": "draft"
+      },
+      "ios": {
+        "bundleIdentifier": "com.bloodf.vitahearth",
+        "ascApiKeyPath": "$ASC_API_KEY_PATH",
+        "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",
+        "ascApiKeyId": "$ASC_API_KEY_ID"
+      }
+    }
+  }
+}

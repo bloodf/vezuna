@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check localization, branding, and synthetic importer
+        run: |
+          python3 tools/localization/check_localization.py
+          python3 tools/branding/check_brand.py
+          python3 tools/lab_importer/test_importer.py
+      - name: Build Android and run unit tests
+        run: bash gradlew :shared:jvmTest :composeApp:testDebugUnitTest :composeApp:assembleDebug :composeApp:assembleDebugAndroidTest
+      - name: Verify test results
+        run: python3 tools/localization/check_test_results.py
+  release-tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install eas --version
+      - run: bash -n scripts/build-ios.sh

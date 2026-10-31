@@ -1,0 +1,430 @@
+{
+  "version": "1.0",
+  "files": [
+    {
+      "path": "IMPLEMENTATION_PROMPT.txt",
+      "bytes": 12219,
+      "sha256": "d9b5959529954e2f2df6c5bec52b3a38cc0ef67220ab8865cbb8cd5c409e5092"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3538,
+      "sha256": "6b597a0ee665cf10c6b2cef523aedfaf99a2413164e67e891ebef81c93c0135c"
+    },
+    {
+      "path": "SOURCES.md",
+      "bytes": 926,
+      "sha256": "0d7801ad42d5e0026309c5d23227d2d2346ae46f71ef98e4ca5bcdb7219a6f57"
+    },
+    {
+      "path": "brand-guide.md",
+      "bytes": 18424,
+      "sha256": "b2265f4481954567a2f76f5a41543d4b1ffcb9ae87a0d8a3b62f41888988e1dc"
+    },
+    {
+      "path": "fonts/NOTO-LICENSE.txt",
+      "bytes": 5208,
+      "sha256": "075f91382875da1c4b491f1facf2586f55448705133264d98ce15cab6211b125"
+    },
+    {
+      "path": "fonts/NotoSans-Bold.ttf",
+      "bytes": 515752,
+      "sha256": "e83493c945848ecd4a9ad0f6d19164541a0d3e23a9c952304a00a46e00272ac5"
+    },
+    {
+      "path": "fonts/NotoSans-Regular.ttf",
+      "bytes": 512672,
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d"
+    },
+    {
+      "path": "fonts/fonts.css",
+      "bytes": 364,
+      "sha256": "d705c71b85bce0b59812841d95278930ff0e03d20c48589ea4a054bd26c2d15b"
+    },
+    {
+      "path": "icons/PLATFORM-NOTES.md",
+      "bytes": 1907,
+      "sha256": "3f63df03f7654d797ed1cc40e1d54b806ff4c9ea02e3be6a4aeed9a8286278c7"
+    },
+    {
+      "path": "icons/android/background.png",
+      "bytes": 1771,
+      "sha256": "181a6322aeb52feff2e5b3f4a31acc48e1793cb31848e54399acbe898ec5d47b"
+    },
+    {
+      "path": "icons/android/background.svg",
+      "bytes": 140,
+      "sha256": "dfc1747c05eed98cd0d2e45e765e21d99917cbfe8d8b28422dac7af5954b7739"
+    },
+    {
+      "path": "icons/android/foreground.png",
+      "bytes": 8333,
+      "sha256": "3b9cfb67faaae8317f4c0e8399ac6a27fefcf0aba2f1098f5b1adf870cf65b41"
+    },
+    {
+      "path": "icons/android/foreground.svg",
+      "bytes": 354,
+      "sha256": "0723f5d17b44744c3367c62717c7a234749482d9b416350a34b0766d61e5ea86"
+    },
+    {
+      "path": "icons/android/monochrome.png",
+      "bytes": 7167,
+      "sha256": "b90105283f1ba8947cc4d5c36cd4a48202c39f118f2d7712b9739ce219ae6084"
+    },
+    {
+      "path": "icons/android/monochrome.svg",
+      "bytes": 354,
+      "sha256": "e5169b91eb3d365ffee04ae02511cb02b75f2496b2f2a8ae90f8980682185054"
+    },
+    {
+      "path": "icons/android/play-store-512.png",
+      "bytes": 20039,
+      "sha256": "d94efac01ae23fd44ee3faab6a23ac13a02d68f9b0e23b6a4a156f184ce859c3"
+    },
+    {
+      "path": "icons/android/res/drawable/ic_vezuna_background.xml",
+      "bytes": 132,
+      "sha256": "088e8c19763f97e9439eb32617ab96d7a98d0557b56641b54841f64ed00045ea"
+    },
+    {
+      "path": "icons/android/res/drawable/ic_vezuna_foreground.xml",
+      "bytes": 713,
+      "sha256": "2942917306ae2df51c916a76a4e3362affe9978cb7ac0e849c156bccca20de0d"
+    },
+    {
+      "path": "icons/android/res/drawable/ic_vezuna_monochrome.xml",
+      "bytes": 713,
+      "sha256": "cc841ad61dbf01b9cbea278e47ec3c7ed77b45f93ebda04d403789837c09b386"
+    },
+    {
+      "path": "icons/android/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "bytes": 216,
+      "sha256": "9a5460e830d77cd39dcb883ef171ff17b9d3862edfd0be0d27fe325eee28aa78"
+    },
+    {
+      "path": "icons/android/res/mipmap-anydpi-v33/ic_launcher.xml",
+      "bytes": 279,
+      "sha256": "7ebbc82c299c6e7cb65ee392ba3b465be63bae95c0187af61d7b978d0f1a751a"
+    },
+    {
+      "path": "icons/android/res/mipmap-hdpi/ic_launcher.png",
+      "bytes": 2629,
+      "sha256": "da2ba584e4cce01922c27ca4b3f79fc4d113208ae5cbe75ae1a681367f22d49c"
+    },
+    {
+      "path": "icons/android/res/mipmap-mdpi/ic_launcher.png",
+      "bytes": 1706,
+      "sha256": "f35470748e59cac734b7eb2a6f95f82e66c85d2a6b25d512638a973be4b4ce89"
+    },
+    {
+      "path": "icons/android/res/mipmap-xhdpi/ic_launcher.png",
+      "bytes": 3575,
+      "sha256": "916505f940eb20ac68a05a3aed3555a6c4910fdb70873d6dfaf3b5cdb0d65b10"
+    },
+    {
+      "path": "icons/android/res/mipmap-xxhdpi/ic_launcher.png",
+      "bytes": 5281,
+      "sha256": "41fb6f2ee2f97ea8bc901e67596b4e7a0d047dec16ea6aceaaba7d1ee4a2d0c9"
+    },
+    {
+      "path": "icons/android/res/mipmap-xxxhdpi/ic_launcher.png",
+      "bytes": 7157,
+      "sha256": "c10a08644e39e8d358f4ce88517c504245a42c89aee15789d54e997a77092539"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/Contents.json",
+      "bytes": 697,
+      "sha256": "98fae8e84612118d8cad3aef7bdcf6c2c6128515b82458d49b97923e257fa3eb"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-dark.png",
+      "bytes": 26896,
+      "sha256": "5e15caeef458dadad275e8d9357b97d5f1e22d806d011a1bddb2c2bbf3856566"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-dark.svg",
+      "bytes": 409,
+      "sha256": "2ac610563d5c25543995e507272e7ff8443fcf4aac3073e88b1520645e28fb8c"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-default.png",
+      "bytes": 26591,
+      "sha256": "53d882269dd790ade0c5a60fa76afe829e0cfad077597741d4bc90e9cd3fdaf3"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-default.svg",
+      "bytes": 409,
+      "sha256": "20b991d232957a9d0ec579cd8dea729e1d6a5dd4cdfd93a8eadffdb43f8a32d0"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-tinted.png",
+      "bytes": 25560,
+      "sha256": "f3d74e8f9bf3e902f6e24a5582f0116f33e275284c0f6573d126926631d808fa"
+    },
+    {
+      "path": "icons/ios/AppIcon.appiconset/icon-tinted.svg",
+      "bytes": 409,
+      "sha256": "946c61fe27e64815279344a8dc9444032c32b889bcb2fc4698a42afe94ad99a2"
+    },
+    {
+      "path": "icons/web/favicon.ico",
+      "bytes": 3308,
+      "sha256": "34f8e64e22f2c186fb97f2b95c0743dc25e14d43e5ec1229f1e029922d5b9f03"
+    },
+    {
+      "path": "icons/web/icon-16.png",
+      "bytes": 503,
+      "sha256": "3f711bb8886a35125f749090d686a5b11fc105973c1d19eca3f3567698dc7d2c"
+    },
+    {
+      "path": "icons/web/icon-180.png",
+      "bytes": 6718,
+      "sha256": "6ae53ad86d52b1b7b827f42c33e83b14f8d57177a934c3e21cf5339a6f9dc974"
+    },
+    {
+      "path": "icons/web/icon-192.png",
+      "bytes": 7157,
+      "sha256": "c10a08644e39e8d358f4ce88517c504245a42c89aee15789d54e997a77092539"
+    },
+    {
+      "path": "icons/web/icon-32.png",
+      "bytes": 1036,
+      "sha256": "64c96df46d62dc0b2d9b9fa7423202c3cba00a25aef5a1515b8f8d93dc4b3d61"
+    },
+    {
+      "path": "icons/web/icon-48.png",
+      "bytes": 1706,
+      "sha256": "f35470748e59cac734b7eb2a6f95f82e66c85d2a6b25d512638a973be4b4ce89"
+    },
+    {
+      "path": "icons/web/icon-512.png",
+      "bytes": 20039,
+      "sha256": "d94efac01ae23fd44ee3faab6a23ac13a02d68f9b0e23b6a4a156f184ce859c3"
+    },
+    {
+      "path": "icons/web/manifest.fragment.json",
+      "bytes": 362,
+      "sha256": "8bd53a028db3b12471999397c60199f74e0af49b840432dab8cce570c3176e98"
+    },
+    {
+      "path": "logos/lockup-color.png",
+      "bytes": 35023,
+      "sha256": "0cfc81555690fa9a9ddee686c4680d1464391270cf27b84e6fac6c7ded869934"
+    },
+    {
+      "path": "logos/lockup-color.svg",
+      "bytes": 2182,
+      "sha256": "a4d633139e38a825b23878b25b54eaaa3e5618034f4d7f43abab23c5eba4db3d"
+    },
+    {
+      "path": "logos/lockup-dark.png",
+      "bytes": 27516,
+      "sha256": "494af97db00077efa37de69f15d1e0665a4086e8691bf2793a6850bff56f456e"
+    },
+    {
+      "path": "logos/lockup-dark.svg",
+      "bytes": 2182,
+      "sha256": "36b13d0308103fcb767d74a4e494f5ecd85f9fe1f688057ab96329db61180db0"
+    },
+    {
+      "path": "logos/lockup-ink.png",
+      "bytes": 33707,
+      "sha256": "09c04bc1b13b09b8f84bd8a9a75611c5608cd491868b55c99fbd7c2aec963857"
+    },
+    {
+      "path": "logos/lockup-ink.svg",
+      "bytes": 2182,
+      "sha256": "4e0cb3667d242d15270f5c9a24e85fa6ed06b34f4c7618fbf8a46f6ad8bd30e3"
+    },
+    {
+      "path": "logos/lockup-white.png",
+      "bytes": 24318,
+      "sha256": "ec1c098f4b1e1970e57180eed92b80fc68ce166a94ff097c3d9f23b8b9373c32"
+    },
+    {
+      "path": "logos/lockup-white.svg",
+      "bytes": 2182,
+      "sha256": "5fa9611fa58ff45a1648e86a36e2c25e34ab9c0563c29a1ae421f68172cd548f"
+    },
+    {
+      "path": "logos/mark-color.png",
+      "bytes": 15779,
+      "sha256": "013252e3d17e965198d54c484bbfaa1262eab7b1af287a4a161b7315df98b78a"
+    },
+    {
+      "path": "logos/mark-color.svg",
+      "bytes": 307,
+      "sha256": "fcf99b39fc8789d40c38ba3428e10a0cbdbe74e1a21896193331055b798b8398"
+    },
+    {
+      "path": "logos/mark-dark.png",
+      "bytes": 14310,
+      "sha256": "5fabe38386a51b4403a5bbfcc66487779c38b716cdf1adae7824bb258a2443f6"
+    },
+    {
+      "path": "logos/mark-dark.svg",
+      "bytes": 307,
+      "sha256": "77cac79065f1b4c9970be75127b7c6a6eb4465b067376ec9a134c042e8eae0a6"
+    },
+    {
+      "path": "logos/mark-ink.png",
+      "bytes": 14825,
+      "sha256": "e5c2eaa0101aa420270a89f739dd629e0574f3131589cd7ddce909ded58a98a1"
+    },
+    {
+      "path": "logos/mark-ink.svg",
+      "bytes": 307,
+      "sha256": "a1681b6ee4051ba6f061fd29708cbc61fd91742bf7eb342c67fa20a0b92814fd"
+    },
+    {
+      "path": "logos/mark-white.png",
+      "bytes": 11185,
+      "sha256": "45b004f588ee78f19e064541d4b08b27cde69bbd138994b98a51bc6755711a8f"
+    },
+    {
+      "path": "logos/mark-white.svg",
+      "bytes": 307,
+      "sha256": "ada4f28f8b9a0ef9164bb6ca384260af2616f544cc6cab47da8c4133a27053ee"
+    },
+    {
+      "path": "preview/brand-overview.pdf",
+      "bytes": 71300,
+      "sha256": "c6356d85c0113f50c2ce839328b5abe6bd7990abd58bf5052782433501f12fe1"
+    },
+    {
+      "path": "preview/brand-overview.png",
+      "bytes": 142555,
+      "sha256": "2e74e4e8ac554066da6144869b5babbe7b245e167e7e9a7926a500ef58cb9869"
+    },
+    {
+      "path": "preview/brand-overview.svg",
+      "bytes": 5590,
+      "sha256": "8e2ed68c562219cf99115bdc6fd477af5904813f70df1963802618c5985cb3eb"
+    },
+    {
+      "path": "qa/assets-validation.json",
+      "bytes": 3449,
+      "sha256": "949461061a73c891c163f0bdd4000d7446931f087984a1672b0d77ccc32e96ff"
+    },
+    {
+      "path": "qa/contrast.json",
+      "bytes": 2422,
+      "sha256": "b5ee8d0d05fd9d7debdd31f1107339dc777861a70bff14f58f78d77217d5b1e3"
+    },
+    {
+      "path": "social/feature-1024x500.png",
+      "bytes": 27962,
+      "sha256": "61691b73be11b7d51d52acf3d0446edabe6bbb3fe122e433be360075e735f26b"
+    },
+    {
+      "path": "social/feature-1024x500.svg",
+      "bytes": 2606,
+      "sha256": "e763f8cc729513724f6417ce13fd593a6c212a7b5f5cdd769b93e2f1760b0254"
+    },
+    {
+      "path": "social/github-1280x640.png",
+      "bytes": 34474,
+      "sha256": "b426e36032764bc7fd9796939b73600002608378f7b3115d78210b7b26b8f426"
+    },
+    {
+      "path": "social/github-1280x640.svg",
+      "bytes": 2588,
+      "sha256": "77745c2faf669c3e0a75ef75d3495c4da460be7e55854f0f363f10f5dab08a9e"
+    },
+    {
+      "path": "social/og-1200x630.png",
+      "bytes": 33017,
+      "sha256": "7bd38b6da80cc6766a932af742289bd77002ef99f178357547ba3ef7610cfca5"
+    },
+    {
+      "path": "social/og-1200x630.svg",
+      "bytes": 2413,
+      "sha256": "bb8b3f9eec02dac2d2538c2399bbed8a3e8a9b9581ca034440a76929f424b8b2"
+    },
+    {
+      "path": "source/README.md",
+      "bytes": 708,
+      "sha256": "fce6af3ca020035a12cd94dc4e04a5bac299c1fb6472ee2c0b80b1ed77e90ddb"
+    },
+    {
+      "path": "source/build_assets.py",
+      "bytes": 11086,
+      "sha256": "1784f1b7bcf5c91e8608bab7ea59855f31f2b1293b317a756e859361aa96a07f"
+    },
+    {
+      "path": "tokens/tokens.css",
+      "bytes": 1415,
+      "sha256": "6fb9c1f3f476025db2800d767256ccaae41358368b18f5eea62ba8338c1640ff"
+    },
+    {
+      "path": "tokens/tokens.json",
+      "bytes": 1650,
+      "sha256": "c5be16274be2b5b220dd568941e5ededf4d7d928e089c745667d880372dd4bf6"
+    },
+    {
+      "path": "tokens/tokens.ts",
+      "bytes": 1689,
+      "sha256": "4421109d9f54bb18ec2426b0756bd900dd4df99cd8e4547810c5c6cec177fbec"
+    },
+    {
+      "path": "ui-icons/activity.svg",
+      "bytes": 223,
+      "sha256": "d6191ebc9da977cea2c6f167403850d808bfb46992003088b625f4a554ec0051"
+    },
+    {
+      "path": "ui-icons/calendar.svg",
+      "bytes": 286,
+      "sha256": "6dbacc329af38d173ddd7cb23adbee6543019ff1aa830debca23044437447f69"
+    },
+    {
+      "path": "ui-icons/check.svg",
+      "bytes": 215,
+      "sha256": "99c39e686fc668eb5ff1bede6c52300b18fd640a7a2ba938f4c2ab2fa6c1871a"
+    },
+    {
+      "path": "ui-icons/chevron.svg",
+      "bytes": 213,
+      "sha256": "3c78904100e1dde3bbb375aedebc87ee8fa01bae5abd9cfaee688e952df4b606"
+    },
+    {
+      "path": "ui-icons/close.svg",
+      "bytes": 221,
+      "sha256": "75fbb2f0d99d2fde340fcc418a4f864bc6c1aed9b1ab3dc419ee6d2f4ac90580"
+    },
+    {
+      "path": "ui-icons/connect.svg",
+      "bytes": 331,
+      "sha256": "c7cc8995208850b10e65fd9ba570ae529005003f44a8fa812cf5701fad365c1f"
+    },
+    {
+      "path": "ui-icons/lab.svg",
+      "bytes": 264,
+      "sha256": "7fc1d15c6969d8bee3bf9f1a1995d70b2af86396f344537f199d0d756318f316"
+    },
+    {
+      "path": "ui-icons/medication.svg",
+      "bytes": 259,
+      "sha256": "5684587a37edc2ee2d28d0ed8f0cb7e1ca86cc315075fa095803fee69d769587"
+    },
+    {
+      "path": "ui-icons/plus.svg",
+      "bytes": 217,
+      "sha256": "4a635f1af9336d82d417fda4c8f223c158399704d714bb982fcc36364ca53496"
+    },
+    {
+      "path": "ui-icons/privacy.svg",
+      "bytes": 261,
+      "sha256": "b32c1785d2b260764e31e9bd2de107415b353a61613c943e55b8c03f5fa79f03"
+    },
+    {
+      "path": "ui-icons/records.svg",
+      "bytes": 270,
+      "sha256": "1ca357dc1f18560a803fbc636fe34fc687f0c5b79edc4e363e4d635aa05a38d5"
+    },
+    {
+      "path": "ui-icons/settings.svg",
+      "bytes": 265,
+      "sha256": "96d0c5b7ef55899595393d05e316fceedf809859c0b8bb2c2ebb144906844a85"
+    }
+  ]
+}

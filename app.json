@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Vezuna",
+    "slug": "vezuna",
+    "owner": "bloodf",
+    "android": {
+      "package": "com.bloodf.vitahearth"
+    },
+    "ios": {
+      "bundleIdentifier": "com.bloodf.vitahearth"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ed7ac985-98fd-4cb7-813a-ad16b25e98ba"
+      }
+    }
+  }
+}

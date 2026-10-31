@@ -1,0 +1,46 @@
+{
+  "attachments": [],
+  "document_type": "ultrasound",
+  "extraction": {
+    "character_count": 467,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [],
+  "study": {
+    "diagnostic_impression": "Estudo ultrassonográfico da tireoide com Doppler sem evidências de anormalidades.",
+    "findings": "Tireoide de dimensões preservadas, contornos regulares e ecotextura homogênea. O lobo tireoidiano direito mede: 4,2 x 1,4 x 1,3 cm. O lobo tireoidiano esquerdo mede: 4,1 x 1,3 x 1,2 cm. Volume tireoidiano: 8,6 cm³. As velocidades de pico sistólico nas artérias tireoideas estão preservadas.",
+    "measurements": [
+      {
+        "laterality": "right",
+        "structure": "lobo tireoidiano",
+        "unit": "cm",
+        "values": [
+          4.2,
+          1.4,
+          1.3
+        ]
+      },
+      {
+        "laterality": "left",
+        "structure": "lobo tireoidiano",
+        "unit": "cm",
+        "values": [
+          4.1,
+          1.3,
+          1.2
+        ]
+      },
+      {
+        "laterality": null,
+        "structure": "tireoide",
+        "unit": "cm³",
+        "values": [
+          8.6
+        ]
+      }
+    ],
+    "modality": "ultrasound",
+    "title": "ULTRASSONOGRAFIA DA TIREOIDE COM DOPPLER — ESTUDO FICTÍCIO"
+  }
+}

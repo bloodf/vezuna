@@ -1,0 +1,128 @@
+[
+  {
+    "theme": "light",
+    "foreground": "text",
+    "background": "background",
+    "ratio": 13.52,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "text",
+    "background": "surface",
+    "ratio": 14.25,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "textMuted",
+    "background": "surface",
+    "ratio": 5.59,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "onPrimary",
+    "background": "primary",
+    "ratio": 4.75,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "onAccent",
+    "background": "accent",
+    "ratio": 7.73,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "danger",
+    "background": "surface",
+    "ratio": 6.45,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "warning",
+    "background": "surface",
+    "ratio": 6.53,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "success",
+    "background": "surface",
+    "ratio": 6.45,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "light",
+    "foreground": "info",
+    "background": "surface",
+    "ratio": 6.55,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "text",
+    "background": "background",
+    "ratio": 14.97,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "text",
+    "background": "surface",
+    "ratio": 12.25,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "textMuted",
+    "background": "surface",
+    "ratio": 7.74,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "onPrimary",
+    "background": "primary",
+    "ratio": 10.75,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "onAccent",
+    "background": "accent",
+    "ratio": 6.89,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "danger",
+    "background": "surface",
+    "ratio": 6.83,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "warning",
+    "background": "surface",
+    "ratio": 8.94,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "success",
+    "background": "surface",
+    "ratio": 8.59,
+    "AA_normal_text": true
+  },
+  {
+    "theme": "dark",
+    "foreground": "info",
+    "background": "surface",
+    "ratio": 7.69,
+    "AA_normal_text": true
+  }
+]

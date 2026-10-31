@@ -1,0 +1,125 @@
+APLIQUE A IDENTIDADE VEZUNA AO PROJETO EXISTENTE
+
+Você é a IA responsável por desenvolver este aplicativo. Use o brand kit anexado como fonte da identidade e implemente um rebrand consistente, acessível e responsivo, preservando a arquitetura, os dados e o comportamento já existentes.
+
+CONTEXTO
+
+Vezuna é o nome escolhido para um projeto de hub pessoal de saúde de código aberto. A direção do produto inclui organização de medicamentos, resultados de exames e conexões com dados de saúde de iOS e Android. Essa descrição não comprova que cada integração já existe: inspecione o código e só apresente ao usuário o que estiver implementado e funcionando.
+
+O trabalho autorizado é aplicar a marca e refinar a apresentação. Não é uma autorização para criar capacidades clínicas, trocar a arquitetura, mudar políticas de privacidade ou publicar o aplicativo.
+
+FONTES E PRIORIDADE
+
+1. Leia as instruções do repositório e os testes existentes.
+2. Leia README.md e brand-guide.md do kit.
+3. Use tokens/tokens.json como referência dos valores do design; tokens/tokens.css e tokens/tokens.ts são versões de integração. Adapte à stack, sem duplicar a fonte de verdade.
+4. Use os SVGs em logos/, as fontes locais em fonts/ e os recursos de icons/, ui-icons/ e social/. Leia icons/PLATFORM-NOTES.md para as limitações e instruções por plataforma. Não redesenhe o símbolo com CSS, emoji ou uma biblioteca de ícones.
+5. Se um nome de arquivo mudar ou um asset estiver ausente, localize o equivalente no kit. Não crie silenciosamente uma nova marca. Em conflitos, preserve a funcionalidade e explique a decisão.
+
+IDENTIDADE A PRESERVAR
+
+Nome: Vezuna, com V maiúsculo. Não traduzir nem acrescentar “Health”, “AI” ou “Medical” ao logotipo.
+
+Assinatura em inglês: Your health, in one place.
+Assinatura em português: Sua saúde, em um só lugar.
+Assinatura em espanhol: Tu salud, en un solo lugar.
+
+Personalidade: clara, acolhedora, discreta. Evite estética de hospital, excesso de badges, neon, gamificação de saúde e efeitos visuais que concorram com os dados.
+
+Símbolo: V abstrato de duas curvas arredondadas em torno de um ponto central. Preserve o SVG fornecido, proporções, geometria e cores. Não espelhe nem mesmo em layouts RTL. Deixe ao redor da marca pelo menos um diâmetro do ponto central de área livre. Use símbolo com mínimo recomendado de 24 px, assinatura horizontal com pelo menos 120 px e os favicons próprios para tamanhos menores.
+
+Paleta:
+- Navy #123B46
+- Teal #087F8C
+- Aqua #71E2CC
+- Offwhite #F5FAF9
+- Ink #152E35
+- Fundo escuro #0C2027
+- Texto no tema escuro #E7F5F2
+
+No tema claro, use teal nas ações e tinta escura no texto. No tema escuro, use aqua nas ações e texto escuro sobre botões aqua. Não use aqua como texto pequeno sobre fundo claro. Prefira tokens semânticos aos valores HEX soltos. Marca, sucesso, atenção, erro e informação não são a mesma categoria.
+
+Tipografia: Noto Sans Regular 400 e Bold 700, com os arquivos locais do kit e a licença preservada. Fallback: "Noto Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif. Se outro sistema de escrita precisar de uma família Noto específica, use um fallback adequado e registre a dependência; não assuma cobertura universal. Não carregue fontes de terceiros por padrão.
+
+Escala-base: corpo 16 px/1,5; texto secundário 14 px/1,5; título 24 px/1,2; hero 40 px/1,2. Espaçamentos: 4, 8, 16, 24, 32 e 48. Raios: control 12, card 20 e pill 999. Respeite o dimensionamento de texto da plataforma. Não aplique alturas fixas que cortem tradução ou texto ampliado. Para toque, prefira 44 pt em iOS, 48 dp em Android e 48 CSS px na web. Movimento: fast 120 ms, normal 200 ms, reduced 0 ms.
+
+ETAPA 1  INSPECIONE ANTES DE ALTERAR
+
+- Identifique stack, plataformas, gerenciador de dependências, comandos de build/teste, localização de temas, componentes, fontes, imagens e traduções.
+- Identifique o nome visual atual e os lugares em que aparece: navegação, onboarding, autenticação, páginas, estados vazios, mensagens, metadata, splash, ícone e documentação do projeto.
+- Mapeie os fluxos existentes de medicamentos, exames, conexões e configurações. Registre o que pode ser validado localmente.
+- Execute ou registre o estado inicial dos testes relevantes. Não atribua ao rebrand falhas preexistentes sem comparar.
+- Faça um plano curto de arquivos e componentes a alterar. Depois prossiga com mudanças locais reversíveis; só peça uma decisão quando houver ambiguidade realmente bloqueante, risco ou ampliação de escopo.
+
+ETAPA 2  INTEGRE O SISTEMA VISUAL
+
+- Crie ou adapte um ponto central de tokens. Mapeie a paleta para os tokens semânticos da stack existente, em claro e escuro.
+- Reutilize componentes e bibliotecas existentes. Não reescreva o aplicativo e não introduza um framework, dependência ou serviço só para o rebrand.
+- Instale os assets nos diretórios corretos. Use as versões color/ink em fundo claro, dark em fundo escuro e white quando precisar de uma cor branca. Mantenha proporção e respiro.
+- Carregue as fontes localmente se a plataforma suportar, ou configure a alternativa nativa apropriada. Preserve licenças e avisos.
+- Aplique tipografia, espaçamento, raios e estados de interação a botões, links, campos, navegação, cartões, tabelas, diálogos, toasts e loaders.
+- Revise os estados padrão, hover, pressionado, foco, carregando, desabilitado, vazio, erro, offline e sucesso. As mensagens devem refletir o estado real.
+- Use as exportações específicas de app icons e favicons onde compatíveis. Para splash, aplique o símbolo fornecido seguindo a implementação existente, sem presumir que o kit contém um splash nativo pronto. Preserve camadas e zona segura do ícone adaptativo Android; não trate uma imagem quadrada como validação automática de todas as plataformas.
+- Atualize apenas os nomes visíveis e metadados de apresentação pertinentes. Não altere bundle ID, applicationId, schemes, URLs de callback, chaves de armazenamento, IDs de banco, contratos de API ou configurações de assinatura sem aprovação específica.
+- Não remova créditos de terceiros nem substitua a licença do código por uma licença imaginada para a marca.
+
+ETAPA 3  PRESERVE O PRODUTO E OS DADOS
+
+- Mantenha rotas, contratos, schemas, autenticação, autorização, validações, cálculos e persistência.
+- Não altere medicamentos, doses, unidades, horários, alertas, limites, resultados ou intervalos de referência como parte da mudança visual.
+- Não conecte provedores de saúde, ative sincronização, solicite novos escopos de dados nem troque permissões do sistema sem tarefa e autorização separadas.
+- Não implemente diagnóstico, aconselhamento clínico ou interpretação automática de exames para preencher uma tela.
+- Não adicione telemetria, analytics, SDKs de marketing, chamadas externas ou coleta de dados.
+- Use somente dados fictícios em previews, screenshots, fixtures e testes. Não leia, copie ou envie dados pessoais de saúde para serviços externos, incluindo serviços de IA. Não inclua dados de usuários em logs, prompts, screenshots ou commits.
+- Se precisar de dados para testar, crie uma fixture sintética isolada. Não faça migrações, limpezas ou operações destrutivas sobre dados reais.
+- Não faça deploy, publique em lojas, envie assets para terceiros nem altere produção. Entregue alterações locais revisáveis, resultados de teste e instruções para revisão.
+
+ETAPA 4  TEXTO E INTERNACIONALIZAÇÃO
+
+- Use o idioma escolhido pelo usuário e preserve as localidades existentes. A assinatura inglesa é a versão internacional de marca, não um idioma obrigatório para todas as telas.
+- Externalize novas strings no sistema de i18n existente. Não concatene frases e não use bandeiras para idiomas.
+- Formate números, datas e horários conforme localidade, preservando unidade e significado dos dados.
+- Teste expansão de texto e RTL com propriedades lógicas. Espelhe apenas elementos direcionais apropriados, nunca logotipo, conteúdo numérico ou gráficos automaticamente.
+- Prefira “Adicionar medicamento”, “Ver resultado”, “Registro salvo” e erros que indiquem o próximo passo.
+- Evite “100% seguro”, “clinicamente validado”, “previne doenças”, “diagnóstico inteligente”, “sempre sincronizado” ou afirmações de privacidade sem evidência técnica e revisão.
+- Não escreva “salvo neste dispositivo” se houver armazenamento remoto, nem “sincronizado” se a operação ainda estiver pendente.
+- Se fizer sentido no contexto e já estiver dentro da arquitetura editorial do produto, use: “As informações aqui ajudam a organizar seus registros e não substituem a avaliação de um profissional de saúde.” Não use um aviso para justificar uma função insegura.
+- Em páginas públicas, descreva o projeto e seus recursos sem insinuar disponibilidade não verificada. Não declare marca registrada, disponibilidade de domínio, auditoria de segurança ou certificação.
+
+ETAPA 5  ACESSIBILIDADE E QUALIDADE
+
+Meta: WCAG 2.2 AA, sem declarar certificação. Consulte o checklist do guia e o padrão oficial: https://www.w3.org/TR/WCAG22/.
+
+- Meça contraste em combinações e estados reais, não apenas nos HEX isolados. Texto normal: 4,5:1; texto grande: 3:1; identificação visual necessária de controles e estados: 3:1, observadas as regras e exceções do padrão.
+- Verifique foco visível, ordem de tabulação, ausência de armadilhas, labels, nomes acessíveis, feedback de validação e anúncio de estados.
+- Não use apenas cor para indicar status, risco, seleção ou séries de gráficos.
+- Teste teclado e leitor de tela; quando não houver ferramenta disponível, informe exatamente o que não foi testado.
+- Teste claro e escuro, 320/375/768/1280 px ou equivalentes da plataforma, texto ampliado, conteúdo longo, estados vazios, erros, offline e um cenário RTL.
+- Em web, confira zoom de 200% e reflow; em nativo, confira tamanho de texto e controles do sistema. Tabelas extensas podem usar uma estratégia acessível própria, sem causar overflow de toda a página.
+- Confirme que SVGs, fontes e imagens carregam sem dependências remotas novas ou erros de console. Inspecione recortes de ícones em tamanhos reais.
+- Execute os testes, typecheck, lint e build relevantes disponíveis no projeto. Corrija regressões causadas pelas alterações; não esconda testes falhos nem altere expectativas só para passar.
+- Faça uma revisão visual final das principais telas em claro e escuro. Compare funcionalidades com a linha de base.
+
+CRITÉRIOS DE ACEITE
+
+1. A marca visível passa a ser Vezuna nos pontos incluídos no escopo, sem alterar identidades técnicas.
+2. Símbolo, assinatura, fonte e paleta vêm do kit e não de uma interpretação nova.
+3. Cores e temas têm uma fonte de verdade e estados semânticos coerentes.
+4. Os fluxos existentes continuam funcionando e nenhum dado clínico foi alterado.
+5. A interface permanece utilizável em mobile, claro/escuro, teclado, texto ampliado e RTL, com evidências do que foi testado.
+6. Não há promessa de saúde, segurança, integração ou privacidade sem suporte verificável.
+7. Nenhuma informação pessoal real foi usada em demonstrações ou enviada a terceiros.
+8. Nenhuma publicação, operação em produção, mudança destrutiva ou nova coleta foi feita.
+
+FORMATO DA ENTREGA
+
+Entregue:
+- Resumo breve das mudanças e telas afetadas.
+- Lista dos arquivos principais alterados e como os tokens foram integrados.
+- Screenshots locais com dados fictícios, em claro e escuro, quando possível.
+- Comandos de teste executados, resultados reais e falhas preexistentes separadas das novas.
+- Lacunas de validação e decisões ainda necessárias, sem apresentar itens não testados como aprovados.
+- Instruções curtas para executar e revisar localmente.
+
+Não responda apenas com uma proposta visual: aplique o kit ao código disponível. Se não tiver acesso ao repositório, peça o caminho ou os arquivos e não invente uma implementação concluída.
+

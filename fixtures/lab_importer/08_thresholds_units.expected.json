@@ -1,0 +1,118 @@
+{
+  "attachments": [],
+  "document_type": "laboratory",
+  "extraction": {
+    "character_count": 533,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [
+    {
+      "additional_values": [],
+      "analyte": "Antiperoxidase Tireoideana - Anticorpos",
+      "normalized_unit": "U/mL",
+      "normalized_value": 0.5,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "threshold",
+        "lower": null,
+        "operator": "<",
+        "text": "Inferior a 5,0 U/mL",
+        "unit": "U/mL",
+        "upper": 5
+      },
+      "unit": "U/mL",
+      "value": 0.5,
+      "value_operator": "<",
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "TRAB (Anticorpo Anti-Receptor de TSH)",
+      "normalized_unit": "UI/L",
+      "normalized_value": 0.8,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "threshold",
+        "lower": null,
+        "operator": "<",
+        "text": "Inferior a 1,75 UI/L",
+        "unit": "UI/L",
+        "upper": 1.75
+      },
+      "unit": "UI/L",
+      "value": 0.8,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Glicose",
+      "normalized_unit": "mg/L",
+      "normalized_value": 880,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 70,
+        "text": "70 a 99 mg/dL",
+        "unit": "mg/dL",
+        "upper": 99
+      },
+      "unit": "mg/dL",
+      "value": 88,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Creatinina",
+      "normalized_unit": "mmol/L",
+      "normalized_value": 1,
+      "range_assessment": "incompatible_units",
+      "reference": {
+        "kind": "range",
+        "lower": 0.5,
+        "text": "0,50 a 0,90 mg/dL",
+        "unit": "mg/dL",
+        "upper": 0.9
+      },
+      "unit": "mmol/L",
+      "value": 1,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Triglicérides",
+      "normalized_unit": "mg/L",
+      "normalized_value": 1400,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "deferred",
+        "text": "(Vide Intervalo de Referência Abaixo)",
+        "unit": null
+      },
+      "unit": "mg/dL",
+      "value": 140,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "VLDL - Colesterol",
+      "normalized_unit": "mg/L",
+      "normalized_value": 280,
+      "range_assessment": "unknown",
+      "reference": {
+        "kind": "undefined",
+        "text": "Não apresenta intervalo de referência definido.",
+        "unit": null
+      },
+      "unit": "mg/dL",
+      "value": 28,
+      "value_operator": null,
+      "value_type": "numeric"
+    }
+  ],
+  "study": null
+}

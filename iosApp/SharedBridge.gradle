@@ -1,0 +1,16 @@
+// Build-only source injection: repository files remain unchanged.
+gradle.projectsEvaluated {
+    def sharedProject = gradle.rootProject.findProject(":shared")
+    if (sharedProject == null) {
+        throw new GradleException("VitaHearth shared project is required")
+    }
+    def kotlin = sharedProject.extensions.findByName("kotlin")
+    if (kotlin == null) {
+        throw new GradleException("VitaHearth shared Kotlin extension is required")
+    }
+    def iosMain = kotlin.sourceSets.findByName("iosMain")
+    if (iosMain == null) {
+        throw new GradleException("VitaHearth shared iosMain source set is required")
+    }
+    iosMain.kotlin.srcDir(new File(sharedProject.projectDir, "../iosApp/SharedBridge"))
+}

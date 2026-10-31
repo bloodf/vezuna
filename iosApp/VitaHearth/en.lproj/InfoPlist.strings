@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Vezuna";
+"NSCameraUsageDescription" = "Vezuna uses the camera only to scan lab reports on this device.";
+"NSHealthShareUsageDescription" = "Vezuna imports heart rate, steps, and weight only when you request it.";
+"NSPhotoLibraryUsageDescription" = "Vezuna reads selected lab report images for on-device OCR.";

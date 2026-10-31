@@ -1,0 +1,219 @@
+{
+  "svg_xml_parse": "pass",
+  "json_parse": "pass",
+  "ios_png_opaque_rgb": "pass",
+  "pngs": [
+    {
+      "file": "preview/brand-overview.png",
+      "size": [
+        1600,
+        1600
+      ]
+    },
+    {
+      "file": "social/github-1280x640.png",
+      "size": [
+        1280,
+        640
+      ]
+    },
+    {
+      "file": "social/feature-1024x500.png",
+      "size": [
+        1024,
+        500
+      ]
+    },
+    {
+      "file": "social/og-1200x630.png",
+      "size": [
+        1200,
+        630
+      ]
+    },
+    {
+      "file": "logos/mark-dark.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "logos/lockup-ink.png",
+      "size": [
+        1640,
+        440
+      ]
+    },
+    {
+      "file": "logos/lockup-white.png",
+      "size": [
+        1640,
+        440
+      ]
+    },
+    {
+      "file": "logos/lockup-dark.png",
+      "size": [
+        1640,
+        440
+      ]
+    },
+    {
+      "file": "logos/mark-color.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "logos/lockup-color.png",
+      "size": [
+        1640,
+        440
+      ]
+    },
+    {
+      "file": "logos/mark-white.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "logos/mark-ink.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "icons/android/foreground.png",
+      "size": [
+        432,
+        432
+      ]
+    },
+    {
+      "file": "icons/android/monochrome.png",
+      "size": [
+        432,
+        432
+      ]
+    },
+    {
+      "file": "icons/android/play-store-512.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "icons/android/background.png",
+      "size": [
+        432,
+        432
+      ]
+    },
+    {
+      "file": "icons/web/icon-48.png",
+      "size": [
+        48,
+        48
+      ]
+    },
+    {
+      "file": "icons/web/icon-192.png",
+      "size": [
+        192,
+        192
+      ]
+    },
+    {
+      "file": "icons/web/icon-180.png",
+      "size": [
+        180,
+        180
+      ]
+    },
+    {
+      "file": "icons/web/icon-512.png",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "file": "icons/web/icon-16.png",
+      "size": [
+        16,
+        16
+      ]
+    },
+    {
+      "file": "icons/web/icon-32.png",
+      "size": [
+        32,
+        32
+      ]
+    },
+    {
+      "file": "icons/android/res/mipmap-hdpi/ic_launcher.png",
+      "size": [
+        72,
+        72
+      ]
+    },
+    {
+      "file": "icons/android/res/mipmap-xxhdpi/ic_launcher.png",
+      "size": [
+        144,
+        144
+      ]
+    },
+    {
+      "file": "icons/android/res/mipmap-xxxhdpi/ic_launcher.png",
+      "size": [
+        192,
+        192
+      ]
+    },
+    {
+      "file": "icons/android/res/mipmap-mdpi/ic_launcher.png",
+      "size": [
+        48,
+        48
+      ]
+    },
+    {
+      "file": "icons/android/res/mipmap-xhdpi/ic_launcher.png",
+      "size": [
+        96,
+        96
+      ]
+    },
+    {
+      "file": "icons/ios/AppIcon.appiconset/icon-tinted.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "icons/ios/AppIcon.appiconset/icon-default.png",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "icons/ios/AppIcon.appiconset/icon-dark.png",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "native_app_build": "not_run",
+  "trademark_clearance": "not_performed"
+}
