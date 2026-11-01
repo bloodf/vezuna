@@ -73,6 +73,16 @@ try {
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(origin, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('.store-pending').count(), 2, 'Store availability states are missing');
+  assert.equal(await page.locator('.availability-actions a').getAttribute('href'), 'https://github.com/bloodf/vezuna');
+  const scene = page.locator('[data-health-scene]');
+  await scene.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
+  const firstFrame = Number(await scene.getAttribute('data-frame'));
+  await page.waitForTimeout(450);
+  const nextFrame = Number(await scene.getAttribute('data-frame'));
+  assert(nextFrame > firstFrame, `3D scene did not animate: ${firstFrame} -> ${nextFrame}`);
+  await page.locator('.health-scene-stage').screenshot({ path: 'screenshots/health-scene-desktop.png' });
   for (const anchor of ['how-it-works', 'routines', 'privacy', 'faq']) {
     await page.locator(`.primary-nav a[href="#${anchor}"]`).click();
     assert.equal(new URL(page.url()).hash, `#${anchor}`);
@@ -93,6 +103,9 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'screenshots/home-mobile.png', fullPage: false });
   await page.screenshot({ path: 'screenshots/home-mobile-full.png', fullPage: true });
+  await scene.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
+  await page.locator('.health-scene-stage').screenshot({ path: 'screenshots/health-scene-mobile.png' });
   const galleryWidth = await page.locator('.screenshot').first().evaluate((element) => element.getBoundingClientRect().width);
   assert(galleryWidth >= 280, `Mobile screenshots are too small: ${galleryWidth}`);
   await page.locator('.navigation > summary').click();
@@ -130,6 +143,15 @@ try {
   await page.goto(`${origin}/docs/getting-started`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: 'screenshots/docs-mobile.png', fullPage: false });
 
+  await page.goto(origin, { waitUntil: 'networkidle' });
+  const staticScene = page.locator('[data-health-scene]');
+  await staticScene.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
+  await page.waitForTimeout(250);
+  const staticFrame = Number(await staticScene.getAttribute('data-frame'));
+  await page.waitForTimeout(350);
+  assert.equal(Number(await staticScene.getAttribute('data-frame')), staticFrame, 'Reduced-motion scene kept animating');
+
   const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/pt-br/docs/getting-started', '/support', '/privacy'];
   const violations = [];
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -143,7 +165,7 @@ try {
   }
   assert.deepEqual(violations, [], `Accessibility violations:\n${violations.join('\n')}`);
   assert.deepEqual(errors, [], `Browser errors:\n${[...new Set(errors)].join('\n')}`);
-  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} search=passed navigation=passed reducedMotion=passed screenshots=6`);
+  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} search=passed navigation=passed webgl=animated reducedMotion=static screenshots=8`);
 } finally {
   if (browser) await browser.close();
   if (server.pid) {

@@ -17,6 +17,10 @@ for (const route of routes) {
   assert(html.includes('<html lang='), `${route} missing language metadata`);
   assert(html.includes('rel="canonical"'), `${route} missing canonical`);
   assert(html.includes('<main'), `${route} missing main content`);
+  if (['/', '/pt-br', '/es'].includes(route)) {
+    assert(html.includes('data-health-scene'), `${route} is missing the 3D health scene`);
+    assert(html.includes('store-pending'), `${route} is missing honest store availability states`);
+  }
   assert(!/Deployment not found|404: NOT_FOUND|This page could not be found/.test(html), `${route} served an error page`);
 }
 for (const asset of ['/robots.txt', '/sitemap-index.xml', '/sitemap-0.xml', '/assets/og-1200x630.png', '/pagefind/pagefind-component-ui.js']) {
