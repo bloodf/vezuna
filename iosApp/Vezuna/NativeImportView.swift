@@ -51,10 +51,25 @@ struct NativeImportView: View {
                                     TextField(L10n.text(.reference_lower), text: $candidate.referenceLower).keyboardType(.decimalPad)
                                     TextField(L10n.text(.reference_upper), text: $candidate.referenceUpper).keyboardType(.decimalPad)
                                 }
+                                if let chosen = candidate.collectedAt {
+                                    DatePicker(
+                                        L10n.text(.collection_date),
+                                        selection: Binding(get: { chosen }, set: { candidate.collectedAt = $0 }),
+                                        in: ...Date(),
+                                        displayedComponents: .date
+                                    )
+                                    Button(L10n.text(.apply_date_to_all)) { applyDateToAll(chosen) }
+                                } else {
+                                    Button(L10n.text(.collection_date)) { candidate.collectedAt = Date() }
+                                }
                             }
                             .padding(.vertical, 4)
                         }
-                        Button(L10n.text(.add_unconfirmed_review)) { save() }.disabled(saving)
+                        if candidates.contains(where: { $0.collectedAt == nil }) {
+                            Text(L10n.text(.collection_date_required)).font(.footnote).foregroundStyle(Color.vezunaDanger)
+                        }
+                        Button(L10n.text(.add_unconfirmed_review)) { save() }
+                            .disabled(saving || candidates.contains(where: { $0.collectedAt == nil }))
                     }
                 }
                 if let errorMessage {
@@ -121,18 +136,35 @@ struct NativeImportView: View {
     @MainActor
     private func showError(_ error: Error) { errorMessage = error.localizedDescription }
 
+    private func applyDateToAll(_ date: Date?) {
+        guard let date else { return }
+        candidates = candidates.map { var copy = $0; copy.collectedAt = date; return copy }
+    }
+
+    /// Noon UTC of the user's chosen local calendar day, so the day is stable in every time zone.
+    private func storedInstant(_ date: Date) -> Int64 {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let noon = utc.date(from: DateComponents(year: parts.year, month: parts.month, day: parts.day, hour: 12)) ?? date
+        return Int64(noon.timeIntervalSince1970)
+    }
+
     private func save() {
         guard let sourceData, let profileId = IosRuntime.shared.currentProfileId() else { return }
+        let dated = candidates.compactMap { candidate in candidate.collectedAt.map { (candidate, $0) } }
+        guard dated.count == candidates.count else { errorMessage = L10n.text(.collection_date_required); return }
         saving = true
-        let input = candidates.map {
+        let input = dated.map { candidate, date in
             NativeCandidateInput(
-                testCode: $0.testCode,
-                displayName: $0.displayName,
-                rawValue: $0.rawValue,
-                rawUnit: $0.rawUnit,
-                referenceLower: $0.referenceLower,
-                referenceUpper: $0.referenceUpper,
-                confidence: $0.confidence.map { KotlinFloat(float: $0) }
+                testCode: candidate.testCode,
+                displayName: candidate.displayName,
+                rawValue: candidate.rawValue,
+                rawUnit: candidate.rawUnit,
+                referenceLower: candidate.referenceLower,
+                referenceUpper: candidate.referenceUpper,
+                confidence: candidate.confidence.map { KotlinFloat(float: $0) },
+                collectedEpochSeconds: storedInstant(date)
             )
         }
         IosRuntime.shared.importNativeCandidates(
@@ -140,8 +172,7 @@ struct NativeImportView: View {
             fileName: sourceName,
             mediaType: sourceMediaType,
             sourceBytes: sourceData.kotlinBytes,
-            candidates: input,
-            collectedEpochSeconds: Int64(Date().timeIntervalSince1970)
+            candidates: input
         ) { error in
             DispatchQueue.main.async {
                 saving = false

@@ -81,7 +81,6 @@ import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
-import app.vezuna.platform.currentInstant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -368,19 +367,42 @@ fun ImportReviewScreen(state: AppUiState, controller: AppController, scope: Coro
             VitaButton(vitaText(L10nKey.CHOOSE_SOURCE_CREATE_MANUAL), Icons.Rounded.Add, {
                 scope.launch {
                     val source = sourcePicker() ?: return@launch
-                    controller.importCandidate(source.fileName, source.mediaType, source.bytes, code, name, value, unit, referenceLower, referenceUpper, currentInstant())
+                    controller.importCandidate(source.fileName, source.mediaType, source.bytes, code, name, value, unit, referenceLower, referenceUpper)
                 }
             }, enabled = code.isNotBlank() && name.isNotBlank() && value.isNotBlank() && unit.isNotBlank())
         }
         val pending = data.ocrCandidates.filter { it.status == ConfirmationStatus.UNREVIEWED }
         SectionHeading(vitaPlural(L10nKey.PENDING_CANDIDATES, pending.size))
         if (pending.isEmpty()) EmptyState(vitaText(L10nKey.NOTHING_AWAITING_REVIEW), vitaText(L10nKey.REVIEW_TRACKING), Icons.Rounded.FactCheck)
-        pending.forEach { candidate -> CandidateEditor(candidate, controller, scope) }
+        var chosenDates by remember { mutableStateOf(emptyMap<String, kotlinx.datetime.Instant>()) }
+        pending.forEach { candidate ->
+            val date = chosenDates[candidate.candidateId] ?: candidate.collectedAt.takeIf { candidate.collectedAtKnown }
+            CandidateEditor(
+                candidate = candidate,
+                date = date,
+                onDate = { chosenDates = chosenDates + (candidate.candidateId to it) },
+                onApplyDateToReport = {
+                    val sameReport = pending.filter { it.sourceDocumentId == candidate.sourceDocumentId }
+                    date?.let { picked -> chosenDates = chosenDates + sameReport.associate { it.candidateId to picked } }
+                },
+                controller = controller,
+                scope = scope,
+            )
+        }
     }
 }
 
 @Composable
-private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controller: AppController, scope: CoroutineScope) {
+private fun CandidateEditor(
+    candidate: app.vezuna.domain.OcrCandidate,
+    date: kotlinx.datetime.Instant?,
+    onDate: (kotlinx.datetime.Instant) -> Unit,
+    onApplyDateToReport: () -> Unit,
+    controller: AppController,
+    scope: CoroutineScope,
+) {
+    var code by remember(candidate.candidateId) { mutableStateOf(candidate.testCode) }
+    var name by remember(candidate.candidateId) { mutableStateOf(candidate.displayName) }
     var value by remember(candidate.candidateId) { mutableStateOf(candidate.rawValue) }
     var unit by remember(candidate.candidateId) { mutableStateOf(candidate.rawUnit) }
     var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.toString().orEmpty()) }
@@ -390,13 +412,14 @@ private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controlle
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.WarningAmber, vitaText(L10nKey.UNREVIEWED_OCR_CANDIDATE), tint = MaterialTheme.colorScheme.onTertiaryContainer)
                 Spacer(Modifier.size(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(candidate.displayName, style = MaterialTheme.typography.titleMedium)
-                    Text(candidate.testCode, style = MaterialTheme.typography.labelSmall)
-                }
+                Spacer(Modifier.weight(1f))
                 StatusPill(vitaText(L10nKey.DRAFT), Icons.Rounded.FactCheck, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onTertiaryContainer)
             }
             Text(vitaText(L10nKey.CONFIDENCE, candidate.confidence?.toString() ?: vitaText(L10nKey.CONFIDENCE_NOT_REPORTED)), style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_NAME)) }, singleLine = true)
+            OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_CODE_EXAMPLE)) }, singleLine = true)
+            CollectionDateField(date, onDate, onApplyDateToReport)
+            if (date == null) Text(vitaText(L10nKey.COLLECTION_DATE_REQUIRED), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             if (candidate.qualitative) {
                 OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_QUALITATIVE_VALUE)) }, singleLine = true)
             } else {
@@ -408,7 +431,7 @@ private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controlle
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
+                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
                 OutlinedButton(onClick = { scope.launch { controller.rejectCandidate(candidate.candidateId) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.REJECT)) }
             }
         }

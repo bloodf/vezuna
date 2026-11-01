@@ -83,3 +83,6 @@
 
 "privacy_policy" = "Política de privacidad";
 "privacy_policy_unavailable" = "No se pudo cargar la política de privacidad.";
+"collection_date" = "Fecha de recolección";
+"collection_date_required" = "Elija la fecha de recolección de cada resultado antes de añadir";
+"apply_date_to_all" = "Aplicar esta fecha a todos los resultados de este informe";

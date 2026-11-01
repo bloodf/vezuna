@@ -9,6 +9,8 @@ struct ImportedLabCandidate: Identifiable, Equatable {
     var referenceLower: String
     var referenceUpper: String
     var confidence: Float?
+    /// Chosen by the user during review; nil until set. Never defaulted to the import time.
+    var collectedAt: Date?
 
     init(id: UUID = UUID(), testCode: String, displayName: String, rawValue: String, rawUnit: String, referenceLower: String = "", referenceUpper: String = "", confidence: Float? = nil) {
         self.id = id
@@ -40,7 +42,7 @@ enum LabTextParser {
         "CHOLESTEROL": ("CHOL", "Cholesterol")
     ]
 
-    private static let resultPattern = #"^([A-Za-z][A-Za-z0-9 .()\/-]{0,48}?)\s+(-?\d+(?:[.,]\d+)*)\s+([^\s]+)(.*)$"#
+    private static let resultPattern = #"^([A-Za-z][A-Za-z0-9 .():\/-]{0,48}?)\s+(-?\d+(?:[.,]\d+)*)\s+([^\s]+)(.*)$"#
     private static let rangePattern = #"(-?\d+(?:[.,]\d+)*)\s*(?:-|–|to)\s*(-?\d+(?:[.,]\d+)*)"#
 
     static func parse(_ text: String, confidence: Float? = nil) -> [ImportedLabCandidate] {
