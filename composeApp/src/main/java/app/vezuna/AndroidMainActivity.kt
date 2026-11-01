@@ -24,7 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.health.connect.client.HealthConnectClient
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.viewmodel.initializer
 import app.vezuna.export.AndroidBackupFiles
 import app.vezuna.export.AndroidExportCoordinator
 import app.vezuna.export.NativeExport
@@ -32,17 +36,8 @@ import app.vezuna.export.UserCancelledExport
 import app.vezuna.health.HealthConnectPermissionFlow
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.importer.NativeOcrExtractionService
-import app.vezuna.license.PlayLvlLicenseGate
-import app.vezuna.llm.InstalledModelManager
-import app.vezuna.llm.LocalHealthChat
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import app.vezuna.llm.loadBundledModelCatalog
-import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.PlayAssetPackLoader
-import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
-import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.notifications.ReminderPreferences
@@ -51,19 +46,20 @@ import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AndroidMainActivity : FragmentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
-    internal lateinit var controller: AppController
+    private val session by viewModels<AndroidSessionViewModel> {
+        viewModelFactory { initializer { AndroidSessionViewModel(app) } }
+    }
+    internal val controller: AppController get() = session.controller
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
     private lateinit var backupFiles: AndroidBackupFiles
     private lateinit var healthPermissions: HealthConnectPermissionFlow
-    private lateinit var licenseGate: PlayLvlLicenseGate
-    private lateinit var modelLoader: PlayAssetPackLoader
+    private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
     private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
     private val reminders by lazy {
@@ -112,25 +108,8 @@ class AndroidMainActivity : FragmentActivity() {
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
         backupFiles = AndroidBackupFiles(this, exports)
-        licenseGate = PlayLvlLicenseGate(this)
-        modelLoader = PlayAssetPackLoader(this, licenseGate)
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
-        }
-        val llm = llamatikLocalLlm()
-        val modelManager = InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm)
-        controller = AppController(
-            app.repository,
-            modelManager,
-            LocalHealthChat(app.repository, llm),
-            backup = BackupService(app.vault),
-        )
-        // Only after the vault is readable: initialize() may create a default profile.
-        lifecycleScope.launch {
-            app.vaultState.first { it is VaultState.Ready }
-            // Same bundled catalog file as iOS, read off the main thread.
-            withContext(Dispatchers.IO) { modelManager.configureCatalog(::loadBundledModelCatalog) }
-            controller.initialize()
         }
         val messageFlow = mutableMessage.asStateFlow()
         val exportFlow = mutableExport.asStateFlow()
@@ -148,6 +127,7 @@ class AndroidMainActivity : FragmentActivity() {
             PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
             VezunaAndroidApp(
                 controller = controller,
+                scope = session.viewModelScope,
                 sourcePicker = sourcePicker,
                 modelLoader = modelLoader,
                 messageFlow = messageFlow,
@@ -201,8 +181,8 @@ class AndroidMainActivity : FragmentActivity() {
         if (isFinishing) app.appLock.lockNow()
         if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
         sourcePicker.clearExtraction()
+        sourcePicker.close()
         extraction.close()
-        licenseGate.close()
         super.onDestroy()
     }
 

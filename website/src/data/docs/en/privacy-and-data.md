@@ -39,11 +39,17 @@ Camera, selected photo-library images, and read-only HealthKit access support th
 
 Denying health permissions does not prevent manual recordkeeping. You can keep entering and importing records without connecting Health Connect or HealthKit.
 
+## App lock
+
+App lock is optional. When it is on, Vezuna asks for biometrics or the device passcode when it opens and after five minutes in the background, and it blocks screenshots and app-switcher previews. It needs a screen lock on the device: if the screen lock is removed, app lock turns itself off and says so.
+
 ## Backups and app-identity changes
 
-In-app backups are authenticated, encrypted profile envelopes that can be opened only with the **same device key**. There is no user-passphrase envelope, cross-device recovery, or cross-app recovery.
+New backups are portable files protected by a passphrase you choose (at least 12 characters). The passphrase is stretched with PBKDF2-HMAC-SHA256 (600,000 iterations or more) and the profile is sealed with AES-256-GCM, so the file can be restored on another phone or after reinstalling. Vezuna cannot recover a lost passphrase: without it, the backup can never be opened.
 
-Do not treat this backup format as protection against device loss or as guaranteed recovery after the app and its key have been removed. Sharing a backup also moves the file outside the app’s sandbox.
+Backups made by earlier builds use the older same-device envelope. They open only with the **same device key** on the phone that created them, and the app labels them as same-device backups.
+
+Where you save a backup file is your choice, and it then lives outside the app’s sandbox. A backup protects against device loss only if you saved it somewhere else and still know its passphrase.
 
 Changing the application or bundle ID does not transfer the previous app’s sandbox or Android Keystore keys. A different ID creates a separate installation and does not migrate encrypted data.
 

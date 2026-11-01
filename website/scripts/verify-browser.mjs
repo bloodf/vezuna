@@ -73,39 +73,28 @@ try {
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(origin, { waitUntil: 'networkidle' });
-  assert.equal(await page.locator('.store-pending').count(), 2, 'Store availability states are missing');
-  assert.equal(await page.locator('.availability-actions a').getAttribute('href'), 'https://github.com/bloodf/vezuna');
-  assert.equal(await page.locator('[data-health-scene]').count(), 0, 'Discarded abstract scene is still present');
-  assert(await page.locator('#workspace-panel-labs').isVisible(), 'Lab panel is not visible by default');
-  assert(await page.locator('.lab-chart-line').isVisible(), 'Lab comparison chart is missing');
-  assert((await page.locator('.lab-results').innerText()).includes('13.8'));
+  // Marketing home: real captures only, no fake product UI, honest availability.
+  assert.equal(await page.locator('[data-health-scene], [data-workspace]').count(), 0, 'Discarded scene or simulated workspace is still present');
+  assert.equal(await page.locator('.screen img').count(), 3, 'Expected three real app captures');
+  const heroImage = page.locator('.hero .screen img');
+  assert.equal(await heroImage.getAttribute('loading'), 'eager', 'Hero capture must not lazy-load');
+  assert((await page.locator('#price').innerText()).includes('US$9.99'));
+  assert((await page.locator('.price-status').innerText()).includes('No stable release has been published'));
+  assert.equal(await page.locator('#price a[rel="external"]').getAttribute('href'), 'https://github.com/bloodf/vezuna');
+  assert.equal(await page.locator('.data-map tbody tr').count(), 5, 'Privacy data map rows missing');
+  assert.equal(await page.locator('script[src]:not([src*="pagefind"])').count(), 0, 'Marketing page should ship no external scripts');
 
-  await page.locator('#workspace-tab-meds').click();
-  assert(await page.locator('#workspace-panel-meds').isVisible(), 'Medication panel did not open');
-  assert.equal(await page.locator('.meds-schedule-row').count(), 3);
-  assert((await page.locator('.meds-schedule').innerText()).includes('Snoozed'));
-  await page.locator('#workspace-tab-device').click();
-  assert(await page.locator('#workspace-panel-device').isVisible(), 'Device panel did not open');
-  const deviceText = await page.locator('.device-metrics').innerText();
-  for (const text of ['Weight', '72.4', 'Heart rate', '68', 'Steps', '6,842']) assert(deviceText.includes(text), `Missing device metric: ${text}`);
-  await page.locator('.device-panel').screenshot({ path: 'screenshots/workspace-device.png' });
-  await page.locator('#workspace-tab-household').click();
-  assert(await page.locator('#workspace-panel-household').isVisible(), 'Household panel did not open');
-  assert.equal(await page.locator('.household-profile-row').count(), 2);
+  const firstFaq = page.locator('.faq-item').first();
+  await firstFaq.locator('summary').click();
+  assert.equal(await firstFaq.evaluate((element) => element.open), true, 'FAQ item did not open');
+  await firstFaq.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await firstFaq.evaluate((element) => element.open), false, 'FAQ item did not close from keyboard');
 
-  await page.locator('#workspace-tab-labs').focus();
-  await page.keyboard.press('ArrowRight');
-  assert.equal(await page.locator('#workspace-tab-meds').getAttribute('aria-selected'), 'true', 'Keyboard tab navigation failed');
-  await page.keyboard.press('ArrowLeft');
-  assert.equal(await page.locator('#workspace-tab-labs').getAttribute('aria-selected'), 'true', 'Keyboard return to labs failed');
-  await page.locator('.primary-nav a[href="#workspace-tab-device"]').click();
-  assert.equal(new URL(page.url()).hash, '#workspace-tab-device');
-  await page.locator('#workspace-panel-device').waitFor({ state: 'visible' });
-  assert(await page.locator('#workspace-panel-device').isVisible(), 'Direct device navigation did not select the panel');
-  await page.locator('.primary-nav a[href="#privacy"]').click();
-  assert.equal(new URL(page.url()).hash, '#privacy');
-  await page.locator('.primary-nav a[href="#faq"]').click();
-  assert.equal(new URL(page.url()).hash, '#faq');
+  for (const hash of ['how', 'records', 'privacy', 'price', 'faq']) {
+    await page.locator(`.primary-nav a[href="#${hash}"]`).click();
+    assert.equal(new URL(page.url()).hash, `#${hash}`);
+  }
 
   await page.locator('.language-nav a[href="/pt-br"]').click();
   await page.waitForURL('**/pt-br');
@@ -117,15 +106,21 @@ try {
   assert((await page.locator('h1').innerText()).includes('registros de salud'));
 
   await page.goto(origin, { waitUntil: 'networkidle' });
+  const shift = await page.evaluate(() => new Promise((resolve) => {
+    let total = 0;
+    new PerformanceObserver((list) => { for (const entry of list.getEntries()) if (!entry.hadRecentInput) total += entry.value; })
+      .observe({ type: 'layout-shift', buffered: true });
+    setTimeout(() => resolve(total), 500);
+  }));
+  assert(shift < 0.02, `Layout shift on home: ${shift}`);
   await page.screenshot({ path: 'screenshots/redesign-desktop.png', fullPage: false });
   await page.screenshot({ path: 'screenshots/redesign-desktop-full.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'screenshots/redesign-mobile.png', fullPage: false });
   await page.screenshot({ path: 'screenshots/redesign-mobile-full.png', fullPage: true });
-  await page.locator('.workspace-section').scrollIntoViewIfNeeded();
-  await page.locator('.workspace-section').screenshot({ path: 'screenshots/workspace-mobile.png' });
-  const galleryWidth = await page.locator('.gallery-item').first().evaluate((element) => element.getBoundingClientRect().width);
-  assert(galleryWidth >= 280, `Mobile screenshots are too small: ${galleryWidth}`);
+  const captureWidth = await page.locator('.screen').first().evaluate((element) => element.getBoundingClientRect().width);
+  assert(captureWidth >= 280, `Mobile captures are too small: ${captureWidth}`);
+  assert.equal(await page.locator('.nav-panel').isVisible(), false, 'Mobile menu should start closed');
   await page.locator('.navigation > summary').click();
   assert(await page.locator('.nav-panel').isVisible(), 'Mobile menu did not open');
   await page.locator('.primary-nav a[href="#faq"]').click();
@@ -154,12 +149,18 @@ try {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior), 'auto');
   await page.goto(origin, { waitUntil: 'networkidle' });
-  assert(await page.locator('#workspace-panel-labs').evaluate((element) => ['0s', '0ms'].includes(getComputedStyle(element).animationDuration)));
+  assert(await page.locator('.faq-item .icon-plus').first().evaluate((element) => ['0s', '0ms'].includes(getComputedStyle(element).transitionDuration)), 'Reduced motion still animates');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${origin}/docs/developers`, { waitUntil: 'networkidle' });
+  const docsMenu = page.locator('.docs-menu');
+  assert.equal(await docsMenu.evaluate((element) => element.open), false, 'Docs menu should start closed on phones');
+  await docsMenu.locator('summary').click();
+  assert(await page.locator('.docs-nav a[aria-current="page"]').isVisible(), 'Docs menu did not open on phones');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${origin}/docs/getting-started`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: 'screenshots/docs-mobile.png', fullPage: false });
 
-  const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/pt-br/docs/getting-started', '/support', '/privacy'];
+  const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/docs/privacy-and-data', '/pt-br/docs/getting-started', '/es/support', '/support', '/privacy', '/notices', '/404'];
   const violations = [];
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -172,7 +173,7 @@ try {
   }
   assert.deepEqual(violations, [], `Accessibility violations:\n${violations.join('\n')}`);
   assert.deepEqual(errors, [], `Browser errors:\n${[...new Set(errors)].join('\n')}`);
-  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} workspaces=4 keyboardTabs=passed deviceMetrics=passed reducedMotion=passed screenshots=7`);
+  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} captures=3 faqKeyboard=passed docsMobileMenu=passed layoutShift=passed reducedMotion=passed screenshots=6`);
 } finally {
   if (browser) await browser.close();
   if (server.pid) {

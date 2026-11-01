@@ -18,8 +18,8 @@ export async function getStaticPaths() {
 
 interface Props { entry: DocEntry; entries: DocEntry[]; path: string; alternates: Alternates }
 const { entry, entries, path, alternates } = Astro.props;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
 ---
-<DocsLayout locale="es" entry={entry} entries={entries} path={path} alternates={alternates}>
+<DocsLayout locale="es" entry={entry} entries={entries} headings={headings} path={path} alternates={alternates}>
   <Content />
 </DocsLayout>

@@ -686,6 +686,7 @@ class AppController(
             block()
             mutableState.value = mutableState.value.copy(loading = false)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            mutableState.value = mutableState.value.copy(loading = false)
             throw cancellation
         } catch (error: Throwable) {
             mutableState.value = mutableState.value.copy(loading = false, error = error.toUserText())

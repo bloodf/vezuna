@@ -3,7 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import policy from '../data/privacy-policy.html?raw';
 ---
 <BaseLayout locale="en" title="Vezuna privacy policy" description="How Vezuna handles your records, health permissions, exports, and support requests." path="/privacy" alternates={{ en: '/privacy' }}>
-  <main class="simple-main" id="main-content">
+  <main class="page wrap" id="main-content">
     <article class="legal-page" set:html={policy} />
   </main>
 </BaseLayout>

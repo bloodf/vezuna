@@ -19,11 +19,11 @@ const fileForUrl = (url) => {
   return join(dist, path.replace(/\/$/, ''), 'index.html');
 };
 const requiredText = {
-  '/': ['Keep everyday health records together.', 'Weight', '72.4', 'Heart rate', '6,842', 'Demo Medicine', 'data-workspace'],
-  '/pt-br': ['Mantenha os registros de saúde do dia a dia juntos.', 'Peso', '72,4', 'Frequência cardíaca', '6.842', 'data-workspace'],
-  '/es': ['Mantén juntos los registros de salud diarios.', 'Peso', '72,4', 'Frecuencia cardíaca', '6.842', 'data-workspace'],
+  '/': ['Keep your household’s health records on your phone.', 'US$9.99', 'No stable release has been published', 'Android 8.0', 'iOS 18.5', 'does not diagnose', 'no AI features are available', 'android-labs-800.webp'],
+  '/pt-br': ['Guarde os registros de saúde da família no seu celular.', 'US$9,99', 'Nenhuma versão estável foi publicada', 'Não diagnostica'],
+  '/es': ['Guarda los registros de salud de tu familia en tu teléfono.', 'US$9,99', 'No se ha publicado una versión estable', 'No diagnostica'],
   '/docs/developers': ['JDK 17', 'Android SDK API 37', 'iOS 26 SDK', 'EAS Submit', 'app.vezuna'],
-  '/docs/privacy-and-data': ['same device key', 'Denying health permissions', 'Vercel'],
+  '/docs/privacy-and-data': ['same device key', 'passphrase', 'App lock', 'Denying health permissions', 'Vercel'],
   '/privacy': ['Vezuna privacy policy', 'Publisher and contact', 'Vercel hosts the website'],
   '/support': ['GitHub private vulnerability reporting', 'Never attach actual medical documents'],
 };
@@ -39,7 +39,7 @@ for (const route of routes) {
   assert(html.includes('<main'), `Missing main landmark: ${route}`);
   assert(html.includes('rel="canonical"'), `Missing canonical: ${route}`);
   assert(html.includes('property="og:image"'), `Missing social preview: ${route}`);
-  assert(html.includes('/fonts/NotoSans-Regular.ttf'), `Missing local font: ${route}`);
+  assert(html.includes('/fonts/NotoSans-Regular-latin.woff2'), `Missing local font preload: ${route}`);
   assert(!/TODO:|PLACEHOLDER|lorem ipsum|example\.com/i.test(html), `Placeholder content: ${route}`);
   for (const text of requiredText[route] ?? []) assert(html.includes(text), `Missing required claim on ${route}: ${text}`);
   for (const image of html.matchAll(/<img\b[^>]*>/g)) assert(/\balt="[^"]*"/.test(image[0]), `Missing image alt on ${route}`);

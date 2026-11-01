@@ -28,7 +28,7 @@ Vezuna can generate:
 
 - **PDF reports** with exam sections, result and reference columns, status indicators, history tables, and charts.
 - **CSV exports** for confirmed data.
-- **Encrypted profile backups** for same-device restoration.
+- **Passphrase-encrypted profile backups** that restore on this or another phone.
 
 Exports are generated on demand and handed to the operating system’s document picker or share sheet. Only confirmed results appear in clinician exports.
 

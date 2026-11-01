@@ -67,6 +67,12 @@ class AndroidSourcePicker(
 
     fun clearExtraction() { mutableLastExtraction.value = null }
 
+    /** Drops an in-flight pick so a retained caller does not wait on a destroyed Activity. */
+    fun close() {
+        pending?.cancel()
+        pending = null
+    }
+
     private fun launchCamera(result: CompletableDeferred<PickedSource?>) = try {
         val directory = File(activity.cacheDir, "camera").apply { mkdirs() }
         val file = File.createTempFile("lab-", ".jpg", directory)

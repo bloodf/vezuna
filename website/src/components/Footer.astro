@@ -8,22 +8,19 @@ const copy = marketingCopy[locale].footer;
 const home = localizedPath(locale);
 ---
 <footer class="site-footer">
-  <div class="footer-inner">
+  <div class="footer-inner wrap">
     <div class="footer-brand">
-      <a href={home} aria-label="Vezuna — home"><img src="/assets/lockup-dark.svg" width="174" height="50" alt="Vezuna" /></a>
+      <a href={home} aria-label={marketingCopy[locale].nav.home}><img src="/assets/lockup-dark.svg" width="154" height="44" alt="Vezuna" /></a>
       <p>{copy.tagline}</p>
     </div>
-    <nav class="footer-nav" aria-label="Footer navigation">
+    <nav class="footer-nav" aria-label="Footer">
       <a href={localizedPath(locale, 'docs')}>{copy.docs}</a>
       <a href={localizedPath(locale, 'support')}>{copy.support}</a>
       <a href="/privacy">{copy.privacy}</a>
-      <a href={repositoryUrl} rel="external">{copy.source}</a>
       <a href="/notices">{copy.notices}</a>
+      <a href={repositoryUrl} rel="external">{copy.source}</a>
     </nav>
     <p class="footer-medical">{copy.medical}</p>
-    <div class="footer-meta">
-      <span>© 2026 Vezuna contributors</span>
-      <span>Source and original artwork: MIT · Noto Sans: SIL OFL 1.1</span>
-    </div>
+    <p class="footer-meta"><span>© 2026 Vezuna contributors.</span> <span>{copy.licenses}</span></p>
   </div>
 </footer>

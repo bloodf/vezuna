@@ -3,31 +3,30 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { repositoryUrl } from '../lib/i18n';
 ---
 <BaseLayout locale="en" title="Third-party notices" description="Licenses and attribution for Vezuna source, original artwork, fonts, website dependencies, and native app components." path="/notices" alternates={{ en: '/notices' }}>
-  <main class="simple-main" id="main-content">
+  <main class="page wrap" id="main-content">
     <article class="legal-page">
-      <p class="eyebrow">Licenses and attribution</p>
       <h1>Third-party notices</h1>
       <p>Different parts of Vezuna retain different terms. The MIT license for source or original artwork does not relicense fonts, dependencies, models, or trademarks.</p>
 
       <h2>Source and original artwork</h2>
-      <p>Vezuna project source and original Vezuna artwork are MIT licensed, copyright © 2026 bloodf and Vezuna contributors. Trademark rights are not granted; domain ownership does not establish name clearance or endorsement.</p>
+      <p>Vezuna project source and original Vezuna artwork are MIT licensed, copyright © 2026 bloodf and Vezuna contributors. Trademark rights are not granted. Domain ownership does not establish name clearance or endorsement.</p>
       <p><a href="/licenses/MIT.txt">Read the project MIT license</a><br /><a href="/licenses/BRAND-LICENSE.txt">Read the original-artwork license</a></p>
 
       <h2>Noto Sans</h2>
-      <p>Noto Sans Regular and Bold are distributed under the SIL Open Font License 1.1. The bundled font files were not modified. The required copyright and license notice travels with the website.</p>
+      <p>Noto Sans Regular and Bold are distributed under the SIL Open Font License 1.1. The original font files are bundled unmodified. For faster pages, the website also serves Latin-only WOFF2 subsets generated from them with fontTools, with no glyphs redrawn. The required copyright and license notice travels with the website.</p>
       <p><a href="/fonts/NOTO-LICENSE.txt">Read the Noto license</a></p>
 
       <h2>Website dependencies</h2>
-      <p>The static website uses Astro and its sitemap integration. Documentation search is generated and executed locally by Pagefind, which includes components derived from vscode-ripgrep. Their license notices are preserved below.</p>
+      <p>The static website uses Astro and its sitemap integration. Documentation search is generated and executed locally by Pagefind, which includes components derived from vscode-ripgrep.</p>
       <p><a href="/licenses/PAGEFIND-LICENSE.txt">Pagefind license</a><br /><a href="/licenses/RIPGREP-LICENSE.txt">vscode-ripgrep notice</a></p>
 
       <h2>Native app dependencies</h2>
       <p>The native project includes Kotlin, Compose, AndroidX, Health Connect, ML Kit, Play Asset Delivery, PDFBox Android, Llamatik, Apple frameworks, and vendored Google Play Licensing code. These retain their respective terms. POM declarations alone do not establish every attribution obligation.</p>
-      <p>Production native-library attribution—especially Llamatik’s prebuilt libraries—and model redistribution obligations remain release gates. The production model catalog is currently empty; no model binary is distributed by this website.</p>
+      <p>Production native-library attribution, especially for Llamatik’s prebuilt libraries, and model redistribution obligations remain release gates. The production model catalog is currently empty, and this website distributes no model binary.</p>
       <p><a href={`${repositoryUrl}/blob/main/THIRD_PARTY_NOTICES.md`} rel="external">Read the complete native third-party notice in the source repository</a></p>
 
       <h2>Product screenshots</h2>
-      <p>The website’s Android images are unmodified emulator captures of the actual Compose interface with fictional profiles and records. They are development-build screens, not claims of iPhone runtime validation, signed-store availability, or clinical accuracy.</p>
+      <p>The website’s Android images are emulator captures of the actual Compose interface with fictional profiles and records. The originals are served unmodified, alongside resized WebP copies with the same content. They are development-build screens, not claims of iPhone runtime validation, signed-store availability, or clinical accuracy.</p>
     </article>
   </main>
 </BaseLayout>
