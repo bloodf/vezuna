@@ -85,4 +85,14 @@ class OcrTextParserTest {
         )
         assertTrue(noise.isEmpty())
     }
+
+    @Test
+    fun canonicalNumberHandlesBrazilianSeparatorsAndLeadingZeroGroup() {
+        val cases = mapOf(
+            "250.000" to "250000", "1.234,5" to "1234.5", "5,7" to "5.7", "13.2" to "13.2",
+            "0.500" to "0.500", "-0.500" to "-0.500", "0,500" to "0.500", ".5" to "0.5",
+            "1.234.567" to "1234567", "+12,5" to "12.5", "-1.234,5" to "-1234.5",
+        )
+        cases.forEach { (raw, expected) -> assertEquals(expected, OcrTextParser.canonicalNumber(raw), raw) }
+    }
 }

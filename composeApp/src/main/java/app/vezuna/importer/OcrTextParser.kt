@@ -104,7 +104,7 @@ object OcrTextParser {
         var value = raw.trim().removePrefix("+")
         value = if (',' in value) {
             value.replace(".", "").replace(',', '.')
-        } else if (Regex("[+-]?\\d{1,3}(?:\\.\\d{3})+").matches(value)) {
+        } else if (Regex("[+-]?[1-9]\\d{0,2}(?:\\.\\d{3})+").matches(value)) {
             value.replace(".", "")
         } else value
         if (value.startsWith(".")) value = "0$value"

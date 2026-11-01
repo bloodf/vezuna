@@ -40,8 +40,8 @@ enum LabTextParser {
         "CHOLESTEROL": ("CHOL", "Cholesterol")
     ]
 
-    private static let resultPattern = #"^([A-Za-z][A-Za-z0-9 .()\/-]{0,48}?)\s+(-?\d+(?:[.,]\d+)?)\s+([^\s]+)(.*)$"#
-    private static let rangePattern = #"(-?\d+(?:[.,]\d+)?)\s*(?:-|–|to)\s*(-?\d+(?:[.,]\d+)?)"#
+    private static let resultPattern = #"^([A-Za-z][A-Za-z0-9 .()\/-]{0,48}?)\s+(-?\d+(?:[.,]\d+)*)\s+([^\s]+)(.*)$"#
+    private static let rangePattern = #"(-?\d+(?:[.,]\d+)*)\s*(?:-|–|to)\s*(-?\d+(?:[.,]\d+)*)"#
 
     static func parse(_ text: String, confidence: Float? = nil) -> [ImportedLabCandidate] {
         guard let resultRegex = try? NSRegularExpression(pattern: resultPattern),
@@ -59,7 +59,7 @@ enum LabTextParser {
             let rawName = String(line[nameRange]).trimmingCharacters(in: CharacterSet(charactersIn: ":- "))
             let normalizedName = rawName.uppercased()
             guard !normalizedName.contains("DATE"), !normalizedName.contains("PATIENT"), !normalizedName.contains("REFERENCE") else { return nil }
-            let value = String(line[valueRange]).replacingOccurrences(of: ",", with: ".")
+            let value = canonicalNumber(String(line[valueRange]))
             let unit = String(line[unitRange]).trimmingCharacters(in: CharacterSet(charactersIn: ",;"))
             guard Double(value) != nil, unit.count <= 32, !unit.contains(":") else { return nil }
             let alias = aliases[normalizedName]
@@ -70,8 +70,8 @@ enum LabTextParser {
             if let rangeMatch = rangeRegex.firstMatch(in: suffix, range: suffixNSRange),
                let lowerRange = Range(rangeMatch.range(at: 1), in: suffix),
                let upperRange = Range(rangeMatch.range(at: 2), in: suffix) {
-                lower = String(suffix[lowerRange]).replacingOccurrences(of: ",", with: ".")
-                upper = String(suffix[upperRange]).replacingOccurrences(of: ",", with: ".")
+                lower = canonicalNumber(String(suffix[lowerRange]))
+                upper = canonicalNumber(String(suffix[upperRange]))
             }
             return ImportedLabCandidate(
                 testCode: alias?.code ?? inferredCode(rawName),
@@ -83,6 +83,19 @@ enum LabTextParser {
                 confidence: confidence
             )
         }
+    }
+
+    /// Mirrors Kotlin OcrTextParser.canonicalNumber: pt-BR "." thousands and "," decimals.
+    /// A leading "0" group is never thousands ("0.500" stays 0.500).
+    static func canonicalNumber(_ raw: String) -> String {
+        var value = raw.trimmingCharacters(in: .whitespaces)
+        if value.hasPrefix("+") { value.removeFirst() }
+        if value.contains(",") {
+            value = value.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
+        } else if value.range(of: #"^-?[1-9]\d{0,2}(\.\d{3})+$"#, options: .regularExpression) != nil {
+            value = value.replacingOccurrences(of: ".", with: "")
+        }
+        return value
     }
 
     private static func inferredCode(_ name: String) -> String {
