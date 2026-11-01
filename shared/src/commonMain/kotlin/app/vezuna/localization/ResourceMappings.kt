@@ -278,6 +278,15 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.TEXT_RESULT_TOGGLE to Res.string.text_result_toggle,
     L10nKey.OCR_READ_TOKEN to Res.string.ocr_read_token,
     L10nKey.AMBIGUOUS_NUMBER_WARNING to Res.string.ambiguous_number_warning,
+    // App lock
+    L10nKey.APP_LOCK_TITLE to Res.string.app_lock_title,
+    L10nKey.APP_LOCK_DESCRIPTION to Res.string.app_lock_description,
+    L10nKey.APP_LOCK_UNAVAILABLE to Res.string.app_lock_unavailable,
+    L10nKey.APP_LOCK_FAILED to Res.string.app_lock_failed,
+    L10nKey.APP_LOCK_SUSPENDED to Res.string.app_lock_suspended,
+    L10nKey.LOCK_SCREEN_TITLE to Res.string.lock_screen_title,
+    L10nKey.LOCK_SCREEN_BODY to Res.string.lock_screen_body,
+    L10nKey.UNLOCK to Res.string.unlock,
     // Portable backup and restore
     L10nKey.BACKUP_RESTORED_WITHOUT_VITALS to Res.string.backup_restored_without_vitals,
     L10nKey.BACKUP_FILE_UNREADABLE to Res.string.backup_file_unreadable,
@@ -367,6 +376,10 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.SCHEDULE_END_BEFORE_START to Res.string.schedule_end_before_start,
     L10nKey.SCHEDULE_TIME_DUPLICATE to Res.string.schedule_time_duplicate,
     L10nKey.SCHEDULE_TIMES_REQUIRED to Res.string.schedule_times_required,
+    L10nKey.EXPORT_LANGUAGE to Res.string.export_language,
+    L10nKey.EXPORT_LANGUAGE_DEVICE to Res.string.export_language_device,
+    L10nKey.EXPORT_LANGUAGE_EXPLANATION to Res.string.export_language_explanation,
+    L10nKey.MODEL_CATALOG_UNREADABLE to Res.string.model_catalog_unreadable,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

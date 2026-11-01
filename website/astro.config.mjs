@@ -9,6 +9,12 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'never',
   integrations: [sitemap()],
+  vite: {
+    build: {
+      // The lazy-loaded Three.js engine is intentionally separate from page UI.
+      chunkSizeWarningLimit: 600,
+    },
+  },
   markdown: {
     processor: unified({
       rehypePlugins: [

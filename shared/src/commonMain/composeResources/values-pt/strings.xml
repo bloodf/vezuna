@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">Nenhum perfil</string>
     <string name="no_profile_selected">Nenhum perfil selecionado</string>
     <string name="no_settings">Nenhum ajuste</string>
-    <string name="no_store_model_packs">Nenhum pacote de modelo da loja configurado</string>
-    <string name="no_store_model_packs_explanation">O shell nativo fornece metadados assinados do catálogo e bytes GGUF hospedados na loja. Nenhuma URL de download é presumida.</string>
+    <string name="no_store_model_packs">Modelo de IA ainda não disponível</string>
+    <string name="no_store_model_packs_explanation">Nenhum modelo de IA no dispositivo está incluído nesta versão ainda. Seus registros, importações e exportações funcionam normalmente sem ele.</string>
     <string name="no_trends">Nenhuma tendência</string>
     <string name="no_upcoming_doses">Nenhuma dose futura</string>
     <string name="no_upcoming_doses_explanation">Adicione um medicamento e seu horário prescrito para ver o próximo lembrete.</string>
@@ -351,6 +351,15 @@ iOS: %2$s</string>
         <item quantity="one">Gráfico com %1$d leitura, unidade %2$s</item>
         <item quantity="other">Gráfico com %1$d leituras, unidade %2$s</item>
     </plurals>
+    <!-- App lock -->
+    <string name="app_lock_title">Bloqueio do app</string>
+    <string name="app_lock_description">Exige biometria ou o código do aparelho ao abrir o Vezuna e após 5 minutos em segundo plano. Capturas de tela e prévias na lista de apps recentes ficam bloqueadas enquanto estiver ativo.</string>
+    <string name="app_lock_unavailable">Configure um bloqueio de tela ou biometria neste aparelho para usar o bloqueio do app.</string>
+    <string name="app_lock_failed">Falha na autenticação. Tente novamente.</string>
+    <string name="app_lock_suspended">O bloqueio do app está desativado porque este aparelho não tem bloqueio de tela.</string>
+    <string name="lock_screen_title">O Vezuna está bloqueado</string>
+    <string name="lock_screen_body">Seus registros de saúde ficam ocultos até você desbloquear.</string>
+    <string name="unlock">Desbloquear</string>
     <string name="backup_restored_without_vitals">Backup restaurado, mas os dados de saúde do aparelho não puderam ser restaurados</string>
     <!-- reminders lane -->
     <string name="reminders_scheduled_until">Lembretes agendados até %1$s</string>
@@ -386,4 +395,9 @@ iOS: %2$s</string>
     <string name="schedule_end_before_start">A data de término não pode ser anterior à data de início</string>
     <string name="schedule_time_duplicate">Cada horário de lembrete só pode ser usado uma vez por agenda</string>
     <string name="schedule_times_required">Adicione pelo menos um horário de lembrete</string>
+    <!-- Export language -->
+    <string name="export_language">Idioma da exportação</string>
+    <string name="export_language_device">Idioma do app</string>
+    <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
+    <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
 </resources>

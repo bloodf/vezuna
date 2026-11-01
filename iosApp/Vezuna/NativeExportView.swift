@@ -13,6 +13,8 @@ struct NativeExportView: View {
     @State private var busy = false
     @State private var activity: ActivityItem?
     @State private var errorMessage: String?
+    /// Per-export language override; empty follows the device language.
+    @State private var exportLanguage = ""
 
     var body: some View {
         NavigationStack {
@@ -21,6 +23,15 @@ struct NativeExportView: View {
                     Text(L10n.text(.export_always_available))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+                Section(L10n.text(.export_language)) {
+                    Picker(L10n.text(.export_language), selection: $exportLanguage) {
+                        Text(L10n.text(.export_language_device)).tag("")
+                        Text("English").tag("en")
+                        Text("Português").tag("pt")
+                        Text("Español").tag("es")
+                    }
+                    .pickerStyle(.segmented)
                 }
                 Section(L10n.text(.doctor_export)) {
                     Button { exportCSV() } label: { Label(L10n.text(.share_save_csv), systemImage: "tablecells") }
@@ -42,7 +53,7 @@ struct NativeExportView: View {
 
     private func exportCSV() {
         begin()
-        IosRuntime.shared.exportCsv { csv, error in
+        IosRuntime.shared.exportCsv(languageTag: exportLanguage) { csv, error in
             guard let csv else { self.fail(error); return }
             self.present(data: Data(csv.utf8), fileName: "vezuna-doctor-export.csv")
         }
@@ -50,7 +61,7 @@ struct NativeExportView: View {
 
     private func exportPDF() {
         begin()
-        IosRuntime.shared.exportPdf { pdf, error in
+        IosRuntime.shared.exportPdf(languageTag: exportLanguage) { pdf, error in
             guard let pdf else { self.fail(error); return }
             self.present(data: pdf.bytes.toData(), fileName: pdf.fileName)
         }

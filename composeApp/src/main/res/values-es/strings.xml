@@ -71,4 +71,8 @@
     <string name="privacy_policy_unavailable">No se pudo cargar la política de privacidad.</string>
     <!-- reminders lane -->
     <string name="medication_reminder_generic_text">Hora de tomar un medicamento</string>
+    <!-- App lock -->
+    <string name="app_lock_prompt_title">Desbloquear Vezuna</string>
+    <string name="app_lock_prompt_subtitle">Confirma que eres tú para abrir tus registros de salud</string>
+    <string name="app_lock_use_passcode">Usar código del dispositivo</string>
 </resources>

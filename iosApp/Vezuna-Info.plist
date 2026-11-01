@@ -18,6 +18,8 @@
 	<array>
 		<string>fetch</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Vezuna uses Face ID to unlock the app lock you turn on in Settings.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSans-Regular.ttf</string>
