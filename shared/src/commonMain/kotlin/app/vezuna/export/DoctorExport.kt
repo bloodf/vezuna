@@ -27,12 +27,14 @@ data class DoctorResultRow(
     val collectedAt: Instant,
     val testName: String,
     val testCode: String,
-    val originalValue: Double,
+    /** Null for qualitative rows, which carry [qualitativeValue] instead. */
+    val originalValue: Double?,
     val originalUnit: String,
-    val normalizedValue: Double,
+    val normalizedValue: Double?,
     val normalizedUnit: String,
     val referenceRange: ReferenceRange,
     val assessment: RangeAssessment,
+    val qualitativeValue: String? = null,
 )
 
 data class DoctorMedicationRow(
@@ -75,12 +77,13 @@ object DoctorExportContent {
                     collectedAt = observation.collectedAt,
                     testName = observation.displayName,
                     testCode = observation.testCode,
-                    originalValue = observation.originalValue,
+                    originalValue = observation.originalValue.takeUnless { observation.isQualitative },
                     originalUnit = observation.originalUnit,
-                    normalizedValue = observation.normalizedValue,
+                    normalizedValue = observation.normalizedValue.takeUnless { observation.isQualitative },
                     normalizedUnit = observation.normalizedUnit,
                     referenceRange = observation.referenceRange,
                     assessment = assessmentForExport(observation),
+                    qualitativeValue = observation.qualitativeValue,
                 )
             },
             medicationRows = data.medications
@@ -91,6 +94,7 @@ object DoctorExportContent {
     }
 
     private fun assessmentForExport(observation: LabObservation): RangeAssessment {
+        if (observation.isQualitative) return RangeAssessment.UNKNOWN
         val range = observation.referenceRange
         val originalUnitMatches = range.unit == null || range.unit.equals(observation.originalUnit, ignoreCase = true)
         return if (originalUnitMatches) {
@@ -101,7 +105,7 @@ object DoctorExportContent {
     }
 
     fun trends(data: ProfileData): List<DoctorTrendSeries> = data.observations
-        .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
+        .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative }
         .groupBy { observation ->
             UnitNormalizer.canonicalTestCode(observation.testCode) to observation.normalizedUnit.lowercase()
         }
@@ -133,6 +137,10 @@ object DoctorExportContent {
         data.observations.filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedBy { it.collectedAt }
             .forEach {
+                if (it.isQualitative) {
+                    add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | result ${it.qualitativeValue} | reference ${rangeText(it.referenceRange)}")
+                    return@forEach
+                }
                 add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | original ${it.originalValue} ${it.originalUnit} | normalized ${it.normalizedValue} ${it.normalizedUnit} | reference ${rangeText(it.referenceRange)}")
             }
         add("Medications (recorded, not recommendations)")
@@ -158,7 +166,7 @@ internal fun formatDoctorChartValue(value: Double): String {
 
 class CsvDoctorExporter {
     fun export(data: ProfileData): String = buildString {
-        appendLine("profile_id,collected_at,test_code,test_name,original_value,original_unit,normalized_value,normalized_unit,reference_lower,reference_upper,reference_unit,reference_text")
+        appendLine("profile_id,collected_at,test_code,test_name,original_value,original_unit,normalized_value,normalized_unit,reference_lower,reference_upper,reference_unit,reference_text,qualitative_value")
         data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedBy { it.collectedAt }
@@ -168,14 +176,15 @@ class CsvDoctorExporter {
                     observation.collectedAt.toString(),
                     observation.testCode,
                     observation.displayName,
-                    observation.originalValue.toString(),
+                    if (observation.isQualitative) "" else observation.originalValue.toString(),
                     observation.originalUnit,
-                    observation.normalizedValue.toString(),
+                    if (observation.isQualitative) "" else observation.normalizedValue.toString(),
                     observation.normalizedUnit,
                     observation.referenceRange.lower?.toString().orEmpty(),
                     observation.referenceRange.upper?.toString().orEmpty(),
                     observation.referenceRange.unit.orEmpty(),
                     observation.referenceRange.text.orEmpty(),
+                    observation.qualitativeValue.orEmpty(),
                 )
                 appendLine(values.joinToString(",") { escape(it) })
             }

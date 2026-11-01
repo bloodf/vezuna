@@ -184,7 +184,7 @@ class AppController(
         rawUnit: String,
         referenceLower: String,
         referenceUpper: String,
-        collectedAt: kotlinx.datetime.Instant,
+        collectedAt: kotlinx.datetime.Instant? = null,
     ) = operation {
         val range = ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = rawUnit.trim())
         val inserted = importExtracted(
@@ -260,6 +260,9 @@ class AppController(
                         collectedAt = collectedAt,
                         confidence = candidate.confidence,
                         status = ConfirmationStatus.UNREVIEWED,
+                        qualitative = candidate.valueKind == ExtractedValueKind.QUALITATIVE,
+                        rawToken = candidate.rawToken,
+                        collectedAtKnown = candidate.collectedAt != null,
                     ),
                 )
                 inserted++
@@ -294,21 +297,35 @@ class AppController(
         correctedUnit: String,
         referenceLower: String,
         referenceUpper: String,
+        collectedAt: kotlinx.datetime.Instant? = null,
+        testCode: String? = null,
+        displayName: String? = null,
+        asText: Boolean? = null,
     ) = operation {
         val data = requireData()
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
             ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
         if (candidate.status != ConfirmationStatus.UNREVIEWED) failMessage(L10nKey.CANDIDATE_ALREADY_REVIEWED)
-        val value = parseDecimalInput(correctedValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
-        if (correctedUnit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
-        val normalized = UnitNormalizer.normalize(value, correctedUnit)
-        val range = ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = correctedUnit.trim())
+        val date = collectedAt ?: candidate.collectedAt.takeIf { candidate.collectedAtKnown }
+            ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
+        val code = (testCode ?: candidate.testCode).trim()
+        val name = (displayName ?: candidate.displayName).trim()
+        if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
+        val qualitativeValue = if (asText ?: candidate.looksQualitative) {
+            correctedValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
+        } else null
+        val value = if (qualitativeValue != null) 0.0 else parseDecimalInput(correctedValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
+        val unit = if (qualitativeValue != null) "" else correctedUnit.trim()
+        if (qualitativeValue == null && unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
+        val normalized = UnitNormalizer.normalize(value, unit)
+        val range = if (qualitativeValue != null) ReferenceRange(text = candidate.referenceRange.text)
+        else ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = unit)
         val revisions = candidate.revisions + OcrRevision(
             data.profile.profileId,
             randomId(),
             currentInstant(),
-            "${candidate.rawValue} ${candidate.rawUnit}",
-            "$correctedValue $correctedUnit",
+            "${candidate.rawValue} ${candidate.rawUnit}".trim(),
+            "$correctedValue $unit".trim(),
         )
         val report = data.reports.first { it.sourceDocumentId == candidate.sourceDocumentId }
         val inserted = repository.addObservation(
@@ -316,19 +333,20 @@ class AppController(
                 profileId = data.profile.profileId,
                 observationId = randomId(),
                 reportId = report.reportId,
-                testCode = candidate.testCode,
-                displayName = candidate.displayName,
+                testCode = code,
+                displayName = name,
                 originalValue = value,
-                originalUnit = correctedUnit.trim(),
+                originalUnit = unit,
                 normalizedValue = normalized.value,
                 normalizedUnit = normalized.unit,
                 referenceRange = range,
-                collectedAt = candidate.collectedAt,
+                collectedAt = date,
                 confirmation = ConfirmationStatus.CONFIRMED,
+                qualitativeValue = qualitativeValue,
             ),
         )
         if (!inserted) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
-        repository.updateCandidate(candidate.copy(status = ConfirmationStatus.CONFIRMED, revisions = revisions))
+        repository.updateCandidate(candidate.copy(testCode = code, displayName = name, collectedAt = date, collectedAtKnown = true, status = ConfirmationStatus.CONFIRMED, revisions = revisions))
         loadProfile(data.profile.profileId)
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.CONFIRMED_RESULT_SAVED))
     }

@@ -242,6 +242,18 @@ iOS: %2$s</string>
     <string name="verifying_or_loading_model">Verificando o cargando el modelo…</string>
     <string name="model_sha_required">Se necesita un resumen SHA-256 real de 32 bytes</string>
     <string name="cancel">Cancelar</string>
+    <!-- Lab import review -->
+    <string name="collection_date">Fecha de recolección</string>
+    <string name="collection_date_not_set">Sin definir</string>
+    <string name="collection_date_required">Elija la fecha de recolección antes de confirmar</string>
+    <string name="apply_date_to_all">Aplicar esta fecha a todos los resultados de este informe</string>
+    <string name="choose_date">Elegir fecha</string>
+    <string name="confirmed_qualitative_value">Resultado confirmado (texto)</string>
+    <string name="qualitative_result_required">Ingrese el resultado en texto</string>
+    <string name="qualitative_timeline">Resultados en texto a lo largo del tiempo</string>
+    <string name="text_result_toggle">Resultado en texto (no numérico)</string>
+    <string name="ocr_read_token">OCR leyó: %1$s</string>
+    <string name="ambiguous_number_warning">Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="rename_profile">Renombrar perfil</string>

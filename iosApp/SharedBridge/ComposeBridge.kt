@@ -134,6 +134,8 @@ data class NativeCandidateInput(
     val referenceLower: String,
     val referenceUpper: String,
     val confidence: Float?,
+    val collectedEpochSeconds: Long,
+    val rawToken: String? = null,
 )
 
 object IosRuntime {
@@ -393,7 +395,6 @@ object IosRuntime {
         mediaType: String,
         sourceBytes: ByteArray,
         candidates: List<NativeCandidateInput>,
-        collectedEpochSeconds: Long,
         completion: (NativeMessage?) -> Unit,
     ) {
         if (!initialized) {
@@ -430,9 +431,11 @@ object IosRuntime {
                             app.vezuna.localization.parseDecimalInput(candidate.referenceUpper),
                             unit = candidate.rawUnit.trim(),
                         ),
-                        collectedAt = Instant.fromEpochSeconds(collectedEpochSeconds),
+                        collectedAt = Instant.fromEpochSeconds(candidate.collectedEpochSeconds),
                         confidence = candidate.confidence?.coerceIn(0f, 1f),
                         status = ConfirmationStatus.UNREVIEWED,
+                        collectedAtKnown = true,
+                        rawToken = candidate.rawToken,
                     )
                 }
                 val sourceEnvelope = vault.encrypt(sourceBytes, "Vezuna source v1:$profileId:$documentId".encodeToByteArray())

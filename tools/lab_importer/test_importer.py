@@ -21,6 +21,7 @@ from tools.lab_importer.importer import (  # noqa: E402
     import_text,
     normalize_text,
     observation_fingerprint,
+    parse_number,
 )
 from tools.lab_importer.privacy import scan_fixtures, scan_text  # noqa: E402
 
@@ -58,6 +59,10 @@ class GoldenImporterTests(unittest.TestCase):
         self.assertEqual(selenium["value"], 82)
         self.assertEqual(selenium["normalized_value"], 0.082)
         self.assertEqual(selenium["normalized_unit"], "mg/L")
+
+    def test_02b_pt_br_thousands_leading_zero_group_is_decimal(self) -> None:
+        for token, expected in (("250.000", 250000), ("1.234,5", 1234.5), ("0.500", 0.5), ("-0.500", -0.5), ("1.020", 1020), ("7.350", 7350), ("5,7", 5.7)):
+            self.assertEqual(parse_number(token), expected, token)
 
     def test_03_digit_bearing_analytes_and_historical_rows(self) -> None:
         document = self.documents["04_comprehensive"]

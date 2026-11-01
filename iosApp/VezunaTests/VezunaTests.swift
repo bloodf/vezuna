@@ -73,6 +73,30 @@ final class VezunaTests: XCTestCase {
         XCTAssertEqual(results[2].confidence, 0.91)
     }
 
+    func testPtBrThousandsSeparatorsAreNotMisread() {
+        let cases: [(String, String)] = [
+            ("250.000", "250000"), ("1.234,5", "1234.5"), ("5,7", "5.7"), ("13.2", "13.2"),
+            ("0.500", "0.500"), ("0,500", "0.500"), ("1.234.567", "1234567"), ("-1.234,5", "-1234.5")
+        ]
+        for (raw, expected) in cases {
+            XCTAssertEqual(LabTextParser.canonicalNumber(raw), expected, raw)
+        }
+        let results = LabTextParser.parse("Plaquetas 250.000 /mm3 150.000-450.000\nGlucose 1.234,5 mg/dL")
+        XCTAssertEqual(results.map(\.rawValue), ["250000", "1234.5"])
+        XCTAssertEqual(results[0].referenceLower, "150000")
+        XCTAssertEqual(results[0].referenceUpper, "450000")
+    }
+
+    func testAmbiguousThousandsKeepRawTokenAndLowConfidence() {
+        let results = LabTextParser.parse("Ferritina 7.350 ng/mL 15-300\nColesterol 1.020 mg/dL 0-200\nGlicose 5,7 mg/dL 70-99", confidence: 0.9)
+        XCTAssertEqual(results.map(\.rawValue), ["7350", "1020", "5.7"])
+        XCTAssertEqual(results.map(\.rawToken), ["7.350", "1.020", nil])
+        XCTAssertEqual(results[0].confidence, 0.4)
+        XCTAssertEqual(results[2].confidence, 0.9)
+        XCTAssertFalse(LabTextParser.isAmbiguousThousands("0.500"))
+        XCTAssertFalse(LabTextParser.isAmbiguousThousands("1.234.567"))
+    }
+
     func testDailyAndWeeklyReminderPlanningAndSnooze() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))

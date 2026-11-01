@@ -1,11 +1,14 @@
 package app.vezuna.importer
 
+import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.ui.ExtractedValueKind
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
 import java.text.Normalizer
 import java.util.Locale
 
@@ -16,6 +19,8 @@ data class ParsedOcrMeasurement(
     val referenceRange: ReferenceRange = ReferenceRange(),
     val collectedAt: Instant? = null,
     val valueKind: ExtractedValueKind = ExtractedValueKind.NUMERIC,
+    /** Original OCR token, set only when its reading is ambiguous (see [NumberAmbiguity]). */
+    val rawToken: String? = null,
 )
 
 /** Conservative Portuguese clinical-row parsing. Ambiguous and historical rows stay out of review. */
@@ -100,11 +105,13 @@ object OcrTextParser {
         return results
     }
 
+    private fun ambiguousToken(token: String): String? = token.trim().takeIf(NumberAmbiguity::isAmbiguousThousands)
+
     internal fun canonicalNumber(raw: String): String {
         var value = raw.trim().removePrefix("+")
         value = if (',' in value) {
             value.replace(".", "").replace(',', '.')
-        } else if (Regex("[+-]?\\d{1,3}(?:\\.\\d{3})+").matches(value)) {
+        } else if (Regex("[+-]?[1-9]\\d{0,2}(?:\\.\\d{3})+").matches(value)) {
             value.replace(".", "")
         } else value
         if (value.startsWith(".")) value = "0$value"
@@ -121,7 +128,7 @@ object OcrTextParser {
         if (!validAnalyte(name) || NUMBER_UNIT_AT_END.containsMatchIn(name)) return null
         val value = canonicalNumber(match.groupValues[3])
         val unit = match.groupValues[4].replace('μ', 'µ')
-        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date)
+        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date, rawToken = ambiguousToken(match.groupValues[3]))
     }
 
     private data class NumberUnit(
@@ -150,7 +157,7 @@ object OcrTextParser {
         }
         val primary = candidates[primaryIndex]
         val rest = line.substring(primary.unitMatch.range.last + 1).trim(' ', ';')
-        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date)
+        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date, rawToken = ambiguousToken(primary.numberMatch.groupValues[1]))
     }
 
     private fun parseQualitative(line: String, date: Instant?): ParsedOcrMeasurement? {
@@ -220,7 +227,7 @@ object OcrTextParser {
     private fun parseDate(raw: String): Instant? = try {
         val parts = raw.split('/').map(String::toInt)
         val date = LocalDate(parts[2], parts[1], parts[0])
-        if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC) else null
+        if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC).plus(12, DateTimeUnit.HOUR) else null
     } catch (_: Throwable) {
         null
     }

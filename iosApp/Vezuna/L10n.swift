@@ -23,6 +23,8 @@ enum NativeString: String {
     case bridge_storage_not_ready, medication_schedule_missing, dose_record_failed
     case active_profile_changed, import_save_failed, storage_open_failed, action_failed, select_profile_first
     case model_catalog_read_failed, model_catalog_invalid
+    case collection_date, collection_date_required, apply_date_to_all
+    case ocr_read_token, ambiguous_number_warning, choose_date_button
 }
 
 enum L10n {

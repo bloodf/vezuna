@@ -81,7 +81,7 @@ class DoctorExamSectionsTest {
         ).resultRows
         assertEquals(
             mapOf(34.0 to RangeAssessment.ABOVE, 20.0 to RangeAssessment.WITHIN, 4.0 to RangeAssessment.BELOW),
-            rows.associate { it.originalValue to it.assessment },
+            rows.associate { it.originalValue!! to it.assessment },
         )
     }
 

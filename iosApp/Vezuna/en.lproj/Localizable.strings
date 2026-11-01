@@ -83,3 +83,9 @@
 
 "privacy_policy" = "Privacy policy";
 "privacy_policy_unavailable" = "The privacy policy could not be loaded.";
+"collection_date" = "Collection date";
+"collection_date_required" = "Choose the collection date for every result before adding";
+"apply_date_to_all" = "Apply this date to all results in this report";
+"ocr_read_token" = "OCR read: %1$@";
+"ambiguous_number_warning" = "Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)";
+"choose_date_button" = "Choose date";

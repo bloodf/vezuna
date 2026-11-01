@@ -17,13 +17,17 @@ object DoctorReportFormat {
         return rounded.toString().trimEnd('0').trimEnd('.')
     }
 
-    fun originalValue(row: DoctorResultRow): String = "${value(row.originalValue)} ${row.originalUnit}"
+    fun originalValue(row: DoctorResultRow): String =
+        row.qualitativeValue ?: "${value(requireNotNull(row.originalValue))} ${row.originalUnit}"
 
     fun normalizedValue(row: DoctorResultRow): String? {
+        if (row.qualitativeValue != null) return null
+        val original = requireNotNull(row.originalValue)
+        val normalized = requireNotNull(row.normalizedValue)
         val unitChanged = !row.originalUnit.equals(row.normalizedUnit, ignoreCase = true)
-        val tolerance = 1e-9 * maxOf(1.0, abs(row.originalValue), abs(row.normalizedValue))
-        if (!unitChanged && abs(row.originalValue - row.normalizedValue) <= tolerance) return null
-        return "${value(row.normalizedValue)} ${row.normalizedUnit} normalized"
+        val tolerance = 1e-9 * maxOf(1.0, abs(original), abs(normalized))
+        if (!unitChanged && abs(original - normalized) <= tolerance) return null
+        return "${value(normalized)} ${row.normalizedUnit} normalized"
     }
 
     fun assessment(assessment: RangeAssessment): String = when (assessment) {

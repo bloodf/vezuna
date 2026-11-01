@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
+import app.vezuna.domain.QualitativeTimelines
 import app.vezuna.domain.Profile
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.TrendSeries
@@ -80,7 +81,6 @@ import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
-import app.vezuna.platform.currentInstant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -322,7 +322,7 @@ private fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
                 }
                 StatusPill(vitaText(L10nKey.CONFIRMED), Icons.Rounded.CheckCircle, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
             }
-            Text("${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(vitaText(L10nKey.REFERENCE, uiRangeText(observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -367,21 +367,45 @@ fun ImportReviewScreen(state: AppUiState, controller: AppController, scope: Coro
             VitaButton(vitaText(L10nKey.CHOOSE_SOURCE_CREATE_MANUAL), Icons.Rounded.Add, {
                 scope.launch {
                     val source = sourcePicker() ?: return@launch
-                    controller.importCandidate(source.fileName, source.mediaType, source.bytes, code, name, value, unit, referenceLower, referenceUpper, currentInstant())
+                    controller.importCandidate(source.fileName, source.mediaType, source.bytes, code, name, value, unit, referenceLower, referenceUpper)
                 }
             }, enabled = code.isNotBlank() && name.isNotBlank() && value.isNotBlank() && unit.isNotBlank())
         }
         val pending = data.ocrCandidates.filter { it.status == ConfirmationStatus.UNREVIEWED }
         SectionHeading(vitaPlural(L10nKey.PENDING_CANDIDATES, pending.size))
         if (pending.isEmpty()) EmptyState(vitaText(L10nKey.NOTHING_AWAITING_REVIEW), vitaText(L10nKey.REVIEW_TRACKING), Icons.Rounded.FactCheck)
-        pending.forEach { candidate -> CandidateEditor(candidate, controller, scope) }
+        var chosenDates by remember { mutableStateOf(emptyMap<String, kotlinx.datetime.Instant>()) }
+        pending.forEach { candidate ->
+            val date = chosenDates[candidate.candidateId] ?: candidate.collectedAt.takeIf { candidate.collectedAtKnown }
+            CandidateEditor(
+                candidate = candidate,
+                date = date,
+                onDate = { chosenDates = chosenDates + (candidate.candidateId to it) },
+                onApplyDateToReport = {
+                    val sameReport = pending.filter { it.sourceDocumentId == candidate.sourceDocumentId }
+                    date?.let { picked -> chosenDates = chosenDates + sameReport.associate { it.candidateId to picked } }
+                },
+                controller = controller,
+                scope = scope,
+            )
+        }
     }
 }
 
 @Composable
-private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controller: AppController, scope: CoroutineScope) {
+private fun CandidateEditor(
+    candidate: app.vezuna.domain.OcrCandidate,
+    date: kotlinx.datetime.Instant?,
+    onDate: (kotlinx.datetime.Instant) -> Unit,
+    onApplyDateToReport: () -> Unit,
+    controller: AppController,
+    scope: CoroutineScope,
+) {
+    var code by remember(candidate.candidateId) { mutableStateOf(candidate.testCode) }
+    var name by remember(candidate.candidateId) { mutableStateOf(candidate.displayName) }
     var value by remember(candidate.candidateId) { mutableStateOf(candidate.rawValue) }
     var unit by remember(candidate.candidateId) { mutableStateOf(candidate.rawUnit) }
+    var asText by remember(candidate.candidateId) { mutableStateOf(candidate.looksQualitative) }
     var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.toString().orEmpty()) }
     var upper by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.upper?.toString().orEmpty()) }
     Card(Modifier.fillMaxWidth().vitaAnimateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
@@ -389,21 +413,31 @@ private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controlle
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.WarningAmber, vitaText(L10nKey.UNREVIEWED_OCR_CANDIDATE), tint = MaterialTheme.colorScheme.onTertiaryContainer)
                 Spacer(Modifier.size(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(candidate.displayName, style = MaterialTheme.typography.titleMedium)
-                    Text(candidate.testCode, style = MaterialTheme.typography.labelSmall)
-                }
+                Spacer(Modifier.weight(1f))
                 StatusPill(vitaText(L10nKey.DRAFT), Icons.Rounded.FactCheck, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onTertiaryContainer)
             }
             Text(vitaText(L10nKey.CONFIDENCE, candidate.confidence?.toString() ?: vitaText(L10nKey.CONFIDENCE_NOT_REPORTED)), style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_NUMERIC_VALUE)) }, singleLine = true)
-            OutlinedTextField(unit, { unit = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_ORIGINAL_UNIT)) }, singleLine = true)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(lower, { lower = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_LOWER)) }, singleLine = true)
-                OutlinedTextField(upper, { upper = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_UPPER)) }, singleLine = true)
+            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_NAME)) }, singleLine = true)
+            OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_CODE_EXAMPLE)) }, singleLine = true)
+            CollectionDateField(date, onDate, onApplyDateToReport)
+            if (date == null) Text(vitaText(L10nKey.COLLECTION_DATE_REQUIRED), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            FilterChip(selected = asText, onClick = { asText = !asText }, label = { Text(vitaText(L10nKey.TEXT_RESULT_TOGGLE)) })
+            if (candidate.rawToken != null && !asText) {
+                Text(vitaText(L10nKey.OCR_READ_TOKEN, candidate.rawToken!!), style = MaterialTheme.typography.bodyMedium)
+                Text(vitaText(L10nKey.AMBIGUOUS_NUMBER_WARNING), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            if (asText) {
+                OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_QUALITATIVE_VALUE)) }, singleLine = true)
+            } else {
+                OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_NUMERIC_VALUE)) }, singleLine = true)
+                OutlinedTextField(unit, { unit = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_ORIGINAL_UNIT)) }, singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(lower, { lower = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_LOWER)) }, singleLine = true)
+                    OutlinedTextField(upper, { upper = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_UPPER)) }, singleLine = true)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
+                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name, asText) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
                 OutlinedButton(onClick = { scope.launch { controller.rejectCandidate(candidate.candidateId) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.REJECT)) }
             }
         }
@@ -416,7 +450,7 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
     val observation = data.observations.firstOrNull { it.observationId == observationId }
         ?: return EmptyState(vitaText(L10nKey.RESULT_UNAVAILABLE), vitaText(L10nKey.RESULT_UNAVAILABLE_EXPLANATION))
     val previous = data.observations.filter {
-        it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
+        !it.isQualitative && !observation.isQualitative && it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
     }.maxByOrNull { it.collectedAt }
     val comparison = previous?.let { LabComparator.compare(it, observation) }
     ScreenColumn(observation.displayName, "${observation.testCode} · ${formatUiDate(observation.collectedAt)}") {
@@ -424,8 +458,8 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(20.dp)) {
                 Text(vitaText(L10nKey.ORIGINAL_RESULT), style = MaterialTheme.typography.labelLarge)
-                Text("${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
-                if (observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue) {
+                Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
+                if (!observation.isQualitative && (observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue)) {
                     Text(vitaText(L10nKey.NORMALIZED, observation.normalizedValue, observation.normalizedUnit), style = MaterialTheme.typography.bodyMedium)
                 }
             }
@@ -442,13 +476,14 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
 @Composable
 fun TrendsScreen(state: AppUiState, controller: AppController) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_TRENDS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
-    val codes = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.testCode }.distinct().sorted()
+    val codes = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative }.map { it.testCode }.distinct().sorted()
+    val timelines = QualitativeTimelines.forProfile(data.profile.profileId, data.observations)
     var selected by remember(data.profile.profileId) { mutableStateOf(codes.firstOrNull().orEmpty()) }
     if (selected !in codes) selected = codes.firstOrNull().orEmpty()
     ScreenColumn(vitaText(L10nKey.LAB_TRENDS), vitaText(L10nKey.LAB_TRENDS_SUBTITLE)) {
-        if (codes.isEmpty()) {
+        if (codes.isEmpty() && timelines.isEmpty()) {
             EmptyState(vitaText(L10nKey.NO_CONFIRMED_TREND_DATA), vitaText(L10nKey.TREND_INCOMPATIBLE_UNITS), Icons.Rounded.ShowChart)
-        } else {
+        } else if (codes.isNotEmpty()) {
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -497,6 +532,22 @@ fun TrendsScreen(state: AppUiState, controller: AppController) {
                                     Text(vitaText(L10nKey.REFERENCE, uiRangeText(point.observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Text("${point.y} ${current.unit}", style = MaterialTheme.typography.titleSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (timelines.isNotEmpty()) {
+            SectionHeading(vitaText(L10nKey.QUALITATIVE_TIMELINE))
+            timelines.forEach { timeline ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(timeline.displayName, style = MaterialTheme.typography.titleMedium)
+                        timeline.entries.forEach { entry ->
+                            Row(Modifier.fillMaxWidth()) {
+                                Text(formatUiDate(entry.collectedAt), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                Text(entry.qualitativeValue.orEmpty(), style = MaterialTheme.typography.titleSmall)
                             }
                         }
                     }
