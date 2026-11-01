@@ -61,6 +61,11 @@ internal fun sampleProfileData(prefix: String = "OLD"): ProfileData {
         medications = listOf(Medication(p, "$prefix-med", "Metformin", schedules = listOf(schedule))),
         doseEvents = listOf(DoseEvent(p, "$prefix-event", "$prefix-med", "$prefix-schedule", at)),
         chat = listOf(ChatMessage(p, "$prefix-msg", ChatMessage.Role.USER, "hi", at)),
+        vitals = app.vezuna.domain.ProfileVitals(
+            steps = listOf(app.vezuna.domain.StepsDay(LocalDate(2026, 1, 1), 4200)),
+            weights = listOf(app.vezuna.domain.WeightReading("platform-rec-1", at, 70.5)),
+            lastSync = at,
+        ),
     )
 }
 
@@ -263,6 +268,7 @@ class ProfileRestoreTest {
         assertEquals(remapped.reports.single().reportId, remapped.observations.single().reportId)
         assertEquals(remapped.medications.single().schedules.single().scheduleId, remapped.doseEvents.single().scheduleId)
         assertNull(remapped.documents.single().vaultKey)
+        assertEquals(data.vitals, remapped.vitals)
         assertEquals(data.observations.single().originalValue, remapped.observations.single().originalValue)
         assertEquals(data.ocrCandidates.single().revisions.size, remapped.ocrCandidates.single().revisions.size)
     }

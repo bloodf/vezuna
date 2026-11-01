@@ -390,6 +390,7 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
             StatusPill(vitaText(L10nKey.PDF_READY_BYTES, pdf.bytes.size), Icons.Rounded.PictureAsPdf, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
         }
         BackupSettingsSection(state, controller, backupFiles)
+        DeviceHealthSettings(state, data, controller, scope)
         SectionHeading(vitaText(L10nKey.SECTION_STORAGE_SECURITY))
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

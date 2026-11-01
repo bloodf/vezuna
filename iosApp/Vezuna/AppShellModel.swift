@@ -39,8 +39,7 @@ final class AppShellModel: ObservableObject {
             IosRuntime.shared.modelPackLoader = modelLoader
             IosRuntime.shared.repositoryObserver = notifications
             if HealthKitImporter.supported {
-                let anchors = try FileHealthAnchorStore(directory: support.appendingPathComponent("HealthAnchors", isDirectory: true))
-                healthImporter = HealthKitImporter(anchors: anchors)
+                healthImporter = HealthKitImporter()
             }
             vaultPath = vault.path
             modelPath = models.path

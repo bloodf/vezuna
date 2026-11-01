@@ -509,37 +509,43 @@ fun TrendsScreen(state: AppUiState, controller: AppController) {
 
 @Composable
 private fun TrendChart(series: TrendSeries, modifier: Modifier) {
+    val description = vitaPlural(L10nKey.TREND_CHART_ACCESSIBILITY, series.points.size, series.unit)
+    LineChart(series.points.map { it.xEpochSeconds to it.y }, "${series.testCode}|${series.unit}", description, modifier)
+}
+
+/** Points are (epoch seconds, value) sorted by time. [identity] restarts the draw-in animation when it changes. */
+@Composable
+internal fun LineChart(points: List<Pair<Long, Double>>, identity: String, description: String, modifier: Modifier) {
     val color = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
     val pointCenter = MaterialTheme.colorScheme.surface
     val motionEnabled = LocalVitaAnimationsEnabled.current
-    val progress = remember(series.testCode, series.unit) { Animatable(if (motionEnabled) 0.2f else 1f) }
-    LaunchedEffect(series.testCode, series.unit, series.points.size) {
+    val progress = remember(identity) { Animatable(if (motionEnabled) 0.2f else 1f) }
+    LaunchedEffect(identity, points.size) {
         if (motionEnabled) progress.animateTo(1f, tween(VezunaTokens.MotionNormalMs)) else progress.snapTo(1f)
     }
-    val description = vitaPlural(L10nKey.TREND_CHART_ACCESSIBILITY, series.points.size, series.unit)
     Canvas(modifier.semantics { contentDescription = description }) {
-        if (series.points.isEmpty()) return@Canvas
+        if (points.isEmpty()) return@Canvas
         repeat(4) { index ->
             val y = size.height * index / 3f
             drawLine(grid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
         }
-        val min = series.points.minOf { it.y }
-        val max = series.points.maxOf { it.y }
+        val min = points.minOf { it.second }
+        val max = points.maxOf { it.second }
         val spread = (max - min).takeIf { it > 0.0 } ?: 1.0
-        val first = series.points.first().xEpochSeconds
-        val last = series.points.last().xEpochSeconds
-        val points = series.points.map { point ->
-            val xFraction = if (first == last) 0.5f else (point.xEpochSeconds - first).toFloat() / (last - first).toFloat()
-            Offset(xFraction * size.width, size.height - ((point.y - min) / spread).toFloat() * size.height)
+        val first = points.first().first
+        val last = points.last().first
+        val offsets = points.map { (x, y) ->
+            val xFraction = if (first == last) 0.5f else (x - first).toFloat() / (last - first).toFloat()
+            Offset(xFraction * size.width, size.height - ((y - min) / spread).toFloat() * size.height)
         }
-        points.zipWithNext().forEachIndexed { index, pair ->
-            if ((index + 1).toFloat() / points.lastIndex <= progress.value) {
+        offsets.zipWithNext().forEachIndexed { index, pair ->
+            if ((index + 1).toFloat() / offsets.lastIndex <= progress.value) {
                 drawLine(color, pair.first, pair.second, strokeWidth = 4f)
             }
         }
-        points.forEachIndexed { index, point ->
-            if (points.size == 1 || index.toFloat() / points.lastIndex <= progress.value) {
+        offsets.forEachIndexed { index, point ->
+            if (offsets.size == 1 || index.toFloat() / offsets.lastIndex <= progress.value) {
                 drawCircle(color, radius = 6f, center = point)
                 drawCircle(pointCenter, radius = 2.5f, center = point)
             }

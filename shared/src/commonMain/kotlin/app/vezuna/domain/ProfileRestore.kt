@@ -30,7 +30,8 @@ fun ProfileData.remappedAsNew(newId: () -> String): ProfileData {
     return restoreJson.decodeFromJsonElement(ProfileData.serializer(), walk(encoded))
 }
 
-private fun isIdField(key: String) = key == "profileId" || (key.length > 2 && key.endsWith("Id"))
+/** `recordId` is the platform's own record key (Health Connect / HealthKit), used for de-duplication; it stays as is. */
+private fun isIdField(key: String) = key != "recordId" && (key == "profileId" || (key.length > 2 && key.endsWith("Id")))
 
 /**
  * Backups carry records, not source files, so a restored document keeps its vault key only when [existing]

@@ -1,61 +1,27 @@
 import Foundation
 import HealthKit
+import VezunaShared
 
-struct HealthSampleBatch {
-    let heartRate: [Double]
-    let steps: [Double]
-    let weightKilograms: [Double]
-    let deletedSampleIDs: [UUID]
-
-    var insertedCount: Int { heartRate.count + steps.count + weightKilograms.count }
+struct HealthSampleBatch: Equatable {
+    var heartRate = 0
+    var steps = 0
+    var weight = 0
 }
 
 protocol HealthImporting {
     func authorizeReadOnly() async throws
-    func importIncremental(profileId: String) async throws -> HealthSampleBatch
+    func importRecent() async throws -> HealthSampleBatch
 }
 
-protocol HealthAnchorStoring {
-    func anchor(profileId: String, typeIdentifier: String) -> HKQueryAnchor?
-    func saveAnchor(_ anchor: HKQueryAnchor, profileId: String, typeIdentifier: String) throws
-}
-
-final class FileHealthAnchorStore: HealthAnchorStoring {
-    private let directory: URL
-    private let queue = DispatchQueue(label: "app.vezuna.health-anchors")
-
-    init(directory: URL) throws {
-        self.directory = directory
-        try AppFileStorage.preparePrivateDirectory(directory)
-    }
-
-    func anchor(profileId: String, typeIdentifier: String) -> HKQueryAnchor? {
-        queue.sync {
-            guard let data = try? Data(contentsOf: file(profileId: profileId, typeIdentifier: typeIdentifier)) else { return nil }
-            return try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
-        }
-    }
-
-    func saveAnchor(_ anchor: HKQueryAnchor, profileId: String, typeIdentifier: String) throws {
-        let data = try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
-        try queue.sync {
-            try AppFileStorage.writeAtomically(data, to: file(profileId: profileId, typeIdentifier: typeIdentifier))
-        }
-    }
-
-    private func file(profileId: String, typeIdentifier: String) -> URL {
-        let safeProfile = Data(profileId.utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_")
-        return directory.appendingPathComponent("\(safeProfile)-\(typeIdentifier).anchor")
-    }
-}
-
+/// Reads HealthKit statistics, not raw samples: `cumulativeSum` de-duplicates overlapping sources for steps, and
+/// hourly min/avg/max keeps a year of heart rate small. Each sync re-reads a trailing window chosen by the shared
+/// code and replaces it, so there is no anchor to advance; the "synced up to" time is stored together with the data.
+/// Weight is sparse and read as individual samples. Values are validated on the Kotlin side.
 final class HealthKitImporter: HealthImporting {
     private let store: HKHealthStore
-    private let anchors: HealthAnchorStoring
 
-    init(store: HKHealthStore = .init(), anchors: HealthAnchorStoring) {
+    init(store: HKHealthStore = .init()) {
         self.store = store
-        self.anchors = anchors
     }
 
     static var supported: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -70,53 +36,126 @@ final class HealthKitImporter: HealthImporting {
         try await store.requestAuthorization(toShare: [], read: Self.readTypes)
     }
 
-    func importIncremental(profileId: String) async throws -> HealthSampleBatch {
-        async let heart = query(.heartRate, profileId: profileId)
-        async let steps = query(.stepCount, profileId: profileId)
-        async let weight = query(.bodyMass, profileId: profileId)
-        let results = try await (heart: heart, steps: steps, weight: weight)
-        let unitHeart = HKUnit.count().unitDivided(by: .minute())
-        let kilograms = HKUnit.gramUnit(with: .kilo)
-        return HealthSampleBatch(
-            heartRate: results.heart.samples.map { $0.quantity.doubleValue(for: unitHeart) },
-            steps: results.steps.samples.map { $0.quantity.doubleValue(for: .count()) },
-            weightKilograms: results.weight.samples.map { $0.quantity.doubleValue(for: kilograms) },
-            deletedSampleIDs: results.heart.deleted + results.steps.deleted + results.weight.deleted
-        )
+    func importRecent() async throws -> HealthSampleBatch {
+        let window = try await syncWindow()
+        let from = Date(timeIntervalSince1970: TimeInterval(window.replaceFrom))
+        let weightsFrom = Date(timeIntervalSince1970: TimeInterval(window.weightsFrom))
+        async let steps = dailySteps(from: from)
+        async let heart = hourlyHeartRate(from: from)
+        async let weights = weightSamples(from: weightsFrom)
+        let batch = Payload(replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
+        try await persist(batch)
+        return HealthSampleBatch(heartRate: batch.heartRate.count, steps: batch.steps.count, weight: batch.weights.count)
     }
 
-    private func query(_ identifier: HKQuantityTypeIdentifier, profileId: String) async throws -> (samples: [HKQuantitySample], deleted: [UUID]) {
+    private struct Payload: Encodable {
+        let replaceFromEpochSeconds: Int64
+        let steps: [Steps]
+        let heartRate: [Heart]
+        let weights: [Weight]
+    }
+    private struct Steps: Encodable { let dayStartEpochSeconds: Int64; let count: Double }
+    private struct Heart: Encodable { let startEpochSeconds: Int64; let min: Double; let avg: Double; let max: Double }
+    private struct Weight: Encodable { let recordId: String; let epochSeconds: Int64; let kg: Double }
+
+    private func quantityType(_ identifier: HKQuantityTypeIdentifier) throws -> HKQuantityType {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { throw HealthImportError.unsupportedType }
-        let previous = anchors.anchor(profileId: profileId, typeIdentifier: identifier.rawValue)
-        let result: (samples: [HKQuantitySample], deleted: [UUID], anchor: HKQueryAnchor?) = try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(type: type, predicate: nil, anchor: previous, limit: HKObjectQueryNoLimit) { _, samples, deleted, anchor, error in
-                if let error {
-                    continuation.resume(throwing: error)
+        return type
+    }
+
+    private func collection(_ type: HKQuantityType, options: HKStatisticsOptions, from: Date, interval: DateComponents) async throws -> HKStatisticsCollection {
+        try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
+            let query = HKStatisticsCollectionQuery(quantityType: type, quantitySamplePredicate: predicate, options: options, anchorDate: from, intervalComponents: interval)
+            query.initialResultsHandler = { _, result, error in
+                if let result {
+                    continuation.resume(returning: result)
                 } else {
-                    continuation.resume(returning: (
-                        (samples as? [HKQuantitySample]) ?? [],
-                        (deleted ?? []).map(\.uuid),
-                        anchor
-                    ))
+                    continuation.resume(throwing: error ?? HealthImportError.unsupportedType)
                 }
             }
             store.execute(query)
         }
-        if let anchor = result.anchor {
-            try anchors.saveAnchor(anchor, profileId: profileId, typeIdentifier: identifier.rawValue)
+    }
+
+    private func dailySteps(from: Date) async throws -> [Steps] {
+        let result = try await collection(try quantityType(.stepCount), options: .cumulativeSum, from: from, interval: DateComponents(day: 1))
+        var days: [Steps] = []
+        result.enumerateStatistics(from: from, to: Date()) { statistics, _ in
+            guard let sum = statistics.sumQuantity() else { return }
+            days.append(Steps(dayStartEpochSeconds: Int64(statistics.startDate.timeIntervalSince1970), count: sum.doubleValue(for: .count())))
         }
-        return (result.samples, result.deleted)
+        return days
+    }
+
+    private func hourlyHeartRate(from: Date) async throws -> [Heart] {
+        let result = try await collection(try quantityType(.heartRate), options: [.discreteMin, .discreteAverage, .discreteMax], from: from, interval: DateComponents(hour: 1))
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        var hours: [Heart] = []
+        result.enumerateStatistics(from: from, to: Date()) { statistics, _ in
+            guard let min = statistics.minimumQuantity(), let avg = statistics.averageQuantity(), let max = statistics.maximumQuantity() else { return }
+            hours.append(Heart(
+                startEpochSeconds: Int64(statistics.startDate.timeIntervalSince1970),
+                min: min.doubleValue(for: unit), avg: avg.doubleValue(for: unit), max: max.doubleValue(for: unit)
+            ))
+        }
+        return hours
+    }
+
+    private func weightSamples(from: Date) async throws -> [Weight] {
+        let type = try quantityType(.bodyMass)
+        let samples: [HKQuantitySample] = try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+                }
+            }
+            store.execute(query)
+        }
+        let kilograms = HKUnit.gramUnit(with: .kilo)
+        return samples.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
+    }
+
+    private func syncWindow() async throws -> (replaceFrom: Int64, weightsFrom: Int64) {
+        try await withCheckedThrowingContinuation { continuation in
+            IosRuntime.shared.vitalsSyncWindow { replaceFrom, weightsFrom, message in
+                if let message {
+                    continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
+                } else {
+                    continuation.resume(returning: (replaceFrom.int64Value, weightsFrom.int64Value))
+                }
+            }
+        }
+    }
+
+    /// Returns only after the data is durable in the linked profile's encrypted vitals.
+    private func persist(_ payload: Payload) async throws {
+        let json = String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            IosRuntime.shared.ingestHealthBatch(batchJson: json) { message in
+                if let message {
+                    continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
     }
 }
 
 enum HealthImportError: LocalizedError {
     case unavailable
     case unsupportedType
+    case persistFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .unavailable: return L10n.text(.healthkit_unavailable)
         case .unsupportedType: return L10n.text(.healthkit_type_unavailable)
+        case .persistFailed(let message): return message
         }
     }
 }

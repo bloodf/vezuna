@@ -95,7 +95,7 @@ class BackupService(
         } finally {
             plain.fill(0)
         }
-        if (payload.schemaVersion != SCHEMA_VERSION) failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
+        if (payload.schemaVersion !in ACCEPTED_SCHEMA_VERSIONS) failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
         if (payload.profileId != payload.data.profile.profileId || !payload.data.isInternallyConsistent()) {
             failMessage(L10nKey.BACKUP_INVALID_CONTENT)
         }
@@ -113,7 +113,9 @@ class BackupService(
     }
 
     companion object {
-        const val SCHEMA_VERSION = 1
+        /** 2 adds the vitals section to the profile data; version 1 payloads (no vitals) are still accepted. */
+        const val SCHEMA_VERSION = 2
+        private val ACCEPTED_SCHEMA_VERSIONS = 1..SCHEMA_VERSION
         const val MAX_BACKUP_BYTES = 64 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"
     }

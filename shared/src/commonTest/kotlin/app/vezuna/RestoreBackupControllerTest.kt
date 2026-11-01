@@ -32,6 +32,7 @@ class RestoreBackupControllerTest {
         assertNull(controller.state.value.error)
         assertEquals(data.profile.profileId, controller.state.value.data?.profile?.profileId)
         assertEquals(data.medications, controller.state.value.data?.medications)
+        assertEquals(data.vitals, controller.state.value.data?.vitals)
         assertEquals(UserText.Key(L10nKey.BACKUP_RESTORED), controller.state.value.notice)
         // sample data's source file is not on this device, so its key must not dangle
         assertNull(controller.state.value.data?.documents?.single()?.vaultKey)
@@ -60,6 +61,8 @@ class RestoreBackupControllerTest {
         val restored = controller.state.value.data!!
         assertTrue(restored.profile.profileId != data.profile.profileId)
         assertEquals(data.observations.single().originalValue, restored.observations.single().originalValue)
+        assertEquals(data.vitals, restored.vitals)
+        assertEquals(data.vitals, repository.readProfile(data.profile.profileId).vitals)
         assertEquals(data, repository.readProfile(data.profile.profileId).copy(documents = data.documents))
     }
 

@@ -36,6 +36,7 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
+import app.vezuna.data.restoreWithVitals
 import app.vezuna.domain.keepingOnlyAvailableSourceFiles
 import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
@@ -63,6 +64,7 @@ sealed interface AppScreen {
     data object AiChat : AppScreen
     data object Models : AppScreen
     data object Settings : AppScreen
+    data object Vitals : AppScreen
 }
 
 data class AppUiState(
@@ -76,6 +78,7 @@ data class AppUiState(
     val selectedObservationIds: Set<String> = emptySet(),
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
+    val healthLinkedProfileId: String? = null,
 )
 
 object DashboardRefreshSignal {
@@ -159,6 +162,11 @@ class AppController(
         } else {
             loadProfile(currentId)
         }
+    }
+
+    suspend fun setLinkedHealthProfile(profileId: String) = operation {
+        repository.setLinkedHealthProfile(profileId)
+        reloadCurrentProfile()
     }
 
     private suspend fun reloadCurrentProfile() {
@@ -489,6 +497,7 @@ class AppController(
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
+            healthLinkedProfileId = repository.linkedHealthProfileId(),
             dashboard = DashboardSnapshotFactory.create(data, clock(), timeZone()),
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
@@ -504,7 +513,7 @@ class AppController(
             mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
             else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
         }
-        repository.restoreProfile(toStore)
+        repository.restoreWithVitals(toStore)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
         switchProfile(toStore.profile.profileId)
         DashboardRefreshSignal.notifyRepositoryChanged()

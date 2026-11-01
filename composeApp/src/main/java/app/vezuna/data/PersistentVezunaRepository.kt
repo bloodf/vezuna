@@ -2,6 +2,9 @@ package app.vezuna.data
 
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
@@ -11,6 +14,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
@@ -27,6 +31,7 @@ import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
+import app.vezuna.health.VitalsStore
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
@@ -37,6 +42,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.logging.Level
@@ -48,8 +55,14 @@ class PersistentVezunaRepository(
     private val json: Json = Json { encodeDefaults = true },
 ) : VezunaRepository {
     @Serializable
-    private data class Snapshot(val records: Map<String, ProfileData> = emptyMap())
+    private data class Snapshot(
+        val records: Map<String, ProfileData> = emptyMap(),
+        val healthLinkedProfileId: String? = null,
+    )
 
+    private val vitalsStore = VitalsStore(vault, json)
+    // Vitals live in their own vault files; the snapshot's records always carry empty vitals.
+    private val vitals = mutableMapOf<String, ProfileVitals>()
     private val mutex = Mutex()
     private var snapshot = Snapshot()
     private var initialized = false
@@ -75,7 +88,7 @@ class PersistentVezunaRepository(
 
     override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock {
         ensureInitialized()
-        snapshot.records.getValue(profileId)
+        snapshot.records.getValue(profileId).withVitals()
     }
 
     override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) { data ->
@@ -134,8 +147,13 @@ class PersistentVezunaRepository(
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
         val removed = snapshot.records[profileId] ?: throw IllegalArgumentException("Profile not found")
-        commit(snapshot.copy(records = snapshot.records - profileId))
+        val remaining = snapshot.records - profileId
+        val link = if (snapshot.healthLinkedProfileId == profileId) HealthLink.resolve(null, remaining.values.map { it.profile }) else snapshot.healthLinkedProfileId
+        commit(snapshot.copy(records = remaining, healthLinkedProfileId = link))
         removed.vaultKeys().forEach { vault.delete(it) }
+        // Only after the new snapshot is durable; a failure above leaves the vitals in place and the sweep retries.
+        vitals.remove(profileId)
+        vitalsStore.delete(profileId)
     }
 
     override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
@@ -166,10 +184,42 @@ class PersistentVezunaRepository(
         ensureInitialized()
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
         val previous = snapshot.records[data.profile.profileId]
-        commit(snapshot.with(data))
+        // Vitals live in their own file; callers write them through replaceVitals (see restoreWithVitals).
+        commit(snapshot.with(data.copy(vitals = ProfileVitals())))
         // Files orphaned by the replacement go only after the restored snapshot is durable.
         ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
     }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
+        ensureInitialized()
+        HealthLink.resolve(snapshot.healthLinkedProfileId, snapshot.records.values.map { it.profile })
+    }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutate {
+        require(snapshot.records.containsKey(profileId)) { "Profile not found" }
+        snapshot.copy(healthLinkedProfileId = profileId)
+    }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        ensureInitialized()
+        require(snapshot.records.containsKey(profileId)) { "Profile not found" }
+        vitalsStore.save(profileId, vitals)
+        this.vitals[profileId] = vitals
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        ensureInitialized()
+        val id = HealthLink.resolve(snapshot.healthLinkedProfileId, snapshot.records.values.map { it.profile })
+            ?: throw IllegalStateException("No profile to link")
+        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, TimeZone.currentSystemDefault())
+        // Only the vitals file is rewritten; the repository snapshot changes just when the link is first pinned.
+        vitalsStore.save(id, updated)
+        vitals[id] = updated
+        if (snapshot.healthLinkedProfileId != id) commit(snapshot.copy(healthLinkedProfileId = id))
+        DeviceVitals.storedCount(updated, batch)
+    }
+
+    private fun ProfileData.withVitals() = copy(vitals = this@PersistentVezunaRepository.vitals[profile.profileId] ?: ProfileVitals())
 
     private suspend fun mutate(transform: () -> Snapshot) = mutex.withLock {
         ensureInitialized()
@@ -211,7 +261,16 @@ class PersistentVezunaRepository(
     }
 
     private suspend fun restore() {
-        snapshot = decodeSnapshot(vault.read(STORAGE_KEY))
+        val decoded = decodeSnapshot(vault.read(STORAGE_KEY))
+        vitals.clear()
+        decoded.records.forEach { (profileId, data) ->
+            val stored = vitalsStore.load(profileId) { logger.log(Level.WARNING, "Could not read stored vitals", it) }
+            // Vitals saved inside the snapshot by an earlier build move to their own file.
+            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(profileId, it) }
+            if (loaded != null) vitals[profileId] = loaded
+        }
+        vitalsStore.sweep(decoded.records.keys)
+        snapshot = decoded.copy(records = decoded.records.mapValues { (_, data) -> data.copy(vitals = ProfileVitals()) })
         mutableProfiles.value = snapshot.records.values.map { it.profile }.sortedBy { it.displayName }
         initialized = true
     }

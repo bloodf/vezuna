@@ -300,6 +300,26 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.BACKUP_RESTORE_ACTION to Res.string.backup_restore_action,
     L10nKey.BACKUP_RESTORED to Res.string.backup_restored,
     L10nKey.BACKUP_RECOVERY_CONFIRM_BODY to Res.string.backup_recovery_confirm_body,
+    L10nKey.VITALS_TITLE to Res.string.vitals_title,
+    L10nKey.VITALS_SUBTITLE to Res.string.vitals_subtitle,
+    L10nKey.SECTION_DEVICE_HEALTH to Res.string.section_device_health,
+    L10nKey.LINKED_PROFILE_EXPLANATION to Res.string.linked_profile_explanation,
+    L10nKey.LINKED_PROFILE_CURRENT to Res.string.linked_profile_current,
+    L10nKey.LINK_THIS_PROFILE to Res.string.link_this_profile,
+    L10nKey.VIEW_VITALS to Res.string.view_vitals,
+    L10nKey.VITALS_OTHER_PROFILE to Res.string.vitals_other_profile,
+    L10nKey.NO_VITALS to Res.string.no_vitals,
+    L10nKey.NO_VITALS_EXPLANATION to Res.string.no_vitals_explanation,
+    L10nKey.VITAL_HEART_RATE to Res.string.vital_heart_rate,
+    L10nKey.VITAL_STEPS to Res.string.vital_steps,
+    L10nKey.VITAL_WEIGHT to Res.string.vital_weight,
+    L10nKey.VITAL_DAILY_AVERAGE to Res.string.vital_daily_average,
+    L10nKey.VITAL_DAILY_TOTAL to Res.string.vital_daily_total,
+    L10nKey.VITAL_LATEST to Res.string.vital_latest,
+    L10nKey.VITAL_UNIT_BPM to Res.string.vital_unit_bpm,
+    L10nKey.VITAL_UNIT_STEPS to Res.string.vital_unit_steps,
+    L10nKey.VITAL_UNIT_KG to Res.string.vital_unit_kg,
+    L10nKey.VITALS_RETENTION_NOTE to Res.string.vitals_retention_note,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
@@ -308,6 +328,7 @@ private val pluralResources = mapOf<L10nKey, PluralStringResource>(
     L10nKey.REVIEW_CANDIDATES_NOTICE to Res.plurals.review_candidates_notice,
     L10nKey.TREND_CHART_ACCESSIBILITY to Res.plurals.trend_chart_accessibility,
     L10nKey.UNREVIEWED_CANDIDATES_ADDED to Res.plurals.unreviewed_candidates_added,
+    L10nKey.VITALS_CHART_ACCESSIBILITY to Res.plurals.vitals_chart_accessibility,
 )
 
 @Composable

@@ -3,6 +3,9 @@ package app.vezuna.ios
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
@@ -12,6 +15,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
@@ -28,6 +32,7 @@ import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
+import app.vezuna.health.VitalsStore
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
@@ -37,6 +42,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
@@ -47,8 +54,12 @@ class PersistentVezunaRepository private constructor(
 ) : VezunaRepository {
     private val mutex = Mutex()
     private val records = mutableMapOf<String, ProfileData>()
+    private val vitalsStore = VitalsStore(vault, json)
+    // Vitals live in their own vault files; `records` always carry empty vitals so profile writes never rewrite them.
+    private val vitals = mutableMapOf<String, ProfileVitals>()
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private var selectedProfileId: String? = null
+    private var healthLinkId: String? = null
     var changeObserver: (() -> Unit)? = null
     override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
 
@@ -66,6 +77,7 @@ class PersistentVezunaRepository private constructor(
 
     private suspend fun loadLocked() {
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+        healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         val index = readEncrypted<List<Profile>>(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer())).orEmpty()
         var indexStale = false
         index.forEach { profile ->
@@ -73,7 +85,11 @@ class PersistentVezunaRepository private constructor(
                 ?: error("Encrypted profile records are missing")
             // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
             if (data.profile != profile) indexStale = true
-            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents))
+            val stored = vitalsStore.load(profile.profileId)
+            // Vitals saved inside the profile file by an earlier build move to their own file.
+            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(profile.profileId, it) }
+            if (loaded != null) vitals[profile.profileId] = loaded
+            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
         }
         if (indexStale) {
             writeEncrypted(
@@ -81,6 +97,7 @@ class PersistentVezunaRepository private constructor(
                 records.values.map { it.profile }.sortedBy { it.displayName },
             )
         }
+        vitalsStore.sweep(records.keys)
         publishProfiles()
     }
 
@@ -97,7 +114,7 @@ class PersistentVezunaRepository private constructor(
     }
 
     override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock {
-        val data = records.getValue(profileId)
+        val data = records.getValue(profileId).withVitals()
         if (selectedProfileId != profileId) {
             vault.write(SELECTION_KEY, profileId.encodeToByteArray())
             selectedProfileId = profileId
@@ -106,7 +123,7 @@ class PersistentVezunaRepository private constructor(
         data
     }
 
-    suspend fun peekProfile(profileId: String): ProfileData = mutex.withLock { records.getValue(profileId) }
+    suspend fun peekProfile(profileId: String): ProfileData = mutex.withLock { records.getValue(profileId).withVitals() }
 
     suspend fun addImport(document: SourceDocument, report: LabReport, candidates: List<OcrCandidate>) = mutex.withLock {
         val data = records.getValue(document.profileId)
@@ -189,11 +206,18 @@ class PersistentVezunaRepository private constructor(
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
         writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
         records.remove(profileId)
+        vitals.remove(profileId)
+        if (healthLinkId == profileId) {
+            val next = HealthLink.resolve(null, records.values.map { it.profile })
+            if (next == null) vault.delete(HEALTH_LINK_KEY) else vault.write(HEALTH_LINK_KEY, next.encodeToByteArray())
+            healthLinkId = next
+        }
         if (selectedProfileId == profileId) {
             vault.delete(SELECTION_KEY)
             selectedProfileId = null
         }
         vault.delete(profileKey(profileId))
+        vitalsStore.delete(profileId)
         removed.vaultKeys().forEach { vault.delete(it) }
         publishProfiles()
         changeObserver?.invoke()
@@ -226,11 +250,12 @@ class PersistentVezunaRepository private constructor(
 
     override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        val stored = data.copy(vitals = ProfileVitals())
         val previous = records[data.profile.profileId]
         val newIndex = (records.values.map { it.profile }.filter { it.profileId != data.profile.profileId } + data.profile).sortedBy { it.displayName }
-        persist(data)
+        persist(stored)
         writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
-        records[data.profile.profileId] = data
+        records[data.profile.profileId] = stored
         publishProfiles()
         ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
         changeObserver?.invoke()
@@ -243,6 +268,38 @@ class PersistentVezunaRepository private constructor(
         commit(updated)
         // Source files orphaned by a cascading delete are removed only after the new records are durable.
         (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
+    }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
+        HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+    }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        persistHealthLink(profileId)
+    }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        vitalsStore.save(profileId, vitals)
+        this.vitals[profileId] = vitals
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, TimeZone.currentSystemDefault())
+        // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
+        vitalsStore.save(id, updated)
+        vitals[id] = updated
+        if (healthLinkId != id) persistHealthLink(id)
+        DeviceVitals.storedCount(updated, batch)
+    }
+
+    private fun ProfileData.withVitals() = copy(vitals = this@PersistentVezunaRepository.vitals[profile.profileId] ?: ProfileVitals())
+
+    private suspend fun persistHealthLink(profileId: String) {
+        vault.write(HEALTH_LINK_KEY, profileId.encodeToByteArray())
+        healthLinkId = profileId
     }
 
     private suspend fun commit(data: ProfileData) {
@@ -292,6 +349,7 @@ class PersistentVezunaRepository private constructor(
         private const val INDEX_KEY = "repository-profile-index-v1"
         private const val INDEX_ASSOCIATED_DATA = "Vezuna repository index v1"
         private const val SELECTION_KEY = "repository-selected-profile-v1"
+        private const val HEALTH_LINK_KEY = "repository-health-link-v1"
         private fun profileKey(profileId: String) = "repository-profile-$profileId-v1"
         private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
     }
