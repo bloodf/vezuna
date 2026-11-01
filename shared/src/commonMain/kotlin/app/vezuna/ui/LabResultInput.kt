@@ -1,0 +1,33 @@
+package app.vezuna.ui
+
+import app.vezuna.domain.NormalizedQuantity
+import app.vezuna.domain.NumberAmbiguity
+import app.vezuna.domain.UnitNormalizer
+import app.vezuna.localization.L10nKey
+import app.vezuna.localization.decimalPlacesOf
+import app.vezuna.localization.failMessage
+import app.vezuna.localization.parseDecimalInput
+
+/** A reviewer-entered result value, validated: text results carry no number or unit, numeric ones always have a unit. */
+internal data class ResolvedResultValue(
+    val value: Double,
+    val unit: String,
+    val normalized: NormalizedQuantity,
+    val qualitativeValue: String?,
+    /** Fraction digits as typed (5,70 -> 2), kept so display matches the report. */
+    val decimals: Int?,
+)
+
+/** [prefills] are texts the app itself put in the field; an untouched one is never second-guessed. */
+internal fun resolveResultValue(asText: Boolean, rawValue: String, rawUnit: String, prefills: List<String> = emptyList()): ResolvedResultValue {
+    if (asText) {
+        val text = rawValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
+        return ResolvedResultValue(0.0, "", NormalizedQuantity(0.0, ""), text, null)
+    }
+    // "250.000" could be 250000 or 250.0: never guess what the user meant.
+    if (rawValue.trim() !in prefills && NumberAmbiguity.isAmbiguousThousands(rawValue)) failMessage(L10nKey.NUMBER_AMBIGUOUS_INPUT)
+    val value = parseDecimalInput(rawValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
+    val unit = rawUnit.trim()
+    if (unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
+    return ResolvedResultValue(value, unit, UnitNormalizer.normalize(value, unit), null, decimalPlacesOf(rawValue))
+}

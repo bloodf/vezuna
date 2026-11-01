@@ -53,6 +53,7 @@ struct NativeImportView: View {
                                     TextField(L10n.text(.reference_lower), text: $candidate.referenceLower).keyboardType(.decimalPad)
                                     TextField(L10n.text(.reference_upper), text: $candidate.referenceUpper).keyboardType(.decimalPad)
                                 }
+                                TextField(L10n.text(.reference_text), text: $candidate.referenceText)
                                 if let token = candidate.rawToken {
                                     Text(L10n.text(.ocr_read_token, token)).font(.subheadline)
                                     Text(L10n.text(.ambiguous_number_warning)).font(.footnote).foregroundStyle(Color.vezunaDanger)
@@ -149,7 +150,8 @@ struct NativeImportView: View {
         defer { busy = false }
         do {
             let extracted = try await SourceTextExtractor.extract(data: data, mediaType: mediaType)
-            let parsed = LabTextParser.parse(extracted.text, confidence: extracted.ocrConfidence)
+            let parsed = LabTextBridge.shared.parse(text: extracted.text, ocrConfidence: extracted.ocrConfidence.map { KotlinFloat(float: $0) })
+                .map(ImportedLabCandidate.init(parsed:))
             guard !parsed.isEmpty else { throw ImportError.noStructuredResults }
             sourceData = data
             sourceName = name
@@ -193,7 +195,10 @@ struct NativeImportView: View {
                 referenceUpper: candidate.referenceUpper,
                 confidence: candidate.confidence.map { KotlinFloat(float: $0) },
                 collectedEpochSeconds: storedInstant(date),
-                rawToken: candidate.rawToken
+                rawToken: candidate.rawToken,
+                referenceText: candidate.referenceText.isEmpty ? nil : candidate.referenceText,
+                referenceUnit: candidate.referenceUnit,
+                qualitative: candidate.qualitative
             )
         }
         IosRuntime.shared.importNativeCandidates(

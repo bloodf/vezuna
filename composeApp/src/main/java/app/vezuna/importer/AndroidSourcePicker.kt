@@ -98,21 +98,7 @@ class AndroidSourcePicker(
                     extraction.extractImage(bytes)
                 }
                 mutableLastExtraction.value = extracted
-                val candidates = extracted.pages.flatMap { page ->
-                    OcrTextParser.parseMeasurements(page.text).map { parsed ->
-                        app.vezuna.ui.ExtractedCandidate(
-                            testCode = OcrTextParser.canonicalTestCode(parsed.displayName),
-                            displayName = parsed.displayName,
-                            rawValue = parsed.value,
-                            rawUnit = parsed.unit,
-                            referenceRange = parsed.referenceRange,
-                            collectedAt = parsed.collectedAt,
-                            valueKind = parsed.valueKind,
-                            rawToken = parsed.rawToken,
-                            confidence = parsed.rawToken?.let { app.vezuna.domain.NumberAmbiguity.LOW_CONFIDENCE },
-                        )
-                    }
-                }
+                val candidates = extracted.pages.flatMap { page -> parseExtractedCandidates(page.text) }
                 complete(PickedSource(name, type, bytes, candidates))
             } catch (error: Throwable) {
                 pending = null

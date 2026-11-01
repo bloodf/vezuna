@@ -17,7 +17,7 @@ fun ProfileData.withDocument(updated: SourceDocument): ProfileData {
 
 fun ProfileData.withReport(updated: LabReport): ProfileData {
     require(reports.any { it.reportId == updated.reportId })
-    require(documents.any { it.documentId == updated.sourceDocumentId }) { "Source document must exist in this profile" }
+    require(updated.sourceDocumentId == null || documents.any { it.documentId == updated.sourceDocumentId }) { "Source document must exist in this profile" }
     return copy(reports = reports.map { if (it.reportId == updated.reportId) updated else it })
 }
 
@@ -25,12 +25,12 @@ fun ProfileData.withReport(updated: LabReport): ProfileData {
 fun ProfileData.withoutReport(reportId: String): ProfileData {
     val report = reports.firstOrNull { it.reportId == reportId } ?: throw IllegalArgumentException("Report not found")
     val remaining = reports.filterNot { it.reportId == reportId }
-    val sourceStillUsed = remaining.any { it.sourceDocumentId == report.sourceDocumentId }
-    return copy(
-        reports = remaining,
-        observations = observations.filterNot { it.reportId == reportId },
-        ocrCandidates = if (sourceStillUsed) ocrCandidates else ocrCandidates.filterNot { it.sourceDocumentId == report.sourceDocumentId },
-        documents = if (sourceStillUsed) documents else documents.filterNot { it.documentId == report.sourceDocumentId },
+    val withoutObservations = copy(reports = remaining, observations = observations.filterNot { it.reportId == reportId })
+    val sourceId = report.sourceDocumentId ?: return withoutObservations
+    if (remaining.any { it.sourceDocumentId == sourceId }) return withoutObservations
+    return withoutObservations.copy(
+        ocrCandidates = ocrCandidates.filterNot { it.sourceDocumentId == sourceId },
+        documents = documents.filterNot { it.documentId == sourceId },
     )
 }
 
@@ -46,6 +46,7 @@ fun ProfileData.withoutDocument(documentId: String): ProfileData {
 fun ProfileData.withObservation(updated: LabObservation): ProfileData {
     require(observations.any { it.observationId == updated.observationId })
     require(reports.any { it.reportId == updated.reportId }) { "Report must exist in this profile" }
+    require(observations.none { it.observationId != updated.observationId && ClinicalDuplicateDetector.areDuplicates(it, updated) }) { "Duplicate clinical result" }
     return copy(observations = observations.map { if (it.observationId == updated.observationId) updated else it })
 }
 

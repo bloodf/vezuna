@@ -48,7 +48,7 @@ fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): Profile
 fun ProfileData.isInternallyConsistent(): Boolean {
     val id = profile.profileId
     fun <T> List<T>.unique(key: (T) -> String) = map(key).toSet().size == size
-    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.map { it.observationId } +
+    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.flatMap { o -> listOf(o.observationId) + o.revisions.map { it.revisionId } } +
         ocrCandidates.flatMap { c -> listOf(c.candidateId) + c.revisions.map { it.revisionId } } +
         medications.flatMap { m -> listOf(m.medicationId) + m.schedules.map { it.scheduleId } } +
         doseEvents.map { it.eventId } + chat.map { it.messageId }
@@ -56,6 +56,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         documents.unique { it.documentId } &&
         reports.unique { it.reportId } &&
         observations.unique { it.observationId } &&
+        observations.all { o -> o.revisions.unique { it.revisionId } } &&
         ocrCandidates.unique { it.candidateId } &&
         ocrCandidates.all { c -> c.revisions.all { it.profileId == id } && c.revisions.unique { it.revisionId } } &&
         medications.unique { it.medicationId } &&
@@ -63,7 +64,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         doseEvents.unique { it.eventId } &&
         chat.unique { it.messageId } &&
         documents.all { it.profileId == id } &&
-        reports.all { r -> r.profileId == id && documents.any { it.documentId == r.sourceDocumentId } } &&
+        reports.all { r -> r.profileId == id && (r.sourceDocumentId == null || documents.any { it.documentId == r.sourceDocumentId }) } &&
         observations.all { o -> o.profileId == id && reports.any { it.reportId == o.reportId } } &&
         ocrCandidates.all { c -> c.profileId == id && documents.any { it.documentId == c.sourceDocumentId } } &&
         medications.all { m -> m.profileId == id && m.schedules.all { it.profileId == id && it.medicationId == m.medicationId } } &&

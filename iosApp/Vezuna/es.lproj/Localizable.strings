@@ -88,6 +88,7 @@
 "ocr_read_token" = "OCR leyó: %1$@";
 "ambiguous_number_warning" = "Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)";
 "choose_date_button" = "Elegir fecha";
+"reference_text" = "Texto de referencia (opcional)";
 "app_lock_reason" = "Confirma que eres tú para abrir tus registros de salud";
 "export_language" = "Idioma de la exportación";
 "export_language_device" = "Idioma de la app";
