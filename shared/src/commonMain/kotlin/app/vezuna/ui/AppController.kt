@@ -448,6 +448,15 @@ class AppController(
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.RESULT_UPDATED))
     }
 
+    /** Removes the report with its source document, stored file, draft candidates and confirmed results (repository cascade). */
+    suspend fun deleteReport(reportId: String) = operation {
+        val data = requireData()
+        if (data.reports.none { it.reportId == reportId }) failMessage(L10nKey.REPORT_NOT_FOUND)
+        repository.deleteReport(data.profile.profileId, reportId)
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.REPORT_DELETED))
+    }
+
     suspend fun rejectCandidate(candidateId: String) = operation {
         val data = requireData()
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }

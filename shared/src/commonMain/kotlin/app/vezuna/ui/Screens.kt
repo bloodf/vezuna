@@ -314,6 +314,7 @@ fun LabsScreen(state: AppUiState, controller: AppController) {
         } else observations.forEach { observation ->
             ResultRow(observation) { controller.navigate(AppScreen.ResultDetail(observation.observationId)) }
         }
+        ReportList(data, controller)
     }
 }
 
