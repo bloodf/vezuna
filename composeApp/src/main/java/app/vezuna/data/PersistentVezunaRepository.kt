@@ -4,6 +4,7 @@ import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -11,6 +12,20 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.withChatMessage
+import app.vezuna.domain.withDocument
+import app.vezuna.domain.withMedication
+import app.vezuna.domain.withObservation
+import app.vezuna.domain.withProfile
+import app.vezuna.domain.withReport
+import app.vezuna.domain.withSchedule
+import app.vezuna.domain.withoutChatMessage
+import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutMedication
+import app.vezuna.domain.withoutObservation
+import app.vezuna.domain.withoutReport
+import app.vezuna.domain.withoutSchedule
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +115,39 @@ class PersistentVezunaRepository(
         data.copy(chat = data.chat + message)
     }
 
+    override suspend fun updateProfile(profile: Profile) = mutate(profile.profileId) { it.withProfile(profile) }
+
+    override suspend fun deleteProfile(profileId: String) = mutex.withLock {
+        ensureInitialized()
+        val removed = snapshot.records[profileId] ?: throw IllegalArgumentException("Profile not found")
+        commit(snapshot.copy(records = snapshot.records - profileId))
+        removed.vaultKeys().forEach { vault.delete(it) }
+    }
+
+    override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
+
+    override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
+
+    override suspend fun deleteReport(profileId: String, reportId: String) = mutate(profileId) { it.withoutReport(reportId) }
+
+    override suspend fun updateObservation(observation: LabObservation) = mutate(observation.profileId) { it.withObservation(observation) }
+
+    override suspend fun deleteObservation(profileId: String, observationId: String) = mutate(profileId) { it.withoutObservation(observationId) }
+
+    override suspend fun updateMedication(medication: Medication) = mutate(medication.profileId) { it.withMedication(medication) }
+
+    override suspend fun deleteMedication(profileId: String, medicationId: String) = mutate(profileId) { it.withoutMedication(medicationId) }
+
+    override suspend fun updateSchedule(schedule: DoseSchedule) = mutate(schedule.profileId) { it.withSchedule(schedule) }
+
+    override suspend fun deleteSchedule(profileId: String, scheduleId: String) = mutate(profileId) { it.withoutSchedule(scheduleId) }
+
+    override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
+
+    override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
     private suspend fun mutate(transform: () -> Snapshot) = mutex.withLock {
         ensureInitialized()
         commit(transform())
@@ -108,7 +156,10 @@ class PersistentVezunaRepository(
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
         ensureInitialized()
         val current = snapshot.records.getValue(profileId)
-        commit(snapshot.with(transform(current)))
+        val updated = transform(current)
+        commit(snapshot.with(updated))
+        // Source files orphaned by a cascading delete are removed only after the new snapshot is durable.
+        (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
     }
 
     private fun Snapshot.with(data: ProfileData): Snapshot =

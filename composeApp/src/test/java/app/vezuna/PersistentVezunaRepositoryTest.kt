@@ -81,4 +81,30 @@ class PersistentVezunaRepositoryTest {
 
         assertEquals(listOf(DoseEventStatus.TAKEN), repository.readProfile("p").doseEvents.map { it.status })
     }
+
+    @Test
+    fun deletesPersistAndPurgeStoredSourceFiles() = runTest {
+        val vault = FakeSecureVault()
+        val repository = PersistentVezunaRepository(vault)
+        repository.load()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
+        repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
+        for (profile in listOf("a", "b")) {
+            vault.write("source-$profile", byteArrayOf(1))
+            repository.addDocument(SourceDocument(profile, "doc-$profile", "x.pdf", "application/pdf", "h", Instant.fromEpochMilliseconds(3), "source-$profile"))
+            repository.addReport(LabReport(profile, "rep-$profile", "doc-$profile", importedAt = Instant.fromEpochMilliseconds(4)))
+        }
+
+        repository.deleteReport("a", "rep-a")
+        assertEquals(null, vault.read("source-a"))
+        assertTrue(repository.readProfile("a").documents.isEmpty())
+
+        repository.deleteProfile("b")
+        assertEquals(null, vault.read("source-b"))
+
+        val restored = PersistentVezunaRepository(vault)
+        restored.load()
+        assertEquals(listOf("a"), restored.profiles.value.map { it.profileId })
+        assertTrue(restored.readProfile("a").reports.isEmpty())
+    }
 }

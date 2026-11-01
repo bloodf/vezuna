@@ -4,6 +4,7 @@ import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -11,6 +12,19 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.withChatMessage
+import app.vezuna.domain.withDocument
+import app.vezuna.domain.withMedication
+import app.vezuna.domain.withObservation
+import app.vezuna.domain.withProfile
+import app.vezuna.domain.withReport
+import app.vezuna.domain.withSchedule
+import app.vezuna.domain.withoutChatMessage
+import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutMedication
+import app.vezuna.domain.withoutObservation
+import app.vezuna.domain.withoutReport
+import app.vezuna.domain.withoutSchedule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,94 +43,126 @@ interface VezunaRepository {
     suspend fun addMedication(medication: Medication)
     suspend fun addDoseEvent(event: DoseEvent)
     suspend fun addChatMessage(message: ChatMessage)
+
+    /** Deleting a profile removes all its records and stored source files. */
+    suspend fun updateProfile(profile: Profile)
+    suspend fun deleteProfile(profileId: String)
+    suspend fun updateDocument(document: SourceDocument)
+    /** Cascades to the document's reports, observations, candidates and stored source file. */
+    suspend fun deleteDocument(profileId: String, documentId: String)
+    suspend fun updateReport(report: LabReport)
+    /** Cascades to the report's observations and, when unshared, its candidates, document and stored source file. */
+    suspend fun deleteReport(profileId: String, reportId: String)
+    suspend fun updateObservation(observation: LabObservation)
+    suspend fun deleteObservation(profileId: String, observationId: String)
+    suspend fun updateMedication(medication: Medication)
+    /** Cascades to the medication's schedules and dose events. */
+    suspend fun deleteMedication(profileId: String, medicationId: String)
+    suspend fun updateSchedule(schedule: DoseSchedule)
+    suspend fun deleteSchedule(profileId: String, scheduleId: String)
+    suspend fun updateChatMessage(message: ChatMessage)
+    suspend fun deleteChatMessage(profileId: String, messageId: String)
 }
 
+
+/** Volatile implementation used by tests and previews. */
 class InMemoryVezunaRepository : VezunaRepository {
     private val mutex = Mutex()
-    private val records = mutableMapOf<String, MutableProfileRecords>()
+    private var records = mapOf<String, ProfileData>()
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     override val profiles = mutableProfiles.asStateFlow()
 
     override suspend fun createProfile(profile: Profile) = mutex.withLock {
         require(!records.containsKey(profile.profileId)) { "Profile already exists" }
-        records[profile.profileId] = MutableProfileRecords(profile)
-        mutableProfiles.value = records.values.map { it.profile }.sortedBy { it.displayName }
+        publish(records + (profile.profileId to ProfileData(profile)))
     }
 
-    override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock {
-        records.getValue(profileId).snapshot()
+    override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock { records.getValue(profileId) }
+
+    override suspend fun updateProfile(profile: Profile) = mutate(profile.profileId) { it.withProfile(profile) }
+
+    override suspend fun deleteProfile(profileId: String) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        publish(records - profileId)
     }
 
-    override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) {
-        require(documents.none { it.documentId == document.documentId })
-        documents += document
+    override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) { data ->
+        require(data.documents.none { it.documentId == document.documentId })
+        data.copy(documents = data.documents + document)
     }
 
-    override suspend fun addReport(report: LabReport) = mutate(report.profileId) {
-        require(documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
-        require(reports.none { it.reportId == report.reportId })
-        reports += report
+    override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
+
+    override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    override suspend fun addReport(report: LabReport) = mutate(report.profileId) { data ->
+        require(data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(data.reports.none { it.reportId == report.reportId })
+        data.copy(reports = data.reports + report)
     }
 
-    override suspend fun addCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) {
-        require(documents.any { it.documentId == candidate.sourceDocumentId }) { "Source document must exist in this profile" }
-        require(ocrCandidates.none { it.candidateId == candidate.candidateId })
-        ocrCandidates += candidate
+    override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
+
+    override suspend fun deleteReport(profileId: String, reportId: String) = mutate(profileId) { it.withoutReport(reportId) }
+
+    override suspend fun addCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) { data ->
+        require(data.documents.any { it.documentId == candidate.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(data.ocrCandidates.none { it.candidateId == candidate.candidateId })
+        data.copy(ocrCandidates = data.ocrCandidates + candidate)
     }
 
-    override suspend fun updateCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) {
-        val index = ocrCandidates.indexOfFirst { it.candidateId == candidate.candidateId }
-        require(index >= 0)
-        ocrCandidates[index] = candidate
+    override suspend fun updateCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) { data ->
+        require(data.ocrCandidates.any { it.candidateId == candidate.candidateId })
+        data.copy(ocrCandidates = data.ocrCandidates.map { if (it.candidateId == candidate.candidateId) candidate else it })
     }
 
     override suspend fun addObservation(observation: LabObservation): Boolean = mutex.withLock {
-        val current = records.getValue(observation.profileId)
-        require(current.reports.any { it.reportId == observation.reportId }) { "Report must exist in this profile" }
-        if (current.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) return@withLock false
-        require(current.observations.none { it.observationId == observation.observationId })
-        current.observations += observation
+        val data = records.getValue(observation.profileId)
+        require(data.reports.any { it.reportId == observation.reportId }) { "Report must exist in this profile" }
+        if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) return@withLock false
+        require(data.observations.none { it.observationId == observation.observationId })
+        publish(records + (data.profile.profileId to data.copy(observations = data.observations + observation)))
         true
     }
 
-    override suspend fun addMedication(medication: Medication) = mutate(medication.profileId) {
+    override suspend fun updateObservation(observation: LabObservation) = mutate(observation.profileId) { it.withObservation(observation) }
+
+    override suspend fun deleteObservation(profileId: String, observationId: String) = mutate(profileId) { it.withoutObservation(observationId) }
+
+    override suspend fun addMedication(medication: Medication) = mutate(medication.profileId) { data ->
         require(medication.schedules.all { it.profileId == medication.profileId && it.medicationId == medication.medicationId })
-        require(medications.none { it.medicationId == medication.medicationId })
-        medications += medication
+        require(data.medications.none { it.medicationId == medication.medicationId })
+        data.copy(medications = data.medications + medication)
     }
 
-    override suspend fun addDoseEvent(event: DoseEvent) = mutate(event.profileId) {
-        require(medications.any { medication -> medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId } })
-        val merged = DoseEvents.merge(doseEvents.toList(), event)
-        doseEvents.clear()
-        doseEvents.addAll(merged)
+    override suspend fun updateMedication(medication: Medication) = mutate(medication.profileId) { it.withMedication(medication) }
+
+    override suspend fun deleteMedication(profileId: String, medicationId: String) = mutate(profileId) { it.withoutMedication(medicationId) }
+
+    override suspend fun updateSchedule(schedule: DoseSchedule) = mutate(schedule.profileId) { it.withSchedule(schedule) }
+
+    override suspend fun deleteSchedule(profileId: String, scheduleId: String) = mutate(profileId) { it.withoutSchedule(scheduleId) }
+
+    override suspend fun addDoseEvent(event: DoseEvent) = mutate(event.profileId) { data ->
+        require(data.medications.any { medication -> medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId } })
+        data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
     }
 
-    override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) {
-        chat += message
+    override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->
+        data.copy(chat = data.chat + message)
     }
 
-    private suspend inline fun mutate(profileId: String, crossinline block: MutableProfileRecords.() -> Unit) =
-        mutex.withLock { records.getValue(profileId).block() }
+    override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
-    private class MutableProfileRecords(val profile: Profile) {
-        val documents = mutableListOf<SourceDocument>()
-        val reports = mutableListOf<LabReport>()
-        val observations = mutableListOf<LabObservation>()
-        val ocrCandidates = mutableListOf<OcrCandidate>()
-        val medications = mutableListOf<Medication>()
-        val doseEvents = mutableListOf<DoseEvent>()
-        val chat = mutableListOf<ChatMessage>()
+    override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
 
-        fun snapshot() = ProfileData(
-            profile = profile,
-            documents = documents.toList(),
-            reports = reports.toList(),
-            observations = observations.toList(),
-            ocrCandidates = ocrCandidates.toList(),
-            medications = medications.toList(),
-            doseEvents = doseEvents.toList(),
-            chat = chat.toList(),
-        )
+    private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
+        val updated = transform(records.getValue(profileId))
+        publish(records + (profileId to updated))
+    }
+
+    private fun publish(updated: Map<String, ProfileData>) {
+        records = updated
+        mutableProfiles.value = updated.values.map { it.profile }.sortedBy { it.displayName }
     }
 }
