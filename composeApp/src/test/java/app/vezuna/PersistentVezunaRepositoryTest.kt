@@ -1,6 +1,9 @@
 package app.vezuna
 
 import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEventStatus
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -56,5 +59,26 @@ class PersistentVezunaRepositoryTest {
             repository.addReport(LabReport("b", "report-b", "doc-a", importedAt = Instant.fromEpochMilliseconds(4)))
         }
         assertTrue(repository.readProfile("b").reports.isEmpty())
+    }
+
+    @Test
+    fun notificationActionAndInAppWriteForSameDoseStoreOneTerminalEvent() = runTest {
+        val repository = PersistentVezunaRepository(FakeSecureVault())
+        repository.load()
+        repository.createProfile(Profile("p", "Me", createdAt = Instant.fromEpochMilliseconds(1)))
+        repository.addMedication(
+            Medication("p", "m", "Med", schedules = listOf(
+                DoseSchedule("p", "s", "m", Recurrence.DAILY, startDate = LocalDate(2026, 10, 1), timesLocal = listOf("08:00")),
+            )),
+        )
+        // Android receiver path: scheduledFor arrives as epoch millis in the intent.
+        val fromReceiver = Instant.fromEpochMilliseconds(1_790_000_000_000L)
+        // In-app path: scheduledFor comes from the dashboard snapshot (whole seconds).
+        val fromApp = Instant.fromEpochSeconds(1_790_000_000L)
+        repository.addDoseEvent(DoseEvent("p", DoseEvents.idFor("s", fromReceiver), "m", "s", fromReceiver, DoseEventStatus.TAKEN))
+        repository.addDoseEvent(DoseEvent("p", DoseEvents.idFor("s", fromApp), "m", "s", fromApp, DoseEventStatus.TAKEN))
+        repository.addDoseEvent(DoseEvent("p", DoseEvents.idFor("s", fromApp), "m", "s", fromApp, DoseEventStatus.SKIPPED))
+
+        assertEquals(listOf(DoseEventStatus.TAKEN), repository.readProfile("p").doseEvents.map { it.status })
     }
 }

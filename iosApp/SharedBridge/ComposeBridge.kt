@@ -3,6 +3,7 @@ package app.vezuna.ios
 import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -176,10 +177,10 @@ object IosRuntime {
                     completion(nativeMessage("medication_schedule_missing"))
                     return@launch
                 }
-                val eventId = "dose-$profileId-$scheduleId-${scheduled.epochSeconds}-$status"
-                if (data.doseEvents.none { it.eventId == eventId }) {
-                    repository.addDoseEvent(DoseEvent(profileId, eventId, medicationId, scheduleId, scheduled, doseStatus, currentInstant()))
-                }
+                // The repository enforces one terminal status per dose; a repeat or lower-priority write is a no-op.
+                repository.addDoseEvent(
+                    DoseEvent(profileId, DoseEvents.idFor(scheduleId, scheduled), medicationId, scheduleId, scheduled, doseStatus, currentInstant()),
+                )
                 repositoryObserver?.repositoryDidChange()
                 completion(null)
             } catch (error: Throwable) {

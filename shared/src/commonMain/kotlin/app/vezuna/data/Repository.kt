@@ -3,6 +3,7 @@ package app.vezuna.data
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -86,8 +87,9 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun addDoseEvent(event: DoseEvent) = mutate(event.profileId) {
         require(medications.any { medication -> medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId } })
-        require(doseEvents.none { it.eventId == event.eventId })
-        doseEvents += event
+        val merged = DoseEvents.merge(doseEvents.toList(), event)
+        doseEvents.clear()
+        doseEvents.addAll(merged)
     }
 
     override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) {

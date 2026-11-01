@@ -3,6 +3,7 @@ package app.vezuna.data
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -91,8 +92,7 @@ class PersistentVezunaRepository(
         require(data.medications.any { medication ->
             medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId }
         })
-        require(data.doseEvents.none { it.eventId == event.eventId })
-        data.copy(doseEvents = data.doseEvents + event)
+        data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
     }
 
     override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->

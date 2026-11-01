@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import app.vezuna.VezunaApplication
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.ui.DashboardRefreshSignal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -12,8 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.time.Instant
-import java.nio.charset.StandardCharsets
-import java.util.UUID
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -61,22 +60,19 @@ class DoseActionReceiver : BroadcastReceiver() {
         val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return
         val scheduleId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_SCHEDULE_ID) ?: return
         require(scheduledEpoch >= 0) { "Missing reminder time" }
-        val eventId = UUID.nameUUIDFromBytes("$profileId/$medicationId/$scheduleId/$scheduledEpoch/${action.name}".toByteArray(StandardCharsets.UTF_8)).toString()
-        try {
-            app.repository.addDoseEvent(
-                DoseEvent(
-                    profileId = profileId,
-                    eventId = eventId,
-                    medicationId = medicationId,
-                    scheduleId = scheduleId,
-                    scheduledFor = Instant.fromEpochMilliseconds(scheduledEpoch),
-                    status = status,
-                    recordedAt = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
-                ),
-            )
-        } catch (error: IllegalArgumentException) {
-            if (app.repository.readProfile(profileId).doseEvents.none { it.eventId == eventId }) throw error
-        }
+        val scheduledFor = Instant.fromEpochMilliseconds(scheduledEpoch)
+        // The repository enforces one terminal status per dose, so a repeated action is a no-op.
+        app.repository.addDoseEvent(
+            DoseEvent(
+                profileId = profileId,
+                eventId = DoseEvents.idFor(scheduleId, scheduledFor),
+                medicationId = medicationId,
+                scheduleId = scheduleId,
+                scheduledFor = scheduledFor,
+                status = status,
+                recordedAt = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
+            ),
+        )
     }
 }
 

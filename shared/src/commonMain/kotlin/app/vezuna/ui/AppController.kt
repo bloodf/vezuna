@@ -7,6 +7,7 @@ import app.vezuna.domain.DashboardDose
 import app.vezuna.domain.DashboardSnapshot
 import app.vezuna.domain.DashboardSnapshotFactory
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
@@ -321,7 +322,7 @@ class AppController(
         val snoozedAt = kotlinx.datetime.Instant.fromEpochSeconds(now.epochSeconds + 600)
         val event = DoseEvent(
             profileId = data.profile.profileId,
-            eventId = doseEventId(data.profile.profileId, dose.scheduleId, snoozedAt, DoseEventStatus.SCHEDULED),
+            eventId = DoseEvents.snoozeIdFor(dose.scheduleId, snoozedAt),
             medicationId = dose.medicationId,
             scheduleId = dose.scheduleId,
             scheduledFor = snoozedAt,
@@ -336,15 +337,10 @@ class AppController(
     private suspend fun recordTerminalDose(dose: DashboardDose, status: DoseEventStatus) = operation {
         val data = requireData()
         require(dose.profileId == data.profile.profileId)
-        val duplicate = data.doseEvents.any {
-            it.scheduleId == dose.scheduleId && it.scheduledFor == dose.scheduledFor &&
-                (it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED)
-        }
-        if (duplicate) return@operation
         repository.addDoseEvent(
             DoseEvent(
                 profileId = data.profile.profileId,
-                eventId = doseEventId(data.profile.profileId, dose.scheduleId, dose.scheduledFor, status),
+                eventId = DoseEvents.idFor(dose.scheduleId, dose.scheduledFor),
                 medicationId = dose.medicationId,
                 scheduleId = dose.scheduleId,
                 scheduledFor = dose.scheduledFor,
@@ -354,9 +350,6 @@ class AppController(
         )
         loadProfile(data.profile.profileId)
     }
-
-    private fun doseEventId(profileId: String, scheduleId: String, at: kotlinx.datetime.Instant, status: DoseEventStatus): String =
-        "dose-$profileId-$scheduleId-${at.epochSeconds}-${status.name.lowercase()}"
 
     fun toggleObservation(observationId: String) {
         val data = mutableState.value.data ?: return
