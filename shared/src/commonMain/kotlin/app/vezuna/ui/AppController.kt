@@ -340,6 +340,7 @@ class AppController(
                 collectedAt = date,
                 confirmation = ConfirmationStatus.CONFIRMED,
                 qualitativeValue = qualitativeValue,
+                valueDecimals = result.decimals,
             ),
         )
         if (!inserted) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
@@ -385,6 +386,7 @@ class AppController(
             collectedAt = date,
             confirmation = ConfirmationStatus.CONFIRMED,
             qualitativeValue = result.qualitativeValue,
+            valueDecimals = result.decimals,
         )
         if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
         repository.addReport(report)

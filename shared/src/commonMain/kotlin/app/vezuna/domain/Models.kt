@@ -70,8 +70,11 @@ data class LabObservation(
     val confirmation: ConfirmationStatus = ConfirmationStatus.UNREVIEWED,
     /** Non-null for qualitative results (e.g. "Negative"); numeric fields are then 0.0 placeholders and must not be read. Absent in pre-qualitative stored data. */
     val qualitativeValue: String? = null,
+    /** Fraction digits of the value as the report printed it (5.70 -> 2); display only, null in older stored data. */
+    val valueDecimals: Int? = null,
 ) {
     init {
+        require(valueDecimals == null || valueDecimals in 0..MAX_VALUE_DECIMALS)
         require(originalValue.isFinite() && normalizedValue.isFinite())
         if (qualitativeValue != null) {
             require(qualitativeValue.isNotBlank())
@@ -82,6 +85,10 @@ data class LabObservation(
     }
 
     val isQualitative: Boolean get() = qualitativeValue != null
+
+    companion object {
+        const val MAX_VALUE_DECIMALS = 9
+    }
 }
 
 @Serializable

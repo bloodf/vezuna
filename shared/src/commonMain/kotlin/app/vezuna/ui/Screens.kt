@@ -75,8 +75,10 @@ import app.vezuna.domain.QualitativeTimelines
 import app.vezuna.domain.Profile
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.TrendSeries
-import app.vezuna.export.DoctorExportContent
 import app.vezuna.localization.L10nKey
+import app.vezuna.localization.formatConfidence
+import app.vezuna.localization.formatLabValue
+import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.vitaPlural
@@ -228,14 +230,24 @@ private fun rangeLabel(assessment: app.vezuna.domain.RangeAssessment): String = 
     app.vezuna.domain.RangeAssessment.UNKNOWN -> L10nKey.RANGE_UNKNOWN
 })
 
-/** UI-only missing-reference label; all clinical formatting still comes from the export-neutral model. */
+/** UI-only reference label: the report's own text wins, bounds use the language's number format. */
 @Composable
-private fun uiRangeText(range: app.vezuna.domain.ReferenceRange): String =
-    if (range.text == null && range.lower == null && range.upper == null) {
-        vitaText(L10nKey.REFERENCE_NOT_PROVIDED)
-    } else {
-        DoctorExportContent.rangeText(range)
-    }
+private fun uiRangeText(range: app.vezuna.domain.ReferenceRange): String {
+    if (range.text != null) return range.text
+    if (range.lower == null && range.upper == null) return vitaText(L10nKey.REFERENCE_NOT_PROVIDED)
+    val unit = range.unit.orEmpty()
+    val lower = range.lower?.let { formatLabValue(it) }
+    val upper = range.upper?.let { formatLabValue(it) }
+    return when {
+        lower == null -> "≤ $upper $unit"
+        upper == null -> "≥ $lower $unit"
+        else -> "$lower–$upper $unit"
+    }.trim()
+}
+
+@Composable
+internal fun observationValueText(observation: LabObservation): String =
+    observation.qualitativeValue ?: "${formatLabValue(observation.originalValue, observation.valueDecimals)} ${observation.originalUnit}".trim()
 
 @Composable
 private fun DashboardToday(snapshot: app.vezuna.domain.DashboardSnapshot?, controller: AppController, scope: CoroutineScope) {
@@ -322,7 +334,7 @@ private fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
                 }
                 StatusPill(vitaText(L10nKey.CONFIRMED), Icons.Rounded.CheckCircle, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
             }
-            Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(observationValueText(observation), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(vitaText(L10nKey.REFERENCE, uiRangeText(observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -383,11 +395,11 @@ private fun CandidateEditor(
 ) {
     var code by remember(candidate.candidateId) { mutableStateOf(candidate.testCode) }
     var name by remember(candidate.candidateId) { mutableStateOf(candidate.displayName) }
-    var value by remember(candidate.candidateId) { mutableStateOf(candidate.rawValue) }
+    var value by remember(candidate.candidateId) { mutableStateOf(if (candidate.looksQualitative) candidate.rawValue else localizeDecimalText(candidate.rawValue)) }
     var unit by remember(candidate.candidateId) { mutableStateOf(candidate.rawUnit) }
     var asText by remember(candidate.candidateId) { mutableStateOf(candidate.looksQualitative) }
-    var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.toString().orEmpty()) }
-    var upper by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.upper?.toString().orEmpty()) }
+    var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.let { formatLabValue(it) }.orEmpty()) }
+    var upper by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.upper?.let { formatLabValue(it) }.orEmpty()) }
     var rangeText by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.text.orEmpty()) }
     Card(Modifier.fillMaxWidth().vitaAnimateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -397,7 +409,7 @@ private fun CandidateEditor(
                 Spacer(Modifier.weight(1f))
                 StatusPill(vitaText(L10nKey.DRAFT), Icons.Rounded.FactCheck, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onTertiaryContainer)
             }
-            Text(vitaText(L10nKey.CONFIDENCE, candidate.confidence?.toString() ?: vitaText(L10nKey.CONFIDENCE_NOT_REPORTED)), style = MaterialTheme.typography.bodySmall)
+            Text(vitaText(L10nKey.CONFIDENCE, candidate.confidence?.let(::formatConfidence) ?: vitaText(L10nKey.CONFIDENCE_NOT_REPORTED)), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_NAME)) }, singleLine = true)
             OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_CODE_EXAMPLE)) }, singleLine = true)
             CollectionDateField(date, onDate, onApplyDateToReport)
@@ -440,9 +452,9 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(20.dp)) {
                 Text(vitaText(L10nKey.ORIGINAL_RESULT), style = MaterialTheme.typography.labelLarge)
-                Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
+                Text(observationValueText(observation), style = MaterialTheme.typography.headlineMedium)
                 if (!observation.isQualitative && (observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue)) {
-                    Text(vitaText(L10nKey.NORMALIZED, observation.normalizedValue, observation.normalizedUnit), style = MaterialTheme.typography.bodyMedium)
+                    Text(vitaText(L10nKey.NORMALIZED, formatLabValue(observation.normalizedValue), observation.normalizedUnit), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -513,7 +525,7 @@ fun TrendsScreen(state: AppUiState, controller: AppController) {
                                     Text(formatUiDate(point.observation.collectedAt), style = MaterialTheme.typography.bodyMedium)
                                     Text(vitaText(L10nKey.REFERENCE, uiRangeText(point.observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Text("${point.y} ${current.unit}", style = MaterialTheme.typography.titleSmall)
+                                Text("${formatLabValue(point.y)} ${current.unit}", style = MaterialTheme.typography.titleSmall)
                             }
                         }
                     }
