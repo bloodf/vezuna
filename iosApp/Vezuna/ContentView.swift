@@ -3,6 +3,7 @@ import VezunaShared
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppShellModel
+    @EnvironmentObject private var lock: AppLockObserver
 
     var body: some View {
         Group {
@@ -12,6 +13,7 @@ struct ContentView: View {
                         .ignoresSafeArea(.container, edges: .bottom)
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
+                            if !lock.locked {
                             ToolbarItemGroup(placement: .topBarTrailing) {
                                 Menu {
                                     Button { model.sheet = .importSource } label: { Label(L10n.text(.import_lab_source), systemImage: "doc.viewfinder") }
@@ -24,6 +26,7 @@ struct ContentView: View {
                                     Image(systemName: "ellipsis.circle")
                                         .accessibilityLabel(L10n.text(.native_actions))
                                 }
+                            }
                             }
                         }
                         .safeAreaInset(edge: .top) {
@@ -55,6 +58,7 @@ struct ContentView: View {
             }
         }
         .task { model.configure() }
+        .onChange(of: lock.locked) { locked in if locked { model.sheet = nil } }
         .sheet(item: $model.sheet) { sheet in
             switch sheet {
             case .importSource:

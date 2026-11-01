@@ -351,5 +351,13 @@ iOS: %2$s</string>
         <item quantity="one">Gráfico con %1$d lectura, unidad %2$s</item>
         <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s</item>
     </plurals>
+    <!-- App lock -->
+    <string name="app_lock_title">Bloqueo de la app</string>
+    <string name="app_lock_description">Exige biometría o el código del dispositivo al abrir Vezuna y tras 5 minutos en segundo plano. También oculta Vezuna en el selector de apps y en las capturas de pantalla.</string>
+    <string name="app_lock_unavailable">Configura un bloqueo de pantalla o biometría en este dispositivo para usar el bloqueo de la app.</string>
+    <string name="app_lock_failed">Falló la autenticación. Inténtalo de nuevo.</string>
+    <string name="lock_screen_title">Vezuna está bloqueado</string>
+    <string name="lock_screen_body">Tus registros de salud permanecen ocultos hasta que desbloquees.</string>
+    <string name="unlock">Desbloquear</string>
     <string name="backup_restored_without_vitals">Copia restaurada, pero no se pudieron restaurar los datos de salud del dispositivo</string>
 </resources>

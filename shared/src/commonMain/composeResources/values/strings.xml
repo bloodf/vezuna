@@ -351,5 +351,13 @@ iOS: %2$s</string>
         <item quantity="one">Chart of %1$d reading, unit %2$s</item>
         <item quantity="other">Chart of %1$d readings, unit %2$s</item>
     </plurals>
+    <!-- App lock -->
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_description">Require biometrics or your device passcode when Vezuna opens and after 5 minutes in the background. Also hides Vezuna in the app switcher and screenshots.</string>
+    <string name="app_lock_unavailable">Set up a screen lock or biometrics on this device to use app lock.</string>
+    <string name="app_lock_failed">Authentication failed. Try again.</string>
+    <string name="lock_screen_title">Vezuna is locked</string>
+    <string name="lock_screen_body">Your health records stay hidden until you unlock.</string>
+    <string name="unlock">Unlock</string>
     <string name="backup_restored_without_vitals">Backup restored, but the device health data could not be restored</string>
 </resources>

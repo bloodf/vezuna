@@ -6,7 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import android.content.res.Configuration
 import android.graphics.Color
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import android.view.WindowManager
+import app.vezuna.ui.AppLockHost
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -40,7 +44,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class AndroidMainActivity : ComponentActivity() {
+class AndroidMainActivity : FragmentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
     internal lateinit var controller: AppController
     private lateinit var extraction: NativeOcrExtractionService
@@ -75,6 +79,14 @@ class AndroidMainActivity : ComponentActivity() {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
         }
+        // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
+        app.deviceAuthenticator = AndroidDeviceAuthenticator(this)
+        app.appLock.refresh()
+        lifecycleScope.launch {
+            app.appLock.state.map { it.enabled }.distinctUntilChanged().collect { enabled ->
+                if (enabled) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
         extraction = NativeOcrExtractionService(this)
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
@@ -99,6 +111,7 @@ class AndroidMainActivity : ComponentActivity() {
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
+            AppLockHost(app.appLock) {
             VaultGate(
                 vaultState,
                 onRetry = app::retryVault,
@@ -123,7 +136,19 @@ class AndroidMainActivity : ComponentActivity() {
                 onDismissMessage = { mutableMessage.value = null },
             )
             }
+            }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        app.appLock.refresh()
+        app.appLock.onForeground()
+    }
+
+    override fun onStop() {
+        app.appLock.onBackground()
+        super.onStop()
     }
 
     override fun onDestroy() {

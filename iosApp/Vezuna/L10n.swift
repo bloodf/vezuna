@@ -25,6 +25,7 @@ enum NativeString: String {
     case model_catalog_read_failed, model_catalog_invalid
     case collection_date, collection_date_required, apply_date_to_all
     case ocr_read_token, ambiguous_number_warning, choose_date_button
+    case app_lock_reason
 }
 
 enum L10n {
