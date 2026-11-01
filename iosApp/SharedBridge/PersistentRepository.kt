@@ -131,7 +131,7 @@ class PersistentVezunaRepository private constructor(
     }
 
     override suspend fun addReport(report: LabReport) = mutate(report.profileId) { data ->
-        require(data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(report.sourceDocumentId == null || data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
         require(data.reports.none { it.reportId == report.reportId })
         data.copy(reports = data.reports + report)
     }

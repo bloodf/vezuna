@@ -255,6 +255,10 @@ iOS: %2$s</string>
     <string name="ocr_read_token">OCR leu: %1$s</string>
     <string name="ambiguous_number_warning">Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)</string>
     <string name="reference_text_optional">Texto de referência (opcional)</string>
+    <string name="manual_entry_hint">Sem arquivo: digite um resultado de um laudo em papel e escolha a data da coleta.</string>
+    <string name="save_manual_result">Salvar resultado manual</string>
+    <string name="manual_result_saved">Resultado manual salvo</string>
+    <string name="manual_entry_report">Entrada manual</string>
     <string name="save">Salvar</string>
     <string name="edit">Editar</string>
     <string name="rename_profile">Renomear perfil</string>

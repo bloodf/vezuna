@@ -28,11 +28,14 @@ data class SourceDocument(
 data class LabReport(
     val profileId: String,
     val reportId: String,
-    val sourceDocumentId: String,
+    /** Null for a manual report: a result typed in by the user, with no source file. */
+    val sourceDocumentId: String? = null,
     val laboratoryName: String? = null,
     val orderedAt: Instant? = null,
     val importedAt: Instant,
-)
+) {
+    val isManual: Boolean get() = sourceDocumentId == null
+}
 
 @Serializable
 enum class ConfirmationStatus { UNREVIEWED, CONFIRMED, REJECTED }

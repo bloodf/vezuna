@@ -341,12 +341,6 @@ private fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
 @Composable
 fun ImportReviewScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, sourcePicker: (suspend () -> PickedSource?)?) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_PROFILE), vitaText(L10nKey.SELECT_PROFILE_FIRST))
-    var code by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
-    var value by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("") }
-    var referenceLower by remember { mutableStateOf("") }
-    var referenceUpper by remember { mutableStateOf("") }
     ScreenColumn(vitaText(L10nKey.IMPORT_REVIEW), vitaText(L10nKey.IMPORT_REVIEW_SUBTITLE)) {
         if (sourcePicker == null) {
             EmptyState(vitaText(L10nKey.NATIVE_SOURCE_PICKER), vitaText(L10nKey.NATIVE_SOURCE_PICKER_EXPLANATION), Icons.Rounded.UploadFile)
@@ -355,22 +349,8 @@ fun ImportReviewScreen(state: AppUiState, controller: AppController, scope: Coro
             VitaButton(vitaText(L10nKey.CHOOSE_SOURCE_EXTRACT_ALL), Icons.Rounded.UploadFile, {
                 scope.launch { sourcePicker()?.let { controller.importSource(it) } }
             }, enabled = !state.loading)
-            SectionHeading(vitaText(L10nKey.MANUAL_SINGLE_RESULT))
-            OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_CODE_EXAMPLE)) }, singleLine = true)
-            OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_NAME)) }, singleLine = true)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(value, { value = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.EXTRACTED_VALUE)) }, singleLine = true)
-                OutlinedTextField(unit, { unit = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.EXTRACTED_UNIT)) }, singleLine = true)
-            }
-            OutlinedTextField(referenceLower, { referenceLower = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.REFERENCE_LOWER_OPTIONAL)) }, singleLine = true)
-            OutlinedTextField(referenceUpper, { referenceUpper = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.REFERENCE_UPPER_OPTIONAL)) }, singleLine = true)
-            VitaButton(vitaText(L10nKey.CHOOSE_SOURCE_CREATE_MANUAL), Icons.Rounded.Add, {
-                scope.launch {
-                    val source = sourcePicker() ?: return@launch
-                    controller.importCandidate(source.fileName, source.mediaType, source.bytes, code, name, value, unit, referenceLower, referenceUpper)
-                }
-            }, enabled = code.isNotBlank() && name.isNotBlank() && value.isNotBlank() && unit.isNotBlank())
         }
+        ManualResultForm(controller, scope)
         val pending = data.ocrCandidates.filter { it.status == ConfirmationStatus.UNREVIEWED }
         SectionHeading(vitaPlural(L10nKey.PENDING_CANDIDATES, pending.size))
         if (pending.isEmpty()) EmptyState(vitaText(L10nKey.NOTHING_AWAITING_REVIEW), vitaText(L10nKey.REVIEW_TRACKING), Icons.Rounded.FactCheck)

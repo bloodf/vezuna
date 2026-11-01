@@ -255,6 +255,10 @@ iOS: %2$s</string>
     <string name="ocr_read_token">OCR read: %1$s</string>
     <string name="ambiguous_number_warning">Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)</string>
     <string name="reference_text_optional">Reference text (optional)</string>
+    <string name="manual_entry_hint">No file needed: type a result from a paper report and choose its collection date.</string>
+    <string name="save_manual_result">Save manual result</string>
+    <string name="manual_result_saved">Manual result saved</string>
+    <string name="manual_entry_report">Manual entry</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
     <string name="rename_profile">Rename profile</string>

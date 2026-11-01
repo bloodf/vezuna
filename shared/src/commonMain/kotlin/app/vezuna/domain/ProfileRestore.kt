@@ -63,7 +63,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         doseEvents.unique { it.eventId } &&
         chat.unique { it.messageId } &&
         documents.all { it.profileId == id } &&
-        reports.all { r -> r.profileId == id && documents.any { it.documentId == r.sourceDocumentId } } &&
+        reports.all { r -> r.profileId == id && (r.sourceDocumentId == null || documents.any { it.documentId == r.sourceDocumentId }) } &&
         observations.all { o -> o.profileId == id && reports.any { it.reportId == o.reportId } } &&
         ocrCandidates.all { c -> c.profileId == id && documents.any { it.documentId == c.sourceDocumentId } } &&
         medications.all { m -> m.profileId == id && m.schedules.all { it.profileId == id && it.medicationId == m.medicationId } } &&

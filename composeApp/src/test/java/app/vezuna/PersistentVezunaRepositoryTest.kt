@@ -83,6 +83,22 @@ class PersistentVezunaRepositoryTest {
     }
 
     @Test
+    fun manualReportWithoutDocumentPersists() = runTest {
+        val vault = FakeSecureVault()
+        val repository = PersistentVezunaRepository(vault)
+        repository.load()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
+        repository.addReport(LabReport("a", "manual-report", importedAt = Instant.fromEpochMilliseconds(2)))
+
+        val restored = PersistentVezunaRepository(vault)
+        restored.load()
+        val report = restored.readProfile("a").reports.single()
+        assertTrue(report.isManual)
+        restored.deleteReport("a", "manual-report")
+        assertTrue(restored.readProfile("a").reports.isEmpty())
+    }
+
+    @Test
     fun deletesPersistAndPurgeStoredSourceFiles() = runTest {
         val vault = FakeSecureVault()
         val repository = PersistentVezunaRepository(vault)

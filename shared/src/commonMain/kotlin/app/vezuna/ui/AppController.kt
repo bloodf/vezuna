@@ -2,6 +2,7 @@ package app.vezuna.ui
 
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ChatMessage
+import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DashboardDose
 import app.vezuna.domain.DashboardSnapshot
@@ -185,29 +186,6 @@ class AppController(
         loadProfile(profileId)
     }
 
-    suspend fun importCandidate(
-        fileName: String,
-        mediaType: String,
-        sourceBytes: ByteArray,
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        referenceLower: String,
-        referenceUpper: String,
-        collectedAt: kotlinx.datetime.Instant? = null,
-    ) = operation {
-        val range = ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = rawUnit.trim())
-        val inserted = importExtracted(
-            PickedSource(fileName, mediaType, sourceBytes),
-            listOf(ExtractedCandidate(testCode, displayName, rawValue, rawUnit, range, collectedAt)),
-        )
-        mutableState.value = mutableState.value.copy(
-            screen = AppScreen.ImportReview,
-            notice = message(L10nKey.IMPORT_MANUAL_NOTICE, inserted),
-        )
-    }
-
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
@@ -333,13 +311,11 @@ class AppController(
         val code = (testCode ?: candidate.testCode).trim()
         val name = (displayName ?: candidate.displayName).trim()
         if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
-        val qualitativeValue = if (asText ?: candidate.looksQualitative) {
-            correctedValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
-        } else null
-        val value = if (qualitativeValue != null) 0.0 else parseDecimalInput(correctedValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
-        val unit = if (qualitativeValue != null) "" else correctedUnit.trim()
-        if (qualitativeValue == null && unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
-        val normalized = UnitNormalizer.normalize(value, unit)
+        val result = resolveResultValue(asText ?: candidate.looksQualitative, correctedValue, correctedUnit)
+        val qualitativeValue = result.qualitativeValue
+        val value = result.value
+        val unit = result.unit
+        val normalized = result.normalized
         val range = reviewedRange(candidate.referenceRange.text, referenceText, referenceLower, referenceUpper, unit, qualitativeValue != null)
         val revisions = candidate.revisions + OcrRevision(
             data.profile.profileId,
@@ -370,6 +346,51 @@ class AppController(
         repository.updateCandidate(candidate.copy(testCode = code, displayName = name, collectedAt = date, collectedAtKnown = true, status = ConfirmationStatus.CONFIRMED, revisions = revisions))
         loadProfile(data.profile.profileId)
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.CONFIRMED_RESULT_SAVED))
+    }
+
+    /**
+     * A result typed in from a paper report: no source file, a new "manual" report, and a confirmed result
+     * (the reviewer is the author). The collection date is required.
+     */
+    suspend fun addManualResult(
+        testCode: String,
+        displayName: String,
+        rawValue: String,
+        rawUnit: String,
+        referenceLower: String,
+        referenceUpper: String,
+        referenceText: String?,
+        collectedAt: kotlinx.datetime.Instant?,
+        asText: Boolean = false,
+    ) = operation {
+        val data = requireData()
+        val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
+        val code = testCode.trim()
+        val name = displayName.trim()
+        if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
+        val result = resolveResultValue(asText, rawValue, rawUnit)
+        val range = reviewedRange(null, referenceText, referenceLower, referenceUpper, result.unit, result.qualitativeValue != null)
+        val report = LabReport(data.profile.profileId, randomId(), importedAt = currentInstant())
+        val observation = LabObservation(
+            profileId = data.profile.profileId,
+            observationId = randomId(),
+            reportId = report.reportId,
+            testCode = code,
+            displayName = name,
+            originalValue = result.value,
+            originalUnit = result.unit,
+            normalizedValue = result.normalized.value,
+            normalizedUnit = result.normalized.unit,
+            referenceRange = range,
+            collectedAt = date,
+            confirmation = ConfirmationStatus.CONFIRMED,
+            qualitativeValue = result.qualitativeValue,
+        )
+        if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        repository.addReport(report)
+        repository.addObservation(observation)
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
 
     suspend fun rejectCandidate(candidateId: String) = operation {
