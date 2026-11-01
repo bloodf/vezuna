@@ -4,7 +4,7 @@ import android.app.Application
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
-import app.vezuna.health.HealthConnectCursorStore
+import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.notifications.MedicationNotificationScheduler
@@ -55,7 +55,10 @@ class VezunaApplication : Application() {
         notifications = MedicationNotificationScheduler(this)
         notifications.createChannel()
         healthConnect = AndroidHealthConnectImporter(this)
-        healthSync = DeviceVitalsSync(healthConnect, repository, HealthConnectCursorStore(vault, repository, { currentInstant() }), { currentInstant() })
+        healthSync = DeviceVitalsSync(
+            healthConnect, repository, { currentInstant() },
+            beforeSync = { LegacyHealthConnectMigration(vault, repository, { currentInstant() }).run() },
+        )
         applicationScope.launch {
             vaultState.first { it is VaultState.Ready }
             repository.revision.collect {

@@ -109,23 +109,29 @@ class PersistentVezunaRepositoryTest {
     }
 
     @Test
-    fun deviceVitalsAndLinkSurviveRestartAndRelinkWhenLinkedProfileIsDeleted() = runTest {
+    fun vitalsLiveInTheirOwnFileAndSurviveRestartAndRelinkOnDelete() = runTest {
         val vault = FakeSecureVault()
         val repository = PersistentVezunaRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
-        val sample = app.vezuna.domain.VitalSample("r", app.vezuna.domain.VitalMetric.WEIGHT_KG, 70.0, Instant.parse("2026-10-30T00:00:00Z"), Instant.parse("2026-10-30T00:00:00Z"))
         repository.setLinkedHealthProfile("b")
-        repository.ingestDeviceVitals(app.vezuna.domain.VitalsBatch(listOf(sample)), Instant.parse("2026-11-01T00:00:00Z"))
+        val steps = app.vezuna.domain.StepsDay(LocalDate(2026, 10, 30), 4000)
+        val batch = app.vezuna.domain.VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(steps))
+        repository.ingestDeviceVitals(batch, Instant.parse("2026-11-01T00:00:00Z"))
+        val snapshotAfterIngest = vault.read("repository-v1")
+
+        repository.ingestDeviceVitals(batch, Instant.parse("2026-11-02T00:00:00Z"))
+        assertEquals(snapshotAfterIngest?.toList(), vault.read("repository-v1")?.toList(), "a vitals sync must not rewrite the repository snapshot")
 
         val restored = PersistentVezunaRepository(vault)
         restored.load()
         assertEquals("b", restored.linkedHealthProfileId())
-        assertEquals(listOf(sample), restored.readProfile("b").vitals.samples)
-        assertTrue(restored.readProfile("a").vitals.samples.isEmpty())
+        assertEquals(listOf(steps), restored.readProfile("b").vitals.steps)
+        assertTrue(restored.readProfile("a").vitals.isEmpty)
 
         restored.deleteProfile("b")
         assertEquals("a", restored.linkedHealthProfileId())
+        assertEquals(null, vault.read("repository-vitals-b-v1"))
     }
 }

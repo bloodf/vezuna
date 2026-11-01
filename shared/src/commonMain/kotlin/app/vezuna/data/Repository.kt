@@ -72,7 +72,7 @@ interface VezunaRepository {
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
     suspend fun setLinkedHealthProfile(profileId: String)
-    /** Merges the batch into the linked profile only and returns the number of samples offered. */
+    /** Merges the batch into the linked profile only; returns how many of its entries were actually stored. */
     suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int
 }
 
@@ -182,8 +182,9 @@ class InMemoryVezunaRepository : VezunaRepository {
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
         val data = records.getValue(id)
         healthLink = id
-        publish(records + (id to data.copy(vitals = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault()))))
-        batch.samples.size
+        val updated = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault())
+        publish(records + (id to data.copy(vitals = updated)))
+        DeviceVitals.storedCount(updated, batch)
     }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {

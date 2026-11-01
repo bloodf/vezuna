@@ -35,7 +35,6 @@ struct HealthImportView: View {
                         LabeledContent(L10n.text(.heart_rate_samples), value: "\(result.heartRate)")
                         LabeledContent(L10n.text(.step_samples), value: "\(result.steps)")
                         LabeledContent(L10n.text(.weight_samples), value: "\(result.weight)")
-                        LabeledContent(L10n.text(.deleted_sample_references), value: "\(result.deleted)")
                     }
                 }
                 if let errorMessage {
@@ -54,7 +53,7 @@ struct HealthImportView: View {
         defer { busy = false }
         do {
             try await importer.authorizeReadOnly()
-            result = try await importer.importIncremental()
+            result = try await importer.importRecent()
         } catch {
             errorMessage = error.localizedDescription
         }

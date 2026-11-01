@@ -1,60 +1,43 @@
 package app.vezuna.health
 
 import app.vezuna.data.VezunaRepository
-import app.vezuna.domain.VitalSample
 import app.vezuna.domain.VitalsBatch
+import app.vezuna.domain.VitalsWindow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 
-/** Result of a full (re)import together with the cursor from which later changes are read. */
-data class VitalsFetch(val batch: VitalsBatch, val nextCursor: String)
-
-data class VitalsChangesPage(
-    val batch: VitalsBatch,
-    val nextCursor: String,
-    val hasMore: Boolean,
-    val cursorExpired: Boolean = false,
-)
+/** [replaceFrom] is the first local day to re-read (steps, heart rate, weight); weights are also read back to [weightsFrom]. */
+data class VitalsReadRequest(val replaceFrom: LocalDate, val weightsFrom: LocalDate, val zone: TimeZone)
 
 interface DeviceVitalsSource {
-    suspend fun initial(): VitalsFetch
-    suspend fun changes(cursor: String): VitalsChangesPage
+    suspend fun read(request: VitalsReadRequest): VitalsBatch
 }
 
-interface VitalsCursorStore {
-    suspend fun read(): String?
-    suspend fun write(cursor: String)
-}
-
-/** The cursor is stored only after the samples were persisted, so a failed save is retried without data loss. */
+/**
+ * Every sync re-reads a trailing window from the platform and replaces that window in the linked profile.
+ * There is no change token or anchor to lose: the "synced up to" time is stored in the same write as the data,
+ * so a failed save is retried over the same window without loss. Data older than the window that arrives late
+ * (a device syncing after more than a week) is only picked up within the first-sync horizon of 30 days.
+ */
 class DeviceVitalsSync(
     private val source: DeviceVitalsSource,
     private val repository: VezunaRepository,
-    private val cursors: VitalsCursorStore,
     private val clock: () -> Instant,
+    private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
+    private val beforeSync: suspend () -> Unit = {},
 ) {
     private val mutex = Mutex()
 
     suspend fun synchronize(): Int = mutex.withLock {
-        val fetch = fetch(cursors.read())
-        val count = repository.ingestDeviceVitals(fetch.batch, clock())
-        cursors.write(fetch.nextCursor)
-        count
-    }
-
-    private suspend fun fetch(cursor: String?): VitalsFetch {
-        if (cursor == null) return source.initial()
-        var current: String = cursor
-        val samples = mutableListOf<VitalSample>()
-        val deleted = mutableListOf<String>()
-        do {
-            val page = source.changes(current)
-            if (page.cursorExpired) return source.initial()
-            samples += page.batch.samples
-            deleted += page.batch.deletedRecordIds
-            current = page.nextCursor
-        } while (page.hasMore)
-        return VitalsFetch(VitalsBatch(samples, deleted), current)
+        beforeSync()
+        val profileId = repository.linkedHealthProfileId() ?: throw IllegalStateException("No profile to link")
+        val now = clock()
+        val lastSync = repository.readProfile(profileId).vitals.lastSync
+        val tz = zone()
+        val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
+        repository.ingestDeviceVitals(batch, now)
     }
 }

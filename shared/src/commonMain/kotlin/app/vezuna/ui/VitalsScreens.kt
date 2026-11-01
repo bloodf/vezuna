@@ -59,7 +59,7 @@ fun VitalsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
         if (linked != null && linked.profileId != data.profile.profileId) {
             InlineNotice(vitaText(L10nKey.VITALS_OTHER_PROFILE, linked.displayName), Icons.Rounded.Link)
             VitaButton(vitaText(L10nKey.SWITCH_TO_PROFILE, linked.displayName), Icons.Rounded.Favorite, { scope.launch { controller.switchProfile(linked.profileId) } })
-        } else if (data.vitals.samples.isEmpty() && data.vitals.dailySummaries.isEmpty()) {
+        } else if (data.vitals.isEmpty) {
             EmptyState(vitaText(L10nKey.NO_VITALS), vitaText(L10nKey.NO_VITALS_EXPLANATION), Icons.Rounded.MonitorHeart)
         } else {
             VitalMetric.entries.forEach { metric -> MetricCard(data, metric) }

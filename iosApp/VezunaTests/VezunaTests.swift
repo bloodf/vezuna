@@ -1,5 +1,4 @@
 import XCTest
-import HealthKit
 @testable import Vezuna
 
 final class VezunaTests: XCTestCase {
@@ -96,43 +95,5 @@ final class VezunaTests: XCTestCase {
         let expired = LicenseManager(cacheURL: file, now: { now.addingTimeInterval(LicenseManager.offlineGrace + 1) })
         XCTAssertFalse(expired.isPremiumActive())
         XCTAssertEqual(expired.state, .inactive)
-    }
-
-    func testHealthAnchorIsNotSavedWhenPersistingFailsAndRetryLosesNothing() async throws {
-        final class Anchors: HealthAnchorStoring {
-            var saved: [String: HKQueryAnchor] = [:]
-            func anchor(typeIdentifier: String) -> HKQueryAnchor? { saved[typeIdentifier] }
-            func saveAnchor(_ anchor: HKQueryAnchor, typeIdentifier: String) throws { saved[typeIdentifier] = anchor }
-        }
-        struct Fetcher: HealthSampleFetching {
-            func fetch(_ identifier: HKQuantityTypeIdentifier, after anchor: HKQueryAnchor?, limit: Int) async throws -> HealthFetchPage {
-                let sample = HealthSample(recordId: "id-\(identifier.rawValue)", metric: "STEPS", value: 1, start: Date(), end: Date())
-                return HealthFetchPage(samples: [sample], deletedRecordIds: ["gone"], anchor: HKQueryAnchor(fromValue: 7))
-            }
-        }
-        final class Sink: HealthSampleSink {
-            var failing = true
-            var persisted: [HealthSample] = []
-            struct Failure: Error {}
-            func persist(samples: [HealthSample], deletedRecordIds: [String]) async throws {
-                if failing { throw Failure() }
-                persisted += samples
-            }
-        }
-        let anchors = Anchors()
-        let sink = Sink()
-        let runner = HealthImportRunner(fetcher: Fetcher(), anchors: anchors, sink: sink)
-
-        do {
-            _ = try await runner.run()
-            XCTFail("a failed save must surface")
-        } catch {}
-        XCTAssertTrue(anchors.saved.isEmpty, "anchor must not advance past unsaved samples")
-
-        sink.failing = false
-        let result = try await runner.run()
-        XCTAssertEqual(sink.persisted.count, 3)
-        XCTAssertEqual(anchors.saved.count, 3)
-        XCTAssertEqual(result.deleted, 3)
     }
 }

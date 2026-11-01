@@ -10,9 +10,11 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
-import app.vezuna.domain.VitalMetric
-import app.vezuna.domain.VitalSample
+import app.vezuna.domain.HeartRateBucket
+import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
+import app.vezuna.domain.VitalsWindow
+import app.vezuna.domain.WeightReading
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -57,6 +59,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -92,15 +97,23 @@ interface NativeRepositoryObserver {
     fun repositoryDidChange()
 }
 
-/** HealthKit sample as encoded by Swift: metric is a [VitalMetric] name. */
+/** One HealthKit sync as encoded by Swift. Values are validated here, not in Swift. */
 @Serializable
-private data class NativeVitalSample(
-    val recordId: String,
-    val metric: String,
-    val value: Double,
-    val startEpochSeconds: Long,
-    val endEpochSeconds: Long,
+private data class NativeHealthBatch(
+    val replaceFromEpochSeconds: Long,
+    val steps: List<NativeSteps> = emptyList(),
+    val heartRate: List<NativeHeartRate> = emptyList(),
+    val weights: List<NativeWeight> = emptyList(),
 )
+
+@Serializable
+private data class NativeSteps(val dayStartEpochSeconds: Long, val count: Double)
+
+@Serializable
+private data class NativeHeartRate(val startEpochSeconds: Long, val min: Double, val avg: Double, val max: Double)
+
+@Serializable
+private data class NativeWeight(val recordId: String, val epochSeconds: Long, val kg: Double)
 
 data class NativeCandidateInput(
     val testCode: String,
@@ -226,23 +239,57 @@ object IosRuntime {
 
     // --- Device vitals (HealthKit) ---
     /**
-     * Stores HealthKit samples in the linked profile's encrypted records. The completion fires only after they are
-     * durable; Swift must not advance its query anchor before that.
+     * The first local day Swift must re-read and the first day of the weight history, as epoch seconds of local midnight.
+     * Every sync replaces its window, so there is no anchor to keep in step with the stored data.
      */
-    fun ingestDeviceVitals(samplesJson: String, deletedRecordIds: List<String>, completion: (NativeMessage?) -> Unit) {
+    fun vitalsSyncWindow(completion: (Long, Long, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(0L, 0L, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val id = repository.linkedHealthProfileId() ?: throw IllegalStateException("No profile to link")
+                val lastSync = repository.peekProfile(id).vitals.lastSync
+                val now = currentInstant()
+                val zone = TimeZone.currentSystemDefault()
+                completion(
+                    VitalsWindow.replaceFrom(lastSync, now, zone).atStartOfDayIn(zone).epochSeconds,
+                    VitalsWindow.weightsFrom(lastSync, now, zone).atStartOfDayIn(zone).epochSeconds,
+                    null,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                completion(0L, 0L, nativeMessage("action_failed"))
+            }
+        }
+    }
+
+    /**
+     * Stores one HealthKit sync in the linked profile's encrypted vitals. The completion fires only after the data
+     * and the "synced up to" time are durable together, so a failed save is simply retried over the same window.
+     */
+    fun ingestHealthBatch(batchJson: String, completion: (NativeMessage?) -> Unit) {
         if (!initialized) {
             completion(nativeMessage("bridge_storage_not_ready"))
             return
         }
         scope.launch {
             try {
-                val samples = json.decodeFromString(ListSerializer(NativeVitalSample.serializer()), samplesJson).map {
-                    VitalSample(
-                        it.recordId, VitalMetric.valueOf(it.metric), it.value,
-                        Instant.fromEpochSeconds(it.startEpochSeconds), Instant.fromEpochSeconds(it.endEpochSeconds),
-                    )
-                }
-                repository.ingestDeviceVitals(VitalsBatch(samples, deletedRecordIds), currentInstant())
+                val zone = TimeZone.currentSystemDefault()
+                val native = json.decodeFromString(NativeHealthBatch.serializer(), batchJson)
+                val steps = native.steps.map { StepsDay.ofOrNull(Instant.fromEpochSeconds(it.dayStartEpochSeconds).toLocalDateTime(zone).date, it.count.toLong()) }
+                val heart = native.heartRate.map { HeartRateBucket.ofOrNull(Instant.fromEpochSeconds(it.startEpochSeconds), it.min, it.avg, it.max, 1) }
+                val weights = native.weights.map { WeightReading.ofOrNull(it.recordId, Instant.fromEpochSeconds(it.epochSeconds), it.kg) }
+                val batch = VitalsBatch(
+                    replaceFrom = Instant.fromEpochSeconds(native.replaceFromEpochSeconds).toLocalDateTime(zone).date,
+                    steps = steps.filterNotNull(),
+                    heartRate = heart.filterNotNull(),
+                    weights = weights.filterNotNull(),
+                    skipped = (steps + heart + weights).count { it == null },
+                )
+                repository.ingestDeviceVitals(batch, currentInstant())
                 controller.refreshDashboard()
                 completion(null)
             } catch (error: CancellationException) {

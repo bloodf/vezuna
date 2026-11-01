@@ -3,22 +3,24 @@ package app.vezuna.health
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.changes.DeletionChange
-import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
-import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
-import androidx.health.connect.client.request.ChangesTokenRequest
+import androidx.health.connect.client.request.AggregateGroupByDurationRequest
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import app.vezuna.domain.DeviceVitals
-import app.vezuna.domain.VitalMetric
-import app.vezuna.domain.VitalSample
+import app.vezuna.domain.HeartRateBucket
+import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
+import app.vezuna.domain.WeightReading
+import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.Period
+import java.time.ZoneId
 
 val VezunaHealthPermissions: Set<String> = setOf(
     HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -26,6 +28,12 @@ val VezunaHealthPermissions: Set<String> = setOf(
     HealthPermission.getReadPermission(WeightRecord::class),
 )
 
+/**
+ * Reads aggregates, not raw records, for steps and heart rate: Health Connect de-duplicates overlapping sources
+ * itself, and a year of per-minute heart rate would not fit in the encrypted snapshot. Weight is sparse and read raw.
+ * Without READ_HEALTH_DATA_HISTORY (deliberately not requested) data older than 30 days before the first grant is
+ * unavailable, so older weights simply do not appear.
+ */
 class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsSource {
     private val client: HealthConnectClient get() = HealthConnectClient.getOrCreate(context)
 
@@ -34,66 +42,72 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
     suspend fun hasPermissions(): Boolean =
         sdkStatus() == HealthConnectClient.SDK_AVAILABLE && client.permissionController.getGrantedPermissions().containsAll(VezunaHealthPermissions)
 
-    private suspend fun requireReady() {
+    override suspend fun read(request: VitalsReadRequest): VitalsBatch {
         check(sdkStatus() == HealthConnectClient.SDK_AVAILABLE) { "Health Connect is not available on this device" }
         check(hasPermissions()) { "Read-only Health Connect permissions have not been granted" }
+        val zone = ZoneId.of(request.zone.id)
+        val now = Instant.now()
+        val windowStart = request.replaceFrom.toJava().atStartOfDay(zone).toInstant()
+        val steps = readSteps(request, zone, now)
+        val heart = readHeartRate(windowStart, now)
+        val weights = readWeights(request.weightsFrom.toJava().atStartOfDay(zone).toInstant(), now)
+        return VitalsBatch(
+            replaceFrom = request.replaceFrom,
+            steps = steps.items,
+            heartRate = heart.items,
+            weights = weights.items,
+            skipped = steps.skipped + heart.skipped + weights.skipped,
+        )
     }
 
-    override suspend fun initial(): VitalsFetch {
-        requireReady()
-        // Token first: anything changing while the history is read is then re-delivered, never lost.
-        val token = client.getChangesToken(ChangesTokenRequest(setOf(HeartRateRecord::class, StepsRecord::class, WeightRecord::class)))
-        val end = Instant.now()
-        val recent = TimeRangeFilter.between(end.minus(RECENT_DAYS, ChronoUnit.DAYS), end)
-        val weightHistory = TimeRangeFilter.between(end.minus(DeviceVitals.RETENTION_DAYS.toLong(), ChronoUnit.DAYS), end)
-        val samples = buildList {
-            readAll(recent, HeartRateRecord::class).forEach { addAll(it.toSamples()) }
-            readAll(recent, StepsRecord::class).forEach { addAll(it.toSamples()) }
-            readAll(weightHistory, WeightRecord::class).forEach { addAll(it.toSamples()) }
+    private class Mapped<T>(val items: List<T>, val skipped: Int)
+
+    private suspend fun readSteps(request: VitalsReadRequest, zone: ZoneId, now: Instant): Mapped<StepsDay> {
+        val start = request.replaceFrom.toJava().atStartOfDay()
+        val end = LocalDateTime.ofInstant(now, zone)
+        val groups = client.aggregateGroupByPeriod(
+            AggregateGroupByPeriodRequest(setOf(StepsRecord.COUNT_TOTAL), TimeRangeFilter.between(start, end), Period.ofDays(1)),
+        )
+        val mapped = groups.mapNotNull { group ->
+            val total = group.result[StepsRecord.COUNT_TOTAL] ?: return@mapNotNull null
+            StepsDay.ofOrNull(group.startTime.toLocalDate().toKotlin(), total)
         }
-        return VitalsFetch(VitalsBatch(samples), token)
+        val present = groups.count { it.result[StepsRecord.COUNT_TOTAL] != null }
+        return Mapped(mapped, present - mapped.size)
     }
 
-    override suspend fun changes(cursor: String): VitalsChangesPage {
-        requireReady()
-        val response = client.getChanges(cursor)
-        if (response.changesTokenExpired) return VitalsChangesPage(VitalsBatch(emptyList()), cursor, hasMore = false, cursorExpired = true)
-        val samples = mutableListOf<VitalSample>()
-        val deleted = mutableListOf<String>()
-        response.changes.forEach { change ->
-            when (change) {
-                is UpsertionChange -> samples += change.record.toSamples()
-                is DeletionChange -> deleted += change.recordId
-            }
+    private suspend fun readHeartRate(start: Instant, end: Instant): Mapped<HeartRateBucket> {
+        val metrics = setOf(HeartRateRecord.BPM_MIN, HeartRateRecord.BPM_AVG, HeartRateRecord.BPM_MAX, HeartRateRecord.MEASUREMENTS_COUNT)
+        val groups = client.aggregateGroupByDuration(
+            AggregateGroupByDurationRequest(metrics, TimeRangeFilter.between(start, end), Duration.ofHours(1)),
+        ).filter { it.result[HeartRateRecord.MEASUREMENTS_COUNT] != null }
+        val mapped = groups.mapNotNull { group ->
+            HeartRateBucket.ofOrNull(
+                group.startTime.toKotlin(),
+                group.result[HeartRateRecord.BPM_MIN]?.toDouble() ?: return@mapNotNull null,
+                group.result[HeartRateRecord.BPM_AVG]?.toDouble() ?: return@mapNotNull null,
+                group.result[HeartRateRecord.BPM_MAX]?.toDouble() ?: return@mapNotNull null,
+                (group.result[HeartRateRecord.MEASUREMENTS_COUNT] ?: 0L).toInt(),
+            )
         }
-        return VitalsChangesPage(VitalsBatch(samples, deleted), response.nextChangesToken, response.hasMore)
+        return Mapped(mapped, groups.size - mapped.size)
     }
 
-    private suspend fun <T : Record> readAll(filter: TimeRangeFilter, type: kotlin.reflect.KClass<T>): List<T> {
-        val records = mutableListOf<T>()
+    private suspend fun readWeights(start: Instant, end: Instant): Mapped<WeightReading> {
+        val records = mutableListOf<WeightRecord>()
         var pageToken: String? = null
         do {
-            val response = client.readRecords(ReadRecordsRequest(type, filter, pageToken = pageToken))
+            val response = client.readRecords(ReadRecordsRequest(WeightRecord::class, TimeRangeFilter.between(start, end), pageToken = pageToken))
             records += response.records
             pageToken = response.pageToken
         } while (pageToken != null)
-        return records
-    }
-
-    private fun Record.toSamples(): List<VitalSample> = when (this) {
-        is HeartRateRecord -> samples.map { sample ->
-            VitalSample(metadata.id, VitalMetric.HEART_RATE_BPM, sample.beatsPerMinute.toDouble(), sample.time.toKotlin(), sample.time.toKotlin())
-        }
-        is StepsRecord -> listOf(VitalSample(metadata.id, VitalMetric.STEPS, count.toDouble(), startTime.toKotlin(), endTime.toKotlin()))
-        is WeightRecord -> listOf(VitalSample(metadata.id, VitalMetric.WEIGHT_KG, weight.inKilograms, time.toKotlin(), time.toKotlin()))
-        else -> emptyList()
+        val mapped = records.mapNotNull { WeightReading.ofOrNull(it.metadata.id, it.time.toKotlin(), it.weight.inKilograms) }
+        return Mapped(mapped, records.size - mapped.size)
     }
 
     private fun Instant.toKotlin() = kotlinx.datetime.Instant.fromEpochMilliseconds(toEpochMilli())
-
-    private companion object {
-        const val RECENT_DAYS = 30L
-    }
+    private fun LocalDate.toKotlin() = kotlinx.datetime.LocalDate(year, monthValue, dayOfMonth)
+    private fun kotlinx.datetime.LocalDate.toJava(): LocalDate = LocalDate.of(year, monthNumber, dayOfMonth)
 }
 
 class HealthConnectPermissionFlow(
