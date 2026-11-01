@@ -3,10 +3,12 @@ package app.vezuna
 import android.app.Application
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.health.AndroidHealthConnectImporter
-import app.vezuna.health.HealthConnectSyncCoordinator
+import app.vezuna.health.DeviceVitalsSync
+import app.vezuna.health.HealthConnectCursorStore
 import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.notifications.MedicationNotificationScheduler
+import app.vezuna.platform.currentInstant
 import app.vezuna.security.AndroidSecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
@@ -35,7 +37,7 @@ class VezunaApplication : Application() {
         private set
     lateinit var healthConnect: AndroidHealthConnectImporter
         private set
-    lateinit var healthSync: HealthConnectSyncCoordinator
+    lateinit var healthSync: DeviceVitalsSync
         private set
 
     val modelCatalog: ModelCatalog = ModelCatalog.unconfigured()
@@ -53,7 +55,7 @@ class VezunaApplication : Application() {
         notifications = MedicationNotificationScheduler(this)
         notifications.createChannel()
         healthConnect = AndroidHealthConnectImporter(this)
-        healthSync = HealthConnectSyncCoordinator(healthConnect, vault)
+        healthSync = DeviceVitalsSync(healthConnect, repository, HealthConnectCursorStore(vault, repository, { currentInstant() }), { currentInstant() })
         applicationScope.launch {
             vaultState.first { it is VaultState.Ready }
             repository.revision.collect {

@@ -142,6 +142,7 @@ class AndroidMainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val imported = app.healthSync.synchronize()
+                controller.refreshDashboard()
                 mutableMessage.value = nativePlural(NativeKey.HEALTH_CONNECT_IMPORT_COMPLETE, imported)
             } catch (error: Throwable) {
                 mutableMessage.value = error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)

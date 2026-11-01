@@ -13,13 +13,12 @@ import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import app.vezuna.security.CipherEnvelope
-import app.vezuna.security.SecureVault
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.VitalMetric
+import app.vezuna.domain.VitalSample
+import app.vezuna.domain.VitalsBatch
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 val VezunaHealthPermissions: Set<String> = setOf(
     HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -27,28 +26,7 @@ val VezunaHealthPermissions: Set<String> = setOf(
     HealthPermission.getReadPermission(WeightRecord::class),
 )
 
-enum class HealthMetric { HEART_RATE_BPM, STEPS, WEIGHT_KG }
-
-@Serializable
-data class HealthMetricSample(
-    val recordId: String,
-    val metric: HealthMetric,
-    val value: Double,
-    val startTime: String,
-    val endTime: String,
-)
-
-data class HealthConnectBatch(
-    val samples: List<HealthMetricSample>,
-    val deletedRecordIds: List<String>,
-    val nextCursor: String,
-)
-
-interface IncrementalHealthConnectImporter {
-    suspend fun import(cursor: String?): HealthConnectBatch
-}
-
-class AndroidHealthConnectImporter(private val context: Context) : IncrementalHealthConnectImporter {
+class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsSource {
     private val client: HealthConnectClient get() = HealthConnectClient.getOrCreate(context)
 
     fun sdkStatus(): Int = HealthConnectClient.getSdkStatus(context)
@@ -56,27 +34,31 @@ class AndroidHealthConnectImporter(private val context: Context) : IncrementalHe
     suspend fun hasPermissions(): Boolean =
         sdkStatus() == HealthConnectClient.SDK_AVAILABLE && client.permissionController.getGrantedPermissions().containsAll(VezunaHealthPermissions)
 
-    override suspend fun import(cursor: String?): HealthConnectBatch {
+    private suspend fun requireReady() {
         check(sdkStatus() == HealthConnectClient.SDK_AVAILABLE) { "Health Connect is not available on this device" }
         check(hasPermissions()) { "Read-only Health Connect permissions have not been granted" }
-        return if (cursor == null) initialImport() else changesImport(cursor)
     }
 
-    private suspend fun initialImport(): HealthConnectBatch {
-        val end = Instant.now()
-        val filter = TimeRangeFilter.between(end.minusSeconds(30 * 24 * 60 * 60), end)
-        val samples = buildList {
-            readAll(filter, HeartRateRecord::class).forEach { record -> addAll(record.toSamples()) }
-            readAll(filter, StepsRecord::class).forEach { record -> addAll(record.toSamples()) }
-            readAll(filter, WeightRecord::class).forEach { record -> addAll(record.toSamples()) }
-        }
+    override suspend fun initial(): VitalsFetch {
+        requireReady()
+        // Token first: anything changing while the history is read is then re-delivered, never lost.
         val token = client.getChangesToken(ChangesTokenRequest(setOf(HeartRateRecord::class, StepsRecord::class, WeightRecord::class)))
-        return HealthConnectBatch(samples, emptyList(), token)
+        val end = Instant.now()
+        val recent = TimeRangeFilter.between(end.minus(RECENT_DAYS, ChronoUnit.DAYS), end)
+        val weightHistory = TimeRangeFilter.between(end.minus(DeviceVitals.RETENTION_DAYS.toLong(), ChronoUnit.DAYS), end)
+        val samples = buildList {
+            readAll(recent, HeartRateRecord::class).forEach { addAll(it.toSamples()) }
+            readAll(recent, StepsRecord::class).forEach { addAll(it.toSamples()) }
+            readAll(weightHistory, WeightRecord::class).forEach { addAll(it.toSamples()) }
+        }
+        return VitalsFetch(VitalsBatch(samples), token)
     }
 
-    private suspend fun changesImport(cursor: String): HealthConnectBatch {
+    override suspend fun changes(cursor: String): VitalsChangesPage {
+        requireReady()
         val response = client.getChanges(cursor)
-        val samples = mutableListOf<HealthMetricSample>()
+        if (response.changesTokenExpired) return VitalsChangesPage(VitalsBatch(emptyList()), cursor, hasMore = false, cursorExpired = true)
+        val samples = mutableListOf<VitalSample>()
         val deleted = mutableListOf<String>()
         response.changes.forEach { change ->
             when (change) {
@@ -84,7 +66,7 @@ class AndroidHealthConnectImporter(private val context: Context) : IncrementalHe
                 is DeletionChange -> deleted += change.recordId
             }
         }
-        return HealthConnectBatch(samples, deleted, response.nextChangesToken)
+        return VitalsChangesPage(VitalsBatch(samples, deleted), response.nextChangesToken, response.hasMore)
     }
 
     private suspend fun <T : Record> readAll(filter: TimeRangeFilter, type: kotlin.reflect.KClass<T>): List<T> {
@@ -98,13 +80,19 @@ class AndroidHealthConnectImporter(private val context: Context) : IncrementalHe
         return records
     }
 
-    private fun Record.toSamples(): List<HealthMetricSample> = when (this) {
+    private fun Record.toSamples(): List<VitalSample> = when (this) {
         is HeartRateRecord -> samples.map { sample ->
-            HealthMetricSample(metadata.id, HealthMetric.HEART_RATE_BPM, sample.beatsPerMinute.toDouble(), sample.time.toString(), sample.time.toString())
+            VitalSample(metadata.id, VitalMetric.HEART_RATE_BPM, sample.beatsPerMinute.toDouble(), sample.time.toKotlin(), sample.time.toKotlin())
         }
-        is StepsRecord -> listOf(HealthMetricSample(metadata.id, HealthMetric.STEPS, count.toDouble(), startTime.toString(), endTime.toString()))
-        is WeightRecord -> listOf(HealthMetricSample(metadata.id, HealthMetric.WEIGHT_KG, weight.inKilograms, time.toString(), time.toString()))
+        is StepsRecord -> listOf(VitalSample(metadata.id, VitalMetric.STEPS, count.toDouble(), startTime.toKotlin(), endTime.toKotlin()))
+        is WeightRecord -> listOf(VitalSample(metadata.id, VitalMetric.WEIGHT_KG, weight.inKilograms, time.toKotlin(), time.toKotlin()))
         else -> emptyList()
+    }
+
+    private fun Instant.toKotlin() = kotlinx.datetime.Instant.fromEpochMilliseconds(toEpochMilli())
+
+    private companion object {
+        const val RECENT_DAYS = 30L
     }
 }
 
@@ -117,52 +105,4 @@ class HealthConnectPermissionFlow(
     ) { granted -> onComplete(granted.containsAll(VezunaHealthPermissions)) }
 
     fun request() = launcher.launch(VezunaHealthPermissions)
-}
-
-/** Commits the cursor only after the encrypted sample snapshot has been saved. */
-class HealthConnectSyncCoordinator(
-    private val importer: IncrementalHealthConnectImporter,
-    private val vault: SecureVault,
-    private val json: Json = Json { encodeDefaults = true },
-) {
-    @Serializable
-    private data class State(val cursor: String? = null, val samples: Map<String, HealthMetricSample> = emptyMap())
-
-    private val mutex = Mutex()
-
-    suspend fun synchronize(): Int = mutex.withLock {
-        val previous = readState()
-        val batch = try {
-            importer.import(previous.cursor)
-        } catch (error: IllegalArgumentException) {
-            // Health Connect change tokens can expire; rebuild a token without exposing partial writes.
-            if (previous.cursor == null) throw error else importer.import(null)
-        }
-        val updatedSamples = previous.samples.toMutableMap()
-        batch.deletedRecordIds.forEach { recordId ->
-            updatedSamples.keys.removeAll { key -> key.startsWith("$recordId|") }
-        }
-        batch.samples.forEach { sample ->
-            updatedSamples["${sample.recordId}|${sample.metric}|${sample.startTime}"] = sample
-        }
-        val updated = State(batch.nextCursor, updatedSamples)
-        writeState(updated)
-        batch.samples.size
-    }
-
-    private suspend fun readState(): State {
-        val bytes = vault.read(STORAGE_KEY) ?: return State()
-        val envelope = json.decodeFromString(CipherEnvelope.serializer(), bytes.decodeToString())
-        return json.decodeFromString(State.serializer(), vault.decrypt(envelope).decodeToString())
-    }
-
-    private suspend fun writeState(state: State) {
-        val envelope = vault.encrypt(json.encodeToString(State.serializer(), state).encodeToByteArray(), AAD)
-        vault.write(STORAGE_KEY, json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray())
-    }
-
-    private companion object {
-        const val STORAGE_KEY = "health-connect-v1"
-        val AAD = "Vezuna Health Connect v1".encodeToByteArray()
-    }
 }

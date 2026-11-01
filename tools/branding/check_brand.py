@@ -64,8 +64,8 @@ def main():
     assert ios_info.get("UIAppFonts") == ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf"], "Missing iOS font registration array"
     scheduler = (ROOT / "composeApp/src/main/java/app/vezuna/notifications/MedicationNotificationScheduler.kt").read_text()
     assert 'CHANNEL_ID = "recorded-medication-reminders"' in scheduler
-    health = (ROOT / "composeApp/src/main/java/app/vezuna/health/HealthConnectGateway.kt").read_text()
-    assert 'STORAGE_KEY = "health-connect-v1"' in health
+    health = (ROOT / "composeApp/src/main/java/app/vezuna/health/HealthConnectCursorStore.kt").read_text()
+    assert 'LEGACY_KEY = "health-connect-v1"' in health
 
     expected = {
         "": "Your health,\nin one place.",

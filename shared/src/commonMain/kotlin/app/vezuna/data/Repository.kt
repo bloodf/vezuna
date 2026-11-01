@@ -1,6 +1,9 @@
 package app.vezuna.data
 
 import app.vezuna.domain.ChatMessage
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
@@ -30,6 +33,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 
 interface VezunaRepository {
     val profiles: StateFlow<List<Profile>>
@@ -62,6 +67,13 @@ interface VezunaRepository {
     suspend fun deleteSchedule(profileId: String, scheduleId: String)
     suspend fun updateChatMessage(message: ChatMessage)
     suspend fun deleteChatMessage(profileId: String, messageId: String)
+
+    // --- Device vitals (Health Connect / HealthKit) ---
+    /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
+    suspend fun linkedHealthProfileId(): String?
+    suspend fun setLinkedHealthProfile(profileId: String)
+    /** Merges the batch into the linked profile only and returns the number of samples offered. */
+    suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int
 }
 
 
@@ -69,6 +81,7 @@ interface VezunaRepository {
 class InMemoryVezunaRepository : VezunaRepository {
     private val mutex = Mutex()
     private var records = mapOf<String, ProfileData>()
+    private var healthLink: String? = null
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     override val profiles = mutableProfiles.asStateFlow()
 
@@ -83,7 +96,9 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
-        publish(records - profileId)
+        val remaining = records - profileId
+        if (healthLink == profileId) healthLink = HealthLink.resolve(null, remaining.values.map { it.profile })
+        publish(remaining)
     }
 
     override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) { data ->
@@ -155,6 +170,21 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock { HealthLink.resolve(healthLink, records.values.map { it.profile }) }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        healthLink = profileId
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        val id = HealthLink.resolve(healthLink, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        val data = records.getValue(id)
+        healthLink = id
+        publish(records + (id to data.copy(vitals = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault()))))
+        batch.samples.size
+    }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
         val updated = transform(records.getValue(profileId))

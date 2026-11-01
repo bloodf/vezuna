@@ -164,6 +164,7 @@ fun VezunaApp(
                         AppScreen.AiChat -> AiChatScreen(state, modelState.loadedModelId, modelState.selectedModelId, controller, scope)
                         AppScreen.Models -> ModelsScreen(state, controller, scope, modelPackLoader)
                         AppScreen.Settings -> SettingsScreen(state, controller, scope)
+                        AppScreen.Vitals -> VitalsScreen(state, controller, scope)
                     }
                 }
                 AnimatedVisibility(

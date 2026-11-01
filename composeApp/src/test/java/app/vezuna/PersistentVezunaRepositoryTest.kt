@@ -107,4 +107,25 @@ class PersistentVezunaRepositoryTest {
         assertEquals(listOf("a"), restored.profiles.value.map { it.profileId })
         assertTrue(restored.readProfile("a").reports.isEmpty())
     }
+
+    @Test
+    fun deviceVitalsAndLinkSurviveRestartAndRelinkWhenLinkedProfileIsDeleted() = runTest {
+        val vault = FakeSecureVault()
+        val repository = PersistentVezunaRepository(vault)
+        repository.load()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
+        repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
+        val sample = app.vezuna.domain.VitalSample("r", app.vezuna.domain.VitalMetric.WEIGHT_KG, 70.0, Instant.parse("2026-10-30T00:00:00Z"), Instant.parse("2026-10-30T00:00:00Z"))
+        repository.setLinkedHealthProfile("b")
+        repository.ingestDeviceVitals(app.vezuna.domain.VitalsBatch(listOf(sample)), Instant.parse("2026-11-01T00:00:00Z"))
+
+        val restored = PersistentVezunaRepository(vault)
+        restored.load()
+        assertEquals("b", restored.linkedHealthProfileId())
+        assertEquals(listOf(sample), restored.readProfile("b").vitals.samples)
+        assertTrue(restored.readProfile("a").vitals.samples.isEmpty())
+
+        restored.deleteProfile("b")
+        assertEquals("a", restored.linkedHealthProfileId())
+    }
 }

@@ -3,6 +3,9 @@ package app.vezuna.ios
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
@@ -36,6 +39,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
@@ -48,6 +53,7 @@ class PersistentVezunaRepository private constructor(
     private val records = mutableMapOf<String, ProfileData>()
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private var selectedProfileId: String? = null
+    private var healthLinkId: String? = null
     var changeObserver: (() -> Unit)? = null
     override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
 
@@ -65,6 +71,7 @@ class PersistentVezunaRepository private constructor(
 
     private suspend fun loadLocked() {
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+        healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         val index = readEncrypted<List<Profile>>(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer())).orEmpty()
         var indexStale = false
         index.forEach { profile ->
@@ -188,6 +195,11 @@ class PersistentVezunaRepository private constructor(
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
         writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
         records.remove(profileId)
+        if (healthLinkId == profileId) {
+            val next = HealthLink.resolve(null, records.values.map { it.profile })
+            if (next == null) vault.delete(HEALTH_LINK_KEY) else vault.write(HEALTH_LINK_KEY, next.encodeToByteArray())
+            healthLinkId = next
+        }
         if (selectedProfileId == profileId) {
             vault.delete(SELECTION_KEY)
             selectedProfileId = null
@@ -229,6 +241,29 @@ class PersistentVezunaRepository private constructor(
         commit(updated)
         // Source files orphaned by a cascading delete are removed only after the new records are durable.
         (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
+    }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
+        HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+    }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        persistHealthLink(profileId)
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        val data = records.getValue(id)
+        // Samples first; the link is pinned only once they are durable.
+        commit(data.copy(vitals = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault())))
+        if (healthLinkId != id) persistHealthLink(id)
+        batch.samples.size
+    }
+
+    private suspend fun persistHealthLink(profileId: String) {
+        vault.write(HEALTH_LINK_KEY, profileId.encodeToByteArray())
+        healthLinkId = profileId
     }
 
     private suspend fun commit(data: ProfileData) {
@@ -278,6 +313,7 @@ class PersistentVezunaRepository private constructor(
         private const val INDEX_KEY = "repository-profile-index-v1"
         private const val INDEX_ASSOCIATED_DATA = "Vezuna repository index v1"
         private const val SELECTION_KEY = "repository-selected-profile-v1"
+        private const val HEALTH_LINK_KEY = "repository-health-link-v1"
         private fun profileKey(profileId: String) = "repository-profile-$profileId-v1"
         private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
     }

@@ -2,6 +2,9 @@ package app.vezuna.data
 
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
@@ -36,6 +39,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.logging.Level
@@ -47,7 +52,10 @@ class PersistentVezunaRepository(
     private val json: Json = Json { encodeDefaults = true },
 ) : VezunaRepository {
     @Serializable
-    private data class Snapshot(val records: Map<String, ProfileData> = emptyMap())
+    private data class Snapshot(
+        val records: Map<String, ProfileData> = emptyMap(),
+        val healthLinkedProfileId: String? = null,
+    )
 
     private val mutex = Mutex()
     private var snapshot = Snapshot()
@@ -133,7 +141,9 @@ class PersistentVezunaRepository(
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
         val removed = snapshot.records[profileId] ?: throw IllegalArgumentException("Profile not found")
-        commit(snapshot.copy(records = snapshot.records - profileId))
+        val remaining = snapshot.records - profileId
+        val link = if (snapshot.healthLinkedProfileId == profileId) HealthLink.resolve(null, remaining.values.map { it.profile }) else snapshot.healthLinkedProfileId
+        commit(snapshot.copy(records = remaining, healthLinkedProfileId = link))
         removed.vaultKeys().forEach { vault.delete(it) }
     }
 
@@ -160,6 +170,26 @@ class PersistentVezunaRepository(
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
+        ensureInitialized()
+        HealthLink.resolve(snapshot.healthLinkedProfileId, snapshot.records.values.map { it.profile })
+    }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutate {
+        require(snapshot.records.containsKey(profileId)) { "Profile not found" }
+        snapshot.copy(healthLinkedProfileId = profileId)
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        ensureInitialized()
+        val id = HealthLink.resolve(snapshot.healthLinkedProfileId, snapshot.records.values.map { it.profile })
+            ?: throw IllegalStateException("No profile to link")
+        val data = snapshot.records.getValue(id)
+        val updated = data.copy(vitals = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault()))
+        commit(snapshot.with(updated).copy(healthLinkedProfileId = id))
+        batch.samples.size
+    }
 
     private suspend fun mutate(transform: () -> Snapshot) = mutex.withLock {
         ensureInitialized()
