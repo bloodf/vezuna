@@ -289,4 +289,29 @@ iOS: %2$s</string>
         <item quantity="one">%1$d candidato sin revisar añadido; confirma cada resultado individualmente</item>
         <item quantity="other">%1$d candidatos sin revisar añadidos; confirma cada resultado individualmente</item>
     </plurals>
+    <!-- Device vitals -->
+    <string name="vitals_title">Signos del dispositivo</string>
+    <string name="vitals_subtitle">Frecuencia cardíaca, pasos y peso de este dispositivo para %1$s.</string>
+    <string name="section_device_health">Datos de salud del dispositivo</string>
+    <string name="linked_profile_explanation">La frecuencia cardíaca, los pasos y el peso de Health Connect o Apple Salud se guardan en un único perfil vinculado. Los demás perfiles nunca los reciben, y cambiar el vínculo no mueve los datos ya guardados.</string>
+    <string name="linked_profile_current">Perfil vinculado: %1$s</string>
+    <string name="link_this_profile">Vincular este perfil</string>
+    <string name="view_vitals">Ver signos del dispositivo</string>
+    <string name="vitals_other_profile">Los signos del dispositivo se guardan en %1$s. Cambie a ese perfil para verlos.</string>
+    <string name="no_vitals">Aún no hay signos del dispositivo</string>
+    <string name="no_vitals_explanation">Importe desde Health Connect o Apple Salud con el menú del dispositivo. Nada sale de este dispositivo.</string>
+    <string name="vital_heart_rate">Frecuencia cardíaca</string>
+    <string name="vital_steps">Pasos</string>
+    <string name="vital_weight">Peso</string>
+    <string name="vital_daily_average">Promedio diario</string>
+    <string name="vital_daily_total">Total diario</string>
+    <string name="vital_latest">Más reciente: %1$s</string>
+    <string name="vital_unit_bpm">lpm</string>
+    <string name="vital_unit_steps">pasos</string>
+    <string name="vital_unit_kg">kg</string>
+    <string name="vitals_retention_note">Las lecturas se conservan durante un año. La frecuencia cardíaca y los pasos con más de un mes se resumen por día. Son valores registrados, no una evaluación.</string>
+    <plurals name="vitals_chart_accessibility">
+        <item quantity="one">Gráfico con %1$d lectura, unidad %2$s</item>
+        <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s</item>
+    </plurals>
 </resources>

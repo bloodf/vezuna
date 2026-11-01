@@ -289,4 +289,29 @@ iOS: %2$s</string>
         <item quantity="one">%1$d unreviewed candidate added; confirm each result individually</item>
         <item quantity="other">%1$d unreviewed candidates added; confirm each result individually</item>
     </plurals>
+    <!-- Device vitals -->
+    <string name="vitals_title">Device vitals</string>
+    <string name="vitals_subtitle">Heart rate, steps and weight from this device for %1$s.</string>
+    <string name="section_device_health">Device health data</string>
+    <string name="linked_profile_explanation">Heart rate, steps and weight from Health Connect or Apple Health are saved to one linked profile. Other profiles never receive them, and changing the link does not move data already saved.</string>
+    <string name="linked_profile_current">Linked profile: %1$s</string>
+    <string name="link_this_profile">Link this profile</string>
+    <string name="view_vitals">View device vitals</string>
+    <string name="vitals_other_profile">Device vitals are saved to %1$s. Switch to that profile to see them.</string>
+    <string name="no_vitals">No device vitals yet</string>
+    <string name="no_vitals_explanation">Import from Health Connect or Apple Health using the device menu. Nothing leaves this device.</string>
+    <string name="vital_heart_rate">Heart rate</string>
+    <string name="vital_steps">Steps</string>
+    <string name="vital_weight">Weight</string>
+    <string name="vital_daily_average">Daily average</string>
+    <string name="vital_daily_total">Daily total</string>
+    <string name="vital_latest">Latest: %1$s</string>
+    <string name="vital_unit_bpm">bpm</string>
+    <string name="vital_unit_steps">steps</string>
+    <string name="vital_unit_kg">kg</string>
+    <string name="vitals_retention_note">Readings are kept for one year. Heart rate and steps older than a month are condensed into daily summaries. These are recorded values, not an assessment.</string>
+    <plurals name="vitals_chart_accessibility">
+        <item quantity="one">Chart of %1$d reading, unit %2$s</item>
+        <item quantity="other">Chart of %1$d readings, unit %2$s</item>
+    </plurals>
 </resources>
