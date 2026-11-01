@@ -51,7 +51,7 @@
 "health_import" = "Health import";
 "premium_ai_activation" = "Premium AI and model activation";
 "refresh_app_store" = "Refresh with App Store";
-"store_verification_description" = "Store verification is only requested by the button above. A verified cache can remain valid for 72 hours offline. Health records, imports, reminders, and exports never depend on this state.";
+"store_verification_description" = "Store verification is requested on launch, when the app becomes active, and by the button above. A verified cache can remain valid for 30 days offline. Health records, imports, reminders, and exports never depend on this state.";
 "premium_inactive" = "Premium AI is not active. Records and exports remain available.";
 "premium_verified" = "Premium AI is verified for this installation.";
 "premium_offline_until" = "Premium AI is available from the offline cache until %1$@.";

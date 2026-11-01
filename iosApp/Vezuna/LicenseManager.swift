@@ -22,13 +22,17 @@ struct FeaturePolicy {
 }
 
 final class LicenseManager: NSObject, ObservableObject, NativeLicenseProvider {
-    static let offlineGrace: TimeInterval = 72 * 60 * 60
+    /// Offline-first app: a verified license stays valid for 30 days without store contact.
+    static let offlineGrace: TimeInterval = 30 * 24 * 60 * 60
+    /// Minimum gap between automatic store checks (launch / becoming active).
+    static let autoRefreshInterval: TimeInterval = 15 * 60
 
     @Published private(set) var state: LicenseState = .inactive
     @Published private(set) var refreshing = false
 
     private let cacheURL: URL?
     private let now: () -> Date
+    private var lastAutoRefreshAt: Date?
 
     override init() {
         self.cacheURL = try? AppFileStorage.applicationSupportDirectory().appendingPathComponent("license-cache-v1.json")
@@ -51,6 +55,20 @@ final class LicenseManager: NSObject, ObservableObject, NativeLicenseProvider {
         case .inactive, .verificationFailed:
             return false
         }
+    }
+
+    /// Debounced refresh for launch and foreground. Never gates records or exports.
+    @MainActor
+    func refreshIfDue() async {
+        guard shouldAutoRefresh() else { return }
+        lastAutoRefreshAt = now()
+        await refreshFromStore()
+    }
+
+    func shouldAutoRefresh() -> Bool {
+        guard let last = lastAutoRefreshAt else { return true }
+        let elapsed = now().timeIntervalSince(last)
+        return elapsed < 0 || elapsed >= Self.autoRefreshInterval
     }
 
     @MainActor
