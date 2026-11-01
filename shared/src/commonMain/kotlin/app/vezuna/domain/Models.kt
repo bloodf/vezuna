@@ -176,4 +176,6 @@ data class ProfileData(
     val medications: List<Medication> = emptyList(),
     val doseEvents: List<DoseEvent> = emptyList(),
     val chat: List<ChatMessage> = emptyList(),
+    // Device health data (Health Connect / HealthKit); populated only for the linked profile.
+    val vitals: ProfileVitals = ProfileVitals(),
 )

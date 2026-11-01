@@ -58,6 +58,7 @@ sealed interface AppScreen {
     data object AiChat : AppScreen
     data object Models : AppScreen
     data object Settings : AppScreen
+    data object Vitals : AppScreen
 }
 
 data class AppUiState(
@@ -71,6 +72,7 @@ data class AppUiState(
     val selectedObservationIds: Set<String> = emptySet(),
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
+    val healthLinkedProfileId: String? = null,
 )
 
 object DashboardRefreshSignal {
@@ -148,6 +150,11 @@ class AppController(
         } else {
             loadProfile(currentId)
         }
+    }
+
+    suspend fun setLinkedHealthProfile(profileId: String) = operation {
+        repository.setLinkedHealthProfile(profileId)
+        reloadCurrentProfile()
     }
 
     private suspend fun reloadCurrentProfile() {
@@ -478,6 +485,7 @@ class AppController(
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
+            healthLinkedProfileId = repository.linkedHealthProfileId(),
             dashboard = DashboardSnapshotFactory.create(data, clock(), timeZone()),
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),

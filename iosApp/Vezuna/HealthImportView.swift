@@ -32,10 +32,9 @@ struct HealthImportView: View {
                 }
                 if let result {
                     Section(L10n.text(.latest_batch)) {
-                        LabeledContent(L10n.text(.heart_rate_samples), value: "\(result.heartRate.count)")
-                        LabeledContent(L10n.text(.step_samples), value: "\(result.steps.count)")
-                        LabeledContent(L10n.text(.weight_samples), value: "\(result.weightKilograms.count)")
-                        LabeledContent(L10n.text(.deleted_sample_references), value: "\(result.deletedSampleIDs.count)")
+                        LabeledContent(L10n.text(.heart_rate_samples), value: "\(result.heartRate)")
+                        LabeledContent(L10n.text(.step_samples), value: "\(result.steps)")
+                        LabeledContent(L10n.text(.weight_samples), value: "\(result.weight)")
                     }
                 }
                 if let errorMessage {
@@ -48,13 +47,13 @@ struct HealthImportView: View {
 
     @MainActor
     private func importHealth() async {
-        guard let importer, let profileId = IosRuntime.shared.currentProfileId() else { return }
+        guard let importer else { return }
         busy = true
         errorMessage = nil
         defer { busy = false }
         do {
             try await importer.authorizeReadOnly()
-            result = try await importer.importIncremental(profileId: profileId)
+            result = try await importer.importRecent()
         } catch {
             errorMessage = error.localizedDescription
         }
