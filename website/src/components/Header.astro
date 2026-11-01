@@ -5,59 +5,55 @@ import { htmlLang, languageNames, localizedPath, type Alternates, type Locale } 
 interface Props {
   locale: Locale;
   alternates?: Alternates;
-  dark?: boolean;
   marketing?: boolean;
 }
 
-const { locale, alternates = {}, dark = false, marketing = false } = Astro.props;
+const { locale, alternates = {}, marketing = false } = Astro.props;
 const copy = marketingCopy[locale];
 const home = localizedPath(locale);
 const docs = localizedPath(locale, 'docs');
 const support = localizedPath(locale, 'support');
+const pathname = Astro.url.pathname;
+const sectionLinks = [
+  { href: '#how', label: copy.nav.how },
+  { href: '#records', label: copy.nav.records },
+  { href: '#privacy', label: copy.nav.privacy },
+  { href: '#price', label: copy.nav.price },
+  { href: '#faq', label: copy.nav.faq },
+];
 ---
-<header class:list={["site-header", { "site-header--dark": dark }]}>
-  <div class="header-inner">
-    <a class="brand-link" href={home} aria-label="Vezuna — home">
-      <img src={dark ? '/assets/lockup-dark.svg' : '/assets/lockup-color.svg'} width="154" height="44" alt="Vezuna" />
+<header class="site-header">
+  <div class="header-inner wrap">
+    <a class="brand-link" href={home} aria-label={copy.nav.home}>
+      <img src="/assets/lockup-color.svg" width="154" height="44" alt="Vezuna" />
     </a>
-    <details class="navigation" open>
-      <summary><span>{copy.nav.menu}</span><img src="/assets/chevron.svg" width="20" height="20" alt="" /></summary>
+    <details class="navigation" data-desktop-open open>
+      <summary><span>{copy.nav.menu}</span><span class="icon icon-chevron icon-chevron--down" aria-hidden="true"></span></summary>
       <div class="nav-panel">
-        <nav class="primary-nav" aria-label="Primary navigation">
+        <nav class="primary-nav" aria-label={copy.nav.menu}>
           {marketing ? (
             <>
-              <a href="#workspace-tab-labs">{copy.nav.labs}</a>
-              <a href="#workspace-tab-meds">{copy.nav.medications}</a>
-              <a href="#workspace-tab-device">{copy.nav.device}</a>
-              <a href="#privacy">{copy.nav.privacy}</a>
-              <a href="#faq">{copy.nav.faq}</a>
+              {sectionLinks.map((link) => <a href={link.href}>{link.label}</a>)}
+              <a href={docs}>{copy.nav.docs}</a>
             </>
           ) : (
             <>
-              <a href={home}>{locale === 'en' ? 'Product' : locale === 'pt-br' ? 'Produto' : 'Producto'}</a>
-              <a href={docs} aria-current={Astro.url.pathname.includes('/docs') ? 'page' : undefined}>{copy.footer.docs}</a>
-              <a href={support} aria-current={Astro.url.pathname.endsWith('/support') ? 'page' : undefined}>{copy.footer.support}</a>
+              <a href={home}>{copy.nav.product}</a>
+              <a href={docs} aria-current={pathname.includes('/docs') ? 'page' : undefined}>{copy.footer.docs}</a>
+              <a href={support} aria-current={pathname.endsWith('/support') ? 'page' : undefined}>{copy.footer.support}</a>
             </>
           )}
         </nav>
         {Object.keys(alternates).length > 1 && (
-          <nav class="language-nav" aria-label="Language selection">
+          <nav class="language-nav" aria-label="Language / Idioma">
             {Object.entries(alternates).map(([itemLocale, href]) => (
-              <a href={href} lang={htmlLang[itemLocale as Locale]} aria-current={itemLocale === locale ? 'page' : undefined} aria-label={languageNames[itemLocale as Locale]}>
+              <a href={href} hreflang={htmlLang[itemLocale as Locale]} lang={htmlLang[itemLocale as Locale]} aria-current={itemLocale === locale ? 'page' : undefined} aria-label={languageNames[itemLocale as Locale]}>
                 {itemLocale === 'pt-br' ? 'PT' : itemLocale.toUpperCase()}
               </a>
             ))}
           </nav>
         )}
-        {!marketing && <a class="header-docs-action" href={docs}>{copy.nav.docs}</a>}
       </div>
     </details>
   </div>
 </header>
-<script is:inline>
-  const navigation = document.querySelector('.navigation');
-  const mobileNavigation = window.matchMedia('(max-width: 960px)');
-  const syncNavigation = () => { navigation.open = !mobileNavigation.matches; };
-  syncNavigation();
-  mobileNavigation.addEventListener('change', syncNavigation);
-</script>

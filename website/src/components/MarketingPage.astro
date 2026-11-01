@@ -1,109 +1,115 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import ProductWorkspace from './ProductWorkspace.astro';
+import Screen from './Screen.astro';
 import { marketingCopy } from '../data/marketing';
 import { localizedPath, marketingAlternates, repositoryUrl, type Locale } from '../lib/i18n';
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const copy = marketingCopy[locale];
-const path = localizedPath(locale);
-const descriptions = {
-  en: 'Organize household lab reports, medication schedules, weight, heart rate, steps, and health records on your device.',
-  'pt-br': 'Organize exames, horários de medicamentos, peso, frequência cardíaca, passos e registros de saúde da família no seu dispositivo.',
-  es: 'Organiza exámenes, horarios de medicamentos, peso, frecuencia cardíaca, pasos y registros de salud familiares en tu dispositivo.',
-};
+const guide = localizedPath(locale, 'docs/getting-started');
+const privacyDocs = '/docs/privacy-and-data';
 ---
-<BaseLayout locale={locale} title="Vezuna" description={descriptions[locale]} path={path} alternates={marketingAlternates} marketing>
+<BaseLayout locale={locale} title={copy.meta.title} description={copy.meta.description} path={localizedPath(locale)} alternates={marketingAlternates} marketing>
   <main id="main-content">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-grid">
+      <div class="hero-grid wrap">
         <div class="hero-copy">
-          <p class="eyebrow">{copy.hero.eyebrow}</p>
           <h1 id="hero-title">{copy.hero.title}</h1>
-          <p class="hero-intro">{copy.hero.body}</p>
+          <p class="hero-lead">{copy.hero.body}</p>
           <div class="button-row">
-            <a class="button button--primary" href="#workspace">{copy.hero.primary}</a>
-            <a class="text-link" href={localizedPath(locale, 'docs')}>{copy.hero.secondary}</a>
+            <a class="button button--primary" href={guide}>{copy.hero.primary}</a>
+            <a class="text-link" href="#price">{copy.hero.secondary}</a>
           </div>
-          <p class="hero-note">{copy.hero.note}</p>
+          <dl class="fact-sheet">
+            {copy.hero.facts.map((fact) => (
+              <div><dt>{fact.term}</dt><dd>{fact.value}</dd></div>
+            ))}
+          </dl>
         </div>
-        <div id="workspace">
-          <ProductWorkspace copy={copy} />
-        </div>
+        <Screen screen={copy.hero.screen} crop={0.62} eager />
       </div>
-      <ul class="fact-strip" aria-label="Product facts">
-        {copy.facts.map((fact) => <li>{fact}</li>)}
-      </ul>
     </section>
 
-    <section class="journey" id="journey" aria-labelledby="journey-title">
-      <div class="journey-copy">
-        <p class="eyebrow">{copy.journey.eyebrow}</p>
-        <h2 id="journey-title">{copy.journey.title}</h2>
-        <ol class="journey-steps">
-          {copy.journey.steps.map((step) => (
-            <li><h3>{step.title}</h3><p>{step.body}</p></li>
+    <section class="band" id="how" aria-labelledby="how-title">
+      <div class="split wrap">
+        <div class="split-main">
+          <h2 id="how-title">{copy.how.title}</h2>
+          <p class="section-lead">{copy.how.body}</p>
+          <ol class="steps">
+            {copy.how.steps.map((step) => (
+              <li><h3>{step.title}</h3><p>{step.body}</p></li>
+            ))}
+          </ol>
+        </div>
+        <Screen screen={copy.how.screen} crop={0.56} />
+      </div>
+    </section>
+
+    <section class="band band--subtle" id="records" aria-labelledby="records-title">
+      <div class="split split--reverse wrap">
+        <div class="split-main">
+          <h2 id="records-title">{copy.records.title}</h2>
+          <p class="section-lead">{copy.records.body}</p>
+          <dl class="ledger">
+            {copy.records.items.map((item) => (
+              <div><dt>{item.term}</dt><dd>{item.body}</dd></div>
+            ))}
+          </dl>
+        </div>
+        <Screen screen={copy.records.screen} crop={0.56} />
+      </div>
+    </section>
+
+    <section class="band band--dark" id="privacy" aria-labelledby="privacy-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="privacy-title">{copy.privacy.title}</h2>
+          <p class="section-lead">{copy.privacy.body}</p>
+        </header>
+        <div class="table-scroll" role="region" aria-labelledby="privacy-title" tabindex="0">
+          <table class="data-map">
+            <thead>
+              <tr><th scope="col">{copy.privacy.columns.what}</th><th scope="col">{copy.privacy.columns.where}</th><th scope="col">{copy.privacy.columns.leaves}</th></tr>
+            </thead>
+            <tbody>
+              {copy.privacy.rows.map((row) => (
+                <tr><th scope="row">{row.what}</th><td data-label={copy.privacy.columns.where}>{row.where}</td><td data-label={copy.privacy.columns.leaves}>{row.leaves}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="privacy-note">{copy.privacy.note}</p>
+        <p class="link-row"><a href="/privacy">{copy.privacy.policy}</a><a href={privacyDocs}>{copy.privacy.details}</a></p>
+      </div>
+    </section>
+
+    <section class="band" id="price" aria-labelledby="price-title">
+      <div class="price wrap">
+        <p class="price-amount" aria-hidden="true">{copy.price.amount}</p>
+        <div class="price-copy">
+          <h2 id="price-title"><span class="visually-hidden">{copy.price.amount}. </span>{copy.price.title}</h2>
+          <p>{copy.price.body}</p>
+          <p class="price-status">{copy.price.status}</p>
+          <div class="button-row">
+            <a class="button button--primary" href={guide}>{copy.price.primary}</a>
+            <a class="text-link" href={repositoryUrl} rel="external">{copy.price.secondary}</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--subtle" id="faq" aria-labelledby="faq-title">
+      <div class="split split--faq wrap">
+        <h2 id="faq-title">{copy.faq.title}</h2>
+        <div class="faq-list">
+          {copy.faq.items.map((item) => (
+            <details class="faq-item">
+              <summary><span>{item.question}</span><span class="icon icon-plus" aria-hidden="true"></span></summary>
+              <p>{item.answer}</p>
+            </details>
           ))}
-        </ol>
-      </div>
-      <figure class="journey-screen">
-        <img src="/assets/android-labs.png" width="1080" height="2340" loading="lazy" alt={copy.gallery.screenshots[1].alt} />
-        <figcaption>{copy.gallery.caption}</figcaption>
-      </figure>
-    </section>
-
-    <section class="app-gallery" id="gallery" aria-labelledby="gallery-title">
-      <header class="section-heading">
-        <p class="eyebrow">Vezuna</p>
-        <h2 id="gallery-title">{copy.gallery.title}</h2>
-        <p>{copy.gallery.caption}</p>
-      </header>
-      <div class="gallery-grid">
-        {copy.gallery.screenshots.map((screen) => (
-          <figure class="gallery-item">
-            <img src={screen.src} width="1080" height="2340" loading="lazy" alt={screen.alt} />
-            <figcaption>{screen.label}</figcaption>
-          </figure>
-        ))}
-      </div>
-    </section>
-
-    <section class="privacy-section" id="privacy" aria-labelledby="privacy-title">
-      <header class="section-heading">
-        <p class="eyebrow">Privacy</p>
-        <h2 id="privacy-title">{copy.privacy.title}</h2>
-        <p>{copy.privacy.body}</p>
-      </header>
-      <div class="privacy-points">
-        {copy.privacy.points.map((point) => (
-          <article><h3>{point.title}</h3><p>{point.body}</p></article>
-        ))}
-      </div>
-    </section>
-
-    <section class="availability" aria-labelledby="availability-title">
-      <div>
-        <p class="eyebrow">Availability</p>
-        <h2 id="availability-title">{copy.availability.title}</h2>
-        <p>{copy.availability.body}</p>
-      </div>
-      <div class="availability-actions">
-        <a class="button button--primary" href={repositoryUrl} rel="external">{copy.availability.github}</a>
-        <div class="store-states" aria-label={copy.availability.pending}>
-          <span class="store-pending">{copy.availability.appStore}</span>
-          <span class="store-pending">{copy.availability.googlePlay}</span>
         </div>
-        <p class="availability-pending">{copy.availability.pending}</p>
-      </div>
-    </section>
-
-    <section class="faq" id="faq" aria-labelledby="faq-title">
-      <header class="section-heading"><p class="eyebrow">FAQ</p><h2 id="faq-title">{copy.faq.title}</h2></header>
-      <div class="faq-list">
-        {copy.faq.items.map((item) => (
-          <article class="faq-item"><h3>{item.question}</h3><p>{item.answer}</p></article>
-        ))}
       </div>
     </section>
   </main>
