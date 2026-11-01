@@ -13,7 +13,7 @@ import app.vezuna.security.BackupService
 import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -35,11 +35,13 @@ class AndroidSessionViewModel(
 
     init {
         // Only after the vault is readable: initialize() may create a default profile.
+        // Re-runs on every return to Ready so a vault reset or restore reloads the retained controller.
         viewModelScope.launch {
-            app.vaultState.first { it is VaultState.Ready }
-            // Same bundled catalog file as iOS, read off the main thread.
-            withContext(Dispatchers.IO) { modelManager.configureCatalog(::loadBundledModelCatalog) }
-            controller.initialize()
+            app.vaultState.filter { it is VaultState.Ready }.collect {
+                // Same bundled catalog file as iOS, read off the main thread.
+                withContext(Dispatchers.IO) { modelManager.configureCatalog(::loadBundledModelCatalog) }
+                controller.initialize()
+            }
         }
     }
 
