@@ -1,23 +1,46 @@
 import Foundation
 import HealthKit
+import VezunaShared
 
-struct HealthSampleBatch {
-    let heartRate: [Double]
-    let steps: [Double]
-    let weightKilograms: [Double]
-    let deletedSampleIDs: [UUID]
+struct HealthSample: Equatable {
+    let recordId: String
+    /// A shared `VitalMetric` name: HEART_RATE_BPM, STEPS or WEIGHT_KG.
+    let metric: String
+    let value: Double
+    let start: Date
+    let end: Date
+}
 
-    var insertedCount: Int { heartRate.count + steps.count + weightKilograms.count }
+struct HealthSampleBatch: Equatable {
+    var heartRate = 0
+    var steps = 0
+    var weight = 0
+    var deleted = 0
 }
 
 protocol HealthImporting {
     func authorizeReadOnly() async throws
-    func importIncremental(profileId: String) async throws -> HealthSampleBatch
+    func importIncremental() async throws -> HealthSampleBatch
+}
+
+/// Persists samples (encrypted, in the linked profile) and returns only after they are durable.
+protocol HealthSampleSink {
+    func persist(samples: [HealthSample], deletedRecordIds: [String]) async throws
+}
+
+struct HealthFetchPage {
+    let samples: [HealthSample]
+    let deletedRecordIds: [String]
+    let anchor: HKQueryAnchor?
+}
+
+protocol HealthSampleFetching {
+    func fetch(_ identifier: HKQuantityTypeIdentifier, after anchor: HKQueryAnchor?, limit: Int) async throws -> HealthFetchPage
 }
 
 protocol HealthAnchorStoring {
-    func anchor(profileId: String, typeIdentifier: String) -> HKQueryAnchor?
-    func saveAnchor(_ anchor: HKQueryAnchor, profileId: String, typeIdentifier: String) throws
+    func anchor(typeIdentifier: String) -> HKQueryAnchor?
+    func saveAnchor(_ anchor: HKQueryAnchor, typeIdentifier: String) throws
 }
 
 final class FileHealthAnchorStore: HealthAnchorStoring {
@@ -29,33 +52,84 @@ final class FileHealthAnchorStore: HealthAnchorStoring {
         try AppFileStorage.preparePrivateDirectory(directory)
     }
 
-    func anchor(profileId: String, typeIdentifier: String) -> HKQueryAnchor? {
+    func anchor(typeIdentifier: String) -> HKQueryAnchor? {
         queue.sync {
-            guard let data = try? Data(contentsOf: file(profileId: profileId, typeIdentifier: typeIdentifier)) else { return nil }
+            guard let data = try? Data(contentsOf: file(typeIdentifier: typeIdentifier)) else { return nil }
             return try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
         }
     }
 
-    func saveAnchor(_ anchor: HKQueryAnchor, profileId: String, typeIdentifier: String) throws {
+    func saveAnchor(_ anchor: HKQueryAnchor, typeIdentifier: String) throws {
         let data = try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
         try queue.sync {
-            try AppFileStorage.writeAtomically(data, to: file(profileId: profileId, typeIdentifier: typeIdentifier))
+            try AppFileStorage.writeAtomically(data, to: file(typeIdentifier: typeIdentifier))
         }
     }
 
-    private func file(profileId: String, typeIdentifier: String) -> URL {
-        let safeProfile = Data(profileId.utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_")
-        return directory.appendingPathComponent("\(safeProfile)-\(typeIdentifier).anchor")
+    // Device-wide, not per profile: samples always go to the linked profile. The name differs from the old
+    // per-profile files, whose anchors advanced without the samples being stored, so those are never reused.
+    private func file(typeIdentifier: String) -> URL {
+        directory.appendingPathComponent("device-\(typeIdentifier).anchor")
     }
 }
 
-final class HealthKitImporter: HealthImporting {
+/// Drives one import. The anchor of a batch is saved only after that batch was persisted, so a failed
+/// save is retried from the same anchor and nothing is lost.
+final class HealthImportRunner {
+    static let pageLimit = 2_000
+    private static let identifiers: [HKQuantityTypeIdentifier] = [.heartRate, .stepCount, .bodyMass]
+
+    private let fetcher: HealthSampleFetching
+    private let anchors: HealthAnchorStoring
+    private let sink: HealthSampleSink
+
+    init(fetcher: HealthSampleFetching, anchors: HealthAnchorStoring, sink: HealthSampleSink) {
+        self.fetcher = fetcher
+        self.anchors = anchors
+        self.sink = sink
+    }
+
+    func run() async throws -> HealthSampleBatch {
+        var total = HealthSampleBatch()
+        for identifier in Self.identifiers {
+            var anchor = anchors.anchor(typeIdentifier: identifier.rawValue)
+            while true {
+                let page = try await fetcher.fetch(identifier, after: anchor, limit: Self.pageLimit)
+                if !page.samples.isEmpty || !page.deletedRecordIds.isEmpty {
+                    try await sink.persist(samples: page.samples, deletedRecordIds: page.deletedRecordIds)
+                }
+                if let next = page.anchor {
+                    try anchors.saveAnchor(next, typeIdentifier: identifier.rawValue)
+                    anchor = next
+                }
+                total.add(identifier, samples: page.samples.count, deleted: page.deletedRecordIds.count)
+                if page.samples.count + page.deletedRecordIds.count < Self.pageLimit { break }
+            }
+        }
+        return total
+    }
+}
+
+extension HealthSampleBatch {
+    fileprivate mutating func add(_ identifier: HKQuantityTypeIdentifier, samples: Int, deleted count: Int) {
+        switch identifier {
+        case .heartRate: heartRate += samples
+        case .stepCount: steps += samples
+        default: weight += samples
+        }
+        deleted += count
+    }
+}
+
+final class HealthKitImporter: HealthImporting, HealthSampleFetching {
     private let store: HKHealthStore
     private let anchors: HealthAnchorStoring
+    private let sink: HealthSampleSink
 
-    init(store: HKHealthStore = .init(), anchors: HealthAnchorStoring) {
+    init(store: HKHealthStore = .init(), anchors: HealthAnchorStoring, sink: HealthSampleSink = KotlinHealthSink()) {
         self.store = store
         self.anchors = anchors
+        self.sink = sink
     }
 
     static var supported: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -70,53 +144,80 @@ final class HealthKitImporter: HealthImporting {
         try await store.requestAuthorization(toShare: [], read: Self.readTypes)
     }
 
-    func importIncremental(profileId: String) async throws -> HealthSampleBatch {
-        async let heart = query(.heartRate, profileId: profileId)
-        async let steps = query(.stepCount, profileId: profileId)
-        async let weight = query(.bodyMass, profileId: profileId)
-        let results = try await (heart: heart, steps: steps, weight: weight)
-        let unitHeart = HKUnit.count().unitDivided(by: .minute())
-        let kilograms = HKUnit.gramUnit(with: .kilo)
-        return HealthSampleBatch(
-            heartRate: results.heart.samples.map { $0.quantity.doubleValue(for: unitHeart) },
-            steps: results.steps.samples.map { $0.quantity.doubleValue(for: .count()) },
-            weightKilograms: results.weight.samples.map { $0.quantity.doubleValue(for: kilograms) },
-            deletedSampleIDs: results.heart.deleted + results.steps.deleted + results.weight.deleted
-        )
+    func importIncremental() async throws -> HealthSampleBatch {
+        try await HealthImportRunner(fetcher: self, anchors: anchors, sink: sink).run()
     }
 
-    private func query(_ identifier: HKQuantityTypeIdentifier, profileId: String) async throws -> (samples: [HKQuantitySample], deleted: [UUID]) {
+    /// History is bounded: 30 days of heart rate and steps (older readings are condensed anyway), one year of weight.
+    private static func window(_ identifier: HKQuantityTypeIdentifier) -> NSPredicate {
+        let days = identifier == .bodyMass ? 365 : 30
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date.distantPast
+        return HKQuery.predicateForSamples(withStart: start, end: nil, options: [])
+    }
+
+    func fetch(_ identifier: HKQuantityTypeIdentifier, after anchor: HKQueryAnchor?, limit: Int) async throws -> HealthFetchPage {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { throw HealthImportError.unsupportedType }
-        let previous = anchors.anchor(profileId: profileId, typeIdentifier: identifier.rawValue)
-        let result: (samples: [HKQuantitySample], deleted: [UUID], anchor: HKQueryAnchor?) = try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(type: type, predicate: nil, anchor: previous, limit: HKObjectQueryNoLimit) { _, samples, deleted, anchor, error in
+        let unit: HKUnit
+        let metric: String
+        switch identifier {
+        case .heartRate: unit = HKUnit.count().unitDivided(by: .minute()); metric = "HEART_RATE_BPM"
+        case .stepCount: unit = .count(); metric = "STEPS"
+        default: unit = .gramUnit(with: .kilo); metric = "WEIGHT_KG"
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKAnchoredObjectQuery(type: type, predicate: Self.window(identifier), anchor: anchor, limit: limit) { _, samples, deleted, newAnchor, error in
                 if let error {
                     continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: (
-                        (samples as? [HKQuantitySample]) ?? [],
-                        (deleted ?? []).map(\.uuid),
-                        anchor
-                    ))
+                    return
                 }
+                let mapped = ((samples as? [HKQuantitySample]) ?? []).map {
+                    HealthSample(recordId: $0.uuid.uuidString, metric: metric, value: $0.quantity.doubleValue(for: unit), start: $0.startDate, end: $0.endDate)
+                }
+                continuation.resume(returning: HealthFetchPage(samples: mapped, deletedRecordIds: (deleted ?? []).map { $0.uuid.uuidString }, anchor: newAnchor))
             }
             store.execute(query)
         }
-        if let anchor = result.anchor {
-            try anchors.saveAnchor(anchor, profileId: profileId, typeIdentifier: identifier.rawValue)
+    }
+}
+
+/// Hands samples to the shared repository (linked profile, encrypted vault) and resumes once they are saved.
+struct KotlinHealthSink: HealthSampleSink {
+    private struct Payload: Encodable {
+        let recordId: String
+        let metric: String
+        let value: Double
+        let startEpochSeconds: Int64
+        let endEpochSeconds: Int64
+    }
+
+    func persist(samples: [HealthSample], deletedRecordIds: [String]) async throws {
+        let payload = samples.map {
+            Payload(recordId: $0.recordId, metric: $0.metric, value: $0.value,
+                    startEpochSeconds: Int64($0.start.timeIntervalSince1970), endEpochSeconds: Int64($0.end.timeIntervalSince1970))
         }
-        return (result.samples, result.deleted)
+        let json = String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            IosRuntime.shared.ingestDeviceVitals(samplesJson: json, deletedRecordIds: deletedRecordIds) { message in
+                if let message {
+                    continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
     }
 }
 
 enum HealthImportError: LocalizedError {
     case unavailable
     case unsupportedType
+    case persistFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .unavailable: return L10n.text(.healthkit_unavailable)
         case .unsupportedType: return L10n.text(.healthkit_type_unavailable)
+        case .persistFailed(let message): return message
         }
     }
 }

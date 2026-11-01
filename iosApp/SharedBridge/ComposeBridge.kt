@@ -10,6 +10,9 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VitalMetric
+import app.vezuna.domain.VitalSample
+import app.vezuna.domain.VitalsBatch
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -54,6 +57,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
@@ -87,6 +91,16 @@ interface NativeLicenseProvider {
 interface NativeRepositoryObserver {
     fun repositoryDidChange()
 }
+
+/** HealthKit sample as encoded by Swift: metric is a [VitalMetric] name. */
+@Serializable
+private data class NativeVitalSample(
+    val recordId: String,
+    val metric: String,
+    val value: Double,
+    val startEpochSeconds: Long,
+    val endEpochSeconds: Long,
+)
 
 data class NativeCandidateInput(
     val testCode: String,
@@ -207,6 +221,35 @@ object IosRuntime {
         scope.launch {
             controller.initialize()
             repositoryObserver?.repositoryDidChange()
+        }
+    }
+
+    // --- Device vitals (HealthKit) ---
+    /**
+     * Stores HealthKit samples in the linked profile's encrypted records. The completion fires only after they are
+     * durable; Swift must not advance its query anchor before that.
+     */
+    fun ingestDeviceVitals(samplesJson: String, deletedRecordIds: List<String>, completion: (NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val samples = json.decodeFromString(ListSerializer(NativeVitalSample.serializer()), samplesJson).map {
+                    VitalSample(
+                        it.recordId, VitalMetric.valueOf(it.metric), it.value,
+                        Instant.fromEpochSeconds(it.startEpochSeconds), Instant.fromEpochSeconds(it.endEpochSeconds),
+                    )
+                }
+                repository.ingestDeviceVitals(VitalsBatch(samples, deletedRecordIds), currentInstant())
+                controller.refreshDashboard()
+                completion(null)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                completion(nativeMessage("action_failed"))
+            }
         }
     }
 
