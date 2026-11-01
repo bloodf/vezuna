@@ -19,6 +19,7 @@ import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelPack
+import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
@@ -61,6 +62,9 @@ fun nativeMessage(key: String, vararg args: Any?): NativeMessage =
 interface NativeModelPackLoader {
     /** Completion receives the absolute path of the pack file; the store streams it, so no full copy is made. */
     fun loadModelPack(pack: ModelPack, completion: (String?, NativeMessage?) -> Unit)
+
+    /** Releases the resources behind the last delivered path once installation finished or failed. */
+    fun releaseModelPack()
 }
 
 interface NativeLicenseProvider {
@@ -312,7 +316,13 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
                 } else {
                     suspendCancellableCoroutine { continuation ->
                         loader.loadModelPack(pack) { path, _ ->
-                            if (continuation.isActive) continuation.resume(path)
+                            if (path == null) {
+                                if (continuation.isActive) continuation.resume(null)
+                            } else if (continuation.isActive) {
+                                continuation.resume(ModelPackSource(path) { loader.releaseModelPack() })
+                            } else {
+                                loader.releaseModelPack()
+                            }
                         }
                     }
                 }

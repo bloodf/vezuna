@@ -52,6 +52,7 @@ import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelFileStore
 import app.vezuna.llm.ModelPack
+import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.resolve
@@ -97,7 +98,7 @@ fun VezunaApp(
     modelFiles: ModelFileStore,
     catalog: ModelCatalog,
     sourcePicker: (suspend () -> PickedSource?)? = null,
-    modelPackLoader: (suspend (ModelPack) -> String?)? = null,
+    modelPackLoader: (suspend (ModelPack) -> ModelPackSource?)? = null,
 ) {
     val llm = remember { llamatikLocalLlm() }
     val controller = remember(repository, modelFiles, catalog) {
@@ -113,7 +114,7 @@ fun VezunaApp(
     controller: AppController,
     scope: CoroutineScope,
     sourcePicker: (suspend () -> PickedSource?)? = null,
-    modelPackLoader: (suspend (ModelPack) -> String?)? = null,
+    modelPackLoader: (suspend (ModelPack) -> ModelPackSource?)? = null,
     onDevice: (() -> Unit)? = null,
     animationsEnabled: Boolean = true,
 ) {

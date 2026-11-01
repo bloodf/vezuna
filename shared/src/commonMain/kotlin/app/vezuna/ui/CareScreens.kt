@@ -59,6 +59,7 @@ import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.Medication as MedicationRecord
 import app.vezuna.domain.Recurrence
 import app.vezuna.llm.ModelPack
+import app.vezuna.llm.ModelPackSource
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.resolve
@@ -208,7 +209,7 @@ private fun ChatBubble(message: ChatMessage) {
 }
 
 @Composable
-fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, modelPackLoader: (suspend (ModelPack) -> String?)?) {
+fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, modelPackLoader: (suspend (ModelPack) -> ModelPackSource?)?) {
     val modelState by controller.modelManager.state.collectAsState()
     ScreenColumn(vitaText(L10nKey.LOCAL_GGUF_MODELS), vitaText(L10nKey.MODELS_SUBTITLE)) {
         InlineNotice(vitaText(L10nKey.MODEL_SECURITY_NOTICE), Icons.Rounded.Lock)
@@ -240,8 +241,12 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                     when {
                         installed == null && modelPackLoader != null -> VitaButton(vitaText(L10nKey.INSTALL_VERIFIED_STORE_PACK), Icons.Rounded.Download, {
                             scope.launch {
-                                val sourcePath = modelPackLoader(pack)
-                                if (sourcePath == null) controller.navigate(AppScreen.Models) else controller.installModel(pack, sourcePath)
+                                val source = modelPackLoader(pack)
+                                if (source == null) controller.navigate(AppScreen.Models) else try {
+                                    controller.installModel(pack, source.path)
+                                } finally {
+                                    source.release()
+                                }
                             }
                         }, enabled = !modelState.busy)
                         installed == null -> InlineNotice(vitaText(L10nKey.AWAITING_NATIVE_STORE_LOADER), Icons.Rounded.Download)

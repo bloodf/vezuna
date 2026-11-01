@@ -59,6 +59,9 @@ class ModelCatalog(packs: List<ModelPack>) {
     }
 }
 
+/** A store-delivered pack file; [release] must be called once installation finished or failed. */
+class ModelPackSource(val path: String, val release: () -> Unit = {})
+
 interface ModelFileStore {
     suspend fun installed(): List<InstalledModel>
     /**
@@ -133,15 +136,13 @@ class InstalledModelManager(
         if (catalog.byId(pack.modelId) != pack) failMessage(L10nKey.MODEL_NOT_IN_CATALOG)
         mutableState.value = mutableState.value.copy(busy = true, error = null)
         try {
-            val existing = files.installed().firstOrNull { it.pack.modelId == pack.modelId }
-            if (existing != null) {
-                if (mutableState.value.loadedModelId == pack.modelId) {
-                    llm.unload()
-                    mutableState.value = mutableState.value.copy(loadedModelId = null)
-                }
-            }
             val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
+            // Verified atomic replace first: a failed install keeps the loaded model and the old file.
             files.install(model, sourcePath)
+            if (mutableState.value.loadedModelId == pack.modelId) {
+                llm.unload()
+                mutableState.value = mutableState.value.copy(loadedModelId = null)
+            }
             if (mutableState.value.selectedModelId == pack.modelId) files.saveSelection(pack.modelId)
             mutableState.value = mutableState.value.copy(installed = files.installed(), busy = false)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {

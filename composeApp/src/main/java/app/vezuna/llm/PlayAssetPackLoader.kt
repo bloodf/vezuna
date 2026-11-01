@@ -46,8 +46,8 @@ class PlayAssetPackLoader(
     private val mutableState = MutableStateFlow<ModelPackLoadState>(ModelPackLoadState.Idle)
     val state: StateFlow<ModelPackLoadState> = mutableState.asStateFlow()
 
-    /** Returns the absolute path of the verified-in-place pack file; the model store streams it into private storage. */
-    suspend fun load(pack: ModelPack): String? {
+    /** Returns the pack file location (used in place, no release needed) of the pack file; the model store streams it into private storage. */
+    suspend fun load(pack: ModelPack): ModelPackSource? {
         if (!FeatureAccessPolicy.isAllowed(AppFeature.PREMIUM_AI_MODEL, premiumGate.premiumAllowed())) {
             mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PREMIUM_UNAVAILABLE))
             return null
@@ -61,7 +61,7 @@ class PlayAssetPackLoader(
             }
             val path = resolvePackFile(location, pack)
             mutableState.value = ModelPackLoadState.Ready(pack.modelId)
-            path
+            ModelPackSource(path)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Throwable) {

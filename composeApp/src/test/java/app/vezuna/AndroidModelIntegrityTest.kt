@@ -50,6 +50,8 @@ class AndroidModelIntegrityTest {
         var maxChunk = 0
         override fun read(): Int = if (position >= size) -1 else (position++ % 251).toInt()
         override fun read(b: ByteArray, off: Int, len: Int): Int {
+            // Kotlin's InputStream.readBytes() and friends ask for large reads; the real install uses a 1 MiB buffer.
+            check(len <= 1024 * 1024) { "full-buffer read of $len bytes is forbidden" }
             if (position >= size) return -1
             val n = minOf(len.toLong(), 8192L, size - position).toInt()
             for (i in 0 until n) b[off + i] = (position++ % 251).toByte()
@@ -97,6 +99,36 @@ class AndroidModelIntegrityTest {
             assertFailsWith<Exception> { installVerifiedStream(IncrementalOnlyStream(size), target, size + 1, expectedDigest(size)) }
             assertEquals("previous", target.readText())
             assertEquals(listOf("m.gguf"), dir.list()!!.toList())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun installsGeneratedStreamLargerThanOneGiBUnderCappedHeap() {
+        val dir = Files.createTempDirectory("install-large").toFile()
+        try {
+            val size = 1024L * 1024 * 1024 + 1
+            val target = java.io.File(dir, "large.gguf")
+            installVerifiedStream(IncrementalOnlyStream(size), target, size, expectedDigest(size))
+            assertEquals(size, target.length())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun cancellationAbortsInstallAndRemovesPartialFile() {
+        val dir = Files.createTempDirectory("install-cancel").toFile()
+        try {
+            val target = java.io.File(dir, "m.gguf")
+            var chunks = 0
+            assertFailsWith<IllegalStateException> {
+                installVerifiedStream(IncrementalOnlyStream(1_000_000), target, 1_000_000, "0".repeat(64)) {
+                    if (++chunks > 2) throw IllegalStateException("cancelled")
+                }
+            }
+            assertEquals(emptyList<String>(), dir.list()!!.toList())
         } finally {
             dir.deleteRecursively()
         }

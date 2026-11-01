@@ -37,6 +37,7 @@ import platform.posix.feof
 import platform.posix.ferror
 import platform.posix.fflush
 import platform.posix.fopen
+import platform.posix.rename
 import platform.posix.fwrite
 import platform.posix.fread
 import platform.posix.memcpy
@@ -52,6 +53,11 @@ class IosModelFileStore(
 
     init {
         preparePrivateDirectory(directory)
+        // Interrupted installs leave hidden ".<name>.<uuid>.tmp" files; they are never valid state.
+        (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>)
+            ?.filterIsInstance<String>()
+            ?.filter { it.startsWith(".") && it.endsWith(".tmp") }
+            ?.forEach { manager.removeItemAtPath("$directory/$it", null) }
     }
 
     override suspend fun installed(): List<InstalledModel> = mutex.withLock {
@@ -69,8 +75,8 @@ class IosModelFileStore(
         try {
             streamVerifiedCopy(sourcePath, temporary, model.pack.sizeBytes, model.pack.sha256)
             protectAndExclude(temporary)
-            manager.removeItemAtPath(destination, null)
-            check(manager.moveItemAtPath(temporary, destination, null)) { "Could not move verified model pack into place" }
+            // rename(2) replaces atomically on the same volume; the previous model survives any failure.
+            check(rename(temporary, destination) == 0) { "Could not move verified model pack into place" }
             protectAndExclude(destination)
         } finally {
             manager.removeItemAtPath(temporary, null)
@@ -85,6 +91,7 @@ class IosModelFileStore(
         val input = fopen(source, "rb") ?: error("Model pack source is unavailable")
         try {
             val output = fopen(destination, "wb") ?: error("Could not create model pack temporary file")
+            var outputClosed = false
             try {
                 memScoped {
                     val context = alloc<CC_SHA256_CTX>()
@@ -111,14 +118,16 @@ class IosModelFileStore(
                         }
                     }
                     check(fflush(output) == 0) { "Could not flush model pack" }
+                    outputClosed = true
+                    check(fclose(output) == 0) { "Could not close model pack" }
                     check(total == expectedSize) { "Model pack size mismatch" }
                     check(header.contentEquals(byteArrayOf(0x47, 0x47, 0x55, 0x46))) { "Model pack is not a GGUF file" }
                     val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
-                    check(CC_SHA256_Final(digest.usePinned { it.addressOf(0) }, context.ptr) == 1) { "SHA-256 final failed" }
+                    check(digest.usePinned { CC_SHA256_Final(it.addressOf(0), context.ptr) } == 1) { "SHA-256 final failed" }
                     check(ByteArray(digest.size) { digest[it].toByte() }.toHex() == expectedSha256) { "Model pack SHA-256 mismatch" }
                 }
             } finally {
-                fclose(output)
+                if (!outputClosed) fclose(output)
             }
         } finally {
             fclose(input)
@@ -144,7 +153,7 @@ class IosModelFileStore(
                         fread(pinned.addressOf(0), 1uL, buffer.size.toULong(), file)
                     }
                     if (count > 0uL) {
-                        if (CC_SHA256_Update(context.ptr, buffer.usePinned { it.addressOf(0) }, count.toUInt()) != 1) {
+                        if (buffer.usePinned { CC_SHA256_Update(context.ptr, it.addressOf(0), count.toUInt()) } != 1) {
                             return@memScoped false
                         }
                         if (totalRead < header.size) {
@@ -166,7 +175,7 @@ class IosModelFileStore(
                     return@memScoped false
                 }
                 val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
-                if (CC_SHA256_Final(digest.usePinned { it.addressOf(0) }, context.ptr) != 1) return@memScoped false
+                if (digest.usePinned { CC_SHA256_Final(it.addressOf(0), context.ptr) } != 1) return@memScoped false
                 ByteArray(digest.size) { digest[it].toByte() }.toHex() == model.pack.sha256
             }
         } finally {

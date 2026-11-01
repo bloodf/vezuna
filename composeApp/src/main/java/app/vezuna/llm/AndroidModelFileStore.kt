@@ -4,6 +4,8 @@ import android.content.Context
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -24,6 +26,11 @@ class AndroidModelFileStore(context: Context) : ModelFileStore {
     private val mutex = Mutex()
     private val json = Json { encodeDefaults = true }
 
+    init {
+        // Interrupted installs leave hidden ".<name>.<nanos>.tmp" siblings; they are never valid state.
+        directory.listFiles { file -> file.name.startsWith(".") && file.name.endsWith(".tmp") }?.forEach { it.delete() }
+    }
+
     @Serializable
     private data class Metadata(
         val models: List<InstalledModel> = emptyList(),
@@ -37,7 +44,10 @@ class AndroidModelFileStore(context: Context) : ModelFileStore {
     override suspend fun install(model: InstalledModel, sourcePath: String) = withContext(Dispatchers.IO) { mutex.withLock {
         directory.mkdirs()
         val target = modelFile(model.pack)
-        File(sourcePath).inputStream().use { installVerifiedStream(it, target, model.pack.sizeBytes, model.pack.sha256) }
+        val context = currentCoroutineContext()
+        File(sourcePath).inputStream().use {
+            installVerifiedStream(it, target, model.pack.sizeBytes, model.pack.sha256) { context.ensureActive() }
+        }
         val stored = model.copy(localPath = target.absolutePath)
         val metadata = readMetadata()
         writeMetadata(metadata.copy(models = metadata.models.filterNot { it.pack.modelId == model.pack.modelId } + stored))
@@ -123,7 +133,13 @@ internal fun verifyStreamingFileIntegrity(file: File, expectedSize: Long, expect
  * Size and SHA-256 are checked before the atomic move; on any failure the partial file is deleted
  * and an existing [target] is left untouched.
  */
-internal fun installVerifiedStream(source: InputStream, target: File, expectedSize: Long, expectedSha256: String) {
+internal fun installVerifiedStream(
+    source: InputStream,
+    target: File,
+    expectedSize: Long,
+    expectedSha256: String,
+    checkCancelled: () -> Unit = {},
+) {
     val temporary = File(target.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
     try {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -131,6 +147,7 @@ internal fun installVerifiedStream(source: InputStream, target: File, expectedSi
         FileOutputStream(temporary).use { output ->
             val buffer = ByteArray(COPY_BUFFER_SIZE)
             while (true) {
+                checkCancelled()
                 val count = source.read(buffer)
                 if (count < 0) break
                 if (count == 0) continue
