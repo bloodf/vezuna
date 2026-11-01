@@ -3,6 +3,7 @@ import VezunaShared
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppShellModel
+    @EnvironmentObject private var lock: AppLockObserver
 
     var body: some View {
         Group {
@@ -12,6 +13,7 @@ struct ContentView: View {
                         .ignoresSafeArea(.container, edges: .bottom)
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
+                            if !lock.locked {
                             ToolbarItemGroup(placement: .topBarTrailing) {
                                 Menu {
                                     Button { model.sheet = .importSource } label: { Label(L10n.text(.import_lab_source), systemImage: "doc.viewfinder") }
@@ -24,6 +26,7 @@ struct ContentView: View {
                                     Image(systemName: "ellipsis.circle")
                                         .accessibilityLabel(L10n.text(.native_actions))
                                 }
+                            }
                             }
                         }
                         .safeAreaInset(edge: .top) {
@@ -40,7 +43,8 @@ struct ContentView: View {
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
                     onRetry: { model.recoverVault(reset: false) },
-                    onReset: { model.recoverVault(reset: true) }
+                    onReset: { model.recoverVault(reset: true) },
+                    onRestore: { model.recoverVault(reset: true) }
                 )
                 .ignoresSafeArea()
             } else if let error = model.startupError {
@@ -54,6 +58,12 @@ struct ContentView: View {
             }
         }
         .task { model.configure() }
+        .onChange(of: lock.locked) { locked in
+            guard locked else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { model.sheet = nil }
+        }
         .sheet(item: $model.sheet) { sheet in
             switch sheet {
             case .importSource:
@@ -84,9 +94,10 @@ struct ComposeHostView: UIViewControllerRepresentable {
 struct VaultRecoveryHostView: UIViewControllerRepresentable {
     let onRetry: () -> Void
     let onReset: () -> Void
+    let onRestore: () -> Void
 
     func makeUIViewController(context: Context) -> UIViewController {
-        ComposeBridgeKt.makeVaultRecoveryViewController(onRetry: onRetry, onReset: onReset)
+        ComposeBridgeKt.makeVaultRecoveryViewController(onRetry: onRetry, onReset: onReset, onRestore: onRestore)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

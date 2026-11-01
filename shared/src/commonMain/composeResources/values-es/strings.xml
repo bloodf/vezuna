@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">Ningún perfil</string>
     <string name="no_profile_selected">Ningún perfil seleccionado</string>
     <string name="no_settings">No hay ajustes</string>
-    <string name="no_store_model_packs">No hay paquetes de modelos de la tienda configurados</string>
-    <string name="no_store_model_packs_explanation">El shell nativo proporciona metadatos firmados del catálogo y bytes GGUF alojados en la tienda. No se presupone ninguna URL de descarga.</string>
+    <string name="no_store_model_packs">Modelo de IA aún no disponible</string>
+    <string name="no_store_model_packs_explanation">Todavía no se incluye ningún modelo de IA en el dispositivo en esta versión. Tus registros, importaciones y exportaciones funcionan por completo sin él.</string>
     <string name="no_trends">No hay tendencias</string>
     <string name="no_upcoming_doses">No hay dosis próximas</string>
     <string name="no_upcoming_doses_explanation">Añade un medicamento y su horario prescrito para ver el próximo recordatorio.</string>
@@ -242,6 +242,37 @@ iOS: %2$s</string>
     <string name="verifying_or_loading_model">Verificando o cargando el modelo…</string>
     <string name="model_sha_required">Se necesita un resumen SHA-256 real de 32 bytes</string>
     <string name="cancel">Cancelar</string>
+    <!-- Lab import review -->
+    <string name="collection_date">Fecha de recolección</string>
+    <string name="collection_date_not_set">Sin definir</string>
+    <string name="collection_date_required">Elija la fecha de recolección antes de confirmar</string>
+    <string name="apply_date_to_all">Aplicar esta fecha a todos los resultados de este informe</string>
+    <string name="choose_date">Elegir fecha</string>
+    <string name="confirmed_qualitative_value">Resultado confirmado (texto)</string>
+    <string name="qualitative_result_required">Ingrese el resultado en texto</string>
+    <string name="qualitative_timeline">Resultados en texto a lo largo del tiempo</string>
+    <string name="text_result_toggle">Resultado en texto (no numérico)</string>
+    <string name="ocr_read_token">OCR leyó: %1$s</string>
+    <string name="ambiguous_number_warning">Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)</string>
+    <string name="reference_text_optional">Texto de referencia (opcional)</string>
+    <string name="number_ambiguous_input">Número ambiguo: escriba los miles sin separador (250000) y los decimales con coma o punto que no vaya seguido de exactamente tres dígitos (escriba 1,020 o 1.02 para uno coma cero dos)</string>
+    <string name="report_manual_summary">Introducido manualmente el %1$s</string>
+    <string name="manual_entry_hint">Sin archivo: escriba un resultado de un informe en papel y elija la fecha de recolección.</string>
+    <string name="save_manual_result">Guardar resultado manual</string>
+    <string name="manual_result_saved">Resultado manual guardado</string>
+    <string name="manual_entry_report">Entrada manual</string>
+    <string name="edit_result">Editar resultado</string>
+    <string name="result_updated">Resultado actualizado</string>
+    <string name="result_unchanged">No hay cambios</string>
+    <string name="result_history">Historial de ediciones</string>
+    <string name="result_revision">%1$s: era %2$s, referencia %3$s, recolección %4$s</string>
+    <string name="imported_reports">Informes</string>
+    <string name="imported_reports_subtitle">Elimine un informe para quitar su archivo, borradores y resultados.</string>
+    <string name="report_summary">Importado el %1$s</string>
+    <string name="delete_report">Eliminar informe</string>
+    <string name="delete_report_warning">¿Eliminar el informe %1$s con su archivo guardado, borradores sin revisar y resultados confirmados? No se puede deshacer.</string>
+    <string name="report_not_found">Informe no encontrado</string>
+    <string name="report_deleted">Informe eliminado</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="rename_profile">Renombrar perfil</string>
@@ -280,6 +311,40 @@ iOS: %2$s</string>
         <item quantity="one">%1$d candidato sin revisar añadido; confirma cada resultado individualmente</item>
         <item quantity="other">%1$d candidatos sin revisar añadidos; confirma cada resultado individualmente</item>
     </plurals>
+    <!-- Portable backup and restore -->
+    <string name="backup_passphrase_too_short">Usa al menos 12 caracteres en la frase secreta de la copia</string>
+    <string name="backup_wrong_passphrase">Frase secreta incorrecta o archivo de copia dañado</string>
+    <string name="backup_not_a_backup">Este archivo no es una copia de seguridad de Vezuna</string>
+    <string name="backup_unsupported_version">Esta copia viene de una versión más nueva o incompatible de Vezuna</string>
+    <string name="backup_same_device_unavailable">Esta es una copia del mismo dispositivo. Solo puede abrirse en el dispositivo que la creó, y la clave de ese dispositivo no está disponible aquí</string>
+    <string name="backup_invalid_content">El contenido de la copia está dañado o no es válido</string>
+    <string name="backup_section_title">Copia y restauración</string>
+    <string name="backup_create">Crear copia cifrada</string>
+    <string name="backup_restore">Restaurar desde una copia</string>
+    <string name="backup_passphrase_warning">La copia se protege solo con esta frase secreta. Vezuna no puede recuperarla: si la pierdes, la copia nunca podrá abrirse.</string>
+    <string name="backup_passphrase_label">Frase secreta</string>
+    <string name="backup_passphrase_confirm_label">Confirmar frase secreta</string>
+    <string name="backup_passphrase_mismatch">Las frases secretas no coinciden</string>
+    <string name="backup_strength_too_short">Demasiado corta: usa al menos 12 caracteres</string>
+    <string name="backup_strength_fair">Aceptable. Una frase más larga con caracteres variados es más fuerte</string>
+    <string name="backup_strength_strong">Frase secreta fuerte</string>
+    <string name="backup_create_action">Crear copia</string>
+    <string name="backup_saved">Copia guardada. Conserva bien la frase secreta</string>
+    <string name="backup_enter_passphrase_title">Introduce la frase secreta de la copia</string>
+    <string name="backup_unlock">Abrir copia</string>
+    <string name="backup_same_device_label">Copia del mismo dispositivo: solo se restaura en el dispositivo que la creó</string>
+    <string name="backup_contents">Copia del perfil %1$s</string>
+    <string name="backup_profile_exists_title">Este perfil ya existe</string>
+    <string name="backup_profile_exists_body">Este dispositivo ya tiene el perfil %1$s. Reemplázalo con la copia (se eliminan sus registros actuales) o restaura la copia como un perfil nuevo.</string>
+    <string name="backup_replace">Reemplazar el perfil existente</string>
+    <string name="backup_restore_as_new">Restaurar como perfil nuevo</string>
+    <string name="backup_confirm_title">¿Restaurar esta copia?</string>
+    <string name="backup_confirm_body">El perfil %1$s se añadirá a este dispositivo.</string>
+    <string name="backup_restore_action">Restaurar</string>
+    <string name="backup_restored">Copia restaurada</string>
+    <string name="backup_recovery_confirm_body">Los registros ilegibles se apartan, no se borran, y la copia se restaura en un almacén nuevo.</string>
+    <string name="backup_file_unreadable">No se pudo leer el archivo, o es demasiado grande para ser una copia</string>
+    <string name="backup_restore_failed_after_reset">La restauración no terminó. Tus datos anteriores se apartaron, no se borraron. Vuelve a intentar restaurar.</string>
     <!-- Device vitals -->
     <string name="vitals_title">Signos del dispositivo</string>
     <string name="vitals_subtitle">Frecuencia cardíaca, pasos y peso de este dispositivo para %1$s.</string>
@@ -305,4 +370,19 @@ iOS: %2$s</string>
         <item quantity="one">Gráfico con %1$d lectura, unidad %2$s</item>
         <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s</item>
     </plurals>
+    <!-- App lock -->
+    <string name="app_lock_title">Bloqueo de la app</string>
+    <string name="app_lock_description">Exige biometría o el código del dispositivo al abrir Vezuna y tras 5 minutos en segundo plano. Las capturas de pantalla y las vistas previas del selector de apps quedan bloqueadas mientras esté activo.</string>
+    <string name="app_lock_unavailable">Configura un bloqueo de pantalla o biometría en este dispositivo para usar el bloqueo de la app.</string>
+    <string name="app_lock_failed">Falló la autenticación. Inténtalo de nuevo.</string>
+    <string name="app_lock_suspended">El bloqueo de la app está desactivado porque este dispositivo no tiene bloqueo de pantalla.</string>
+    <string name="lock_screen_title">Vezuna está bloqueado</string>
+    <string name="lock_screen_body">Tus registros de salud permanecen ocultos hasta que desbloquees.</string>
+    <string name="unlock">Desbloquear</string>
+    <string name="backup_restored_without_vitals">Copia restaurada, pero no se pudieron restaurar los datos de salud del dispositivo</string>
+    <!-- Export language -->
+    <string name="export_language">Idioma de la exportación</string>
+    <string name="export_language_device">Idioma de la app</string>
+    <string name="export_language_explanation">Elige el idioma de los títulos, estados y números de la exportación. Los valores clínicos y las unidades nunca cambian.</string>
+    <string name="model_catalog_unreadable">No se pudo leer el catálogo de modelos incluido en la app. Los modelos de IA no están disponibles.</string>
 </resources>

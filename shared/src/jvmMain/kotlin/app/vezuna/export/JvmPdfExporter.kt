@@ -1,6 +1,7 @@
 package app.vezuna.export
 
 import app.vezuna.domain.RangeAssessment
+import app.vezuna.localization.ContentLanguage
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import kotlin.math.max
@@ -19,9 +20,14 @@ private data class JvmPdfPage(val commands: StringBuilder = StringBuilder())
 private class JvmLabReport {
     val pages = mutableListOf<JvmPdfPage>()
     private var y = 0.0
-    private var sectionName = "Clinical report"
+    private var sectionName = ""
+    private var language = ContentLanguage.EN
+    private var t = ExportText.of(language)
 
     fun render(document: DoctorPdfDocument) {
+        language = document.language
+        t = ExportText.of(language)
+        sectionName = t.clinicalReport
         newPage()
         text("Vezuna", MARGIN, y, 18.0, NAVY, bold = true)
         y += 26.0
@@ -29,11 +35,11 @@ private class JvmLabReport {
             text(document.profileDisplayName, MARGIN, y, 12.0, NAVY, bold = true)
             y += 17.0
         }
-        text("Generated ${DoctorReportFormat.dateTime(document.generatedAt)}", MARGIN, y, 7.5, MUTED)
+        text("${t.generated} ${DoctorReportFormat.dateTime(document.generatedAt, language)}", MARGIN, y, 7.5, MUTED)
         y += 13.0
-        text("Collection / report period: ${DoctorReportFormat.period(document.resultRows)}", MARGIN, y, 7.5, MUTED)
+        text("${t.reportPeriod}: ${DoctorReportFormat.period(document.resultRows, language)}", MARGIN, y, 7.5, MUTED)
         y += 13.0
-        y += wrapped("Private health record for clinical discussion. OCR-derived values are included only after user confirmation.", MARGIN, y, CONTENT_WIDTH, 7.5, MUTED)
+        y += wrapped(t.disclaimer, MARGIN, y, CONTENT_WIDTH, 7.5, MUTED)
         y += 8.0
         line(MARGIN, y, RIGHT, y, NAVY, 1.6)
         y += 12.0
@@ -41,7 +47,7 @@ private class JvmLabReport {
         DoctorExamSections.from(document).forEach { exam(it) }
         medications(document.medicationRows)
         if (!document.hasStructuredContent && document.lines.isNotEmpty()) {
-            sectionHeading("Report notes")
+            sectionHeading(t.reportNotes)
             document.lines.forEach {
                 ensureSpace(18.0)
                 y += wrapped(it, MARGIN, y, CONTENT_WIDTH, 9.0) + 5.0
@@ -53,10 +59,10 @@ private class JvmLabReport {
 
     private fun legend() {
         val entries = listOf(
-            RangeAssessment.WITHIN to "Within reference",
-            RangeAssessment.BELOW to "Below reference",
-            RangeAssessment.ABOVE to "Above reference",
-            RangeAssessment.UNKNOWN to "Not assessed",
+            RangeAssessment.WITHIN to t.withinReference,
+            RangeAssessment.BELOW to t.belowReference,
+            RangeAssessment.ABOVE to t.aboveReference,
+            RangeAssessment.UNKNOWN to t.legendNotAssessed,
         )
         val width = CONTENT_WIDTH / entries.size
         entries.forEachIndexed { index, entry ->
@@ -90,25 +96,25 @@ private class JvmLabReport {
     }
 
     private fun latestResultHeight(row: DoctorResultRow): Double {
-        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange), 190.0, 9.0)
-        val normalized = DoctorReportFormat.normalizedValue(row)
+        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange, language), 190.0, 9.0)
+        val normalized = DoctorReportFormat.normalizedValue(row, language)
         val contentHeight = maxOf(48.0, referenceLines.size * 13.0 + 16.0, if (normalized == null) 48.0 else 61.0)
         return 19.0 + contentHeight + 12.0
     }
 
     private fun latestResult(row: DoctorResultRow) {
         rect(MARGIN, y, CONTENT_WIDTH, 19.0, PALE_NAVY)
-        text("RESULT", MARGIN + 7.0, y + 5.0, 7.5, MUTED)
-        right("REFERENCE RANGE", RIGHT - 7.0, y + 5.0, 7.5, MUTED)
+        text(t.result.uppercase(), MARGIN + 7.0, y + 5.0, 7.5, MUTED)
+        right(t.referenceRange.uppercase(), RIGHT - 7.0, y + 5.0, 7.5, MUTED)
         y += 19.0
-        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange), 190.0, 9.0)
-        val normalized = DoctorReportFormat.normalizedValue(row)
+        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange, language), 190.0, 9.0)
+        val normalized = DoctorReportFormat.normalizedValue(row, language)
         val height = maxOf(48.0, referenceLines.size * 13.0 + 16.0, if (normalized == null) 48.0 else 61.0)
         rect(MARGIN, y, CONTENT_WIDTH, height, statusContainer(row.assessment))
         rect(MARGIN, y, 4.0, height, statusColor(row.assessment))
-        text(DoctorReportFormat.originalValue(row), MARGIN + 13.0, y + 8.0, 14.0, INK, bold = true)
+        text(DoctorReportFormat.originalValue(row, language), MARGIN + 13.0, y + 8.0, 14.0, INK, bold = true)
         normalized?.let { text(it, MARGIN + 13.0, y + 29.0, 7.5, MUTED) }
-        text(DoctorReportFormat.assessment(row.assessment), MARGIN + 13.0, y + height - 14.0, 7.5, MUTED)
+        text(DoctorReportFormat.assessment(row.assessment, language), MARGIN + 13.0, y + height - 14.0, 7.5, MUTED)
         referenceLines.forEachIndexed { index, value -> right(value, RIGHT - 8.0, y + 9.0 + index * 13.0, 9.0) }
         outline(MARGIN, y, CONTENT_WIDTH, height)
         y += height + 12.0
@@ -118,11 +124,11 @@ private class JvmLabReport {
         if (section.history.isEmpty()) return
         val chunks = section.history.chunked(4)
         ensureSpace(15.0 + historyChunkHeight(chunks.first()))
-        text("History", MARGIN, y, 9.0)
+        text(t.history, MARGIN, y, 9.0)
         y += 15.0
         chunks.forEachIndexed { index, chunk ->
             if (index == chunks.lastIndex && section.trend?.points?.size?.let { it >= 2 } == true) {
-                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} · history and trend")
+                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} · ${t.historyAndTrend}")
             }
             historyChunk(section.testName, chunk)
         }
@@ -130,7 +136,7 @@ private class JvmLabReport {
 
     private fun historyChunkHeight(rows: List<DoctorResultRow>): Double {
         val valueWidth = (CONTENT_WIDTH - 82.0) / rows.size
-        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange), valueWidth - 8.0, 7.5) }
+        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange, language), valueWidth - 8.0, 7.5) }
         val referenceHeight = maxOf(28.0, referenceLines.maxOf { it.size } * 11.0 + 12.0)
         return 29.0 + 38.0 + referenceHeight + 12.0
     }
@@ -138,33 +144,33 @@ private class JvmLabReport {
     private fun historyChunk(testName: String, rows: List<DoctorResultRow>) {
         val labelWidth = 82.0
         val valueWidth = (CONTENT_WIDTH - labelWidth) / rows.size
-        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange), valueWidth - 8.0, 7.5) }
+        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange, language), valueWidth - 8.0, 7.5) }
         val referenceHeight = maxOf(28.0, referenceLines.maxOf { it.size } * 11.0 + 12.0)
         val totalHeight = 29.0 + 38.0 + referenceHeight
         if (y + totalHeight > BOTTOM) {
-            sectionName = "$testName · history continued"
+            sectionName = "$testName · ${t.historyContinued}"
             newPage()
             sectionHeading(sectionName, compact = true)
         }
         rect(MARGIN, y, CONTENT_WIDTH, 29.0, PALE_NAVY)
-        text("Date", MARGIN + 6.0, y + 9.0, 7.5, MUTED)
+        text(t.date, MARGIN + 6.0, y + 9.0, 7.5, MUTED)
         rows.forEachIndexed { index, row ->
             val x = MARGIN + labelWidth + index * valueWidth
-            center(DoctorReportFormat.shortDate(row.collectedAt), x, y + 5.0, valueWidth, 7.5, MUTED)
+            center(DoctorReportFormat.shortDate(row.collectedAt, language), x, y + 5.0, valueWidth, 7.5, MUTED)
             center(row.collectedAt.toString().take(4), x, y + 16.0, valueWidth, 7.5, MUTED)
         }
         y += 29.0
-        text("Result", MARGIN + 6.0, y + 13.0, 7.5, MUTED)
+        text(t.result, MARGIN + 6.0, y + 13.0, 7.5, MUTED)
         rows.forEachIndexed { index, row ->
             val x = MARGIN + labelWidth + index * valueWidth
             rect(x, y, valueWidth, 38.0, statusContainer(row.assessment))
             rect(x, y, 2.5, 38.0, statusColor(row.assessment))
-            center(DoctorReportFormat.originalValue(row), x + 3.0, y + 7.0, valueWidth - 6.0, 9.0)
-            DoctorReportFormat.normalizedValue(row)?.let { center(it, x + 3.0, y + 22.0, valueWidth - 6.0, 7.5, MUTED) }
+            center(DoctorReportFormat.originalValue(row, language), x + 3.0, y + 7.0, valueWidth - 6.0, 9.0)
+            DoctorReportFormat.normalizedValue(row, language)?.let { center(it, x + 3.0, y + 22.0, valueWidth - 6.0, 7.5, MUTED) }
         }
         outline(MARGIN, y, CONTENT_WIDTH, 38.0)
         y += 38.0
-        text("Reference", MARGIN + 6.0, y + 12.0, 7.5, MUTED)
+        text(t.reference, MARGIN + 6.0, y + 12.0, 7.5, MUTED)
         rows.forEachIndexed { index, _ ->
             val x = MARGIN + labelWidth + index * valueWidth
             if (index % 2 == 1) rect(x, y, valueWidth, referenceHeight, HISTORY_ALT)
@@ -175,8 +181,8 @@ private class JvmLabReport {
     }
 
     private fun chart(series: DoctorTrendSeries) {
-        ensureSectionSpace(CHART_HEIGHT, "${series.testName} · trend")
-        text("History chart · ${series.unit}", MARGIN, y, 7.5, MUTED)
+        ensureSectionSpace(CHART_HEIGHT, "${series.testName} · ${t.trend}")
+        text("${t.historyChart} · ${series.unit}", MARGIN, y, 7.5, MUTED)
         y += 15.0
         val geometry = DoctorChartGeometryFactory.create(series)
         val left = MARGIN + 34.0
@@ -197,20 +203,20 @@ private class JvmLabReport {
                 line(x, high, x, low, RANGE_GRAY, 2.0)
             }
             circle(x, valueY, 2.6)
-            if (index == points.lastIndex) right(DoctorReportFormat.value(point.point.value), min(x + 16.0, left + width), max(top, valueY - 12.0), 7.5, MUTED)
+            if (index == points.lastIndex) right(DoctorReportFormat.value(point.point.value, language), min(x + 16.0, left + width), max(top, valueY - 12.0), 7.5, MUTED)
         }
-        text(DoctorReportFormat.date(series.points.first().timestamp), left, bottom + 12.0, 7.5, MUTED)
-        right(DoctorReportFormat.date(series.points.last().timestamp), left + width, bottom + 12.0, 7.5, MUTED)
+        text(DoctorReportFormat.date(series.points.first().timestamp, language), left, bottom + 12.0, 7.5, MUTED)
+        right(DoctorReportFormat.date(series.points.last().timestamp, language), left + width, bottom + 12.0, 7.5, MUTED)
         y = bottom + 30.0
     }
 
     private fun medications(rows: List<DoctorMedicationRow>) {
         if (rows.isEmpty()) return
-        ensureSectionSpace(30.0 + rows.sumOf { medicationHeight(it) }, "Medications")
-        sectionHeading("Medications")
+        ensureSectionSpace(30.0 + rows.sumOf { medicationHeight(it) }, t.medications)
+        sectionHeading(t.medications)
         rows.forEach { row ->
             val height = medicationHeight(row)
-            ensureSectionSpace(height, "Medications")
+            ensureSectionSpace(height, t.medications)
             val detail = listOfNotNull(row.strength, row.instructions).joinToString(" · ")
             val detailLines = if (detail.isEmpty()) emptyList() else wrap(detail, CONTENT_WIDTH - 196.0, 7.5)
             val nameLines = wrap(row.displayName, 175.0, 9.0)
@@ -261,8 +267,8 @@ private class JvmLabReport {
 
     private fun footer() {
         line(MARGIN, PAGE_HEIGHT - 29.0, RIGHT, PAGE_HEIGHT - 29.0, BORDER, 0.65)
-        text("Vezuna · Private health record", MARGIN, PAGE_HEIGHT - 22.0, 7.5, MUTED)
-        right("Page ${pages.size}", RIGHT, PAGE_HEIGHT - 22.0, 7.5, MUTED)
+        text("Vezuna · ${t.footer}", MARGIN, PAGE_HEIGHT - 22.0, 7.5, MUTED)
+        right("${t.page} ${pages.size}", RIGHT, PAGE_HEIGHT - 22.0, 7.5, MUTED)
     }
 
     private fun wrapped(value: String, x: Double, top: Double, width: Double, size: Double, color: String = INK, bold: Boolean = false): Double {

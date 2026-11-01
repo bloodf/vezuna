@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">No profile</string>
     <string name="no_profile_selected">No profile selected</string>
     <string name="no_settings">No settings</string>
-    <string name="no_store_model_packs">No store model packs configured</string>
-    <string name="no_store_model_packs_explanation">The native shell supplies signed catalog metadata and store-hosted GGUF bytes. No download URL is assumed.</string>
+    <string name="no_store_model_packs">AI model not available yet</string>
+    <string name="no_store_model_packs_explanation">No on-device AI model is included in this version yet. Your records, imports and exports work fully without it.</string>
     <string name="no_trends">No trends</string>
     <string name="no_upcoming_doses">No upcoming doses</string>
     <string name="no_upcoming_doses_explanation">Add a medication and its prescribed schedule to see the next reminder.</string>
@@ -242,6 +242,37 @@ iOS: %2$s</string>
     <string name="verifying_or_loading_model">Verifying or loading model…</string>
     <string name="model_sha_required">A real 32-byte SHA-256 digest is required</string>
     <string name="cancel">Cancel</string>
+    <!-- Lab import review -->
+    <string name="collection_date">Collection date</string>
+    <string name="collection_date_not_set">Not set</string>
+    <string name="collection_date_required">Choose the collection date before confirming</string>
+    <string name="apply_date_to_all">Apply this date to all results in this report</string>
+    <string name="choose_date">Choose date</string>
+    <string name="confirmed_qualitative_value">Confirmed result (text)</string>
+    <string name="qualitative_result_required">Enter the text result</string>
+    <string name="qualitative_timeline">Text results over time</string>
+    <string name="text_result_toggle">Text result (not a number)</string>
+    <string name="ocr_read_token">OCR read: %1$s</string>
+    <string name="ambiguous_number_warning">Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)</string>
+    <string name="reference_text_optional">Reference text (optional)</string>
+    <string name="number_ambiguous_input">Ambiguous number: write thousands without a separator (250000) and decimals with a comma or point that is not followed by exactly three digits (type 1,020 or 1.02 for one point zero two)</string>
+    <string name="report_manual_summary">Typed by hand on %1$s</string>
+    <string name="manual_entry_hint">No file needed: type a result from a paper report and choose its collection date.</string>
+    <string name="save_manual_result">Save manual result</string>
+    <string name="manual_result_saved">Manual result saved</string>
+    <string name="manual_entry_report">Manual entry</string>
+    <string name="edit_result">Edit result</string>
+    <string name="result_updated">Result updated</string>
+    <string name="result_unchanged">Nothing changed</string>
+    <string name="result_history">Edit history</string>
+    <string name="result_revision">%1$s: was %2$s, reference %3$s, collected %4$s</string>
+    <string name="imported_reports">Reports</string>
+    <string name="imported_reports_subtitle">Delete a report to remove its file, drafts and results.</string>
+    <string name="report_summary">Imported %1$s</string>
+    <string name="delete_report">Delete report</string>
+    <string name="delete_report_warning">Delete the report %1$s with its stored file, unreviewed drafts and confirmed results? This cannot be undone.</string>
+    <string name="report_not_found">Report not found</string>
+    <string name="report_deleted">Report deleted</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
     <string name="rename_profile">Rename profile</string>
@@ -280,6 +311,40 @@ iOS: %2$s</string>
         <item quantity="one">%1$d unreviewed candidate added; confirm each result individually</item>
         <item quantity="other">%1$d unreviewed candidates added; confirm each result individually</item>
     </plurals>
+    <!-- Portable backup and restore -->
+    <string name="backup_passphrase_too_short">Use at least 12 characters for the backup passphrase</string>
+    <string name="backup_wrong_passphrase">Wrong passphrase, or the backup file is damaged</string>
+    <string name="backup_not_a_backup">This file is not a Vezuna backup</string>
+    <string name="backup_unsupported_version">This backup comes from a newer or unsupported version of Vezuna</string>
+    <string name="backup_same_device_unavailable">This is a same-device backup. It can only be opened on the device that created it, and that device key is not available here</string>
+    <string name="backup_invalid_content">The backup content is damaged or invalid</string>
+    <string name="backup_section_title">Backup and restore</string>
+    <string name="backup_create">Create encrypted backup</string>
+    <string name="backup_restore">Restore from backup</string>
+    <string name="backup_passphrase_warning">The backup is protected only by this passphrase. Vezuna cannot recover it: if you lose the passphrase, the backup can never be opened.</string>
+    <string name="backup_passphrase_label">Passphrase</string>
+    <string name="backup_passphrase_confirm_label">Confirm passphrase</string>
+    <string name="backup_passphrase_mismatch">The passphrases do not match</string>
+    <string name="backup_strength_too_short">Too short: use at least 12 characters</string>
+    <string name="backup_strength_fair">Acceptable. A longer phrase with mixed characters is stronger</string>
+    <string name="backup_strength_strong">Strong passphrase</string>
+    <string name="backup_create_action">Create backup</string>
+    <string name="backup_saved">Backup saved. Keep the passphrase safe</string>
+    <string name="backup_enter_passphrase_title">Enter the backup passphrase</string>
+    <string name="backup_unlock">Open backup</string>
+    <string name="backup_same_device_label">Same-device backup: it only restores on the device that created it</string>
+    <string name="backup_contents">Backup of profile %1$s</string>
+    <string name="backup_profile_exists_title">This profile already exists</string>
+    <string name="backup_profile_exists_body">This device already has the profile %1$s. Replace it with the backup (its current records are removed), or restore the backup as a new profile.</string>
+    <string name="backup_replace">Replace existing profile</string>
+    <string name="backup_restore_as_new">Restore as new profile</string>
+    <string name="backup_confirm_title">Restore this backup?</string>
+    <string name="backup_confirm_body">Profile %1$s will be added to this device.</string>
+    <string name="backup_restore_action">Restore</string>
+    <string name="backup_restored">Backup restored</string>
+    <string name="backup_recovery_confirm_body">The unreadable records are moved aside, not deleted, and the backup is restored into a fresh vault.</string>
+    <string name="backup_file_unreadable">The file could not be read, or it is too large to be a backup</string>
+    <string name="backup_restore_failed_after_reset">The restore did not finish. Your previous data was kept aside, not deleted. Try restoring again.</string>
     <!-- Device vitals -->
     <string name="vitals_title">Device vitals</string>
     <string name="vitals_subtitle">Heart rate, steps and weight from this device for %1$s.</string>
@@ -305,4 +370,19 @@ iOS: %2$s</string>
         <item quantity="one">Chart of %1$d reading, unit %2$s</item>
         <item quantity="other">Chart of %1$d readings, unit %2$s</item>
     </plurals>
+    <!-- App lock -->
+    <string name="app_lock_title">App lock</string>
+    <string name="app_lock_description">Require biometrics or your device passcode when Vezuna opens and after 5 minutes in the background. Screenshots and app switcher previews are blocked while it is on.</string>
+    <string name="app_lock_unavailable">Set up a screen lock or biometrics on this device to use app lock.</string>
+    <string name="app_lock_failed">Authentication failed. Try again.</string>
+    <string name="app_lock_suspended">App lock is off because this device has no screen lock.</string>
+    <string name="lock_screen_title">Vezuna is locked</string>
+    <string name="lock_screen_body">Your health records stay hidden until you unlock.</string>
+    <string name="unlock">Unlock</string>
+    <string name="backup_restored_without_vitals">Backup restored, but the device health data could not be restored</string>
+    <!-- Export language -->
+    <string name="export_language">Export language</string>
+    <string name="export_language_device">App language</string>
+    <string name="export_language_explanation">Choose the language of headings, statuses and numbers in the export. Clinical values and units never change.</string>
+    <string name="model_catalog_unreadable">The model catalog bundled with the app could not be read. AI models are unavailable.</string>
 </resources>

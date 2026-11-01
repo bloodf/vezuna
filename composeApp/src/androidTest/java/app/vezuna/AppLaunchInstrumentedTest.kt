@@ -6,6 +6,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import app.vezuna.ui.AppController
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -20,12 +21,12 @@ class AppLaunchInstrumentedTest {
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
             assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            lateinit var first: app.vezuna.ui.AppController
+            lateinit var first: AppController
             scenario.onActivity { first = it.controller }
 
             scenario.recreate()
 
-            lateinit var second: app.vezuna.ui.AppController
+            lateinit var second: AppController
             scenario.onActivity { second = it.controller }
             assertSame("Controller was recreated during configuration change", first, second)
             println("ANDROID_SESSION_CONTROLLER_RETAINED_PASSED")

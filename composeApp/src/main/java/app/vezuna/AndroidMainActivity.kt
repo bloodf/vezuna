@@ -6,7 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import android.content.res.Configuration
 import android.graphics.Color
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import android.view.WindowManager
+import app.vezuna.ui.AppLockHost
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,8 +20,12 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.health.connect.client.HealthConnectClient
-import androidx.lifecycle.ViewModelProvider
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.lifecycle.viewmodel.initializer
+import app.vezuna.export.AndroidBackupFiles
 import app.vezuna.export.AndroidExportCoordinator
 import app.vezuna.export.NativeExport
 import app.vezuna.export.UserCancelledExport
@@ -26,26 +34,27 @@ import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.importer.NativeOcrExtractionService
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.security.BackupService
-import app.vezuna.security.CipherEnvelope
 import app.vezuna.ui.AppController
+import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
-class AndroidMainActivity : ComponentActivity() {
+class AndroidMainActivity : FragmentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
-    private val session: AndroidSessionViewModel by lazy {
-        ViewModelProvider(this, AndroidSessionViewModel.Factory(app))[AndroidSessionViewModel::class.java]
+    private val session by viewModels<AndroidSessionViewModel> {
+        viewModelFactory { initializer { AndroidSessionViewModel(app) } }
     }
     internal val controller: AppController get() = session.controller
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
+    private lateinit var backupFiles: AndroidBackupFiles
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
+    private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
     private val mutableExport = MutableStateFlow<NativeExport?>(null)
@@ -71,29 +80,47 @@ class AndroidMainActivity : ComponentActivity() {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
         }
+        // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
+        deviceAuthenticator = AndroidDeviceAuthenticator(this)
+        app.deviceAuthenticator = deviceAuthenticator
+        app.appLock.refresh()
+        lifecycleScope.launch {
+            app.appLock.state.map { it.enabled }.distinctUntilChanged().collect { enabled ->
+                if (enabled) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
         extraction = NativeOcrExtractionService(this)
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
+        backupFiles = AndroidBackupFiles(this, exports)
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
         }
-        // Only after the vault is readable: initialize() may create a default profile.
-        session.initialize()
+        val messageFlow = mutableMessage.asStateFlow()
+        val exportFlow = mutableExport.asStateFlow()
+        val busyFlow = mutableBusy.asStateFlow()
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
-            VaultGate(vaultState, onRetry = app::retryVault, onReset = app::resetVault) {
+            AppLockHost(app.appLock) {
+            VaultGate(
+                vaultState,
+                onRetry = app::retryVault,
+                onReset = app::resetVault,
+                backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
+            ) {
             PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
             VezunaAndroidApp(
                 controller = controller,
+                scope = session.viewModelScope,
                 sourcePicker = sourcePicker,
                 modelLoader = modelLoader,
-                messageFlow = mutableMessage.asStateFlow(),
-                exportFlow = mutableExport.asStateFlow(),
-                busyFlow = mutableBusy.asStateFlow(),
+                messageFlow = messageFlow,
+                exportFlow = exportFlow,
+                busyFlow = busyFlow,
                 onHealthConnect = ::openHealthConnect,
                 onReminders = ::requestReminders,
-                onBackup = ::prepareBackup,
+                backupFiles = backupFiles.access,
                 onPresentExport = { mutableExport.value = it },
                 onDismissExport = { mutableExport.value = null },
                 onShareExport = ::shareExport,
@@ -101,10 +128,24 @@ class AndroidMainActivity : ComponentActivity() {
                 onDismissMessage = { mutableMessage.value = null },
             )
             }
+            }
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        app.appLock.refresh()
+        app.appLock.onForeground()
+    }
+
+    override fun onStop() {
+        app.appLock.onBackground()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        if (isFinishing) app.appLock.lockNow()
+        if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
         sourcePicker.clearExtraction()
         extraction.close()
         super.onDestroy()
@@ -143,26 +184,6 @@ class AndroidMainActivity : ComponentActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             mutableMessage.value = nativeMessage(NativeKey.REMINDER_SCHEDULES_ACTIVE)
-        }
-    }
-
-    private fun prepareBackup() {
-        val data = controller.state.value.data
-        if (data == null) {
-            mutableMessage.value = nativeMessage(NativeKey.BACKUP_SELECT_PROFILE)
-            return
-        }
-        mutableBusy.value = true
-        lifecycleScope.launch {
-            try {
-                val envelope = BackupService(app.vault).create(data)
-                val bytes = Json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray()
-                mutableExport.value = NativeExport("vezuna-${data.profile.displayName.safeFilePart()}.vhbak", "application/octet-stream", bytes)
-            } catch (error: Throwable) {
-                mutableMessage.value = error.toNativeText(NativeKey.BACKUP_CREATE_FAILED)
-            } finally {
-                mutableBusy.value = false
-            }
         }
     }
 

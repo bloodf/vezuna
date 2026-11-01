@@ -51,7 +51,7 @@
 "health_import" = "Health import";
 "premium_ai_activation" = "Premium AI and model activation";
 "refresh_app_store" = "Refresh with App Store";
-"store_verification_description" = "Store verification is only requested by the button above. A verified cache can remain valid for 72 hours offline. Health records, imports, reminders, and exports never depend on this state.";
+"store_verification_description" = "Store verification is requested on launch, when the app becomes active, and by the button above. A verified cache can remain valid for 30 days offline. Health records, imports, reminders, and exports never depend on this state.";
 "premium_inactive" = "Premium AI is not active. Records and exports remain available.";
 "premium_verified" = "Premium AI is verified for this installation.";
 "premium_offline_until" = "Premium AI is available from the offline cache until %1$@.";
@@ -75,7 +75,6 @@
 "storage_open_failed" = "Could not open encrypted Vezuna storage";
 "action_failed" = "Action failed";
 "select_profile_first" = "Select a profile first";
-"model_catalog_read_failed" = "Model catalog could not be read";
 "model_catalog_invalid" = "Model catalog is invalid";
 
 "third_party_notices" = "Third-party notices";
@@ -83,3 +82,13 @@
 
 "privacy_policy" = "Privacy policy";
 "privacy_policy_unavailable" = "The privacy policy could not be loaded.";
+"collection_date" = "Collection date";
+"collection_date_required" = "Choose the collection date for every result before adding";
+"apply_date_to_all" = "Apply this date to all results in this report";
+"ocr_read_token" = "OCR read: %1$@";
+"ambiguous_number_warning" = "Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)";
+"choose_date_button" = "Choose date";
+"reference_text" = "Reference text (optional)";
+"app_lock_reason" = "Confirm it is you to open your health records";
+"export_language" = "Export language";
+"export_language_device" = "App language";

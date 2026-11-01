@@ -1,13 +1,15 @@
 package app.vezuna.importer
 
+import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.ui.ExtractedValueKind
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.atStartOfDayIn
-import java.text.Normalizer
-import java.util.Locale
+import kotlinx.datetime.plus
+import app.vezuna.security.normalizeNfc
 
 data class ParsedOcrMeasurement(
     val displayName: String,
@@ -16,17 +18,20 @@ data class ParsedOcrMeasurement(
     val referenceRange: ReferenceRange = ReferenceRange(),
     val collectedAt: Instant? = null,
     val valueKind: ExtractedValueKind = ExtractedValueKind.NUMERIC,
+    /** Original OCR token, set only when its reading is ambiguous (see [NumberAmbiguity]). */
+    val rawToken: String? = null,
 )
 
 /** Conservative Portuguese clinical-row parsing. Ambiguous and historical rows stay out of review. */
 object OcrTextParser {
-    private const val NUMBER = "[+-]?(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+(?:,\\d+)?|\\d+\\.\\d+)"
+    private const val NUMBER = "[+-]?(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+\\.\\d+|\\d+(?:,\\d+)?)"
     private val UNITS = listOf(
         "ng/mL FEU", "µUI/mL", "μUI/mL", "uUI/mL", "mUI/mL", "UI/mL", "U/mL",
         "ng/dL", "ng/mL", "pg/mL", "µg/dL", "μg/dL", "ug/dL", "µg/L", "μg/L", "ug/L",
         "mg/dL", "mg/L", "g/dL", "g/L", "mmol/L", "µmol/L", "μmol/L", "umol/L", "nmol/L",
         "10^12/L", "10^9/L", "10^6/µL", "10^6/μL", "10^3/µL", "10^3/μL",
         "U/L", "UI/L", "/µL", "/μL", "/uL", "/mL", "fL", "%",
+        "/mm3", "/mm³", "10^3/mm3", "10^3/mm³", "10^6/mm3", "10^6/mm³", "10³/µL", "10³/μL", "10³/mm³", "10⁶/µL", "mEq/L", "mIU/mL", "mIU/L", "IU/mL", "IU/L", "mm/h",
     ).sortedByDescending { it.length }
     private val UNIT_PATTERN = UNITS.joinToString("|") { Regex.escape(it) }
     private val UNIT = Regex("\\s*($UNIT_PATTERN)(?=\\s|$|[,.;)\\]])", RegexOption.IGNORE_CASE)
@@ -41,7 +46,7 @@ object OcrTextParser {
         RegexOption.IGNORE_CASE,
     )
     private val THRESHOLD = Regex(
-        "(inferior(?:\\s+[àa])?|menor\\s+que|até|ate|no\\s+m[áa]ximo|superior(?:\\s+[àa])?|maior\\s+que|acima\\s+de)\\s*[:=]?\\s*($NUMBER)(?:\\s*($UNIT_PATTERN))?",
+        "(inferior(?:\\s+[àa])?|menor\\s+que|até|ate|no\\s+m[áa]ximo|superior(?:\\s+[àa])?|maior\\s+que|acima\\s+de|<=|>=|<|>|≤|≥)\\s*[:=]?\\s*($NUMBER)(?:\\s*($UNIT_PATTERN))?",
         RegexOption.IGNORE_CASE,
     )
     private val QUALITATIVE_VALUES = listOf("Não reagente", "Nao reagente", "Ausente", "Presente", "Negativo", "Positivo", "Reagente")
@@ -69,9 +74,9 @@ object OcrTextParser {
         var normalized = value
         mapOf("ﬀ" to "ff", "ﬁ" to "fi", "ﬂ" to "fl", "ﬃ" to "ffi", "ﬄ" to "ffl", "ﬅ" to "st", "ﬆ" to "st")
             .forEach { (ligature, replacement) -> normalized = normalized.replace(ligature, replacement) }
-        normalized = normalized.replace(Regex("[\\u00a0\\u202f\\u2007\\u2009]"), " ").replace("\u00ad", "")
-        normalized = Normalizer.normalize(normalized, Normalizer.Form.NFC).replace("\r\n", "\n").replace('\r', '\n')
-        return normalized.split('\n').joinToString("\n") { line -> line.replace(Regex("[\\t\\f\\u000b ]+"), " ").trim() }
+        normalized = normalized.replace(Regex("[\u00a0\u202f\u2007\u2009]"), " ").replace("\u00ad", "")
+        normalized = normalizeNfc(normalized).replace("\r\n", "\n").replace('\r', '\n')
+        return normalized.split('\n').joinToString("\n") { line -> line.replace(Regex("[\t\u000c\u000b ]+"), " ").trim() }
     }
 
     fun parseMeasurementLine(line: String): ParsedOcrMeasurement? {
@@ -100,11 +105,13 @@ object OcrTextParser {
         return results
     }
 
+    private fun ambiguousToken(token: String): String? = token.trim().takeIf(NumberAmbiguity::isAmbiguousThousands)
+
     internal fun canonicalNumber(raw: String): String {
         var value = raw.trim().removePrefix("+")
         value = if (',' in value) {
             value.replace(".", "").replace(',', '.')
-        } else if (Regex("[+-]?\\d{1,3}(?:\\.\\d{3})+").matches(value)) {
+        } else if (Regex("[+-]?[1-9]\\d{0,2}(?:\\.\\d{3})+").matches(value)) {
             value.replace(".", "")
         } else value
         if (value.startsWith(".")) value = "0$value"
@@ -112,8 +119,8 @@ object OcrTextParser {
         return value
     }
 
-    fun canonicalTestCode(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFC)
-        .uppercase(Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }
+    fun canonicalTestCode(value: String): String = normalizeNfc(value)
+        .uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
 
     private fun parseQualifiedNumeric(line: String, date: Instant?): ParsedOcrMeasurement? {
         val match = QUALIFIED_NUMERIC.matchEntire(line) ?: return null
@@ -121,7 +128,7 @@ object OcrTextParser {
         if (!validAnalyte(name) || NUMBER_UNIT_AT_END.containsMatchIn(name)) return null
         val value = canonicalNumber(match.groupValues[3])
         val unit = match.groupValues[4].replace('μ', 'µ')
-        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date)
+        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date, rawToken = ambiguousToken(match.groupValues[3]))
     }
 
     private data class NumberUnit(
@@ -150,7 +157,7 @@ object OcrTextParser {
         }
         val primary = candidates[primaryIndex]
         val rest = line.substring(primary.unitMatch.range.last + 1).trim(' ', ';')
-        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date)
+        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date, rawToken = ambiguousToken(primary.numberMatch.groupValues[1]))
     }
 
     private fun parseQualitative(line: String, date: Instant?): ParsedOcrMeasurement? {
@@ -169,15 +176,34 @@ object OcrTextParser {
 
     private data class FoundReference(val range: ReferenceRange, val start: Int, val unit: String?)
 
+    /**
+     * Bounds for reference text a reviewer typed: only when it holds exactly one range or one-sided
+     * `<`, `>`, `≤`, `≥` threshold. Several ranges (by sex or age) or a deferral give no bounds, never a guess.
+     */
+    fun referenceFromText(text: String, resultUnit: String): ReferenceRange {
+        val clean = normalizeText(text).trim()
+        if (deferredReference(clean)) return ReferenceRange(text = clean)
+        val single = findReferences(clean).singleOrNull() ?: return ReferenceRange(text = clean.ifBlank { null })
+        return single.range
+    }
+
+    private fun deferredReference(text: String): Boolean {
+        val flat = folded(text)
+        return text.isNotEmpty() && (
+            Regex("vide.*intervalo|confira\\s+na\\s+tabela|tabela\\s+de\\s+referencia|ver\\s+referencia").containsMatchIn(flat) ||
+                Regex("nao\\s+apresenta.*referencia.*definid|sem\\s+valor\\s+de\\s+referencia\\s+definido").containsMatchIn(flat)
+            )
+    }
+
     private fun parseReference(rest: String, resultUnit: String): ReferenceRange {
         val text = rest.trim()
-        val flat = folded(text)
-        if (text.isNotEmpty() && (
-                Regex("vide.*intervalo|confira\\s+na\\s+tabela|tabela\\s+de\\s+referencia|ver\\s+referencia").containsMatchIn(flat) ||
-                    Regex("nao\\s+apresenta.*referencia.*definid|sem\\s+valor\\s+de\\s+referencia\\s+definido").containsMatchIn(flat)
-                )
-        ) return ReferenceRange(text = text)
+        if (deferredReference(text)) return ReferenceRange(text = text)
+        val found = findReferences(text)
+        val selected = found.lastOrNull { it.unit == resultUnit } ?: found.lastOrNull()
+        return selected?.range ?: ReferenceRange(text = text.ifBlank { null })
+    }
 
+    private fun findReferences(text: String): List<FoundReference> {
         val references = mutableListOf<FoundReference>()
         RANGE.findAll(text).forEach { match ->
             val lower = numericValue(match.groupValues[1])
@@ -192,17 +218,16 @@ object OcrTextParser {
             val operator = folded(match.groupValues[1])
             val value = numericValue(match.groupValues[2])
             val unit = match.groupValues[3].ifBlank { null }?.replace('μ', 'µ')
-            val range = if (operator.startsWith("inferior") || operator.startsWith("menor") || operator.startsWith("ate") || operator.startsWith("no maximo")) {
+            val upperBound = operator.startsWith("inferior") || operator.startsWith("menor") || operator.startsWith("ate") ||
+                operator.startsWith("no maximo") || operator.startsWith("<") || operator.startsWith("≤")
+            val range = if (upperBound) {
                 ReferenceRange(upper = value, text = match.value.trim(), unit = unit)
             } else {
                 ReferenceRange(lower = value, text = match.value.trim(), unit = unit)
             }
             references += FoundReference(range, match.range.first, unit)
         }
-        val selected = references.sortedBy { it.start }.let { found ->
-            found.lastOrNull { it.unit == resultUnit } ?: found.lastOrNull()
-        }
-        return selected?.range ?: ReferenceRange(text = text.ifBlank { null })
+        return references.sortedBy { it.start }
     }
 
     private fun numericValue(raw: String): Double = canonicalNumber(raw).toDouble().also { require(it.isFinite()) }
@@ -220,7 +245,7 @@ object OcrTextParser {
     private fun parseDate(raw: String): Instant? = try {
         val parts = raw.split('/').map(String::toInt)
         val date = LocalDate(parts[2], parts[1], parts[0])
-        if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC) else null
+        if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC).plus(12, DateTimeUnit.HOUR) else null
     } catch (_: Throwable) {
         null
     }
@@ -239,8 +264,7 @@ object OcrTextParser {
         return true
     }
 
-    private fun folded(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
-        .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)
+    private fun folded(value: String): String = foldedText(value)
 
     private fun String.startsWithAny(prefixes: List<String>): Boolean = prefixes.any(::startsWith)
 }

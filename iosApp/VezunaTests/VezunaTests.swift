@@ -1,4 +1,5 @@
 import XCTest
+import VezunaShared
 @testable import Vezuna
 
 final class VezunaTests: XCTestCase {
@@ -28,24 +29,28 @@ final class VezunaTests: XCTestCase {
         XCTAssertThrowsError(try CryptoKitAESGCM.decrypt(key: key, value: wrongAAD))
     }
 
-    func testSyntheticLabTextParsing() {
-        let text = """
-        Hemoglobin 13.2 g/dL 12.0-15.5
-        WBC: 6.4 10^9/L (4.0–11.0)
-        HbA1c 5,7 % 4,0-6,0
-        Patient 42 years
-        """
-        let results = LabTextParser.parse(text, confidence: 0.91)
-        XCTAssertEqual(results.count, 3)
-        XCTAssertEqual(results[0].testCode, "HGB")
-        XCTAssertEqual(results[0].rawValue, "13.2")
-        XCTAssertEqual(results[0].referenceLower, "12.0")
-        XCTAssertEqual(results[0].referenceUpper, "15.5")
-        XCTAssertEqual(results[1].testCode, "WBC")
-        XCTAssertEqual(results[1].referenceUpper, "11.0")
-        XCTAssertEqual(results[2].testCode, "HBA1C")
-        XCTAssertEqual(results[2].rawValue, "5.7")
-        XCTAssertEqual(results[2].confidence, 0.91)
+    // Golden backup made by Python hashlib + cryptography: opens only if the real iOS PBKDF2 (CommonCrypto),
+    // NFC normalization and AES-GCM (CryptoKit bridge) match the other platforms byte for byte.
+    private static let goldenBackup = "VlpCSwEBAAknwBAAAQIDBAUGBwgJCgsMDQ4PDKChoqOkpaanqKmqqwjkjnhrpA8RLx9TKTMNw8PQY7w+8Ldn5Qd8la/2CrEk3O4sdjDpOKpUCmJe8G9x12dKuOY4RshQ2uOa6AR7yhZmNnrKqgDxo6e8dUn2SjMwxtCOAnziTp3CGXPuEmnMiTP7pdYwaWMR6jkYX5jJqcZoXCX7wPiCtmhLrI41V/F1gP69lkMMssxc26MboTDb4diQE6jrNiNqJw6wNrnCC+PuUhtOyMPloIubISU4w/C20UlRzSBGJVun2COqzDF53F2I4mC0EzzbsndQOOfbpwA="
+
+    private func chars(_ value: String) -> KotlinCharArray {
+        let units = Array(value.utf16)
+        let array = KotlinCharArray(size: Int32(units.count))
+        for (index, unit) in units.enumerated() { array.set(index: Int32(index), value: unit) }
+        return array
+    }
+
+    func testGoldenBackupOpensThroughTheIosActuals() throws {
+        IosAesGcmBridge.shared.install(implementation: CryptoKitAesGcm())
+        let file = Data(base64Encoded: Self.goldenBackup)!.kotlinBytes
+        let nfc = "p\u{00E4}ssw\u{00F6}rd correct horse"
+        let nfd = "pa\u{0308}sswo\u{0308}rd correct horse"
+        XCTAssertNotEqual(Array(nfc.unicodeScalars), Array(nfd.unicodeScalars))
+        for passphrase in [nfc, nfd] {
+            let plain = try PassphraseBackupCodec.shared.open(file: file, passphrase: chars(passphrase)).toData()
+            XCTAssertTrue(String(decoding: plain, as: UTF8.self).contains("golden-profile"))
+        }
+        XCTAssertThrowsError(try PassphraseBackupCodec.shared.open(file: file, passphrase: chars("not the passphrase")))
     }
 
     func testDailyAndWeeklyReminderPlanningAndSnooze() throws {
@@ -80,7 +85,12 @@ final class VezunaTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "model-a")
         let values = try file.resourceValues(forKeys: [.isExcludedFromBackupKey, .fileProtectionKey])
         XCTAssertEqual(values.isExcludedFromBackup, true)
+        #if targetEnvironment(simulator)
+        // The simulator does not enforce data protection and reports CompleteUntilFirstUserAuthentication; devices must report .complete.
+        XCTAssertNotNil(values.fileProtection)
+        #else
         XCTAssertEqual(values.fileProtection, .complete)
+        #endif
     }
 
     func testOfflineLicenseCacheGraceAndExpiration() throws {

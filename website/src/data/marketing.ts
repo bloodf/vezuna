@@ -18,6 +18,8 @@ export interface MarketingCopy {
     exampleLabel: string; exampleTitle: string; exampleNote: string;
     schedule: { time: string; title: string; detail: string; state: string }[];
   };
+  tech: { eyebrow: string; title: string; description: string; draft: string; confirmed: string; comparison: string; local: string; staticNote: string };
+  availability: { eyebrow: string; title: string; body: string; github: string; appStore: string; googlePlay: string; pending: string };
   privacy: {
     eyebrow: string; title: string; intro: string;
     items: { title: string; body: string }[];
@@ -81,6 +83,25 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { time: '13:30', title: 'Check the record', detail: 'Review a synthetic imported result', state: 'To review' },
         { time: '18:00', title: 'Prepare for a visit', detail: 'Export confirmed information as PDF', state: 'When needed' },
       ],
+    },
+    tech: {
+      eyebrow: 'Local records, in space',
+      title: 'See how records connect.',
+      description: 'An abstract spatial view of local health records, from OCR drafts awaiting confirmation to confirmed-result comparisons. Processing stays on your device.',
+      draft: 'OCR draft · confirmation required',
+      confirmed: 'Confirmed result',
+      comparison: 'Compare confirmed results',
+      local: 'Processed locally',
+      staticNote: 'Abstract visualization with synthetic data, not a product screenshot or medical analysis.',
+    },
+    availability: {
+      eyebrow: 'Release status',
+      title: 'Follow development on GitHub.',
+      body: 'Vezuna is in release preparation. Explore the source and project updates on GitHub; app store releases are not yet available.',
+      github: 'View on GitHub',
+      appStore: 'App Store · unavailable',
+      googlePlay: 'Google Play · unavailable',
+      pending: 'Store availability pending',
     },
     privacy: {
       eyebrow: 'A clear boundary',
@@ -154,6 +175,25 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { time: '18:00', title: 'Prepare-se para uma consulta', detail: 'Exporte informações confirmadas em PDF', state: 'Quando precisar' },
       ],
     },
+    tech: {
+      eyebrow: 'Registros locais, em uma visão espacial',
+      title: 'Veja como os registros se conectam.',
+      description: 'Uma visualização espacial abstrata dos registros de saúde locais, dos rascunhos de OCR que aguardam confirmação às comparações de resultados confirmados. O processamento fica no seu dispositivo.',
+      draft: 'Rascunho de OCR · confirmação necessária',
+      confirmed: 'Resultado confirmado',
+      comparison: 'Comparar resultados confirmados',
+      local: 'Processado localmente',
+      staticNote: 'Visualização abstrata com dados sintéticos, não uma captura do produto nem uma análise médica.',
+    },
+    availability: {
+      eyebrow: 'Status de lançamento',
+      title: 'Acompanhe o desenvolvimento no GitHub.',
+      body: 'O Vezuna está em preparação para lançamento. Explore o código-fonte e as novidades do projeto no GitHub; as versões nas lojas ainda não estão disponíveis.',
+      github: 'Ver no GitHub',
+      appStore: 'App Store · indisponível',
+      googlePlay: 'Google Play · indisponível',
+      pending: 'Disponibilidade nas lojas pendente',
+    },
     privacy: {
       eyebrow: 'Um limite claro', title: 'Seus registros, no seu dispositivo. Você escolhe quando compartilhar.',
       intro: 'O Vezuna foi criado em torno de registros locais, sem conta de usuário nem servidor do aplicativo.',
@@ -222,6 +262,25 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { time: '13:30', title: 'Comprueba el registro', detail: 'Revisa un resultado importado ficticio', state: 'Para revisar' },
         { time: '18:00', title: 'Prepárate para una consulta', detail: 'Exporta información confirmada como PDF', state: 'Cuando lo necesites' },
       ],
+    },
+    tech: {
+      eyebrow: 'Registros locales, en una vista espacial',
+      title: 'Descubre cómo se conectan los registros.',
+      description: 'Una visualización espacial abstracta de los registros de salud locales, desde los borradores de OCR pendientes de confirmación hasta las comparaciones de resultados confirmados. El procesamiento permanece en tu dispositivo.',
+      draft: 'Borrador de OCR · confirmación necesaria',
+      confirmed: 'Resultado confirmado',
+      comparison: 'Comparar resultados confirmados',
+      local: 'Procesado localmente',
+      staticNote: 'Visualización abstracta con datos sintéticos, no una captura del producto ni un análisis médico.',
+    },
+    availability: {
+      eyebrow: 'Estado del lanzamiento',
+      title: 'Sigue el desarrollo en GitHub.',
+      body: 'Vezuna está en preparación para su lanzamiento. Explora el código fuente y las novedades del proyecto en GitHub; las versiones en las tiendas aún no están disponibles.',
+      github: 'Ver en GitHub',
+      appStore: 'App Store · no disponible',
+      googlePlay: 'Google Play · no disponible',
+      pending: 'Disponibilidad en tiendas pendiente',
     },
     privacy: {
       eyebrow: 'Un límite claro', title: 'Tus registros, en tu dispositivo. Tú decides cuándo compartirlos.',

@@ -21,7 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +32,7 @@ import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.llm.ModelPackLoadState
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.ui.AppController
+import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.VezunaApp
 import kotlinx.coroutines.flow.StateFlow
 
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 @Composable
 fun VezunaAndroidApp(
     controller: AppController,
+    scope: CoroutineScope,
     sourcePicker: AndroidSourcePicker,
     modelLoader: PlayAssetPackLoader,
     messageFlow: StateFlow<NativeText?>,
@@ -46,14 +48,13 @@ fun VezunaAndroidApp(
     busyFlow: StateFlow<Boolean>,
     onHealthConnect: () -> Unit,
     onReminders: () -> Unit,
-    onBackup: () -> Unit,
+    backupFiles: BackupFileAccess,
     onPresentExport: (NativeExport) -> Unit,
     onDismissExport: () -> Unit,
     onShareExport: (NativeExport) -> Unit,
     onSaveExport: (NativeExport) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     val state by controller.state.collectAsState()
     val message by messageFlow.collectAsState()
     val pendingExport by exportFlow.collectAsState()
@@ -82,6 +83,7 @@ fun VezunaAndroidApp(
                     modelPackLoader = modelLoader::load,
                     onDevice = { deviceMenu = true },
                     animationsEnabled = animationsEnabled,
+                    backupFiles = backupFiles,
                 )
                 DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
                     DropdownMenuItem(text = { Text(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_MENU).resolve(context)) }, onClick = { deviceMenu = false; onHealthConnect() }, enabled = !nativeBusy)
@@ -93,7 +95,6 @@ fun VezunaAndroidApp(
                         },
                     )
                     DropdownMenuItem(text = { Text(nativeMessage(NativeKey.MEDICATION_REMINDERS_MENU).resolve(context)) }, onClick = { deviceMenu = false; onReminders() })
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.ENCRYPTED_PROFILE_BACKUP_MENU).resolve(context)) }, onClick = { deviceMenu = false; onBackup() }, enabled = !nativeBusy)
                     DropdownMenuItem(
                         text = { Text(nativeMessage(NativeKey.THIRD_PARTY_NOTICES).resolve(context)) },
                         onClick = {

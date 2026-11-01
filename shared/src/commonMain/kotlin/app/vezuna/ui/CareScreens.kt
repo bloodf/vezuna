@@ -38,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +67,7 @@ import app.vezuna.domain.Medication as MedicationRecord
 import app.vezuna.domain.Recurrence
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.resolve
@@ -240,6 +242,14 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
                 TextButton(onClick = { controller.navigate(AppScreen.Models) }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.MANAGE_LOCAL_MODELS), color = MaterialTheme.vita.accentOnInk) }
             }
         }
+        val catalogState by controller.modelManager.state.collectAsState()
+        catalogState.catalogError?.let { InlineNotice(it.resolve(), Icons.Rounded.SmartToy) }
+        if (catalogState.catalog.packs.isEmpty()) {
+            if (catalogState.catalogError == null) {
+                EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
+            }
+            return@ScreenColumn
+        }
         SectionHeading(vitaText(L10nKey.RECORDS_IN_CONTEXT), vitaText(L10nKey.RECORDS_SELECTED, state.selectedObservationIds.size))
         if (confirmed.isEmpty()) {
             InlineNotice(vitaText(L10nKey.NO_CONFIRMED_RECORDS_CONTEXT), Icons.Rounded.Science)
@@ -267,11 +277,11 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
             label = { Text(vitaText(L10nKey.ASK_RECORD_EDUCATION)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = {
-                if (question.isNotBlank() && loadedModelId != null && !state.loading) scope.launch { controller.ask(question); question = "" }
+                if (question.isNotBlank() && loadedModelId != null && !state.loading) scope.launch { if (controller.ask(question)) question = "" }
             }),
         )
         VitaButton(vitaText(L10nKey.ASK_ON_DEVICE_MODEL), Icons.Rounded.AutoAwesome, {
-            scope.launch { controller.ask(question); question = "" }
+            scope.launch { if (controller.ask(question)) question = "" }
         }, enabled = question.isNotBlank() && loadedModelId != null && !state.loading)
     }
 }
@@ -306,10 +316,11 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                 Text(vitaText(L10nKey.VERIFYING_OR_LOADING_MODEL))
             }
         }
-        if (controller.modelManager.catalog.packs.isEmpty()) {
+        modelState.catalogError?.let { InlineNotice(it.resolve(), Icons.Rounded.SmartToy) }
+        if (modelState.catalog.packs.isEmpty() && modelState.catalogError == null) {
             EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
         }
-        controller.modelManager.catalog.packs.forEach { pack ->
+        modelState.catalog.packs.forEach { pack ->
             val installed = modelState.installed.firstOrNull { it.pack.modelId == pack.modelId }
             Card(Modifier.fillMaxWidth().vitaAnimateContentSize()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -353,7 +364,7 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
 }
 
 @Composable
-fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope) {
+fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, backupFiles: BackupFileAccess? = null) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_SETTINGS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
     ScreenColumn(vitaText(L10nKey.SETTINGS_EXPORT), vitaText(L10nKey.SETTINGS_SUBTITLE, data.profile.displayName)) {
         SectionHeading(vitaText(L10nKey.SECTION_OFFLINE_BOUNDARY))
@@ -370,9 +381,18 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         }
         SectionHeading(vitaText(L10nKey.SECTION_DOCTOR_EXPORT))
         Text(vitaText(L10nKey.DOCTOR_EXPORT_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        var exportLanguage by remember { mutableStateOf<ContentLanguage?>(null) }
+        Text(vitaText(L10nKey.EXPORT_LANGUAGE), style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = exportLanguage == null, onClick = { exportLanguage = null }, label = { Text(vitaText(L10nKey.EXPORT_LANGUAGE_DEVICE)) })
+            ContentLanguage.entries.forEach { language ->
+                FilterChip(selected = exportLanguage == language, onClick = { exportLanguage = language }, label = { Text(language.nativeName) })
+            }
+        }
+        Text(vitaText(L10nKey.EXPORT_LANGUAGE_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv() } }, Modifier.weight(1f))
-            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf() } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv(exportLanguage) } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf(exportLanguage) } }, Modifier.weight(1f))
         }
         state.csvExport?.let { csv ->
             Card {
@@ -389,8 +409,10 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         state.pdfExport?.let { pdf ->
             StatusPill(vitaText(L10nKey.PDF_READY_BYTES, pdf.bytes.size), Icons.Rounded.PictureAsPdf, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
         }
+        BackupSettingsSection(state, controller, backupFiles)
         DeviceHealthSettings(state, data, controller, scope)
         SectionHeading(vitaText(L10nKey.SECTION_STORAGE_SECURITY))
+        AppLockSettings()
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

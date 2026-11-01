@@ -17,6 +17,7 @@ final class AppShellModel: ObservableObject {
     let notifications = MedicationNotificationCoordinator()
     lazy var modelLoader = StoreModelPackLoader(licenseManager: licenseManager)
     private let sourcePicker = ComposeSourcePicker()
+    private let backupFiles = ComposeBackupFiles()
     private(set) var healthImporter: HealthKitImporter?
     private var didConfigure = false
     private var vaultPath: String?
@@ -34,6 +35,7 @@ final class AppShellModel: ObservableObject {
             IosAesGcmBridge.shared.install(implementation: CryptoKitAesGcm())
             IosRuntime.shared.licenseProvider = licenseManager
             IosRuntime.shared.sourcePicker = sourcePicker
+            IosRuntime.shared.backupFiles = backupFiles
             IosRuntime.shared.modelPackLoader = modelLoader
             IosRuntime.shared.repositoryObserver = notifications
             if HealthKitImporter.supported {
@@ -64,6 +66,7 @@ final class AppShellModel: ObservableObject {
                 self.ready = true
                 self.catalogError = IosRuntime.shared.catalogError?.localized()
                 Task { await self.notifications.reconcile() }
+                Task { await self.licenseManager.refreshIfDue() }
             }
         }
     }
@@ -73,5 +76,6 @@ final class AppShellModel: ObservableObject {
         licenseManager.reconcileCache()
         IosRuntime.shared.refresh()
         Task { await notifications.reconcile() }
+        Task { await licenseManager.refreshIfDue() }
     }
 }
