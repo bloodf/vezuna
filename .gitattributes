@@ -1,0 +1,5 @@
+# Preserve upstream license and notice bytes exactly (checksums and notice builds depend on them)
+third_party/** -text
+composeApp/src/main/assets/ThirdPartyNotices.txt -text
+iosApp/Vezuna/ThirdPartyNotices.txt -text
+gradlew.bat text eol=crlf
