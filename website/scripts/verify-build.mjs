@@ -13,7 +13,7 @@ const walk = (directory) => {
 };
 walk(dist);
 assert.equal(htmlFiles.length, 20, `Expected 20 HTML routes, found ${htmlFiles.length}`);
-for (const path of ['pagefind/pagefind-component-ui.js', 'pagefind/pagefind-component-ui.css', 'pagefind/pagefind.js', 'assets/android-home.png', 'assets/android-labs.png', 'assets/android-settings.png', 'assets/og-1200x630.png', 'fonts/NotoSans-Regular.ttf', 'fonts/NotoSans-Bold.ttf', 'fonts/NOTO-LICENSE.txt', 'icons/favicon.ico']) {
+for (const path of ['pagefind/pagefind-component-ui.js', 'pagefind/pagefind-component-ui.css', 'pagefind/pagefind.js', 'assets/android-home.png', 'assets/android-labs.png', 'assets/android-settings.png', 'assets/og-1200x630.png', 'fonts/NotoSans-Regular.ttf', 'fonts/NotoSans-Bold.ttf', 'fonts/NotoSans-Regular-latin.woff2', 'fonts/NotoSans-Bold-latin.woff2', 'assets/android-home-800.webp', 'assets/android-labs-800.webp', 'assets/android-settings-800.webp', 'fonts/NOTO-LICENSE.txt', 'icons/favicon.ico']) {
   assert(existsSync(join(dist, path)), `Missing production asset: ${path}`);
 }
 const cssFiles = readdirSync(join(dist, '_astro')).filter((name) => name.endsWith('.css'));

@@ -1,0 +1,32 @@
+---
+import type { Screenshot } from '../data/marketing';
+
+// Unmodified Android emulator captures (docs/images/README.md), served as resized WebP
+// with the original PNG as fallback. Width/height stay on the <img> so nothing shifts on load.
+interface Props {
+  screen: Screenshot;
+  /** Visible height as a fraction of the capture, to drop empty space at the bottom. */
+  crop?: number;
+  eager?: boolean;
+}
+
+const { screen, crop = 1, eager = false } = Astro.props;
+const visibleHeight = Math.round(2340 * Math.min(Math.max(crop, 0.3), 1));
+---
+<figure class:list={['screen', { 'screen--cropped': crop < 1 }]} style={`--screen-ratio: 1080 / ${visibleHeight}`}>
+  <div class="screen-frame">
+    <picture>
+      <source type="image/webp" srcset={`${screen.src}-480.webp 480w, ${screen.src}-800.webp 800w`} sizes="(max-width: 960px) 320px, 400px" />
+      <img
+        src={`${screen.src}.png`}
+        width="1080"
+        height="2340"
+        alt={screen.alt}
+        loading={eager ? 'eager' : 'lazy'}
+        fetchpriority={eager ? 'high' : undefined}
+        decoding="async"
+      />
+    </picture>
+  </div>
+  {screen.caption && <figcaption>{screen.caption}</figcaption>}
+</figure>

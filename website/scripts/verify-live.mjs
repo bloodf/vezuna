@@ -18,8 +18,10 @@ for (const route of routes) {
   assert(html.includes('rel="canonical"'), `${route} missing canonical`);
   assert(html.includes('<main'), `${route} missing main content`);
   if (['/', '/pt-br', '/es'].includes(route)) {
-    assert(html.includes('data-health-scene'), `${route} is missing the 3D health scene`);
-    assert(html.includes('store-pending'), `${route} is missing honest store availability states`);
+    assert(html.includes('class="data-map"'), `${route} is missing the privacy data map`);
+    assert(html.includes('android-home-800.webp'), `${route} is missing the real app capture`);
+    assert(!/data-health-scene|data-workspace/.test(html), `${route} still contains a discarded scene or simulated workspace`);
+    assert(html.includes('price-status'), `${route} is missing the honest availability status`);
   }
   assert(!/Deployment not found|404: NOT_FOUND|This page could not be found/.test(html), `${route} served an error page`);
 }

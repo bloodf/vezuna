@@ -37,7 +37,7 @@ Os serviços das lojas podem cuidar do licenciamento e da entrega planejada de m
 
 ## Backups e identidade do app
 
-Os backups do app são criptografados para restauração **somente no mesmo dispositivo e com a mesma chave**. Não há recuperação entre dispositivos ou entre apps com identificadores diferentes. Não trate esse backup como proteção contra perda do aparelho.
+Os backups novos são arquivos portáteis protegidos por uma frase-senha que você escolhe (pelo menos 12 caracteres). Dá para restaurar em outro celular ou depois de reinstalar o app. O Vezuna não recupera uma frase-senha perdida: sem ela, o backup nunca mais abre. Backups feitos por builds anteriores só abrem no mesmo aparelho, com a mesma chave, e o app os identifica assim.
 
 O identificador atual é `app.vezuna`. Mudar esse identificador cria uma instalação separada e não transfere a sandbox anterior nem as chaves do Android Keystore.
 

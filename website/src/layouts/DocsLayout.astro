@@ -1,4 +1,5 @@
 ---
+import type { MarkdownHeading } from 'astro';
 import BaseLayout from './BaseLayout.astro';
 import { docPath, docsUi, docSlug, type DocEntry } from '../lib/docs';
 import type { Alternates, Locale } from '../lib/i18n';
@@ -7,68 +8,84 @@ interface Props {
   locale: Locale;
   entry: DocEntry;
   entries: DocEntry[];
+  headings: MarkdownHeading[];
   path: string;
   alternates: Alternates;
 }
 
-const { locale, entry, entries, path, alternates } = Astro.props;
+const { locale, entry, entries, headings, path, alternates } = Astro.props;
 const ui = docsUi[locale];
 const currentIndex = entries.findIndex((item) => item.id === entry.id);
 const previous = currentIndex > 0 ? entries[currentIndex - 1] : undefined;
 const next = currentIndex < entries.length - 1 ? entries[currentIndex + 1] : undefined;
-const userDocs = entries.filter((item) => item.data.audience === 'user');
-const developerDocs = entries.filter((item) => item.data.audience === 'developer');
+const groups = [
+  { title: ui.user, items: entries.filter((item) => item.data.audience === 'user') },
+  { title: ui.developer, items: entries.filter((item) => item.data.audience === 'developer') },
+].filter((group) => group.items.length > 0);
 const audienceLabel = entry.data.audience === 'developer' ? ui.developer : ui.user;
+const outline = headings.filter((heading) => heading.depth === 2);
 ---
 <BaseLayout locale={locale} title={entry.data.title} description={entry.data.description} path={path} alternates={alternates}>
   <link slot="head" rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
-  <main class="docs-main" id="main-content">
+  <main class="docs wrap" id="main-content">
     <aside class="docs-sidebar">
       <div class="docs-search">
-        <span class="docs-search-label">{ui.search}</span>
-        <pagefind-searchbox></pagefind-searchbox>
+        <span class="docs-search-label" id="docs-search-label">{ui.search}</span>
+        <pagefind-searchbox aria-labelledby="docs-search-label"></pagefind-searchbox>
       </div>
-      <nav aria-label={ui.sidebar}>
-        <div class="docs-nav-groups">
-          <div>
-            <p class="docs-nav-title">{ui.user}</p>
-            <div class="docs-nav">
-              {userDocs.map((item) => (
-                <a href={docPath(locale, docSlug(item))} aria-current={item.id === entry.id ? 'page' : undefined}>{item.data.title}</a>
-              ))}
-            </div>
-          </div>
-          {developerDocs.length > 0 && (
-            <div>
-              <p class="docs-nav-title">{ui.developer}</p>
-              <div class="docs-nav">
-                {developerDocs.map((item) => (
-                  <a href={docPath(locale, docSlug(item))} aria-current={item.id === entry.id ? 'page' : undefined}>{item.data.title}</a>
+      <details class="docs-menu" data-desktop-open open>
+        <summary>
+          <span><span class="docs-menu-hint">{ui.title}</span>{entry.data.title}</span>
+          <span class="icon icon-chevron icon-chevron--down" aria-hidden="true"></span>
+        </summary>
+        <nav aria-label={ui.sidebar}>
+          {groups.map((group) => (
+            <div class="docs-nav-group">
+              <p class="docs-nav-title">{group.title}</p>
+              <ul class="docs-nav">
+                {group.items.map((item) => (
+                  <li><a href={docPath(locale, docSlug(item))} aria-current={item.id === entry.id ? 'page' : undefined}>{item.data.title}</a></li>
                 ))}
-              </div>
+              </ul>
             </div>
-          )}
-        </div>
-      </nav>
+          ))}
+        </nav>
+      </details>
     </aside>
+
     <article class="docs-article">
-      <header>
-        <p class="docs-kicker">{audienceLabel} · {ui.title}</p>
+      <header class="docs-head">
+        <p class="docs-breadcrumb">{audienceLabel}</p>
         <h1>{entry.data.title}</h1>
         <p class="docs-description">{entry.data.description}</p>
       </header>
       <div class="docs-prose" data-pagefind-body>
         <slot />
       </div>
-      <nav class="docs-pagination" aria-label={ui.sidebar}>
-        <div>
-          {previous && <a href={docPath(locale, docSlug(previous))}><span>← {ui.previous}</span>{previous.data.title}</a>}
-        </div>
-        <div>
-          {next && <a href={docPath(locale, docSlug(next))}><span>{ui.next} →</span>{next.data.title}</a>}
-        </div>
+      <nav class="docs-pagination" aria-label={ui.pagination}>
+        {previous ? (
+          <a class="docs-pagination-link" href={docPath(locale, docSlug(previous))} rel="prev">
+            <span class="docs-pagination-hint"><span class="icon icon-chevron icon-chevron--left" aria-hidden="true"></span>{ui.previous}</span>
+            {previous.data.title}
+          </a>
+        ) : <span></span>}
+        {next && (
+          <a class="docs-pagination-link docs-pagination-link--next" href={docPath(locale, docSlug(next))} rel="next">
+            <span class="docs-pagination-hint">{ui.next}<span class="icon icon-chevron" aria-hidden="true"></span></span>
+            {next.data.title}
+          </a>
+        )}
       </nav>
     </article>
+
+    {outline.length > 2 && (
+      <nav class="docs-outline" aria-label={ui.outline}>
+        <p class="docs-nav-title">{ui.outline}</p>
+        <ul>
+          {outline.map((heading) => <li><a href={`#${heading.slug}`}>{heading.text}</a></li>)}
+        </ul>
+      </nav>
+    )}
   </main>
   <script is:inline type="module" src="/pagefind/pagefind-component-ui.js"></script>
   <script is:inline define:vars={{ copyLabel: ui.copy, copiedLabel: ui.copied }}>
@@ -81,7 +98,6 @@ const audienceLabel = entry.data.audience === 'developer' ? ui.developer : ui.us
       button.className = 'copy-code';
       button.type = 'button';
       button.textContent = copyLabel;
-      button.setAttribute('aria-label', copyLabel);
       button.addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(pre.textContent || '');

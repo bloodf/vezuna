@@ -19,13 +19,13 @@ const fileForUrl = (url) => {
   return join(dist, path.replace(/\/$/, ''), 'index.html');
 };
 const requiredText = {
-  '/': ['Your health, in one place.', 'Only confirmed results', 'same device key', 'See how records connect.', 'Follow development on GitHub.', 'data-health-scene'],
-  '/pt-br': ['Sua saúde, em um só lugar.', 'resultados confirmados', 'mesmo dispositivo', 'Veja como os registros se conectam.', 'Acompanhe o desenvolvimento no GitHub.', 'data-health-scene'],
-  '/es': ['Tu salud, en un solo lugar.', 'resultados confirmados', 'mismo dispositivo', 'Descubre cómo se conectan los registros.', 'Sigue el desarrollo en GitHub.', 'data-health-scene'],
+  '/': ['Keep your household’s health records on your phone.', 'US$9.99', 'No stable release has been published', 'Android 8.0', 'iOS 18.5', 'does not diagnose', 'no AI features are available', 'android-labs-800.webp'],
+  '/pt-br': ['Guarde os registros de saúde da família no seu celular.', 'US$9,99', 'Nenhuma versão estável foi publicada', 'Não diagnostica'],
+  '/es': ['Guarda los registros de salud de tu familia en tu teléfono.', 'US$9,99', 'No se ha publicado una versión estable', 'No diagnostica'],
   '/docs/developers': ['JDK 17', 'Android SDK API 37', 'iOS 26 SDK', 'EAS Submit', 'app.vezuna'],
-  '/docs/privacy-and-data': ['same device key', 'Denying health permissions', 'Vercel'],
+  '/docs/privacy-and-data': ['same device key', 'passphrase', 'App lock', 'Denying health permissions', 'Vercel'],
   '/privacy': ['Vezuna privacy policy', 'Publisher and contact', 'Vercel hosts the website'],
-  '/support': ['GitHub private vulnerability reporting', 'Never attach real medical documents'],
+  '/support': ['GitHub private vulnerability reporting', 'Never attach actual medical documents'],
 };
 
 assert(existsSync(dist), 'dist is missing; run npm run build first');
@@ -39,7 +39,7 @@ for (const route of routes) {
   assert(html.includes('<main'), `Missing main landmark: ${route}`);
   assert(html.includes('rel="canonical"'), `Missing canonical: ${route}`);
   assert(html.includes('property="og:image"'), `Missing social preview: ${route}`);
-  assert(html.includes('/fonts/NotoSans-Regular.ttf'), `Missing local font: ${route}`);
+  assert(html.includes('/fonts/NotoSans-Regular-latin.woff2'), `Missing local font preload: ${route}`);
   assert(!/TODO:|PLACEHOLDER|lorem ipsum|example\.com/i.test(html), `Placeholder content: ${route}`);
   for (const text of requiredText[route] ?? []) assert(html.includes(text), `Missing required claim on ${route}: ${text}`);
   for (const image of html.matchAll(/<img\b[^>]*>/g)) assert(/\balt="[^"]*"/.test(image[0]), `Missing image alt on ${route}`);

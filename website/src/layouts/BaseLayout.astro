@@ -11,11 +11,14 @@ interface Props {
   description: string;
   path: string;
   alternates?: Alternates;
-  darkHeader?: boolean;
   marketing?: boolean;
 }
 
-const { locale, title, description, path, alternates, darkHeader = false, marketing = false } = Astro.props;
+const { locale, title, description, path, alternates, marketing = false } = Astro.props;
+// [data-desktop-open] disclosures (header nav, docs nav) stay expanded on wide screens and
+// collapse on narrow ones. A closed <details> hides its content in the UA shadow tree, so CSS
+// alone cannot force it open: the inline script at the end of <body> toggles the attribute.
+const skipLabel = { en: 'Skip to main content', 'pt-br': 'Pular para o conteúdo', es: 'Saltar al contenido' }[locale];
 ---
 <!doctype html>
 <html lang={htmlLang[locale]}>
@@ -24,10 +27,18 @@ const { locale, title, description, path, alternates, darkHeader = false, market
       <slot name="head" slot="head" />
     </BaseHead>
   </head>
-  <body class:list={[{ 'has-dark-header': darkHeader }]}>
-    <a class="skip-link" href="#main-content">Skip to main content</a>
-    <Header locale={locale} alternates={alternates} dark={darkHeader} marketing={marketing} />
+  <body>
+    <a class="skip-link" href="#main-content">{skipLabel}</a>
+    <Header locale={locale} alternates={alternates} marketing={marketing} />
     <slot />
     <Footer locale={locale} />
+    <script is:inline>
+      (() => {
+        const narrow = window.matchMedia('(max-width: 960px)');
+        const sync = () => document.querySelectorAll('[data-desktop-open]').forEach((el) => { el.open = !narrow.matches; });
+        sync();
+        narrow.addEventListener('change', sync);
+      })();
+    </script>
   </body>
 </html>

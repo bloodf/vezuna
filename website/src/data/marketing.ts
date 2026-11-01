@@ -1,338 +1,316 @@
 import type { Locale } from '../lib/i18n';
 
+// Product facts on this page are checked against README.md, PRIVACY.md,
+// docs/STORE_REVIEW_DRAFT.md and the app's string resources. Sources per claim:
+// - Price US$9.99: saved in both stores (docs/RELEASING.md), not yet on sale, so it stays prospective.
+// - Android 8.0+ / iOS 18.5+: README.md requirements.
+// - Passphrase backups (12+ characters, no recovery): shared/.../values/strings.xml backup_*.
+// - App lock (biometrics or passcode, 5 minutes, screenshots blocked): strings.xml app_lock_*.
+// - AI: production model catalog is empty, so the page promises no AI feature.
+
+export interface Screenshot { src: string; alt: string; caption: string }
+
 export interface MarketingCopy {
-  nav: { story: string; routines: string; privacy: string; faq: string; docs: string; menu: string };
+  meta: { title: string; description: string };
+  nav: { how: string; records: string; privacy: string; price: string; faq: string; docs: string; menu: string; home: string; product: string };
   hero: {
-    eyebrow: string; title: string; body: string; primary: string; secondary: string;
-    note: string; galleryLabel: string; caption: string;
-    screenshots: { src: string; alt: string; label: string }[];
+    title: string; body: string; primary: string; secondary: string;
+    facts: { term: string; value: string }[];
+    screen: Screenshot;
   };
-  story: {
-    eyebrow: string; title: string; intro: string;
-    steps: { title: string; body: string }[];
-    confirmation: string;
-  };
-  routines: {
-    eyebrow: string; title: string; intro: string;
-    items: { title: string; body: string }[];
-    exampleLabel: string; exampleTitle: string; exampleNote: string;
-    schedule: { time: string; title: string; detail: string; state: string }[];
-  };
-  tech: { eyebrow: string; title: string; description: string; draft: string; confirmed: string; comparison: string; local: string; staticNote: string };
-  availability: { eyebrow: string; title: string; body: string; github: string; appStore: string; googlePlay: string; pending: string };
+  how: { title: string; body: string; steps: { title: string; body: string }[]; screen: Screenshot };
+  records: { title: string; body: string; items: { term: string; body: string }[]; screen: Screenshot };
   privacy: {
-    eyebrow: string; title: string; intro: string;
-    items: { title: string; body: string }[];
-    boundary: string;
+    title: string; body: string;
+    columns: { what: string; where: string; leaves: string };
+    rows: { what: string; where: string; leaves: string }[];
+    note: string; policy: string; details: string;
   };
-  faq: { eyebrow: string; title: string; items: { question: string; answer: string }[] };
-  footer: {
-    tagline: string; docs: string; support: string; privacy: string; source: string; notices: string; medical: string;
-  };
+  price: { amount: string; title: string; body: string; status: string; primary: string; secondary: string };
+  faq: { title: string; items: { question: string; answer: string }[] };
+  footer: { tagline: string; docs: string; support: string; privacy: string; source: string; notices: string; medical: string; licenses: string };
 }
 
-const screenshots = {
-  home: '/assets/android-home.png',
-  labs: '/assets/android-labs.png',
-  settings: '/assets/android-settings.png',
+const shots = {
+  home: '/assets/android-home',
+  labs: '/assets/android-labs',
+  settings: '/assets/android-settings',
 };
 
 export const marketingCopy: Record<Locale, MarketingCopy> = {
   en: {
-    nav: { story: 'How it works', routines: 'Medications & exports', privacy: 'Privacy', faq: 'FAQ', docs: 'Read the docs', menu: 'Menu' },
+    meta: {
+      title: 'Vezuna: health records for your household, kept on your phone',
+      description: 'Lab results, medication reminders, and health data for each person in your household, encrypted on your phone. No account, no app server. Android and iPhone.',
+    },
+    nav: { how: 'How it works', records: 'What it keeps', privacy: 'Privacy', price: 'Price', faq: 'Questions', docs: 'Documentation', menu: 'Menu', home: 'Vezuna home', product: 'Product' },
     hero: {
-      eyebrow: 'Household health records, kept on your device.',
-      title: 'Your health, in one place.',
-      body: 'Bring lab reports, medication schedules, and household health records together. Check imported details, follow confirmed results, and keep everything organized on your device.',
-      primary: 'Read the docs', secondary: 'View source',
-      note: 'Release preparation: no stable release has been published. Physical-device checks and store review are still pending.',
-      galleryLabel: 'Vezuna Android app previews',
-      caption: 'Actual Android development-build screens with synthetic example records. iPhone runtime and store-distribution checks remain pending.',
-      screenshots: [
-        { src: screenshots.home, alt: 'Vezuna household dashboard for the fictional Child profile', label: 'Household overview' },
-        { src: screenshots.labs, alt: 'Vezuna laboratory records with import review and trends controls', label: 'Laboratory records' },
-        { src: screenshots.settings, alt: 'Vezuna settings showing the offline boundary and PDF and CSV export actions', label: 'Privacy and exports' },
+      title: 'Keep your household’s health records on your phone.',
+      body: 'Import lab reports, check every value before it is saved, and get medication reminders for each person you care for. Records are encrypted on the phone. There is no account and no Vezuna server.',
+      primary: 'Read the getting-started guide', secondary: 'Price and availability',
+      facts: [
+        { term: 'Price', value: 'US$9.99 at launch' },
+        { term: 'Phones', value: 'Android 8.0+ and iPhone on iOS 18.5+' },
+        { term: 'Languages', value: 'English, Português, Español' },
       ],
+      screen: { src: shots.home, alt: 'Vezuna home screen for a profile named Child, showing “Your health, in one place.”, a 100% on-device indicator, and an empty medication list.', caption: 'Home screen. Android development build, fictional profile.' },
     },
-    story: {
-      eyebrow: 'A record you can check',
-      title: 'From report to a clearer record.',
-      intro: 'Keep each person’s information separate, then move from an imported document to confirmed results at your own pace.',
+    how: {
+      title: 'A lab report becomes a record only after you check it.',
+      body: 'Text recognition makes mistakes. Vezuna treats what it reads as a draft and waits for you.',
       steps: [
-        { title: 'Create separate profiles', body: 'Add a profile for each person in your household and keep their records separate.' },
-        { title: 'Import images and PDFs', body: 'Bring a lab report into Vezuna from a camera capture, an image, or a PDF. Embedded text and OCR are processed on the device.' },
-        { title: 'Review before confirming', body: 'Check the OCR draft against the original report. Correct the test name, value, unit, reference range, or date before you confirm it.' },
-        { title: 'Compare confirmed results', body: 'See confirmed results side by side and follow changes over time, preserving the original values and report-specific references.' },
+        { title: 'Photograph or import the report', body: 'Use the camera, a saved image, or a PDF. Text recognition runs on the phone.' },
+        { title: 'Check the draft against the paper', body: 'Vezuna shows the test, value, unit, reference range, and date it read. Fix anything that does not match the original.' },
+        { title: 'Confirm, then compare', body: 'Confirmed results join the person’s history. Results are graphed together only when their units match.' },
       ],
-      confirmation: 'Imported results stay unconfirmed until you review them. Only confirmed results appear in trends and clinician exports.',
+      screen: { src: shots.labs, alt: 'Vezuna Lab records screen with Import review and Trends buttons and the empty state “No confirmed results”.', caption: 'Lab records before the first confirmed result.' },
     },
-    routines: {
-      eyebrow: 'Daily routines',
-      title: 'Routines and records, ready when you need them.',
-      intro: 'Keep schedules beside the records they relate to, then prepare a copy for a conversation with your clinician.',
+    records: {
+      title: 'What Vezuna keeps for each person.',
+      body: 'Every person in the household gets a separate profile. Records never mix between profiles.',
       items: [
-        { title: 'Medications', body: 'Keep medication names, recorded doses, and schedules in one place. Vezuna records what you enter; it never chooses or changes a dose.' },
-        { title: 'Local reminders', body: 'Use reminders on your device and mark doses as taken, skipped, or snoozed. Actual notification delivery remains a physical-device release check.' },
-        { title: 'PDF and CSV exports', body: 'Create PDF reports with result tables and charts, or export confirmed data as CSV. Share a copy through the system share sheet when you choose.' },
+        { term: 'Lab results', body: 'Confirmed values with the reference range printed on the original report, and trends over time.' },
+        { term: 'Medications', body: 'Schedules and reminders. Mark each dose as taken, skipped, or snoozed.' },
+        { term: 'Weight, heart rate, steps', body: 'Type them in, or allow read-only import from Health Connect or Apple Health. Both are optional.' },
+        { term: 'Exports', body: 'A PDF or CSV of confirmed results for an appointment, sent through your phone’s share sheet.' },
+        { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose. Restore it on a new phone.' },
+        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. Screenshots are blocked while it is on.' },
       ],
-      exampleLabel: 'Synthetic daily example',
-      exampleTitle: 'A quiet view of the day',
-      exampleNote: 'This illustrative schedule is not a product screenshot or dosing guidance. Names and records are fictional.',
-      schedule: [
-        { time: '08:00', title: 'Morning routine', detail: 'Demo Medicine · recorded schedule', state: 'Taken' },
-        { time: '13:30', title: 'Check the record', detail: 'Review a synthetic imported result', state: 'To review' },
-        { time: '18:00', title: 'Prepare for a visit', detail: 'Export confirmed information as PDF', state: 'When needed' },
-      ],
-    },
-    tech: {
-      eyebrow: 'Local records, in space',
-      title: 'See how records connect.',
-      description: 'An abstract spatial view of local health records, from OCR drafts awaiting confirmation to confirmed-result comparisons. Processing stays on your device.',
-      draft: 'OCR draft · confirmation required',
-      confirmed: 'Confirmed result',
-      comparison: 'Compare confirmed results',
-      local: 'Processed locally',
-      staticNote: 'Abstract visualization with synthetic data, not a product screenshot or medical analysis.',
-    },
-    availability: {
-      eyebrow: 'Release status',
-      title: 'Follow development on GitHub.',
-      body: 'Vezuna is in release preparation. Explore the source and project updates on GitHub; app store releases are not yet available.',
-      github: 'View on GitHub',
-      appStore: 'App Store · unavailable',
-      googlePlay: 'Google Play · unavailable',
-      pending: 'Store availability pending',
+      screen: { src: shots.settings, alt: 'Vezuna Settings and export screen stating “No Vezuna app server”, with Prepare CSV and Prepare PDF buttons.', caption: 'Settings and export. Exports never depend on an AI model.' },
     },
     privacy: {
-      eyebrow: 'A clear boundary',
-      title: 'Your records, on your device. Shared only when you choose.',
-      intro: 'Vezuna is built around local records, not an account or an application server.',
-      items: [
-        { title: 'Local storage', body: 'Health records are stored in an encrypted, profile-isolated vault on your device. No independent security audit is claimed.' },
-        { title: 'Optional health imports', body: 'With permission, read heart rate, steps, and weight from Health Connect or HealthKit. Denying access does not block manual records.' },
-        { title: 'Platform services', body: 'Store services handle licensing and planned model delivery. Their privacy behavior is separate; final SDK and release checks remain open.' },
+      title: 'Where your records stay, and when they leave.',
+      body: 'Vezuna has no server and no account. The phone is the only place your records exist until you decide otherwise.',
+      columns: { what: 'Data', where: 'Where it stays', leaves: 'When it leaves the phone' },
+      rows: [
+        { what: 'Health records', where: 'An encrypted vault on the phone, separated by profile', leaves: 'Only when you export or back up' },
+        { what: 'PDF and CSV exports', where: 'A plain file you create on request', leaves: 'When you share or save it. From then on it is outside the vault' },
+        { what: 'Backups', where: 'A file encrypted with your passphrase', leaves: 'Wherever you save it. Without the passphrase nobody can open it, including us' },
+        { what: 'Health Connect and Apple Health', where: 'Read with your permission, never written', leaves: 'Never sent anywhere' },
+        { what: 'Purchase', where: 'Handled by the App Store or Google Play', leaves: 'The store sees the purchase, never your records' },
       ],
-      boundary: 'PDF and CSV exports are plaintext. Once you share an export or backup, its destination and protection are outside Vezuna’s vault.',
+      note: 'Android encrypts the vault with AES-256-GCM using a key in Android Keystore. iPhone uses CryptoKit AES-GCM. No independent security audit has been done yet.',
+      policy: 'Privacy policy', details: 'Technical privacy details',
+    },
+    price: {
+      amount: 'US$9.99',
+      title: 'One price in the App Store and Google Play.',
+      body: 'Vezuna is a paid app with no ads. The price is set in both stores, and the app goes on sale once store review is complete.',
+      status: 'Not available to download yet. No stable release has been published.',
+      primary: 'Read the getting-started guide', secondary: 'Follow the source on GitHub',
     },
     faq: {
-      eyebrow: 'Questions, answered plainly', title: 'Before you begin.',
+      title: 'Questions',
       items: [
-        { question: 'When will Vezuna be available?', answer: 'Vezuna is still in release preparation, and no stable release has been published. Store availability will be confirmed only after release checks and store review are complete.' },
-        { question: 'Which devices are supported?', answer: 'Vezuna is a native app for Android and iPhone. Android 8.0 or later is the current minimum in source; iPhone requires iOS 18.5 or later. Physical-device release checks are still pending.' },
-        { question: 'Which languages are available?', answer: 'English, Brazilian Portuguese, and Spanish across the app and this website’s essential guidance.' },
-        { question: 'Which permissions does Vezuna request?', answer: 'Health imports are optional. With permission, Vezuna can read heart rate, steps, and weight from Health Connect or HealthKit. Camera, selected images, and notifications support their respective import and reminder workflows. You can deny health access and still keep manual records.' },
-        { question: 'How do backups work?', answer: 'Backups created in the app are encrypted for restoration with the same device key. They do not provide portable recovery to another device or app, and should not be treated as protection against device loss.' },
-        { question: 'Does Vezuna provide medical guidance?', answer: 'No. Vezuna organizes the records you provide. It does not diagnose conditions, recommend treatment, or change medication doses. Review OCR drafts and confirm imported values against the original report.' },
+        { question: 'When can I download it?', answer: 'After App Store and Google Play review. Both listings are being prepared, and there are no download links until review is complete.' },
+        { question: 'Which phones does it run on?', answer: 'Android 8.0 or later, and iPhone with iOS 18.5 or later. There is no Mac or desktop version.' },
+        { question: 'Does Vezuna give medical advice?', answer: 'No. It keeps records. It does not diagnose, recommend treatment, or change doses. Check imported values against the original report and talk to a qualified professional.' },
+        { question: 'What happens if I lose my phone?', answer: 'Your records exist only on that phone. If you made a backup and remember its passphrase, restore it on the new phone. Without a backup, the records cannot be recovered.' },
+        { question: 'Does it use AI?', answer: 'This version ships no AI model, so no AI features are available. Records, exports, and backups never depend on one.' },
+        { question: 'Which permissions does it ask for?', answer: 'Camera and photos for importing reports, notifications for reminders, and read access to Health Connect or Apple Health. All are optional. Manual records keep working if you say no.' },
+        { question: 'Which languages are included?', answer: 'English, Brazilian Portuguese, and Spanish. The app follows your phone’s language.' },
       ],
     },
     footer: {
-      tagline: 'Household health records, kept on your device.', docs: 'Documentation', support: 'Support', privacy: 'Privacy', source: 'Source code', notices: 'Third-party notices',
-      medical: 'Vezuna helps organize personal health records and does not replace advice from a qualified healthcare professional.',
+      tagline: 'Your health, in one place.', docs: 'Documentation', support: 'Support', privacy: 'Privacy policy', source: 'Source code', notices: 'Third-party notices',
+      medical: 'Vezuna organizes personal health records. It does not replace advice from a qualified healthcare professional.',
+      licenses: 'Source and original artwork under MIT. Noto Sans under SIL OFL 1.1.',
     },
   },
   'pt-br': {
-    nav: { story: 'Como funciona', routines: 'Medicamentos e exportações', privacy: 'Privacidade', faq: 'Perguntas frequentes', docs: 'Ler a documentação', menu: 'Menu' },
+    meta: {
+      title: 'Vezuna: registros de saúde da família, guardados no seu celular',
+      description: 'Exames, lembretes de medicamentos e dados de saúde de cada pessoa da família, criptografados no seu celular. Sem conta e sem servidor. Android e iPhone.',
+    },
+    nav: { how: 'Como funciona', records: 'O que guarda', privacy: 'Privacidade', price: 'Preço', faq: 'Perguntas', docs: 'Documentação', menu: 'Menu', home: 'Início do Vezuna', product: 'Produto' },
     hero: {
-      eyebrow: 'Registros de saúde da família, guardados no seu dispositivo.',
-      title: 'Sua saúde, em um só lugar.',
-      body: 'Reúna resultados de exames, horários de medicamentos e registros de saúde da família. Confira os dados importados, acompanhe resultados confirmados e mantenha tudo organizado no seu dispositivo.',
-      primary: 'Ler a documentação', secondary: 'Ver o código-fonte',
-      note: 'Preparação para lançamento: ainda não há uma versão estável publicada. Os testes em dispositivos físicos e a análise das lojas continuam pendentes.',
-      galleryLabel: 'Pré-visualizações do app Vezuna para Android',
-      caption: 'Telas reais do build de desenvolvimento para Android com registros fictícios. Os testes de execução no iPhone e de distribuição nas lojas continuam pendentes.',
-      screenshots: [
-        { src: screenshots.home, alt: 'Painel familiar do Vezuna para o perfil fictício Child', label: 'Visão geral da família' },
-        { src: screenshots.labs, alt: 'Registros laboratoriais do Vezuna com controles de revisão de importação e tendências', label: 'Registros de exames' },
-        { src: screenshots.settings, alt: 'Configurações do Vezuna mostrando o limite offline e ações de exportação em PDF e CSV', label: 'Privacidade e exportações' },
+      title: 'Guarde os registros de saúde da família no seu celular.',
+      body: 'Importe exames, confira cada valor antes de salvar e receba lembretes de medicamentos para cada pessoa de quem você cuida. Os registros ficam criptografados no celular. Não tem conta nem servidor do Vezuna.',
+      primary: 'Ler o guia de primeiros passos', secondary: 'Preço e disponibilidade',
+      facts: [
+        { term: 'Preço', value: 'US$9,99 no lançamento' },
+        { term: 'Celulares', value: 'Android 8.0+ e iPhone com iOS 18.5+' },
+        { term: 'Idiomas', value: 'English, Português, Español' },
       ],
+      screen: { src: shots.home, alt: 'Tela inicial do Vezuna para o perfil Child, com “Your health, in one place.”, indicador 100% on-device e lista de medicamentos vazia.', caption: 'Tela inicial. Build de desenvolvimento para Android, perfil fictício, interface em inglês.' },
     },
-    story: {
-      eyebrow: 'Um registro que você pode conferir',
-      title: 'Do relatório a um registro mais claro.',
-      intro: 'Mantenha as informações de cada pessoa separadas e avance do documento importado aos resultados confirmados no seu ritmo.',
+    how: {
+      title: 'Um exame só vira registro depois que você confere.',
+      body: 'O reconhecimento de texto erra. Por isso o Vezuna trata o que leu como rascunho e espera você.',
       steps: [
-        { title: 'Crie perfis separados', body: 'Adicione um perfil para cada pessoa da família e mantenha os registros separados.' },
-        { title: 'Importe imagens e PDFs', body: 'Traga um relatório para o Vezuna pela câmera, por uma imagem ou PDF. O texto incorporado e o OCR são processados no dispositivo.' },
-        { title: 'Revise antes de confirmar', body: 'Confira o rascunho de OCR com o relatório original. Corrija nome, valor, unidade, intervalo de referência ou data antes de confirmar.' },
-        { title: 'Compare resultados confirmados', body: 'Veja resultados confirmados lado a lado e acompanhe mudanças ao longo do tempo, preservando valores originais e referências de cada relatório.' },
+        { title: 'Fotografe ou importe o laudo', body: 'Use a câmera, uma imagem salva ou um PDF. O reconhecimento de texto roda no celular.' },
+        { title: 'Confira o rascunho com o papel', body: 'O Vezuna mostra o exame, o valor, a unidade, o intervalo de referência e a data que leu. Corrija o que estiver diferente do original.' },
+        { title: 'Confirme e compare', body: 'Resultados confirmados entram no histórico da pessoa. O gráfico só junta resultados com a mesma unidade.' },
       ],
-      confirmation: 'Os resultados importados continuam não confirmados até a sua revisão. Somente resultados confirmados aparecem nas tendências e exportações para o profissional de saúde.',
+      screen: { src: shots.labs, alt: 'Tela Lab records do Vezuna com os botões Import review e Trends e o aviso “No confirmed results”.', caption: 'Exames antes do primeiro resultado confirmado.' },
     },
-    routines: {
-      eyebrow: 'Rotinas diárias',
-      title: 'Rotinas e registros, prontos quando você precisar.',
-      intro: 'Mantenha os horários junto dos registros relacionados e prepare uma cópia para conversar com seu profissional de saúde.',
+    records: {
+      title: 'O que o Vezuna guarda para cada pessoa.',
+      body: 'Cada pessoa da família tem um perfil separado. Os registros nunca se misturam entre perfis.',
       items: [
-        { title: 'Medicamentos', body: 'Guarde nomes, doses registradas e horários em um só lugar. O Vezuna registra o que você informa; ele nunca escolhe nem altera uma dose.' },
-        { title: 'Lembretes locais', body: 'Use lembretes no dispositivo e marque as doses como tomadas, puladas ou adiadas. A entrega real das notificações ainda precisa ser verificada em dispositivos físicos.' },
-        { title: 'Exportações em PDF e CSV', body: 'Crie relatórios em PDF com tabelas e gráficos ou exporte dados confirmados em CSV. Compartilhe uma cópia pelo menu do sistema quando quiser.' },
+        { term: 'Exames', body: 'Valores confirmados com o intervalo de referência impresso no laudo original e a evolução ao longo do tempo.' },
+        { term: 'Medicamentos', body: 'Horários e lembretes. Marque cada dose como tomada, pulada ou adiada.' },
+        { term: 'Peso, frequência cardíaca, passos', body: 'Digite à mão ou permita importar, só leitura, do Health Connect ou do Apple Saúde. As duas opções são opcionais.' },
+        { term: 'Exportações', body: 'Um PDF ou CSV dos resultados confirmados para levar à consulta, enviado pelo compartilhamento do celular.' },
+        { term: 'Backups', body: 'Um arquivo criptografado com uma frase-senha que você escolhe. Restaure num celular novo.' },
+        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
       ],
-      exampleLabel: 'Exemplo diário sintético', exampleTitle: 'Uma visão tranquila do dia',
-      exampleNote: 'Este cronograma ilustrativo não é uma captura do produto nem uma orientação de dose. Nomes e registros são fictícios.',
-      schedule: [
-        { time: '08:00', title: 'Rotina da manhã', detail: 'Medicamento Demonstrativo · horário registrado', state: 'Tomado' },
-        { time: '13:30', title: 'Confira o registro', detail: 'Revise um resultado importado fictício', state: 'Para revisar' },
-        { time: '18:00', title: 'Prepare-se para uma consulta', detail: 'Exporte informações confirmadas em PDF', state: 'Quando precisar' },
-      ],
-    },
-    tech: {
-      eyebrow: 'Registros locais, em uma visão espacial',
-      title: 'Veja como os registros se conectam.',
-      description: 'Uma visualização espacial abstrata dos registros de saúde locais, dos rascunhos de OCR que aguardam confirmação às comparações de resultados confirmados. O processamento fica no seu dispositivo.',
-      draft: 'Rascunho de OCR · confirmação necessária',
-      confirmed: 'Resultado confirmado',
-      comparison: 'Comparar resultados confirmados',
-      local: 'Processado localmente',
-      staticNote: 'Visualização abstrata com dados sintéticos, não uma captura do produto nem uma análise médica.',
-    },
-    availability: {
-      eyebrow: 'Status de lançamento',
-      title: 'Acompanhe o desenvolvimento no GitHub.',
-      body: 'O Vezuna está em preparação para lançamento. Explore o código-fonte e as novidades do projeto no GitHub; as versões nas lojas ainda não estão disponíveis.',
-      github: 'Ver no GitHub',
-      appStore: 'App Store · indisponível',
-      googlePlay: 'Google Play · indisponível',
-      pending: 'Disponibilidade nas lojas pendente',
+      screen: { src: shots.settings, alt: 'Tela Settings and export do Vezuna com o aviso “No Vezuna app server” e os botões Prepare CSV e Prepare PDF.', caption: 'Configurações e exportação. Exportar nunca depende de modelo de IA.' },
     },
     privacy: {
-      eyebrow: 'Um limite claro', title: 'Seus registros, no seu dispositivo. Você escolhe quando compartilhar.',
-      intro: 'O Vezuna foi criado em torno de registros locais, sem conta de usuário nem servidor do aplicativo.',
-      items: [
-        { title: 'Armazenamento local', body: 'Os registros ficam em um cofre criptografado no dispositivo, separados por perfil. Não há alegação de auditoria de segurança independente.' },
-        { title: 'Importação opcional de dados', body: 'Com permissão, leia frequência cardíaca, passos e peso do Health Connect ou HealthKit. Recusar o acesso não impede os registros manuais.' },
-        { title: 'Serviços das plataformas', body: 'As lojas cuidam do licenciamento e da entrega planejada de modelos. Sua privacidade é separada; as verificações finais de SDK e lançamento continuam abertas.' },
+      title: 'Onde seus registros ficam, e quando saem.',
+      body: 'O Vezuna não tem servidor nem conta. O celular é o único lugar onde seus registros existem até você decidir outra coisa.',
+      columns: { what: 'Dado', where: 'Onde fica', leaves: 'Quando sai do celular' },
+      rows: [
+        { what: 'Registros de saúde', where: 'Num cofre criptografado no celular, separado por perfil', leaves: 'Só quando você exporta ou faz backup' },
+        { what: 'Exportações em PDF e CSV', where: 'Um arquivo comum que você cria quando pede', leaves: 'Quando você compartilha ou salva. A partir daí, fica fora do cofre' },
+        { what: 'Backups', where: 'Um arquivo criptografado com a sua frase-senha', leaves: 'Onde você salvar. Sem a frase-senha ninguém abre, nem a gente' },
+        { what: 'Health Connect e Apple Saúde', where: 'Lidos com a sua permissão, nunca alterados', leaves: 'Nunca são enviados' },
+        { what: 'Compra', where: 'Feita pela App Store ou pelo Google Play', leaves: 'A loja vê a compra, nunca os registros' },
       ],
-      boundary: 'Os arquivos PDF e CSV são texto simples. Ao compartilhar uma exportação ou backup, o destino e a proteção ficam fora do cofre do Vezuna.',
+      note: 'No Android, o cofre usa AES-256-GCM com chave no Android Keystore. No iPhone, CryptoKit AES-GCM. Ainda não houve auditoria de segurança independente.',
+      policy: 'Política de privacidade', details: 'Detalhes técnicos de privacidade (em inglês)',
+    },
+    price: {
+      amount: 'US$9,99',
+      title: 'Um preço só, na App Store e no Google Play.',
+      body: 'O Vezuna é um app pago, sem anúncios. O preço já está definido nas duas lojas, e as vendas começam quando a análise das lojas terminar.',
+      status: 'Ainda não dá para baixar. Nenhuma versão estável foi publicada.',
+      primary: 'Ler o guia de primeiros passos', secondary: 'Acompanhar o código no GitHub',
     },
     faq: {
-      eyebrow: 'Perguntas, respostas diretas', title: 'Antes de começar.',
+      title: 'Perguntas',
       items: [
-        { question: 'Quando o Vezuna estará disponível?', answer: 'O Vezuna ainda está em preparação para lançamento, e nenhuma versão estável foi publicada. A disponibilidade nas lojas só será confirmada após as verificações e a análise das lojas.' },
-        { question: 'Quais dispositivos são compatíveis?', answer: 'O Vezuna é um app nativo para Android e iPhone. O Android 8.0 ou posterior é o mínimo atual no código-fonte; no iPhone, é necessário iOS 18.5 ou posterior. Os testes em dispositivos físicos continuam pendentes.' },
-        { question: 'Quais idiomas estão disponíveis?', answer: 'Inglês, português do Brasil e espanhol no app e nas orientações essenciais deste site.' },
-        { question: 'Quais permissões o Vezuna solicita?', answer: 'A importação de dados de saúde é opcional. Com permissão, o Vezuna lê frequência cardíaca, passos e peso do Health Connect ou HealthKit. Câmera, imagens selecionadas e notificações apoiam os fluxos de importação e lembretes. Você pode recusar o acesso e continuar com registros manuais.' },
-        { question: 'Como funcionam os backups?', answer: 'Os backups são criptografados para restauração com a chave do mesmo dispositivo. Não oferecem recuperação para outro dispositivo ou app e não devem ser tratados como proteção contra perda do aparelho.' },
-        { question: 'O Vezuna oferece orientação médica?', answer: 'Não. O Vezuna organiza as informações fornecidas. Ele não diagnostica doenças, recomenda tratamentos nem altera doses. Revise os rascunhos de OCR e confirme os valores com o relatório original.' },
+        { question: 'Quando vou poder baixar?', answer: 'Depois da análise da App Store e do Google Play. As duas páginas estão em preparação, e não há link de download até a análise terminar.' },
+        { question: 'Em quais celulares funciona?', answer: 'Android 8.0 ou posterior e iPhone com iOS 18.5 ou posterior. Não existe versão para Mac ou computador.' },
+        { question: 'O Vezuna dá orientação médica?', answer: 'Não. Ele guarda registros. Não diagnostica, não recomenda tratamento e não muda doses. Confira os valores importados com o laudo original e fale com um profissional de saúde.' },
+        { question: 'E se eu perder o celular?', answer: 'Seus registros existem só naquele celular. Se você fez um backup e lembra a frase-senha, restaure no celular novo. Sem backup, os registros não podem ser recuperados.' },
+        { question: 'Usa inteligência artificial?', answer: 'Esta versão não traz modelo de IA, então nenhum recurso de IA está disponível. Registros, exportações e backups nunca dependem de um.' },
+        { question: 'Quais permissões ele pede?', answer: 'Câmera e fotos para importar laudos, notificações para lembretes e leitura do Health Connect ou do Apple Saúde. Todas são opcionais. Os registros manuais continuam funcionando se você recusar.' },
+        { question: 'Quais idiomas estão incluídos?', answer: 'Inglês, português do Brasil e espanhol. O app segue o idioma do celular.' },
       ],
     },
     footer: {
-      tagline: 'Registros de saúde da família, guardados no seu dispositivo.', docs: 'Documentação', support: 'Suporte', privacy: 'Privacidade', source: 'Código-fonte', notices: 'Avisos de terceiros',
-      medical: 'O Vezuna ajuda a organizar registros pessoais de saúde e não substitui a orientação de um profissional de saúde qualificado.',
+      tagline: 'Sua saúde, em um só lugar.', docs: 'Documentação', support: 'Suporte', privacy: 'Política de privacidade', source: 'Código-fonte', notices: 'Avisos de terceiros',
+      medical: 'O Vezuna organiza registros pessoais de saúde. Ele não substitui a orientação de um profissional de saúde qualificado.',
+      licenses: 'Código e arte original sob MIT. Noto Sans sob SIL OFL 1.1.',
     },
   },
   es: {
-    nav: { story: 'Cómo funciona', routines: 'Medicamentos y exportaciones', privacy: 'Privacidad', faq: 'Preguntas frecuentes', docs: 'Leer la documentación', menu: 'Menú' },
+    meta: {
+      title: 'Vezuna: registros de salud de tu familia, guardados en tu teléfono',
+      description: 'Análisis, recordatorios de medicamentos y datos de salud de cada persona de tu familia, cifrados en tu teléfono. Sin cuenta y sin servidor. Android y iPhone.',
+    },
+    nav: { how: 'Cómo funciona', records: 'Qué guarda', privacy: 'Privacidad', price: 'Precio', faq: 'Preguntas', docs: 'Documentación', menu: 'Menú', home: 'Inicio de Vezuna', product: 'Producto' },
     hero: {
-      eyebrow: 'Los registros de salud de tu familia, en tu dispositivo.',
-      title: 'Tu salud, en un solo lugar.',
-      body: 'Reúne informes de laboratorio, horarios de medicamentos y registros de salud familiares. Revisa los datos importados, sigue los resultados confirmados y mantén todo organizado en tu dispositivo.',
-      primary: 'Leer la documentación', secondary: 'Ver el código fuente',
-      note: 'Preparación para el lanzamiento: todavía no se ha publicado una versión estable. Las pruebas en dispositivos físicos y la revisión de las tiendas siguen pendientes.',
-      galleryLabel: 'Vistas previas de la app Vezuna para Android',
-      caption: 'Pantallas reales de la compilación de desarrollo para Android con registros ficticios. Las pruebas de ejecución en iPhone y distribución en tiendas siguen pendientes.',
-      screenshots: [
-        { src: screenshots.home, alt: 'Panel familiar de Vezuna para el perfil ficticio Child', label: 'Resumen del hogar' },
-        { src: screenshots.labs, alt: 'Registros de laboratorio de Vezuna con controles de revisión de importación y tendencias', label: 'Registros de laboratorio' },
-        { src: screenshots.settings, alt: 'Ajustes de Vezuna con el límite sin conexión y acciones de exportación PDF y CSV', label: 'Privacidad y exportaciones' },
+      title: 'Guarda los registros de salud de tu familia en tu teléfono.',
+      body: 'Importa análisis, revisa cada valor antes de guardarlo y recibe recordatorios de medicamentos para cada persona que cuidas. Los registros se cifran en el teléfono. No hay cuenta ni servidor de Vezuna.',
+      primary: 'Leer la guía de inicio', secondary: 'Precio y disponibilidad',
+      facts: [
+        { term: 'Precio', value: 'US$9,99 en el lanzamiento' },
+        { term: 'Teléfonos', value: 'Android 8.0+ y iPhone con iOS 18.5+' },
+        { term: 'Idiomas', value: 'English, Português, Español' },
       ],
+      screen: { src: shots.home, alt: 'Pantalla de inicio de Vezuna para el perfil Child, con “Your health, in one place.”, un indicador 100% on-device y la lista de medicamentos vacía.', caption: 'Pantalla de inicio. Build de desarrollo para Android, perfil ficticio, interfaz en inglés.' },
     },
-    story: {
-      eyebrow: 'Un registro que puedes comprobar', title: 'Del informe a un registro más claro.',
-      intro: 'Mantén separada la información de cada persona y avanza del documento importado a los resultados confirmados a tu ritmo.',
+    how: {
+      title: 'Un análisis se vuelve registro solo cuando tú lo revisas.',
+      body: 'El reconocimiento de texto se equivoca. Vezuna trata lo que lee como un borrador y te espera.',
       steps: [
-        { title: 'Crea perfiles separados', body: 'Añade un perfil para cada persona del hogar y mantén sus registros separados.' },
-        { title: 'Importa imágenes y PDF', body: 'Incorpora un informe desde la cámara, una imagen o un PDF. El texto incorporado y el OCR se procesan en el dispositivo.' },
-        { title: 'Revisa antes de confirmar', body: 'Compara el borrador de OCR con el informe original. Corrige nombre, valor, unidad, intervalo de referencia o fecha antes de confirmar.' },
-        { title: 'Compara resultados confirmados', body: 'Consulta resultados uno junto a otro y sigue sus cambios, conservando los valores originales y las referencias de cada informe.' },
+        { title: 'Fotografía o importa el informe', body: 'Usa la cámara, una imagen guardada o un PDF. El reconocimiento de texto se ejecuta en el teléfono.' },
+        { title: 'Compara el borrador con el papel', body: 'Vezuna muestra la prueba, el valor, la unidad, el rango de referencia y la fecha que leyó. Corrige lo que no coincida con el original.' },
+        { title: 'Confirma y compara', body: 'Los resultados confirmados entran en el historial de la persona. Solo se grafican juntos los resultados con la misma unidad.' },
       ],
-      confirmation: 'Los resultados importados permanecen sin confirmar hasta que los revises. Solo los resultados confirmados aparecen en tendencias y exportaciones para profesionales.',
+      screen: { src: shots.labs, alt: 'Pantalla Lab records de Vezuna con los botones Import review y Trends y el aviso “No confirmed results”.', caption: 'Análisis antes del primer resultado confirmado.' },
     },
-    routines: {
-      eyebrow: 'Rutinas diarias', title: 'Rutinas y registros, listos cuando los necesites.',
-      intro: 'Mantén los horarios junto a los registros relacionados y prepara una copia para hablar con tu profesional de salud.',
+    records: {
+      title: 'Lo que Vezuna guarda para cada persona.',
+      body: 'Cada persona de la familia tiene un perfil separado. Los registros nunca se mezclan entre perfiles.',
       items: [
-        { title: 'Medicamentos', body: 'Guarda nombres, dosis registradas y horarios en un solo lugar. Vezuna registra lo que introduces; nunca elige ni modifica una dosis.' },
-        { title: 'Recordatorios locales', body: 'Usa recordatorios en tu dispositivo y marca las dosis como tomadas, omitidas o pospuestas. La entrega real de notificaciones aún debe comprobarse en dispositivos físicos.' },
-        { title: 'Exportaciones PDF y CSV', body: 'Crea informes PDF con tablas y gráficos o exporta datos confirmados como CSV. Comparte una copia mediante la hoja para compartir cuando quieras.' },
+        { term: 'Análisis', body: 'Valores confirmados con el rango de referencia impreso en el informe original y su evolución en el tiempo.' },
+        { term: 'Medicamentos', body: 'Horarios y recordatorios. Marca cada dosis como tomada, omitida o pospuesta.' },
+        { term: 'Peso, frecuencia cardíaca, pasos', body: 'Escríbelos a mano o permite importarlos, solo lectura, desde Health Connect o Apple Salud. Ambas opciones son opcionales.' },
+        { term: 'Exportaciones', body: 'Un PDF o CSV de los resultados confirmados para la consulta, enviado con el menú de compartir del teléfono.' },
+        { term: 'Copias de seguridad', body: 'Un archivo cifrado con una frase de contraseña que tú eliges. Restáuralo en un teléfono nuevo.' },
+        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. Las capturas de pantalla se bloquean mientras está activo.' },
       ],
-      exampleLabel: 'Ejemplo diario sintético', exampleTitle: 'Una vista tranquila del día',
-      exampleNote: 'Este horario ilustrativo no es una captura del producto ni una recomendación de dosis. Los nombres y registros son ficticios.',
-      schedule: [
-        { time: '08:00', title: 'Rutina de la mañana', detail: 'Medicamento de demostración · horario registrado', state: 'Tomado' },
-        { time: '13:30', title: 'Comprueba el registro', detail: 'Revisa un resultado importado ficticio', state: 'Para revisar' },
-        { time: '18:00', title: 'Prepárate para una consulta', detail: 'Exporta información confirmada como PDF', state: 'Cuando lo necesites' },
-      ],
-    },
-    tech: {
-      eyebrow: 'Registros locales, en una vista espacial',
-      title: 'Descubre cómo se conectan los registros.',
-      description: 'Una visualización espacial abstracta de los registros de salud locales, desde los borradores de OCR pendientes de confirmación hasta las comparaciones de resultados confirmados. El procesamiento permanece en tu dispositivo.',
-      draft: 'Borrador de OCR · confirmación necesaria',
-      confirmed: 'Resultado confirmado',
-      comparison: 'Comparar resultados confirmados',
-      local: 'Procesado localmente',
-      staticNote: 'Visualización abstracta con datos sintéticos, no una captura del producto ni un análisis médico.',
-    },
-    availability: {
-      eyebrow: 'Estado del lanzamiento',
-      title: 'Sigue el desarrollo en GitHub.',
-      body: 'Vezuna está en preparación para su lanzamiento. Explora el código fuente y las novedades del proyecto en GitHub; las versiones en las tiendas aún no están disponibles.',
-      github: 'Ver en GitHub',
-      appStore: 'App Store · no disponible',
-      googlePlay: 'Google Play · no disponible',
-      pending: 'Disponibilidad en tiendas pendiente',
+      screen: { src: shots.settings, alt: 'Pantalla Settings and export de Vezuna con el aviso “No Vezuna app server” y los botones Prepare CSV y Prepare PDF.', caption: 'Ajustes y exportación. Exportar nunca depende de un modelo de IA.' },
     },
     privacy: {
-      eyebrow: 'Un límite claro', title: 'Tus registros, en tu dispositivo. Tú decides cuándo compartirlos.',
-      intro: 'Vezuna se basa en registros locales, sin cuentas de usuario ni servidor de aplicación.',
-      items: [
-        { title: 'Almacenamiento local', body: 'Los registros se guardan en un almacenamiento cifrado y separado por perfil en tu dispositivo. No se afirma que exista una auditoría de seguridad independiente.' },
-        { title: 'Importación opcional de datos', body: 'Con permiso, lee frecuencia cardíaca, pasos y peso desde Health Connect o HealthKit. Rechazar el acceso no impide usar registros manuales.' },
-        { title: 'Servicios de plataforma', body: 'Las tiendas gestionan licencias y la entrega prevista de modelos. Su privacidad es independiente; las comprobaciones finales de SDK y lanzamiento siguen abiertas.' },
+      title: 'Dónde se quedan tus registros, y cuándo salen.',
+      body: 'Vezuna no tiene servidor ni cuenta. El teléfono es el único lugar donde existen tus registros hasta que tú decidas otra cosa.',
+      columns: { what: 'Dato', where: 'Dónde se queda', leaves: 'Cuándo sale del teléfono' },
+      rows: [
+        { what: 'Registros de salud', where: 'En un almacén cifrado en el teléfono, separado por perfil', leaves: 'Solo cuando exportas o haces una copia de seguridad' },
+        { what: 'Exportaciones PDF y CSV', where: 'Un archivo normal que creas cuando lo pides', leaves: 'Cuando lo compartes o lo guardas. Desde entonces está fuera del almacén' },
+        { what: 'Copias de seguridad', where: 'Un archivo cifrado con tu frase de contraseña', leaves: 'Donde lo guardes. Sin la frase nadie puede abrirlo, ni nosotros' },
+        { what: 'Health Connect y Apple Salud', where: 'Se leen con tu permiso, nunca se modifican', leaves: 'Nunca se envían' },
+        { what: 'Compra', where: 'La gestiona App Store o Google Play', leaves: 'La tienda ve la compra, nunca tus registros' },
       ],
-      boundary: 'Los archivos PDF y CSV no están cifrados. Al compartir una exportación o copia de seguridad, su destino y protección quedan fuera del almacenamiento de Vezuna.',
+      note: 'En Android, el almacén usa AES-256-GCM con una clave en Android Keystore. En iPhone, CryptoKit AES-GCM. Todavía no hay una auditoría de seguridad independiente.',
+      policy: 'Política de privacidad', details: 'Detalles técnicos de privacidad (en inglés)',
+    },
+    price: {
+      amount: 'US$9,99',
+      title: 'Un solo precio en App Store y Google Play.',
+      body: 'Vezuna es una app de pago, sin anuncios. El precio ya está fijado en ambas tiendas y la venta empieza cuando termine la revisión.',
+      status: 'Todavía no se puede descargar. No se ha publicado una versión estable.',
+      primary: 'Leer la guía de inicio', secondary: 'Seguir el código en GitHub',
     },
     faq: {
-      eyebrow: 'Preguntas, respuestas claras', title: 'Antes de empezar.',
+      title: 'Preguntas',
       items: [
-        { question: '¿Cuándo estará disponible Vezuna?', answer: 'Vezuna todavía está en preparación y no se ha publicado una versión estable. La disponibilidad en tiendas solo se confirmará después de las comprobaciones y la revisión de las tiendas.' },
-        { question: '¿Qué dispositivos son compatibles?', answer: 'Vezuna es una app nativa para Android y iPhone. Android 8.0 o posterior es el mínimo actual en el código fuente; en iPhone se requiere iOS 18.5 o posterior. Las pruebas físicas siguen pendientes.' },
-        { question: '¿Qué idiomas están disponibles?', answer: 'Inglés, portugués de Brasil y español en la app y en las guías esenciales de este sitio.' },
-        { question: '¿Qué permisos solicita Vezuna?', answer: 'La importación de datos de salud es opcional. Con permiso, Vezuna lee frecuencia cardíaca, pasos y peso desde Health Connect o HealthKit. Cámara, imágenes seleccionadas y notificaciones apoyan las importaciones y recordatorios. Puedes rechazar el acceso y seguir usando registros manuales.' },
-        { question: '¿Cómo funcionan las copias de seguridad?', answer: 'Las copias están cifradas para restaurarse con la clave del mismo dispositivo. No ofrecen recuperación en otro dispositivo o app ni deben considerarse protección contra la pérdida del dispositivo.' },
-        { question: '¿Vezuna ofrece orientación médica?', answer: 'No. Vezuna organiza la información que proporcionas. No diagnostica enfermedades, no recomienda tratamientos ni modifica dosis. Revisa los borradores de OCR y confirma los valores con el informe original.' },
+        { question: '¿Cuándo podré descargarla?', answer: 'Después de la revisión de App Store y Google Play. Ambas fichas están en preparación y no hay enlaces de descarga hasta que termine la revisión.' },
+        { question: '¿En qué teléfonos funciona?', answer: 'Android 8.0 o posterior, y iPhone con iOS 18.5 o posterior. No hay versión para Mac ni para computadora.' },
+        { question: '¿Vezuna da consejos médicos?', answer: 'No. Guarda registros. No diagnostica, no recomienda tratamientos y no cambia dosis. Revisa los valores importados con el informe original y consulta a un profesional.' },
+        { question: '¿Qué pasa si pierdo el teléfono?', answer: 'Tus registros existen solo en ese teléfono. Si hiciste una copia de seguridad y recuerdas su frase de contraseña, restáurala en el teléfono nuevo. Sin copia, los registros no se pueden recuperar.' },
+        { question: '¿Usa inteligencia artificial?', answer: 'Esta versión no incluye ningún modelo de IA, así que no hay funciones de IA disponibles. Los registros, las exportaciones y las copias nunca dependen de uno.' },
+        { question: '¿Qué permisos pide?', answer: 'Cámara y fotos para importar informes, notificaciones para los recordatorios y lectura de Health Connect o Apple Salud. Todos son opcionales. Los registros manuales siguen funcionando si los rechazas.' },
+        { question: '¿Qué idiomas incluye?', answer: 'Inglés, portugués de Brasil y español. La app sigue el idioma del teléfono.' },
       ],
     },
     footer: {
-      tagline: 'Los registros de salud de tu familia, en tu dispositivo.', docs: 'Documentación', support: 'Soporte', privacy: 'Privacidad', source: 'Código fuente', notices: 'Avisos de terceros',
-      medical: 'Vezuna ayuda a organizar registros personales de salud y no reemplaza la orientación de un profesional de la salud.',
+      tagline: 'Tu salud, en un solo lugar.', docs: 'Documentación', support: 'Soporte', privacy: 'Política de privacidad', source: 'Código fuente', notices: 'Avisos de terceros',
+      medical: 'Vezuna organiza registros personales de salud. No sustituye el consejo de un profesional de la salud calificado.',
+      licenses: 'Código y arte original bajo MIT. Noto Sans bajo SIL OFL 1.1.',
     },
   },
 };
 
-export const supportCopy: Record<Locale, { eyebrow: string; title: string; intro: string; generalTitle: string; generalBody: string; action: string; securityTitle: string; securityBody: string; securityAction: string; fallback: string; warning: string }> = {
+export interface SupportCopy {
+  title: string; intro: string;
+  emailTitle: string; emailBody: string;
+  generalTitle: string; generalBody: string; action: string;
+  securityTitle: string; securityBody: string; securityAction: string; fallback: string;
+  warning: string;
+}
+
+export const supportCopy: Record<Locale, SupportCopy> = {
   en: {
-    eyebrow: 'Best-effort project support', title: 'Get help without sharing your records.',
-    intro: 'Use the project’s public issue tracker for general questions and GitHub private vulnerability reporting for security issues. No support email or response-time commitment is currently provided.',
-    generalTitle: 'Questions and bug reports', generalBody: 'For product questions, privacy questions, or bug reports, open a GitHub issue. Include the affected platform and app version or commit, plus reproduction steps where useful.', action: 'Open GitHub issues',
-    securityTitle: 'Security reports', securityBody: 'Open the repository’s Security tab and choose “Report a vulnerability”. Include the affected platform, version or commit, reproduction steps, impact, and a suggested fix if available.', securityAction: 'Open the Security tab',
-    fallback: 'If private reporting is unavailable, open a public issue only to request a private channel. Do not include vulnerability details or exploit steps.',
-    warning: 'Use synthetic examples only. Never attach real medical documents, screenshots of personal records, vault files, or backups to any support channel.',
+    title: 'Get help without sharing your records.',
+    intro: 'Support is run by the developer on a best-effort basis. There is no response-time commitment.',
+    emailTitle: 'Email', emailBody: 'For questions about the app, purchases, or privacy.',
+    generalTitle: 'Questions and bug reports', generalBody: 'Open a GitHub issue. Include the platform, the app version or commit, and the steps that reproduce the problem.', action: 'Open GitHub issues',
+    securityTitle: 'Security reports', securityBody: 'Open the repository’s Security tab and choose “Report a vulnerability”. Include the platform, version or commit, reproduction steps, impact, and a suggested fix if you have one. This uses GitHub private vulnerability reporting.', securityAction: 'Open the Security tab',
+    fallback: 'If private reporting is unavailable, open a public issue only to ask for a private channel. Leave out vulnerability details and exploit steps.',
+    warning: 'Use synthetic examples only. Never attach actual medical documents, screenshots of personal records, vault files, or backups to any support channel.',
   },
   'pt-br': {
-    eyebrow: 'Suporte do projeto com melhor esforço', title: 'Obtenha ajuda sem compartilhar seus registros.',
-    intro: 'Use as issues públicas para dúvidas gerais e o canal privado do GitHub para vulnerabilidades. No momento, não há e-mail de suporte nem compromisso de tempo de resposta.',
-    generalTitle: 'Dúvidas e problemas', generalBody: 'Para dúvidas sobre o produto ou privacidade e para relatar erros, abra uma issue no GitHub. Informe a plataforma e a versão do app ou commit, com passos de reprodução quando útil.', action: 'Abrir issues no GitHub',
-    securityTitle: 'Relatórios de segurança', securityBody: 'Na aba Security do repositório, selecione “Report a vulnerability”. Informe plataforma, versão ou commit, passos de reprodução, impacto e uma correção sugerida, se houver.', securityAction: 'Abrir a aba Security',
-    fallback: 'Se o canal privado não estiver disponível, abra uma issue pública apenas para pedir um canal privado. Não inclua detalhes da vulnerabilidade nem passos de exploração.',
-    warning: 'Use apenas exemplos fictícios. Nunca anexe documentos médicos reais, capturas de registros pessoais, arquivos do cofre ou backups em nenhum canal de suporte.',
+    title: 'Peça ajuda sem compartilhar seus registros.',
+    intro: 'O suporte é feito pelo desenvolvedor, com melhor esforço. Não há compromisso de tempo de resposta.',
+    emailTitle: 'E-mail', emailBody: 'Para dúvidas sobre o app, compras ou privacidade.',
+    generalTitle: 'Dúvidas e problemas', generalBody: 'Abra uma issue no GitHub. Informe a plataforma, a versão do app ou o commit e os passos que reproduzem o problema.', action: 'Abrir issues no GitHub',
+    securityTitle: 'Relatórios de segurança', securityBody: 'Na aba Security do repositório, escolha “Report a vulnerability”. Informe plataforma, versão ou commit, passos de reprodução, impacto e uma correção sugerida, se houver. O canal é o relatório privado de vulnerabilidades do GitHub.', securityAction: 'Abrir a aba Security',
+    fallback: 'Se o canal privado não estiver disponível, abra uma issue pública só para pedir um canal privado. Deixe de fora detalhes da vulnerabilidade e passos de exploração.',
+    warning: 'Use apenas exemplos fictícios. Nunca anexe documentos médicos de pessoas, capturas de registros pessoais, arquivos do cofre ou backups em nenhum canal de suporte.',
   },
   es: {
-    eyebrow: 'Soporte del proyecto con el mejor esfuerzo', title: 'Recibe ayuda sin compartir tus registros.',
-    intro: 'Utiliza las issues públicas para preguntas generales y el canal privado de GitHub para vulnerabilidades. Actualmente no hay correo de soporte ni compromiso de tiempo de respuesta.',
-    generalTitle: 'Preguntas y errores', generalBody: 'Para preguntas sobre el producto o la privacidad, o para informar de un error, abre una issue en GitHub. Indica la plataforma y la versión de la app o commit, con pasos de reproducción cuando sea útil.', action: 'Abrir issues en GitHub',
-    securityTitle: 'Informes de seguridad', securityBody: 'En la pestaña Security del repositorio, selecciona “Report a vulnerability”. Indica plataforma, versión o commit, pasos de reproducción, impacto y una corrección sugerida si la tienes.', securityAction: 'Abrir la pestaña Security',
-    fallback: 'Si el canal privado no está disponible, abre una issue pública solo para solicitar un canal privado. No incluyas detalles de la vulnerabilidad ni pasos de explotación.',
+    title: 'Recibe ayuda sin compartir tus registros.',
+    intro: 'El soporte lo atiende el desarrollador con el mejor esfuerzo. No hay compromiso de tiempo de respuesta.',
+    emailTitle: 'Correo', emailBody: 'Para preguntas sobre la app, compras o privacidad.',
+    generalTitle: 'Preguntas y errores', generalBody: 'Abre una issue en GitHub. Indica la plataforma, la versión de la app o el commit y los pasos que reproducen el problema.', action: 'Abrir issues en GitHub',
+    securityTitle: 'Informes de seguridad', securityBody: 'En la pestaña Security del repositorio, elige “Report a vulnerability”. Indica plataforma, versión o commit, pasos de reproducción, impacto y una corrección sugerida si la tienes. El canal es el informe privado de vulnerabilidades de GitHub.', securityAction: 'Abrir la pestaña Security',
+    fallback: 'Si el canal privado no está disponible, abre una issue pública solo para pedir un canal privado. Deja fuera los detalles de la vulnerabilidad y los pasos de explotación.',
     warning: 'Usa solo ejemplos ficticios. Nunca adjuntes documentos médicos reales, capturas de registros personales, archivos del almacenamiento ni copias de seguridad en ningún canal de soporte.',
   },
 };
