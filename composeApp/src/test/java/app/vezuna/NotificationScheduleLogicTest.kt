@@ -1,6 +1,9 @@
 package app.vezuna
 
 import app.vezuna.domain.DoseSchedule
+import app.vezuna.domain.Medication
+import app.vezuna.domain.Profile
+import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import app.vezuna.notifications.NotificationScheduleLogic
 import kotlinx.datetime.DayOfWeek
@@ -33,6 +36,18 @@ class NotificationScheduleLogicTest {
             "2026-10-04T08:00:00Z",
             NotificationScheduleLogic.nextOccurrences(interval, Instant.parse("2026-10-02T07:00:00Z"), utc).single().toInstant().toString(),
         )
+    }
+
+    @Test
+    fun reminderIsStaleAfterPauseStopOrDelete() {
+        val schedule = schedule(Recurrence.DAILY)
+        val medication = Medication(schedule.profileId, schedule.medicationId, "Med", schedules = listOf(schedule))
+        val profile = Profile(schedule.profileId, "Me", createdAt = kotlinx.datetime.Instant.fromEpochSeconds(1))
+        fun current(data: ProfileData?) = NotificationScheduleLogic.isReminderCurrent(data, schedule.medicationId, schedule.scheduleId)
+        assertTrue(current(ProfileData(profile, medications = listOf(medication))))
+        assertEquals(false, current(ProfileData(profile, medications = listOf(medication.copy(active = false)))))
+        assertEquals(false, current(ProfileData(profile)))
+        assertEquals(false, current(null))
     }
 
     @Test

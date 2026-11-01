@@ -38,6 +38,9 @@ import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.datetime.Instant
@@ -114,6 +117,11 @@ object IosRuntime {
                 controller = AppController(repository, manager, LocalHealthChat(repository, llm))
                 initialized = true
                 controller.initialize()
+                // Edits and deletes made in Compose reload the controller after the repository commit; notify native
+                // reminder reconciliation once the controller's view of the active profile is consistent again.
+                scope.launch {
+                    controller.state.map { it.data }.distinctUntilChanged().drop(1).collect { repositoryObserver?.repositoryDidChange() }
+                }
                 completion(null)
             } catch (error: Throwable) {
                 completion(nativeMessage("storage_open_failed"))

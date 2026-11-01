@@ -340,6 +340,61 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
+    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, time: String) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
+        val canonicalTime = time.trim()
+        if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
+        // The editor exposes one reminder time; it replaces the first time of the first schedule.
+        val schedules = medication.schedules.mapIndexed { index, schedule ->
+            if (index == 0) schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1)) else schedule
+        }
+        repository.updateMedication(
+            medication.copy(
+                displayName = name.trim(),
+                strength = strength.trim().ifBlank { null },
+                instructions = instructions.trim().ifBlank { null },
+                schedules = schedules,
+            ),
+        )
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Pausing keeps history; resuming also clears an end date that has already passed (a stopped medication). */
+    suspend fun setMedicationActive(medicationId: String, active: Boolean) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        val today = clock().toLocalDateTime(timeZone()).date
+        val schedules = if (active) {
+            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+        } else {
+            medication.schedules
+        }
+        repository.updateMedication(medication.copy(active = active, schedules = schedules))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Stopping ends the schedules today (never before they start) and deactivates reminders immediately. */
+    suspend fun stopMedication(medicationId: String) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        val today = clock().toLocalDateTime(timeZone()).date
+        val schedules = medication.schedules.map { it.copy(endDate = maxOf(today, it.startDate)) }
+        repository.updateMedication(medication.copy(active = false, schedules = schedules))
+        loadProfile(data.profile.profileId)
+    }
+
+    suspend fun deleteMedication(medicationId: String) = operation {
+        val data = requireData()
+        findMedication(data, medicationId)
+        repository.deleteMedication(data.profile.profileId, medicationId)
+        loadProfile(data.profile.profileId)
+    }
+
+    private fun findMedication(data: ProfileData, medicationId: String): Medication =
+        data.medications.firstOrNull { it.medicationId == medicationId } ?: failMessage(L10nKey.MEDICATION_NOT_FOUND)
+
     suspend fun takeDose(dose: DashboardDose) = recordTerminalDose(dose, DoseEventStatus.TAKEN)
 
     suspend fun skipDose(dose: DashboardDose) = recordTerminalDose(dose, DoseEventStatus.SKIPPED)

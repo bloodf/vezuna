@@ -24,6 +24,7 @@ import java.time.ZoneId
 class MedicationNotificationScheduler(private val context: Context) {
     private val alarms = context.getSystemService(AlarmManager::class.java)
     private val reconciliationMutex = Mutex()
+    private val armedStore = context.getSharedPreferences(ARMED_PREFS, Context.MODE_PRIVATE)
 
     fun createChannel() {
         val channel = NotificationChannel(
@@ -36,6 +37,7 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     suspend fun rescheduleAll(repository: PersistentVezunaRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
         val zone = ZoneId.systemDefault()
+        val armed = mutableSetOf<String>()
         repository.profiles.value.forEach { profile ->
             val data = repository.readProfile(profile.profileId)
             val terminalEvents = data.doseEvents.filter {
@@ -51,6 +53,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                     val completed = terminalEvents.any { it.scheduleId == schedule.scheduleId && it.scheduledFor.epochSeconds == at.epochSecond }
                     val superseded = scheduledEvents.any { it.scheduleId == schedule.scheduleId && it.replacesScheduledFor?.epochSeconds == at.epochSecond }
                     if (!completed && !superseded) {
+                        armed += armedKey(medication.medicationId, alarmId)
                         alarms.setAndAllowWhileIdle(
                             AlarmManager.RTC_WAKEUP,
                             at.toEpochMilli(),
@@ -67,6 +70,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                 val completed = terminalEvents.any { it.scheduleId == event.scheduleId && it.scheduledFor == event.scheduledFor }
                 val superseded = scheduledEvents.any { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
                 if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && !completed && !superseded) {
+                    armed += armedKey(medication.medicationId, alarmId)
                     alarms.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         at.toEpochMilli(),
@@ -75,7 +79,32 @@ class MedicationNotificationScheduler(private val context: Context) {
                 }
             }
         }
+        cancelStale(armed)
     }
+
+    /**
+     * Alarms armed by an earlier pass for medications that are now paused, stopped or deleted (or whose
+     * profile was deleted) are no longer produced by the loops above, so cancel them and any shown notification.
+     */
+    private fun cancelStale(armed: Set<String>) {
+        val previous = armedStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
+        (previous - armed).forEach { key ->
+            val (medicationId, alarmId) = key.split(ARMED_SEPARATOR, limit = 2)
+            val intent = Intent(context, ReminderReceiver::class.java).apply {
+                action = ACTION_SHOW
+                data = Uri.parse("vezuna://reminder/$medicationId/$alarmId")
+            }
+            PendingIntent.getBroadcast(context, alarmId.hashCode(), intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)?.let {
+                alarms.cancel(it)
+                it.cancel()
+            }
+            cancel(alarmId.hashCode())
+        }
+        armedStore.edit().putStringSet(ARMED_KEY, armed.toSet()).apply()
+    }
+
+    private fun armedKey(medicationId: String, alarmId: String) = "$medicationId$ARMED_SEPARATOR$alarmId"
+
 
     fun snooze(original: Intent) {
         val at = Instant.now().plusMillis(SNOOZE_MS)
@@ -167,6 +196,9 @@ class MedicationNotificationScheduler(private val context: Context) {
         const val EXTRA_SCHEDULED_FOR = "scheduledFor"
         const val EXTRA_ORIGINAL_SCHEDULED_FOR = "originalScheduledFor"
         const val EXTRA_NOTIFICATION_ID = "notificationId"
+        private const val ARMED_PREFS = "recorded-medication-armed-alarms"
+        private const val ARMED_KEY = "armed"
+        private const val ARMED_SEPARATOR = "|"
         const val SNOOZE_MS = 10 * 60 * 1000L
 
         fun requestCode(scheduleId: String?, at: Instant): Int = 31 * (scheduleId ?: "snooze").hashCode() + at.epochSecond.hashCode()

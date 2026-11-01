@@ -1,6 +1,7 @@
 package app.vezuna.notifications
 
 import app.vezuna.domain.DoseSchedule
+import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import java.time.Instant
 import java.time.LocalDate
@@ -11,6 +12,12 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 object NotificationScheduleLogic {
+    /** False once the medication was paused, stopped or deleted (or its profile removed) after the alarm was armed. */
+    fun isReminderCurrent(data: ProfileData?, medicationId: String, scheduleId: String): Boolean =
+        data?.medications?.any { medication ->
+            medication.medicationId == medicationId && medication.active && medication.schedules.any { it.scheduleId == scheduleId }
+        } == true
+
     fun nextOccurrences(schedule: DoseSchedule, now: Instant, zone: ZoneId): List<ZonedDateTime> {
         val localNow = now.atZone(zone)
         val start = LocalDate.ofEpochDay(schedule.startDate.toEpochDays())

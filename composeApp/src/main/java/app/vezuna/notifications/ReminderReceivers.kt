@@ -20,7 +20,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val pending = goAsync()
         app.applicationScope.launch {
             try {
-                app.notifications.showReminder(intent)
+                if (isCurrent(app, intent)) app.notifications.showReminder(intent)
                 app.notifications.rescheduleAll(app.repository)
                 DashboardRefreshSignal.notifyRepositoryChanged()
             } finally {
@@ -28,6 +28,19 @@ class ReminderReceiver : BroadcastReceiver() {
             }
         }
     }
+}
+
+/** A snoozed alarm survives edits, so re-check the medication before notifying. */
+private suspend fun isCurrent(app: VezunaApplication, intent: Intent): Boolean {
+    val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return false
+    val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return false
+    val scheduleId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_SCHEDULE_ID) ?: return false
+    val data = try {
+        app.repository.readProfile(profileId)
+    } catch (missing: NoSuchElementException) {
+        null
+    }
+    return NotificationScheduleLogic.isReminderCurrent(data, medicationId, scheduleId)
 }
 
 class DoseActionReceiver : BroadcastReceiver() {
@@ -52,6 +65,8 @@ class DoseActionReceiver : BroadcastReceiver() {
 
     private suspend fun recordDose(app: VezunaApplication, intent: Intent, action: DoseAction) {
         val status = action.status ?: return
+        // A notification left over from a deleted medication or profile must not crash or write orphan events.
+        if (!isCurrent(app, intent)) return
         val scheduledEpoch = intent.getLongExtra(
             MedicationNotificationScheduler.EXTRA_ORIGINAL_SCHEDULED_FOR,
             intent.getLongExtra(MedicationNotificationScheduler.EXTRA_SCHEDULED_FOR, -1L),
