@@ -55,7 +55,7 @@ struct NotificationPlanner {
                         var dateComponents = calendar.dateComponents([.year, .month, .day], from: day)
                         dateComponents.hour = components.hour
                         dateComponents.minute = components.minute
-                        if let date = calendar.date(from: dateComponents), date > now && matches(schedule: schedule, day: day, start: start) {
+                        if let date = calendar.date(from: dateComponents), date > now && date <= horizon && matches(schedule: schedule, day: day, start: start) {
                             reminders.append(DoseReminder(
                                 profileId: schedule.profileId,
                                 medicationId: schedule.medicationId,

@@ -17,8 +17,9 @@ enum CryptoKitAESGCM {
 
     static func encrypt(key: Data, plaintext: Data, associatedData: Data) throws -> AESGCMValue {
         guard key.count == 32 else { throw CryptoKitError.incorrectKeySize }
+        // Data(...) below rebases indices to 0; sliced storage trapped on subscript [0].
         let box = try AES.GCM.seal(plaintext, using: SymmetricKey(data: key), authenticating: associatedData)
-        return AESGCMValue(nonce: Data(box.nonce), ciphertextAndTag: box.ciphertext + box.tag, associatedData: associatedData)
+        return AESGCMValue(nonce: Data(box.nonce), ciphertextAndTag: Data(box.ciphertext + box.tag), associatedData: associatedData)
     }
 
     static func decrypt(key: Data, value: AESGCMValue) throws -> Data {

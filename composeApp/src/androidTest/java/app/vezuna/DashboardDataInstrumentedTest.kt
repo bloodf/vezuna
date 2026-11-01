@@ -187,11 +187,11 @@ class DashboardDataInstrumentedTest {
             }
             device.takeScreenshot(java.io.File(directory, "dashboard-labs.png"))
             assertTrue(device.wait(Until.hasObject(By.text("Hemoglobin")), 3_000))
-            assertTrue("Reference row not found", scrollTo(device, "Reference:"))
+            assertTrue("Reference row not found", swipeTo(device, "Reference:"))
             assertTrue(device.wait(Until.hasObject(By.textContains("Reference:")), 3_000))
-            assertTrue("Trend action not found", scrollTo(device, "Increase"))
+            assertTrue("Trend action not found", swipeTo(device, "Increase"))
             assertTrue(device.wait(Until.hasObject(By.textContains("Increase")), 3_000))
-            assertTrue("Review notice not found", scrollTo(device, "1 candidate needs your confirmation"))
+            assertTrue("Review notice not found", swipeTo(device, "1 candidate needs your confirmation"))
             assertTrue(device.wait(Until.hasObject(By.textContains("1 candidate needs your confirmation")), 3_000))
             device.takeScreenshot(java.io.File(directory, "dashboard-labs.png"))
 
@@ -211,6 +211,16 @@ class DashboardDataInstrumentedTest {
         } finally {
             scenario.close()
         }
+    }
+
+    /** Swipes down from the current position; UiScrollable can pick a non-page scrollable and miss lower rows. */
+    private fun swipeTo(device: UiDevice, text: String): Boolean {
+        repeat(8) {
+            if (device.hasObject(By.textContains(text))) return true
+            device.swipe(device.displayWidth / 2, (device.displayHeight * 0.7).toInt(), device.displayWidth / 2, (device.displayHeight * 0.4).toInt(), 100)
+            device.waitForIdle()
+        }
+        return device.hasObject(By.textContains(text))
     }
 
     private fun scrollTo(device: UiDevice, text: String): Boolean {
