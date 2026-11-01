@@ -4,6 +4,8 @@ Vezuna is native: Kotlin Multiplatform (Android app in `composeApp/`, shared cod
 
 Never commit keystores, `.p8` keys, service-account JSON, passwords, `samples/` or `models/`.
 
+Before submitting any build, complete the [physical-device validation](DEVICE_VALIDATION.md) checklist for the release candidate and attach the results table.
+
 ## Versions
 
 | Platform | Name | Build number | Set with |
@@ -129,7 +131,7 @@ The owner's configured service account is `vezuna-eas-submit@vezuna-release-4769
 
 The paid-app creation form can enable automatic installer protection. Review its effect on access to existing records and exports, which Vezuna's own licensing must never gate. Do not change that protection or certify export-law compliance without the account owner's decision.
 
-Health Connect privacy-policy intent handlers are implemented for Android 13 and Android 14 onward. Both open the offline publisher policy, also available from the Device menu. Three targeted tests pass on a 16 KB emulator. Review and deploy the generated website copy, then use that same policy URL in Play Console before release, following [Google's Health Connect setup guide](https://developer.android.com/health-and-fitness/health-connect/get-started#show-privacy-policy). The canonical publisher text is `docs/PUBLISHER_PRIVACY_POLICY.txt`; the technical `PRIVACY.md` is separate. Run `python3 tools/release/sync_privacy_policy.py` after editing the canonical policy. CI and release scripts require `--check`, and both release scripts compare the actual bundled policy with the source. iOS exposes the offline policy in its native menu too. Owner review remains pending.
+Health Connect privacy-policy intent handlers are implemented for Android 13 and Android 14 onward. Both open the offline publisher policy, also available from the Device menu. Three targeted tests pass on a 16 KB emulator. The publisher-approved generated website copy is live at https://vezuna.app/privacy. Use that same policy URL in Play Console before release, following [Google's Health Connect setup guide](https://developer.android.com/health-and-fitness/health-connect/get-started#show-privacy-policy). The canonical publisher text is `docs/PUBLISHER_PRIVACY_POLICY.txt`; the technical `PRIVACY.md` is separate. Run `python3 tools/release/sync_privacy_policy.py` after editing the canonical policy. CI and release scripts require `--check`, and both release scripts compare the actual bundled policy with the source. iOS exposes the offline policy in its native menu too. Publisher approval and exact live-copy verification were completed on November 1, 2026.
 
 ### App Store Connect / TestFlight
 
@@ -160,6 +162,16 @@ The corrected Debug app reaches Home on an isolated iOS 27.1 simulator. Native X
 
 Publisher Heitor Ribeiro and public email heitor.ramon@gmail.com are confirmed. The canonical publisher policy and website/native readers are prepared. Android menu, legacy Health Connect rationale, and permission-protected Android 14 alias pass three emulator tests. The actual Debug APK and iOS simulator app contain exactly the canonical policy bytes. Website type checks, build, three existing content tests, and the rendered-policy comparison pass. Old signed Android candidates correctly fail the new policy check. Android still needs a later signed rebuild. The replacement signed iOS candidate includes policy readers and manifests; future model or SDK changes require another build.
 
-Google Play price USD 9.99 is saved and the console confirms the change. Converted regional prices are generated; this does not select availability territories. Apple pricing remains pending. The live HTTPS privacy page returns HTTP 200 from Vercel but still contains the previous implementation-only disclosure. Owner policy review and deployment remain pending.
+Google Play price USD 9.99 is saved and the console confirms the change. Converted regional prices are generated; this does not select availability territories. Apple price USD 9.99 is also saved, using the United States as reference. The owner-approved policy was deployed to the existing Vercel project and its public rendered page and downloadable text match the canonical source exactly. The policy URL is saved in all three Apple draft localizations and Play Console; Play marks its policy task complete.
 
 The current sealed iOS candidate is `build/release-candidates/ios/vezuna-1.0-1-56e5de0f6f12.ipa`. Its strict signature/profile/certificate/entitlement, metadata/resource, notices, policy, and manifest packaging checks pass. Its matching dSYM maps the current `stat` and `fstat` call sites to the same Skia and ICU wrappers. This does not establish store acceptance or physical-device behavior.
+
+### November 1 policy publication and Apple listing update
+
+The approved policy SHA-256 is `048efe03b16e8657b85ded9aa667fcfd160471e5d5f45ff638c5f34e9f81717f`. It is live at https://vezuna.app/privacy, with the same text at https://vezuna.app/privacy-policy.txt. Public support and docs routes also return HTTP 200. Deployment used a separate staging directory containing only website source, linked to the existing `hr-teconologia/vezuna` project. No native application data or release credentials were uploaded.
+
+Apple’s USD 9.99 price and Portuguese, English and Spanish listing metadata are saved. The version remains Prepare for Submission. Names, subtitles, policy URLs, descriptions, keywords, promotional text, support/marketing URLs and copyright match `docs/store/metadata.json` through official API verification. The English app name is “Vezuna: Health Records”, approved by the owner after “Vezuna” was unavailable. The owner saved the private reviewer phone; only its presence is recorded in the validation report. The approved Developer key can verify metadata but its app-info edit returned 403, so edits used the owner browser without widening key access. Play confirms its policy task complete, and public email/website are saved. Extension input remained intermittent; native Chrome accessibility completed the Apple metadata. No App Privacy collection declaration, binary, or review submission was published.
+
+Play’s Portuguese, English and Spanish text drafts and existing brand icon/feature graphic are saved. Each description was verified after a page reload. Final release screenshots are missing, so the listing is not complete or submitted. Android-specific descriptions in `docs/store/metadata.json` omit iPhone requirements.
+
+Play Medical category and no-advertising answer are saved as pending review changes. The category matches the health-record/medication organizer; it does not determine regulated medical-device status. The no-ads answer matches the app source and current declared SDKs. Other privacy/health/rating/export decisions remain open.

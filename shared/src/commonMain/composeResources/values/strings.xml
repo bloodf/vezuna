@@ -254,6 +254,25 @@ iOS: %2$s</string>
     <string name="text_result_toggle">Text result (not a number)</string>
     <string name="ocr_read_token">OCR read: %1$s</string>
     <string name="ambiguous_number_warning">Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)</string>
+    <string name="reference_text_optional">Reference text (optional)</string>
+    <string name="number_ambiguous_input">Ambiguous number: write thousands without a separator (250000) and decimals with a comma or point that is not followed by exactly three digits (type 1,020 or 1.02 for one point zero two)</string>
+    <string name="report_manual_summary">Typed by hand on %1$s</string>
+    <string name="manual_entry_hint">No file needed: type a result from a paper report and choose its collection date.</string>
+    <string name="save_manual_result">Save manual result</string>
+    <string name="manual_result_saved">Manual result saved</string>
+    <string name="manual_entry_report">Manual entry</string>
+    <string name="edit_result">Edit result</string>
+    <string name="result_updated">Result updated</string>
+    <string name="result_unchanged">Nothing changed</string>
+    <string name="result_history">Edit history</string>
+    <string name="result_revision">%1$s: was %2$s, reference %3$s, collected %4$s</string>
+    <string name="imported_reports">Reports</string>
+    <string name="imported_reports_subtitle">Delete a report to remove its file, drafts and results.</string>
+    <string name="report_summary">Imported %1$s</string>
+    <string name="delete_report">Delete report</string>
+    <string name="delete_report_warning">Delete the report %1$s with its stored file, unreviewed drafts and confirmed results? This cannot be undone.</string>
+    <string name="report_not_found">Report not found</string>
+    <string name="report_deleted">Report deleted</string>
     <string name="save">Save</string>
     <string name="edit">Edit</string>
     <string name="rename_profile">Rename profile</string>

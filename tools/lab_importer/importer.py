@@ -28,7 +28,7 @@ LIGATURES = str.maketrans(
     }
 )
 NBSP = dict.fromkeys(map(ord, "\u00a0\u202f\u2007\u2009"), " ")
-NUMBER = r"[+-]?(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?|\d+\.\d+)"
+NUMBER = r"[+-]?(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)"
 UNITS = (
     "µUI/mL",
     "μUI/mL",
@@ -69,8 +69,24 @@ UNITS = (
     "/mL",
     "fL",
     "%",
+    "/mm3",
+    "/mm³",
+    "10^3/mm3",
+    "10^3/mm³",
+    "10^6/mm3",
+    "10^6/mm³",
+    "10³/µL",
+    "10³/μL",
+    "10³/mm³",
+    "10⁶/µL",
+    "mEq/L",
+    "mIU/mL",
+    "mIU/L",
+    "IU/mL",
+    "IU/L",
+    "mm/h",
 )
-UNIT_PATTERN = "(?:" + "|".join(re.escape(unit) for unit in UNITS) + ")"
+UNIT_PATTERN = "(?:" + "|".join(re.escape(unit) for unit in sorted(UNITS, key=len, reverse=True)) + ")"
 QUALITATIVE_VALUES = (
     "Ausente",
     "Presente",
@@ -226,9 +242,9 @@ def _reference(lower: float | None = None, upper: float | None = None, **extra: 
 
 def _find_references(rest: str) -> list[dict[str, Any]]:
     references: list[dict[str, Any]] = []
-    range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|–|—)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
+    range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|to|–|—|-)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
     threshold_pattern = re.compile(
-        rf"(inferior(?:\s+[àa])?|menor\s+que|até|ate|no\s+m[áa]ximo|superior(?:\s+[àa])?|maior\s+que|acima\s+de)\s*[:=]?\s*({NUMBER})\s*({UNIT_PATTERN})?",
+        rf"(inferior(?:\s+[àa])?|menor\s+que|até|ate|no\s+m[áa]ximo|superior(?:\s+[àa])?|maior\s+que|acima\s+de|<=|>=|<|>|≤|≥)\s*[:=]?\s*({NUMBER})\s*({UNIT_PATTERN})?",
         re.I,
     )
     occupied: list[tuple[int, int]] = []
@@ -244,13 +260,14 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
     for match in threshold_pattern.finditer(rest):
         if any(match.start() >= start and match.end() <= end for start, end in occupied):
             continue
-        operator_text = folded(match.group(1))
+        operator_text = folded(match.group(1)) or match.group(1)
+        symbol = match.group(1)
         value = parse_number(match.group(2))
-        if operator_text.startswith(("inferior", "menor", "até", "ate", "no maximo")):
+        if operator_text.startswith(("inferior", "menor", "até", "ate", "no maximo")) or symbol.startswith(("<", "≤")):
             reference = _reference(
                 upper=value,
                 kind="threshold",
-                operator="<=" if operator_text.startswith(("até", "ate", "no maximo")) else "<",
+                operator="<=" if operator_text.startswith(("até", "ate", "no maximo")) or symbol in ("<=", "≤") else "<",
                 unit=match.group(3),
                 text=match.group(0).strip(),
                 _start=match.start(),
@@ -259,7 +276,7 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
             reference = _reference(
                 lower=value,
                 kind="threshold",
-                operator=">",
+                operator=">=" if symbol in (">=", "≥") else ">",
                 unit=match.group(3),
                 text=match.group(0).strip(),
                 _start=match.start(),

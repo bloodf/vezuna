@@ -114,7 +114,7 @@ class BackupService(
 
     companion object {
         /** 2 adds the vitals section to the profile data; version 1 payloads (no vitals) are still accepted. */
-        const val SCHEMA_VERSION = 2
+        const val SCHEMA_VERSION = 3
         private val ACCEPTED_SCHEMA_VERSIONS = 1..SCHEMA_VERSION
         const val MAX_BACKUP_BYTES = 64 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"

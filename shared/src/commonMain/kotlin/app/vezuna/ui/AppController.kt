@@ -2,6 +2,7 @@ package app.vezuna.ui
 
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ChatMessage
+import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DashboardDose
 import app.vezuna.domain.DashboardSnapshot
@@ -13,6 +14,7 @@ import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
+import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.Profile
@@ -21,6 +23,7 @@ import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.importer.OcrTextParser
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -34,6 +37,8 @@ import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.failMessage
+import app.vezuna.localization.formatLabValue
+import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
@@ -46,15 +51,26 @@ import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
 import app.vezuna.security.BackupService
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
+
+/** Where a platform keeps the imported source file (encrypted). Optional: a platform without one stores no file. */
+interface SourceFileStore {
+    /** Stores [bytes] for the document and returns the key to record on it. */
+    suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String
+
+    /** Removes a stored file when the import that owned it could not be recorded. */
+    suspend fun discard(key: String)
+}
 
 sealed interface AppScreen {
     data object Dashboard : AppScreen
@@ -101,6 +117,7 @@ class AppController(
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
     /** Null when the platform offers no backup file access (previews, tests). */
     val backup: BackupService? = null,
+    private val sourceStore: SourceFileStore? = null,
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
@@ -176,29 +193,6 @@ class AppController(
         loadProfile(profileId)
     }
 
-    suspend fun importCandidate(
-        fileName: String,
-        mediaType: String,
-        sourceBytes: ByteArray,
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        referenceLower: String,
-        referenceUpper: String,
-        collectedAt: kotlinx.datetime.Instant? = null,
-    ) = operation {
-        val range = ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = rawUnit.trim())
-        val inserted = importExtracted(
-            PickedSource(fileName, mediaType, sourceBytes),
-            listOf(ExtractedCandidate(testCode, displayName, rawValue, rawUnit, range, collectedAt)),
-        )
-        mutableState.value = mutableState.value.copy(
-            screen = AppScreen.ImportReview,
-            notice = message(L10nKey.IMPORT_MANUAL_NOTICE, inserted),
-        )
-    }
-
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
@@ -223,15 +217,8 @@ class AppController(
         }
         val sourceHash = sha256(source.bytes).toHex()
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
-        val document = existingDocument ?: SourceDocument(
-            data.profile.profileId,
-            randomId(),
-            source.fileName.trim(),
-            source.mediaType,
-            sourceHash,
-            currentInstant(),
-        )
-        if (existingDocument == null) repository.addDocument(document)
+        val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
+        if (existingDocument == null) addDocumentKeepingFile(document)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
             repository.addReport(LabReport(data.profile.profileId, randomId(), document.documentId, importedAt = currentInstant()))
         }
@@ -274,6 +261,22 @@ class AppController(
         return inserted
     }
 
+    private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
+        val documentId = randomId()
+        val vaultKey = sourceStore?.save(profileId, documentId, source.bytes)
+        return SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(), vaultKey)
+    }
+
+    /** A stored file must never outlive a document that was not recorded. */
+    private suspend fun addDocumentKeepingFile(document: SourceDocument) {
+        try {
+            repository.addDocument(document)
+        } catch (error: Throwable) {
+            withContext(NonCancellable) { document.vaultKey?.let { sourceStore?.discard(it) } }
+            throw error
+        }
+    }
+
     private fun candidateFingerprint(
         testCode: String,
         displayName: String,
@@ -303,6 +306,8 @@ class AppController(
         testCode: String? = null,
         displayName: String? = null,
         asText: Boolean? = null,
+        /** The reviewer's reference text; null keeps the candidate's own text. Blank clears it. */
+        referenceText: String? = null,
     ) = operation {
         val data = requireData()
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
@@ -313,15 +318,12 @@ class AppController(
         val code = (testCode ?: candidate.testCode).trim()
         val name = (displayName ?: candidate.displayName).trim()
         if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
-        val qualitativeValue = if (asText ?: candidate.looksQualitative) {
-            correctedValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
-        } else null
-        val value = if (qualitativeValue != null) 0.0 else parseDecimalInput(correctedValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
-        val unit = if (qualitativeValue != null) "" else correctedUnit.trim()
-        if (qualitativeValue == null && unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
-        val normalized = UnitNormalizer.normalize(value, unit)
-        val range = if (qualitativeValue != null) ReferenceRange(text = candidate.referenceRange.text)
-        else ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = unit)
+        val result = resolveResultValue(asText ?: candidate.looksQualitative, correctedValue, correctedUnit, listOf(candidate.rawValue.trim(), localizeDecimalText(candidate.rawValue)))
+        val qualitativeValue = result.qualitativeValue
+        val value = result.value
+        val unit = result.unit
+        val normalized = result.normalized
+        val range = reviewedRange(candidate.referenceRange, referenceText, referenceLower, referenceUpper, unit, qualitativeValue != null)
         val revisions = candidate.revisions + OcrRevision(
             data.profile.profileId,
             randomId(),
@@ -345,12 +347,126 @@ class AppController(
                 collectedAt = date,
                 confirmation = ConfirmationStatus.CONFIRMED,
                 qualitativeValue = qualitativeValue,
+                valueDecimals = result.decimals,
             ),
         )
         if (!inserted) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
         repository.updateCandidate(candidate.copy(testCode = code, displayName = name, collectedAt = date, collectedAtKnown = true, status = ConfirmationStatus.CONFIRMED, revisions = revisions))
         loadProfile(data.profile.profileId)
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.CONFIRMED_RESULT_SAVED))
+    }
+
+    /**
+     * A result typed in from a paper report: no source file, a new "manual" report, and a confirmed result
+     * (the reviewer is the author). The collection date is required.
+     */
+    suspend fun addManualResult(
+        testCode: String,
+        displayName: String,
+        rawValue: String,
+        rawUnit: String,
+        referenceLower: String,
+        referenceUpper: String,
+        referenceText: String?,
+        collectedAt: kotlinx.datetime.Instant?,
+        asText: Boolean = false,
+    ) = operation {
+        val data = requireData()
+        val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
+        val code = testCode.trim()
+        val name = displayName.trim()
+        if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
+        val result = resolveResultValue(asText, rawValue, rawUnit)
+        val range = reviewedRange(ReferenceRange(), referenceText, referenceLower, referenceUpper, result.unit, result.qualitativeValue != null)
+        val report = LabReport(data.profile.profileId, randomId(), importedAt = currentInstant())
+        val observation = LabObservation(
+            profileId = data.profile.profileId,
+            observationId = randomId(),
+            reportId = report.reportId,
+            testCode = code,
+            displayName = name,
+            originalValue = result.value,
+            originalUnit = result.unit,
+            normalizedValue = result.normalized.value,
+            normalizedUnit = result.normalized.unit,
+            referenceRange = range,
+            collectedAt = date,
+            confirmation = ConfirmationStatus.CONFIRMED,
+            qualitativeValue = result.qualitativeValue,
+            valueDecimals = result.decimals,
+        )
+        if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        repository.addReport(report)
+        try {
+            if (!repository.addObservation(observation)) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        } catch (error: Throwable) {
+            // No empty manual report may outlive a failed save, even when the save was cancelled.
+            withContext(NonCancellable) { repository.deleteReport(data.profile.profileId, report.reportId) }
+            throw error
+        }
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
+    }
+
+    /**
+     * Edits a confirmed result (value or text, unit, reference range, date). The previous state is appended to the
+     * result's revisions, and duplicate detection runs again against every other confirmed result.
+     */
+    suspend fun editObservation(
+        observationId: String,
+        correctedValue: String,
+        correctedUnit: String,
+        referenceLower: String,
+        referenceUpper: String,
+        referenceText: String?,
+        collectedAt: kotlinx.datetime.Instant?,
+    ) = operation {
+        val data = requireData()
+        val current = data.observations.firstOrNull { it.observationId == observationId && it.confirmation == ConfirmationStatus.CONFIRMED }
+            ?: failMessage(L10nKey.RESULT_UNAVAILABLE)
+        val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
+        val result = resolveResultValue(current.isQualitative, correctedValue, correctedUnit, listOf(formatLabValue(current.originalValue, current.valueDecimals)))
+        val range = reviewedRange(current.referenceRange, referenceText, referenceLower, referenceUpper, result.unit, current.isQualitative)
+        val edited = current.copy(
+            originalValue = result.value,
+            originalUnit = result.unit,
+            normalizedValue = result.normalized.value,
+            normalizedUnit = result.normalized.unit,
+            referenceRange = range,
+            collectedAt = date,
+            qualitativeValue = result.qualitativeValue,
+            // Older results carry no precision: re-saving the same value must not count as an edit.
+            valueDecimals = if (result.value == current.originalValue && current.valueDecimals == null) null else result.decimals,
+        )
+        if (edited == current) {
+            mutableState.value = mutableState.value.copy(notice = message(L10nKey.RESULT_UNCHANGED))
+            return@operation
+        }
+        if (data.observations.any { it.observationId != current.observationId && ClinicalDuplicateDetector.areDuplicates(it, edited) }) {
+            failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        }
+        val revision = ObservationRevision(
+            revisionId = randomId(),
+            revisedAt = currentInstant(),
+            previousValue = current.originalValue,
+            previousUnit = current.originalUnit,
+            previousValueDecimals = current.valueDecimals,
+            previousReferenceRange = current.referenceRange,
+            previousCollectedAt = current.collectedAt,
+            previousQualitativeValue = current.qualitativeValue,
+        )
+        repository.updateObservation(edited.copy(revisions = current.revisions + revision))
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.RESULT_UPDATED))
+    }
+
+    /** Removes the report with its source document, stored file, draft candidates and confirmed results (repository cascade). */
+    suspend fun deleteReport(reportId: String) = operation {
+        val data = requireData()
+        if (data.reports.none { it.reportId == reportId }) failMessage(L10nKey.REPORT_NOT_FOUND)
+        repository.deleteReport(data.profile.profileId, reportId)
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.REPORT_DELETED))
     }
 
     suspend fun rejectCandidate(candidateId: String) = operation {
@@ -577,6 +693,38 @@ class AppController(
     }
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+
+    /**
+     * Bounds come from the reviewer's fields. Reference text and bounds must never disagree:
+     * - edited bounds with unchanged text clear the stale text (the earlier text stays in the revision);
+     * - edited text with untouched bounds recomputes the bounds from it, which only succeeds for exactly one range
+     *   or one-sided `<`, `>`, `≤`, `≥` threshold, and otherwise clears them;
+     * - both edited: the reviewer's bounds and text are kept as typed.
+     * Nothing else is inferred, so a range is never invented.
+     */
+    private fun reviewedRange(
+        original: ReferenceRange,
+        editedText: String?,
+        lowerInput: String,
+        upperInput: String,
+        unit: String,
+        textResult: Boolean,
+    ): ReferenceRange {
+        var text = (editedText ?: original.text)?.trim()?.takeIf { it.isNotEmpty() }
+        if (textResult) return ReferenceRange(text = text)
+        var lower = optionalDouble(lowerInput)
+        var upper = optionalDouble(upperInput)
+        val textChanged = text != original.text
+        val boundsChanged = lower != original.lower || upper != original.upper
+        if (textChanged && !boundsChanged) {
+            val derived = text?.let { OcrTextParser.referenceFromText(it, unit) }
+            lower = derived?.lower
+            upper = derived?.upper
+        } else if (boundsChanged && !textChanged) {
+            text = null
+        }
+        return ReferenceRange(lower, upper, text, unit)
+    }
 
     private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
         parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)

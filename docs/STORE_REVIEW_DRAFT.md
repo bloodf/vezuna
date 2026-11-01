@@ -2,11 +2,11 @@
 
 These are source-backed drafts, not submitted declarations. A signed release build, store processing, and physical-device tests are still required.
 
-Owner-confirmed details on 2026-10-31: public support/privacy email `heitor.ramon@gmail.com`; intended price **US$9.99**; website `https://vezuna.app`, with documentation planned at `/docs`. Publisher name Heitor Ribeiro was confirmed on November 1, 2026. The prepared publisher policy is docs/PUBLISHER_PRIVACY_POLICY.txt; owner review and deployment remain pending. Google Play now has the approved USD 9.99 price saved, with generated regional prices. Apple pricing remains pending. Apple team `AAMZ7ZVM62` is confirmed, and `app.vezuna` is registered with HealthKit and its dedicated App Group.
+Owner-confirmed details on 2026-10-31: public support/privacy email `heitor.ramon@gmail.com`; intended price **US$9.99**; website `https://vezuna.app`, with documentation live at `/docs`. Publisher name Heitor Ribeiro was confirmed on November 1, 2026. The publisher approved docs/PUBLISHER_PRIVACY_POLICY.txt on November 1, 2026. Its exact copy is live at https://vezuna.app/privacy and saved in all three Apple policy URL localizations and Play Console. Play confirms the policy task complete. Google Play now has the approved USD 9.99 price saved, with generated regional prices. Apple USD 9.99 pricing is saved, with the United States as reference territory and automatically generated regional prices. Apple team `AAMZ7ZVM62` is confirmed, and `app.vezuna` is registered with HealthKit and its dedicated App Group.
 
 ## Listing copy
 
-Name: Vezuna
+Name: Vezuna. Apple English (US): Vezuna: Health Records, approved by the owner after Apple rejected the shorter name as unavailable.
 
 English subtitle: Health records on your device
 
@@ -30,7 +30,7 @@ Do not add an AI or downloadable-model promise until a production model catalog,
 | --- | --- | --- |
 | Accounts and ads | No app-owned account, advertising, or analytics implementation was found. | Review the complete resolved SDK set and release runtime behavior before selecting final privacy answers. |
 | Health access | Android manifest and `HealthConnectGateway.kt` request read-only heart rate, steps, and weight. `HealthKitImporter.swift` requests the corresponding HealthKit read types. | Explain each permission in the Health apps declaration. No write, background-health-read, or historical-access permission is requested by the Android manifest. Confirm the exact questionnaire against the release build. |
-| Health permission policy | Android includes PermissionsRationaleActivity and its permission-protected Android 14 alias. Both display the bundled publisher policy. Three navigation/intent tests pass on a 16 KB emulator. | Review and deploy the same generated policy at https://vezuna.app/privacy, then use that URL in Play Console. See [Google's setup requirements](https://developer.android.com/health-and-fitness/health-connect/get-started#show-privacy-policy). |
+| Health permission policy | Android includes PermissionsRationaleActivity and its permission-protected Android 14 alias. Both display the bundled publisher policy. Three navigation/intent tests pass on a 16 KB emulator. | The approved generated policy is live at https://vezuna.app/privacy. Play Console confirms the policy URL was saved and the task is complete. See [Google's setup requirements](https://developer.android.com/health-and-fitness/health-connect/get-started#show-privacy-policy). |
 | Data safety | The inspected merged debug APK has no Internet permission. ML Kit is present, along with Play delivery and licensing dependencies. | Google's [ML Kit disclosure page](https://developers.google.com/ml-kit/android-data-disclosure) describes diagnostic collection. Verify the exact versions, configuration, and release behavior. Do not automatically select "no data collected." |
 | SDK-added Android permissions | The merged release manifest also declares foreground-service/data-sync, wake-lock, network-state, and signature-protected dynamic-receiver permissions. | Inspect the actual merged services and complete any required foreground-service declarations from that implementation. The source manifest alone omits these SDK additions. |
 | Apple privacy | Health records stay local in app-owned code. Users can export through the system share sheet. | Review linked native SDKs and actual device archive. Apple's definition of collection concerns off-device transmission and includes third-party code. See [App privacy details](https://developer.apple.com/app-store/app-privacy-details/). |
@@ -50,7 +50,7 @@ For iOS, the minimum supported version is 18.5. The successful generic simulator
 
 ## Missing submission material
 
-The prepared publisher privacy policy and support contact are implemented locally in the website and native apps. Owner policy review and deployment, territories, Apple pricing, and review contact remain pending. The live policy still contains the previous implementation-only disclosure. Google Play price USD 9.99 is saved; generated local prices do not select distribution territories.
+The prepared publisher privacy policy and support contact are implemented locally in the website and native apps. Policy publication is complete. Territories, final declarations, and release screenshots remain pending. Portuguese, English and Spanish Play short/full descriptions, the 512px icon, and the 1024×500 feature graphic are saved as drafts and verified after reload. Play still requires final release screenshots. Portuguese, English and Spanish iOS names, subtitles, descriptions, keywords, promotional text, support/marketing URLs, policy URLs, and copyright are saved and verified by the Apple API. The owner saved the private reviewer phone; its presence and the draft notes were verified without copying the phone into project files. Play public email and website are saved. Google Play price USD 9.99 is saved; generated local prices do not select distribution territories.
 
 Use original assets from `brand/` for the listing icon. Capture phone screenshots from the actual release builds with synthetic data. Existing test screenshots and a working launcher icon do not establish compliant store screenshot dimensions or an accurate release listing. Never use private medical records.
 
@@ -63,3 +63,5 @@ Use original assets from `brand/` for the listing icon. Capture phone screenshot
 | Play internal testing and TestFlight | No upload performed. Explicit owner approval is required before uploads. |
 | Storage and upgrades, OCR, health permissions, notifications, exports, backups | Physical-device release checks are pending. Emulator and unit tests cannot satisfy this row. |
 | Store licensing, hosted model delivery, offline inference | Store and physical-device checks are pending. Local inference fixture verification does not configure store delivery. |
+
+Localized listing drafts are maintained in [docs/store/metadata.json](store/metadata.json). All three language drafts pass the platform text-length checks. All three iOS localizations are saved and match the source through API verification. The approved Developer API key can verify metadata but its app-info modification request returned HTTP 403. Metadata was saved through the owner’s browser without widening key access. No App Privacy data-collection answers were published.

@@ -26,6 +26,7 @@ enum NativeString: String {
     case collection_date, collection_date_required, apply_date_to_all
     case ocr_read_token, ambiguous_number_warning, choose_date_button
     case medication_reminder_title
+    case reference_text
     case app_lock_reason
     case export_language, export_language_device
 }

@@ -254,6 +254,25 @@ iOS: %2$s</string>
     <string name="text_result_toggle">Resultado en texto (no numérico)</string>
     <string name="ocr_read_token">OCR leyó: %1$s</string>
     <string name="ambiguous_number_warning">Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)</string>
+    <string name="reference_text_optional">Texto de referencia (opcional)</string>
+    <string name="number_ambiguous_input">Número ambiguo: escriba los miles sin separador (250000) y los decimales con coma o punto que no vaya seguido de exactamente tres dígitos (escriba 1,020 o 1.02 para uno coma cero dos)</string>
+    <string name="report_manual_summary">Introducido manualmente el %1$s</string>
+    <string name="manual_entry_hint">Sin archivo: escriba un resultado de un informe en papel y elija la fecha de recolección.</string>
+    <string name="save_manual_result">Guardar resultado manual</string>
+    <string name="manual_result_saved">Resultado manual guardado</string>
+    <string name="manual_entry_report">Entrada manual</string>
+    <string name="edit_result">Editar resultado</string>
+    <string name="result_updated">Resultado actualizado</string>
+    <string name="result_unchanged">No hay cambios</string>
+    <string name="result_history">Historial de ediciones</string>
+    <string name="result_revision">%1$s: era %2$s, referencia %3$s, recolección %4$s</string>
+    <string name="imported_reports">Informes</string>
+    <string name="imported_reports_subtitle">Elimine un informe para quitar su archivo, borradores y resultados.</string>
+    <string name="report_summary">Importado el %1$s</string>
+    <string name="delete_report">Eliminar informe</string>
+    <string name="delete_report_warning">¿Eliminar el informe %1$s con su archivo guardado, borradores sin revisar y resultados confirmados? No se puede deshacer.</string>
+    <string name="report_not_found">Informe no encontrado</string>
+    <string name="report_deleted">Informe eliminado</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="rename_profile">Renombrar perfil</string>

@@ -3,7 +3,7 @@ package app.vezuna
 import app.vezuna.importer.OcrTextParser
 import app.vezuna.ui.ExtractedValueKind
 import kotlinx.datetime.Instant
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -111,5 +111,30 @@ class OcrTextParserTest {
     fun extractedDatesAreNoonUtcCalendarDays() {
         val dated = OcrTextParser.parseMeasurements("Coleta 28/02/2026\nGlicose 90 mg/dL 70 a 99 28/02/2026").first()
         assertEquals(Instant.parse("2026-02-28T12:00:00Z"), dated.collectedAt)
+    }
+
+    // Assertions migrated from the removed Swift LabTextParser tests: English rows, hyphen ranges, ASCII separators.
+    @Test
+    fun parsesEnglishRowsWithHyphenAndEnDashRanges() {
+        val rows = OcrTextParser.parseMeasurements(
+            "Hemoglobin 13.2 g/dL 12.0-15.5\nWBC: 6.4 10^9/L (4.0–11.0)\nHbA1c 5,7 % 4,0-6,0\nPatient 42 years",
+        )
+        assertEquals(listOf("Hemoglobin", "WBC", "HbA1c"), rows.map { it.displayName })
+        assertEquals(listOf("13.2", "6.4", "5.7"), rows.map { it.value })
+        assertEquals(12.0, rows[0].referenceRange.lower)
+        assertEquals(15.5, rows[0].referenceRange.upper)
+        assertEquals(11.0, rows[1].referenceRange.upper)
+        assertEquals("HBA1C", OcrTextParser.canonicalTestCode(rows[2].displayName))
+    }
+
+    @Test
+    fun brazilianThousandsInRowsAndRanges() {
+        val rows = OcrTextParser.parseMeasurements("Plaquetas 250.000 /µL 150.000-450.000\nGlucose 1.234,5 mg/dL")
+        assertEquals(listOf("250000", "1234.5"), rows.map { it.value })
+    }
+
+    @Test
+    fun adminLinesAreNotCandidates() {
+        assertTrue(OcrTextParser.parseMeasurements("Página 1 de 3\nPage 1 of 3").isEmpty())
     }
 }

@@ -28,11 +28,14 @@ data class SourceDocument(
 data class LabReport(
     val profileId: String,
     val reportId: String,
-    val sourceDocumentId: String,
+    /** Null for a manual report: a result typed in by the user, with no source file. */
+    val sourceDocumentId: String? = null,
     val laboratoryName: String? = null,
     val orderedAt: Instant? = null,
     val importedAt: Instant,
-)
+) {
+    val isManual: Boolean get() = sourceDocumentId == null
+}
 
 @Serializable
 enum class ConfirmationStatus { UNREVIEWED, CONFIRMED, REJECTED }
@@ -67,8 +70,13 @@ data class LabObservation(
     val confirmation: ConfirmationStatus = ConfirmationStatus.UNREVIEWED,
     /** Non-null for qualitative results (e.g. "Negative"); numeric fields are then 0.0 placeholders and must not be read. Absent in pre-qualitative stored data. */
     val qualitativeValue: String? = null,
+    /** Fraction digits of the value as the report printed it (5.70 -> 2); display only, null in older stored data. */
+    val valueDecimals: Int? = null,
+    /** Earlier states of this result, oldest first; each edit of a confirmed result appends one. */
+    val revisions: List<ObservationRevision> = emptyList(),
 ) {
     init {
+        require(valueDecimals == null || valueDecimals in 0..MAX_VALUE_DECIMALS)
         require(originalValue.isFinite() && normalizedValue.isFinite())
         if (qualitativeValue != null) {
             require(qualitativeValue.isNotBlank())
@@ -79,7 +87,24 @@ data class LabObservation(
     }
 
     val isQualitative: Boolean get() = qualitativeValue != null
+
+    companion object {
+        const val MAX_VALUE_DECIMALS = 9
+    }
 }
+
+/** The state of a confirmed result before one edit, so every earlier value stays visible. */
+@Serializable
+data class ObservationRevision(
+    val revisionId: String,
+    val revisedAt: Instant,
+    val previousValue: Double,
+    val previousUnit: String,
+    val previousValueDecimals: Int? = null,
+    val previousReferenceRange: ReferenceRange,
+    val previousCollectedAt: Instant,
+    val previousQualitativeValue: String? = null,
+)
 
 @Serializable
 data class OcrRevision(
