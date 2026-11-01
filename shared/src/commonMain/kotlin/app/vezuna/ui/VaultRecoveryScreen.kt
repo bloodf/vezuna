@@ -97,8 +97,8 @@ fun VaultRecoveryScreen(
                     Text(vitaText(L10nKey.BACKUP_RESTORE_FAILED_AFTER_RESET), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 }
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(vitaText(L10nKey.VAULT_RECOVERY_RETRY)) }
-                // A transient failure only offers the (quarantine-only, confirmed) reset after repeated failed retries.
-                if (failure != VaultFailure.UNAVAILABLE || failedRetries >= RETRIES_BEFORE_RESET) {
+                // A transient failure (including a Keychain key that is locked right now) only offers the (quarantine-only, confirmed) reset after repeated failed retries.
+                if ((failure != VaultFailure.UNAVAILABLE && failure != VaultFailure.KEY_UNAVAILABLE) || failedRetries >= RETRIES_BEFORE_RESET) {
                     OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
                     }

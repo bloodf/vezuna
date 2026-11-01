@@ -5,7 +5,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
-import platform.Foundation.NSFileProtectionComplete
+import platform.Foundation.NSFileProtectionCompleteUntilFirstUserAuthentication
 import platform.Foundation.NSFileProtectionKey
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
@@ -29,6 +29,13 @@ object IosAesGcmBridge {
         ?: throw IllegalStateException("Install the iOS CryptoKit AES-GCM bridge in the application shell")
 }
 
+/** Installed by the app shell; without it the vault keeps using the key file (unit tests). */
+object IosKeyStoreBridge {
+    var keyStore: VaultKeyStore? = null
+        private set
+    fun install(keyStore: VaultKeyStore) { this.keyStore = keyStore }
+}
+
 actual fun createPlatformVault(storagePath: String): SecureVault = IosSecureVault(storagePath)
 
 @OptIn(ExperimentalForeignApi::class)
@@ -43,6 +50,7 @@ class IosSecureVault(private val directory: String) : SecureVault {
         randomKey = ::randomKey,
         seal = { key, plain, aad -> IosAesGcmBridge.require().encrypt(key, plain, aad) },
         open = { key, envelope -> IosAesGcmBridge.require().decrypt(key, envelope) },
+        keyStore = IosKeyStoreBridge.keyStore,
     )
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope {
@@ -66,10 +74,11 @@ class IosSecureVault(private val directory: String) : SecureVault {
         val names = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty()
             .filterIsInstance<String>()
             .filterNot { it.startsWith(QUARANTINE) }
-        if (names.isEmpty()) return true
         val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}"
         if (!manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null)) return false
-        return names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }
+        if (!names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }) return false
+        // Only reached after the user confirmed the reset. The Keychain key is archived next to the data, never dropped.
+        return runCatching { core.discardKey { writeProtected("$target/keychain-master-key", it) } }.getOrDefault(false)
     }
 
     private fun randomKey(): ByteArray {
@@ -83,12 +92,17 @@ class IosSecureVault(private val directory: String) : SecureVault {
         override fun exists(path: String): Boolean = manager.fileExistsAtPath(path)
         override fun read(path: String): ByteArray? = NSData.dataWithContentsOfFile(path)?.toByteArray()
         override fun write(path: String, bytes: ByteArray) = writeProtected(path, bytes)
+        override fun quarantine(path: String): Boolean {
+            val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}-migrated-key"
+            return manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null) &&
+                manager.moveItemAtPath(path, "$target/${path.substringAfterLast('/')}", null)
+        }
     }
 
     private fun writeProtected(path: String, bytes: ByteArray) {
         check(bytes.toNSData().writeToFile(path, true)) { "Protected file write failed" }
-        check(manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionComplete), path, null)) {
-            "Could not enable complete file protection"
+        check(manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), path, null)) {
+            "Could not enable file protection"
         }
     }
 
@@ -96,7 +110,7 @@ class IosSecureVault(private val directory: String) : SecureVault {
         manager.createDirectoryAtPath(
             directory,
             withIntermediateDirectories = true,
-            attributes = mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionComplete),
+            attributes = mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication),
             error = null,
         )
     }
