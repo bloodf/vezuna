@@ -200,6 +200,9 @@ class PersistentVezunaRepository(
                         data.doseEvents.all { it.profileId == profileId } &&
                         data.chat.all { it.profileId == profileId }) { "Corrupt cross-profile record in repository" }
                 }
+            }.let { restored ->
+                // Older builds could store several terminal events for one dose; keep one.
+                restored.copy(records = restored.records.mapValues { (_, data) -> data.copy(doseEvents = DoseEvents.collapse(data.doseEvents)) })
             }
         }
         mutableProfiles.value = snapshot.records.values.map { it.profile }.sortedBy { it.displayName }

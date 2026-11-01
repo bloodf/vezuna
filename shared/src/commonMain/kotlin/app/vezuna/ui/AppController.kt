@@ -138,7 +138,7 @@ class AppController(
         val profiles = repository.profiles.value
         val profile = profiles.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
         if (profiles.size <= 1) failMessage(L10nKey.LAST_PROFILE_CANNOT_BE_DELETED)
-        if (typedName.trim() != profile.displayName) failMessage(L10nKey.PROFILE_NAME_MISMATCH)
+        if (typedName.trim() != profile.displayName.trim()) failMessage(L10nKey.PROFILE_NAME_MISMATCH)
         repository.deleteProfile(profileId)
         val remaining = repository.profiles.value
         val currentId = mutableState.value.data?.profile?.profileId

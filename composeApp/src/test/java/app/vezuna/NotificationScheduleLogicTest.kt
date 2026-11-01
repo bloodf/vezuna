@@ -51,6 +51,22 @@ class NotificationScheduleLogicTest {
     }
 
     @Test
+    fun firedReminderNotificationIsKeptButPausedOrDeletedOnesAreCancelled() {
+        val schedule = schedule(Recurrence.DAILY)
+        val medication = Medication(schedule.profileId, schedule.medicationId, "Med", schedules = listOf(schedule))
+        val profile = Profile(schedule.profileId, "Me", createdAt = kotlinx.datetime.Instant.fromEpochSeconds(1))
+        val shown = listOf(
+            app.vezuna.notifications.ShownReminder(1, "p", "m", "s"),
+            app.vezuna.notifications.ShownReminder(2, "gone", "m", "s"),
+        )
+        // The alarm that just fired is not "armed" any more, but its medication is current: keep the notification.
+        val active = mapOf("p" to ProfileData(profile, medications = listOf(medication)))
+        assertEquals(listOf(2), NotificationScheduleLogic.staleNotificationIds(shown, active))
+        val paused = mapOf("p" to ProfileData(profile, medications = listOf(medication.copy(active = false))))
+        assertEquals(listOf(1, 2), NotificationScheduleLogic.staleNotificationIds(shown, paused))
+    }
+
+    @Test
     fun endedSchedulesProduceNoAlarmAndDstUsesValidLocalTime() {
         val ended = schedule(Recurrence.DAILY).copy(endDate = LocalDate(2026, 10, 1))
         assertTrue(NotificationScheduleLogic.nextOccurrences(ended, Instant.parse("2026-10-29T07:00:00Z"), utc).isEmpty())

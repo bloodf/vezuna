@@ -16,6 +16,7 @@ import app.vezuna.resolve
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
+import app.vezuna.domain.ProfileData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -38,8 +39,10 @@ class MedicationNotificationScheduler(private val context: Context) {
     suspend fun rescheduleAll(repository: PersistentVezunaRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
+        val loaded = mutableMapOf<String, ProfileData>()
         repository.profiles.value.forEach { profile ->
             val data = repository.readProfile(profile.profileId)
+            loaded[profile.profileId] = data
             val terminalEvents = data.doseEvents.filter {
                 it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED || it.status == DoseEventStatus.MISSED
             }
@@ -80,11 +83,13 @@ class MedicationNotificationScheduler(private val context: Context) {
             }
         }
         cancelStale(armed)
+        cancelStaleNotifications(loaded)
     }
 
     /**
      * Alarms armed by an earlier pass for medications that are now paused, stopped or deleted (or whose
-     * profile was deleted) are no longer produced by the loops above, so cancel them and any shown notification.
+     * profile was deleted) are no longer produced by the loops above, so cancel them. Shown notifications are
+     * handled separately: the alarm that just fired is also absent from [armed], and its notification must stay.
      */
     private fun cancelStale(armed: Set<String>) {
         val previous = armedStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
@@ -98,9 +103,22 @@ class MedicationNotificationScheduler(private val context: Context) {
                 alarms.cancel(it)
                 it.cancel()
             }
-            cancel(alarmId.hashCode())
         }
         armedStore.edit().putStringSet(ARMED_KEY, armed.toSet()).apply()
+    }
+
+    private fun cancelStaleNotifications(profiles: Map<String, ProfileData>) {
+        val shown = context.getSystemService(NotificationManager::class.java).activeNotifications.mapNotNull { sbn ->
+            val extras = sbn.notification.extras
+            if (sbn.notification.channelId != CHANNEL_ID) return@mapNotNull null
+            ShownReminder(
+                sbn.id,
+                extras.getString(EXTRA_PROFILE_ID) ?: return@mapNotNull null,
+                extras.getString(EXTRA_MEDICATION_ID) ?: return@mapNotNull null,
+                extras.getString(EXTRA_SCHEDULE_ID) ?: return@mapNotNull null,
+            )
+        }
+        NotificationScheduleLogic.staleNotificationIds(shown, profiles).forEach { cancel(it) }
     }
 
     private fun armedKey(medicationId: String, alarmId: String) = "$medicationId$ARMED_SEPARATOR$alarmId"
@@ -134,6 +152,11 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setContentText(medicationName)
             .setContentIntent(content)
             .setAutoCancel(true)
+            .addExtras(android.os.Bundle().apply {
+                putString(EXTRA_PROFILE_ID, intent.getStringExtra(EXTRA_PROFILE_ID))
+                putString(EXTRA_MEDICATION_ID, intent.getStringExtra(EXTRA_MEDICATION_ID))
+                putString(EXTRA_SCHEDULE_ID, intent.getStringExtra(EXTRA_SCHEDULE_ID))
+            })
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, nativeMessage(NativeKey.TAKEN).resolve(context), actionIntent(intent, DoseAction.TAKEN, notificationId + 1))
             .addAction(0, nativeMessage(NativeKey.SKIP).resolve(context), actionIntent(intent, DoseAction.SKIP, notificationId + 2))

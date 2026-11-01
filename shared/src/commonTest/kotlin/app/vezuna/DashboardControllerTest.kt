@@ -38,8 +38,9 @@ class DashboardControllerTest {
         controller.takeDose(next)
         controller.skipDose(next)
         val afterTaken = repository.readProfile("p").doseEvents
-        assertEquals(1, afterTaken.count { it.status == DoseEventStatus.TAKEN })
-        assertEquals(0, afterTaken.count { it.status == DoseEventStatus.SKIPPED })
+        // The latest user action wins, so the final skip corrects the earlier taken.
+        assertEquals(0, afterTaken.count { it.status == DoseEventStatus.TAKEN })
+        assertEquals(1, afterTaken.count { it.status == DoseEventStatus.SKIPPED })
         val beforeSnooze = currentInstant()
         controller.snoozeDose(next)
         val afterSnooze = currentInstant()

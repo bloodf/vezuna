@@ -173,7 +173,7 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
                 title = vitaText(L10nKey.DELETE_PROFILE),
                 message = vitaText(L10nKey.DELETE_PROFILE_WARNING, profile.displayName),
                 label = vitaText(L10nKey.PROFILE_NAME_CONFIRMATION),
-                expected = profile.displayName,
+                expected = profile.displayName.trim(),
                 confirmLabel = vitaText(L10nKey.DELETE),
                 onConfirm = { typed -> deleteTarget = null; scope.launch { controller.deleteProfile(profile.profileId, typed) } },
                 onDismiss = { deleteTarget = null },

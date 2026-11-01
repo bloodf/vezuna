@@ -11,7 +11,13 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
+data class ShownReminder(val notificationId: Int, val profileId: String, val medicationId: String, val scheduleId: String)
+
 object NotificationScheduleLogic {
+    /** Delivered reminders whose medication was paused, stopped or deleted, or whose profile was removed. */
+    fun staleNotificationIds(shown: List<ShownReminder>, profiles: Map<String, ProfileData>): List<Int> =
+        shown.filterNot { isReminderCurrent(profiles[it.profileId], it.medicationId, it.scheduleId) }.map { it.notificationId }
+
     /** False once the medication was paused, stopped or deleted (or its profile removed) after the alarm was armed. */
     fun isReminderCurrent(data: ProfileData?, medicationId: String, scheduleId: String): Boolean =
         data?.medications?.any { medication ->

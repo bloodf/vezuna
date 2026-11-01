@@ -52,11 +52,19 @@ class PersistentVezunaRepository private constructor(
     private suspend fun load() = mutex.withLock {
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         val index = readEncrypted<List<Profile>>(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer())).orEmpty()
+        var indexStale = false
         index.forEach { profile ->
             val data = readEncrypted(profileKey(profile.profileId), profileAssociatedData(profile.profileId), ProfileData.serializer())
                 ?: error("Encrypted profile records are missing")
-            require(data.profile == profile) { "Encrypted profile index does not match its records" }
-            records[profile.profileId] = data
+            // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
+            if (data.profile != profile) indexStale = true
+            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents))
+        }
+        if (indexStale) {
+            writeEncrypted(
+                INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()),
+                records.values.map { it.profile }.sortedBy { it.displayName },
+            )
         }
         publishProfiles()
     }

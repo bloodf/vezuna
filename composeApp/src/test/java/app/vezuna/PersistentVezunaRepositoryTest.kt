@@ -79,7 +79,7 @@ class PersistentVezunaRepositoryTest {
         repository.addDoseEvent(DoseEvent("p", DoseEvents.idFor("s", fromApp), "m", "s", fromApp, DoseEventStatus.TAKEN))
         repository.addDoseEvent(DoseEvent("p", DoseEvents.idFor("s", fromApp), "m", "s", fromApp, DoseEventStatus.SKIPPED))
 
-        assertEquals(listOf(DoseEventStatus.TAKEN), repository.readProfile("p").doseEvents.map { it.status })
+        assertEquals(listOf(DoseEventStatus.SKIPPED), repository.readProfile("p").doseEvents.map { it.status })
     }
 
     @Test

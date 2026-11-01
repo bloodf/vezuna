@@ -166,6 +166,22 @@ object IosRuntime {
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })
     }
 
+    /** Active medications of every profile, used to clear delivered reminders and skip MISSED for stopped or deleted ones. */
+    fun listAllActiveMedications(completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val active = repository.profiles.value.flatMap { repository.peekProfile(it.profileId).medications.filter { m -> m.active } }
+                completion(json.encodeToString(ListSerializer(Medication.serializer()), active), null)
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
     fun recordDoseEvent(
         profileId: String,
         medicationId: String,

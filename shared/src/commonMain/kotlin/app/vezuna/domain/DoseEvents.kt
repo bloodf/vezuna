@@ -18,8 +18,8 @@ object DoseEvents {
 
     /**
      * At most one terminal status per dose (scheduleId + scheduledFor).
-     * Rule: the first user action (TAKEN or SKIPPED) wins and later conflicting writes are ignored;
-     * MISSED is a system inference, so it never overrides a user action and is replaced by one.
+     * Rule: the latest user action (TAKEN or SKIPPED) wins, so a user can correct SKIPPED to TAKEN and back.
+     * MISSED is a system inference: it never overrides a user action and is replaced by one.
      */
     fun merge(existing: List<DoseEvent>, event: DoseEvent): List<DoseEvent> {
         if (!isTerminal(event.status)) {
@@ -34,9 +34,14 @@ object DoseEvents {
                 require(existing.none { it.eventId == event.eventId })
                 existing + event
             }
-            current.status == DoseEventStatus.MISSED && event.status != DoseEventStatus.MISSED ->
-                existing.map { if (it === current) event else it }
-            else -> existing
+            event.status == DoseEventStatus.MISSED -> existing
+            else -> existing.map { if (it === current) event else it }
         }
     }
+
+    /** Collapses legacy stored events (older ID schemes) to one terminal event per dose, oldest write first. */
+    fun collapse(events: List<DoseEvent>): List<DoseEvent> =
+        events.sortedBy { it.recordedAt?.epochSeconds ?: Long.MIN_VALUE }.fold(emptyList()) { acc, event ->
+            if (!isTerminal(event.status) && acc.any { it.eventId == event.eventId }) acc else merge(acc, event)
+        }
 }

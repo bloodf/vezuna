@@ -33,7 +33,28 @@ class DoseEventsTest {
         repository.addDoseEvent(event(DoseEventStatus.MISSED))
 
         val events = repository.readProfile("p").doseEvents
-        assertEquals(listOf(DoseEventStatus.TAKEN), events.map { it.status })
+        assertEquals(listOf(DoseEventStatus.SKIPPED), events.map { it.status })
+    }
+
+    @Test
+    fun latestUserActionWinsSoSkippedCanBeCorrectedToTaken() = runTest {
+        val repository = repositoryWithSchedule()
+        repository.addDoseEvent(event(DoseEventStatus.SKIPPED))
+        repository.addDoseEvent(event(DoseEventStatus.TAKEN))
+        assertEquals(listOf(DoseEventStatus.TAKEN), repository.readProfile("p").doseEvents.map { it.status })
+        repository.addDoseEvent(event(DoseEventStatus.MISSED))
+        assertEquals(listOf(DoseEventStatus.TAKEN), repository.readProfile("p").doseEvents.map { it.status })
+    }
+
+    @Test
+    fun collapseMergesLegacyCoexistingEvents() {
+        val legacy = listOf(
+            DoseEvent("p", "dose-p-s-1-taken", "m", "s", at, DoseEventStatus.TAKEN, Instant.fromEpochSeconds(10)),
+            DoseEvent("p", "dose-p-s-1-TAKEN", "m", "s", at, DoseEventStatus.TAKEN, Instant.fromEpochSeconds(11)),
+            DoseEvent("p", "uuid", "m", "s", at, DoseEventStatus.SKIPPED, Instant.fromEpochSeconds(12)),
+            DoseEvent("p", "missed", "m", "s", at, DoseEventStatus.MISSED, Instant.fromEpochSeconds(5)),
+        )
+        assertEquals(listOf(DoseEventStatus.SKIPPED), DoseEvents.collapse(legacy).map { it.status })
     }
 
     @Test
