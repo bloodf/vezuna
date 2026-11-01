@@ -466,8 +466,8 @@ class AppController(
         )
     }
 
-    suspend fun installModel(pack: ModelPack, bytes: ByteArray) {
-        modelManager.install(pack, bytes, currentInstant().epochSeconds)
+    suspend fun installModel(pack: ModelPack, sourcePath: String) {
+        modelManager.install(pack, sourcePath, currentInstant().epochSeconds)
         modelManager.select(pack.modelId)
     }
 

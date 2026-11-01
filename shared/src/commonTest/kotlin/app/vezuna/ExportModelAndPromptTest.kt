@@ -80,8 +80,8 @@ class ExportModelAndPromptTest {
         val store = MemoryModelStore()
         val llm = RecordingLlm()
         val manager = InstalledModelManager(ModelCatalog(listOf(first, second)), store, llm)
-        manager.install(first, firstBytes, 1)
-        manager.install(second, secondBytes, 2)
+        manager.install(first, store.source(firstBytes), 1)
+        manager.install(second, store.source(secondBytes), 2)
         manager.select(first.modelId)
         manager.select(second.modelId)
         assertEquals(second.modelId, manager.state.value.selectedModelId)
@@ -144,7 +144,6 @@ class ExportModelAndPromptTest {
         manager.select(model.modelId)
 
         assertEquals(1, store.integrityChecks)
-        assertEquals(0, store.readBytesCalls)
         assertEquals(model.modelId, manager.state.value.loadedModelId)
     }
 
@@ -173,10 +172,10 @@ class ExportModelAndPromptTest {
         val model = pack("reinstall", bytes)
         val store = MemoryModelStore()
         val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, RecordingLlm())
-        manager.install(model, bytes, 1)
+        manager.install(model, store.source(bytes), 1)
         manager.select(model.modelId)
 
-        manager.install(model, bytes, 2)
+        manager.install(model, store.source(bytes), 2)
 
         assertEquals(model.modelId, manager.state.value.selectedModelId)
         assertNull(manager.state.value.loadedModelId)
@@ -188,7 +187,7 @@ class ExportModelAndPromptTest {
         val bytes = "real".encodeToByteArray()
         val store = MemoryModelStore()
         val manager = InstalledModelManager(ModelCatalog(listOf(pack("model", bytes))), store, RecordingLlm())
-        val result = runCatching { manager.install(pack("model", "fake".encodeToByteArray()), bytes, 1) }
+        val result = runCatching { manager.install(pack("model", "fake".encodeToByteArray()), store.source(bytes), 1) }
         assertTrue(result.isFailure)
         assertTrue(store.installed().isEmpty())
     }
@@ -227,13 +226,16 @@ private class MemoryModelStore : ModelFileStore {
     private val bytes = mutableMapOf<String, ByteArray>()
     private var selection: String? = null
     var integrityChecks = 0
-    var readBytesCalls = 0
     override suspend fun installed(): List<InstalledModel> = models.values.toList()
-    override suspend fun write(model: InstalledModel, bytes: ByteArray) { models[model.pack.modelId] = model; this.bytes[model.pack.modelId] = bytes }
-    override suspend fun readBytes(model: InstalledModel): ByteArray {
-        readBytesCalls++
-        return bytes.getValue(model.pack.modelId)
+    val sources = mutableMapOf<String, ByteArray>()
+    // Mirrors a streaming store: verifies size and digest of the source before replacing the installed copy.
+    override suspend fun install(model: InstalledModel, sourcePath: String) {
+        val data = sources.getValue(sourcePath)
+        check(data.size.toLong() == model.pack.sizeBytes && sha256(data).toHex() == model.pack.sha256) { "integrity" }
+        models[model.pack.modelId] = model
+        bytes[model.pack.modelId] = data
     }
+    suspend fun write(model: InstalledModel, data: ByteArray) { sources["direct"] = data; install(model, "direct") }
     override suspend fun verifyIntegrity(model: InstalledModel): Boolean {
         integrityChecks++
         return sha256(bytes.getValue(model.pack.modelId)).toHex() == model.pack.sha256
@@ -241,5 +243,6 @@ private class MemoryModelStore : ModelFileStore {
     override suspend fun delete(model: InstalledModel) { models.remove(model.pack.modelId); bytes.remove(model.pack.modelId) }
     override suspend fun saveSelection(modelId: String?) { selection = modelId }
     override suspend fun savedSelection(): String? = selection
+    fun source(data: ByteArray): String = "src-${sources.size}".also { sources[it] = data }
     fun tamper(modelId: String, replacement: ByteArray) { bytes[modelId] = replacement }
 }

@@ -1,13 +1,21 @@
 package app.vezuna.llm
 
 import android.content.Context
+import app.vezuna.localization.L10nKey
+import app.vezuna.localization.failMessage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
+import java.security.MessageDigest
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -17,6 +25,11 @@ class AndroidModelFileStore(context: Context) : ModelFileStore {
     private val metadataFile: File get() = File(directory, "installed-models.json")
     private val mutex = Mutex()
     private val json = Json { encodeDefaults = true }
+
+    init {
+        // Interrupted installs leave hidden ".<name>.<nanos>.tmp" siblings; they are never valid state.
+        directory.listFiles { file -> file.name.startsWith(".") && file.name.endsWith(".tmp") }?.forEach { it.delete() }
+    }
 
     @Serializable
     private data class Metadata(
@@ -28,20 +41,17 @@ class AndroidModelFileStore(context: Context) : ModelFileStore {
         readMetadata().models.filter { modelFile(it.pack).isFile }
     }
 
-    override suspend fun write(model: InstalledModel, bytes: ByteArray) = mutex.withLock {
+    override suspend fun install(model: InstalledModel, sourcePath: String) = withContext(Dispatchers.IO) { mutex.withLock {
         directory.mkdirs()
         val target = modelFile(model.pack)
-        atomicWrite(target, bytes)
+        val context = currentCoroutineContext()
+        File(sourcePath).inputStream().use {
+            installVerifiedStream(it, target, model.pack.sizeBytes, model.pack.sha256) { context.ensureActive() }
+        }
         val stored = model.copy(localPath = target.absolutePath)
         val metadata = readMetadata()
         writeMetadata(metadata.copy(models = metadata.models.filterNot { it.pack.modelId == model.pack.modelId } + stored))
-    }
-
-    override suspend fun readBytes(model: InstalledModel): ByteArray = mutex.withLock {
-        val file = modelFile(model.pack)
-        require(file.isFile) { "Installed model file is missing" }
-        file.readBytes()
-    }
+    } }
 
     override suspend fun verifyIntegrity(model: InstalledModel): Boolean = mutex.withLock {
         verifyStreamingFileIntegrity(modelFile(model.pack), model.pack.sizeBytes, model.pack.sha256)
@@ -117,3 +127,48 @@ internal fun verifyStreamingFileIntegrity(file: File, expectedSize: Long, expect
     val actual = digest.digest().joinToString("") { byte -> (byte.toInt() and 0xff).toString(16).padStart(2, '0') }
     return actual == expectedSha256
 }
+
+/**
+ * Copies [source] to [target] through a temporary sibling in bounded chunks, hashing as it goes.
+ * Size and SHA-256 are checked before the atomic move; on any failure the partial file is deleted
+ * and an existing [target] is left untouched.
+ */
+internal fun installVerifiedStream(
+    source: InputStream,
+    target: File,
+    expectedSize: Long,
+    expectedSha256: String,
+    checkCancelled: () -> Unit = {},
+) {
+    val temporary = File(target.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
+    try {
+        val digest = MessageDigest.getInstance("SHA-256")
+        var total = 0L
+        FileOutputStream(temporary).use { output ->
+            val buffer = ByteArray(COPY_BUFFER_SIZE)
+            while (true) {
+                checkCancelled()
+                val count = source.read(buffer)
+                if (count < 0) break
+                if (count == 0) continue
+                total += count
+                if (total > expectedSize) failMessage(L10nKey.MODEL_SIZE_MISMATCH)
+                digest.update(buffer, 0, count)
+                output.write(buffer, 0, count)
+            }
+            output.fd.sync()
+        }
+        if (total != expectedSize) failMessage(L10nKey.MODEL_SIZE_MISMATCH)
+        val actual = digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
+        if (actual != expectedSha256) failMessage(L10nKey.MODEL_SHA_FAILED)
+        try {
+            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+    } finally {
+        if (temporary.exists()) temporary.delete()
+    }
+}
+
+private const val COPY_BUFFER_SIZE = 1024 * 1024

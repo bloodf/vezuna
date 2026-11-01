@@ -123,3 +123,6 @@ val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
 tasks.configureEach {
     if (name == "packageRelease" || name == "bundleRelease") dependsOn(verifyReleaseSigning)
 }
+
+// Proves streaming model installs never need a model-sized heap.
+tasks.withType<Test>().configureEach { maxHeapSize = "512m" }
