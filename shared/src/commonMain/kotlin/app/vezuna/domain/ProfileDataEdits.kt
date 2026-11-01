@@ -46,6 +46,7 @@ fun ProfileData.withoutDocument(documentId: String): ProfileData {
 fun ProfileData.withObservation(updated: LabObservation): ProfileData {
     require(observations.any { it.observationId == updated.observationId })
     require(reports.any { it.reportId == updated.reportId }) { "Report must exist in this profile" }
+    require(observations.none { it.observationId != updated.observationId && ClinicalDuplicateDetector.areDuplicates(it, updated) }) { "Duplicate clinical result" }
     return copy(observations = observations.map { if (it.observationId == updated.observationId) updated else it })
 }
 

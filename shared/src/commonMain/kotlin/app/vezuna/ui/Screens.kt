@@ -60,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -232,7 +233,7 @@ private fun rangeLabel(assessment: app.vezuna.domain.RangeAssessment): String = 
 
 /** UI-only reference label: the report's own text wins, bounds use the language's number format. */
 @Composable
-private fun uiRangeText(range: app.vezuna.domain.ReferenceRange): String {
+internal fun uiRangeText(range: app.vezuna.domain.ReferenceRange): String {
     if (range.text != null) return range.text
     if (range.lower == null && range.upper == null) return vitaText(L10nKey.REFERENCE_NOT_PROVIDED)
     val unit = range.unit.orEmpty()
@@ -447,6 +448,18 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         !it.isQualitative && !observation.isQualitative && it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
     }.maxByOrNull { it.collectedAt }
     val comparison = previous?.let { LabComparator.compare(it, observation) }
+    var editing by remember(observationId) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    if (editing) {
+        ResultEditDialog(
+            observation,
+            onSave = { edit ->
+                editing = false
+                scope.launch { controller.editObservation(observationId, edit.value, edit.unit, edit.lower, edit.upper, edit.rangeText, edit.date) }
+            },
+            onDismiss = { editing = false },
+        )
+    }
     ScreenColumn(observation.displayName, "${observation.testCode} · ${formatUiDate(observation.collectedAt)}") {
         StatusPill(vitaText(L10nKey.CONFIRMED_RESULT), Icons.Rounded.CheckCircle, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
@@ -463,6 +476,8 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         Text(vitaText(L10nKey.RANGE_ASSESSMENT, rangeLabel(LabComparator.assess(observation))))
         Text(vitaText(L10nKey.CHANGE_FROM_PREVIOUS, if (comparison == null) vitaText(L10nKey.NO_PREVIOUS_RESULT) else changeLabel(comparison.direction)))
         Text(vitaText(L10nKey.SOURCE_REPORT, observation.reportId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        VitaButton(vitaText(L10nKey.EDIT_RESULT), Icons.Rounded.Edit, { editing = true }, outlined = true)
+        ResultHistory(observation)
         LinkRow(vitaText(L10nKey.BACK_TO_LAB_RECORDS)) { controller.navigate(AppScreen.Labs) }
     }
 }

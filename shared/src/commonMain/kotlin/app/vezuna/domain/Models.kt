@@ -72,6 +72,8 @@ data class LabObservation(
     val qualitativeValue: String? = null,
     /** Fraction digits of the value as the report printed it (5.70 -> 2); display only, null in older stored data. */
     val valueDecimals: Int? = null,
+    /** Earlier states of this result, oldest first; each edit of a confirmed result appends one. */
+    val revisions: List<ObservationRevision> = emptyList(),
 ) {
     init {
         require(valueDecimals == null || valueDecimals in 0..MAX_VALUE_DECIMALS)
@@ -90,6 +92,19 @@ data class LabObservation(
         const val MAX_VALUE_DECIMALS = 9
     }
 }
+
+/** The state of a confirmed result before one edit, so every earlier value stays visible. */
+@Serializable
+data class ObservationRevision(
+    val revisionId: String,
+    val revisedAt: Instant,
+    val previousValue: Double,
+    val previousUnit: String,
+    val previousValueDecimals: Int? = null,
+    val previousReferenceRange: ReferenceRange,
+    val previousCollectedAt: Instant,
+    val previousQualitativeValue: String? = null,
+)
 
 @Serializable
 data class OcrRevision(

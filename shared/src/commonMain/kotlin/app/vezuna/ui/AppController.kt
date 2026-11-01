@@ -14,6 +14,7 @@ import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
+import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.Profile
@@ -393,6 +394,58 @@ class AppController(
         repository.addObservation(observation)
         loadProfile(data.profile.profileId)
         mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
+    }
+
+    /**
+     * Edits a confirmed result (value or text, unit, reference range, date). The previous state is appended to the
+     * result's revisions, and duplicate detection runs again against every other confirmed result.
+     */
+    suspend fun editObservation(
+        observationId: String,
+        correctedValue: String,
+        correctedUnit: String,
+        referenceLower: String,
+        referenceUpper: String,
+        referenceText: String?,
+        collectedAt: kotlinx.datetime.Instant?,
+    ) = operation {
+        val data = requireData()
+        val current = data.observations.firstOrNull { it.observationId == observationId && it.confirmation == ConfirmationStatus.CONFIRMED }
+            ?: failMessage(L10nKey.RESULT_UNAVAILABLE)
+        val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
+        val result = resolveResultValue(current.isQualitative, correctedValue, correctedUnit)
+        val range = reviewedRange(current.referenceRange.text, referenceText, referenceLower, referenceUpper, result.unit, current.isQualitative)
+        val edited = current.copy(
+            originalValue = result.value,
+            originalUnit = result.unit,
+            normalizedValue = result.normalized.value,
+            normalizedUnit = result.normalized.unit,
+            referenceRange = range,
+            collectedAt = date,
+            qualitativeValue = result.qualitativeValue,
+            // Older results carry no precision: re-saving the same value must not count as an edit.
+            valueDecimals = if (result.value == current.originalValue && current.valueDecimals == null) null else result.decimals,
+        )
+        if (edited == current) {
+            mutableState.value = mutableState.value.copy(notice = message(L10nKey.RESULT_UNCHANGED))
+            return@operation
+        }
+        if (data.observations.any { it.observationId != current.observationId && ClinicalDuplicateDetector.areDuplicates(it, edited) }) {
+            failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        }
+        val revision = ObservationRevision(
+            revisionId = randomId(),
+            revisedAt = currentInstant(),
+            previousValue = current.originalValue,
+            previousUnit = current.originalUnit,
+            previousValueDecimals = current.valueDecimals,
+            previousReferenceRange = current.referenceRange,
+            previousCollectedAt = current.collectedAt,
+            previousQualitativeValue = current.qualitativeValue,
+        )
+        repository.updateObservation(edited.copy(revisions = current.revisions + revision))
+        loadProfile(data.profile.profileId)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.RESULT_UPDATED))
     }
 
     suspend fun rejectCandidate(candidateId: String) = operation {

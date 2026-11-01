@@ -48,7 +48,7 @@ fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): Profile
 fun ProfileData.isInternallyConsistent(): Boolean {
     val id = profile.profileId
     fun <T> List<T>.unique(key: (T) -> String) = map(key).toSet().size == size
-    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.map { it.observationId } +
+    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.flatMap { o -> listOf(o.observationId) + o.revisions.map { it.revisionId } } +
         ocrCandidates.flatMap { c -> listOf(c.candidateId) + c.revisions.map { it.revisionId } } +
         medications.flatMap { m -> listOf(m.medicationId) + m.schedules.map { it.scheduleId } } +
         doseEvents.map { it.eventId } + chat.map { it.messageId }
@@ -56,6 +56,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         documents.unique { it.documentId } &&
         reports.unique { it.reportId } &&
         observations.unique { it.observationId } &&
+        observations.all { o -> o.revisions.unique { it.revisionId } } &&
         ocrCandidates.unique { it.candidateId } &&
         ocrCandidates.all { c -> c.revisions.all { it.profileId == id } && c.revisions.unique { it.revisionId } } &&
         medications.unique { it.medicationId } &&
