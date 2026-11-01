@@ -2,15 +2,11 @@ package app.vezuna.ios
 
 import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.data.restoreWithVitals
-import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
-import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
-import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.ReferenceRange
-import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.HeartRateBucket
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
@@ -29,11 +25,7 @@ import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.platform.currentInstant
-import app.vezuna.platform.randomId
-import app.vezuna.platform.sha256
-import app.vezuna.platform.toHex
 import app.vezuna.security.BackupService
-import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
@@ -42,6 +34,8 @@ import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.BackupRecovery
+import app.vezuna.ui.ExtractedCandidate
+import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
 import app.vezuna.ui.VaultGate
 import app.vezuna.ui.VezunaApp
@@ -141,6 +135,26 @@ data class NativeCandidateInput(
     val qualitative: Boolean = false,
 )
 
+private fun NativeCandidateInput.toExtracted(): ExtractedCandidate {
+    val unit = rawUnit.trim()
+    return ExtractedCandidate(
+        testCode = testCode,
+        displayName = displayName,
+        rawValue = rawValue,
+        rawUnit = unit,
+        referenceRange = ReferenceRange(
+            app.vezuna.localization.parseDecimalInput(referenceLower),
+            app.vezuna.localization.parseDecimalInput(referenceUpper),
+            text = referenceText?.trim()?.takeIf { it.isNotEmpty() },
+            unit = referenceUnit?.takeIf { it.isNotBlank() } ?: unit.takeIf { it.isNotEmpty() },
+        ),
+        collectedAt = Instant.fromEpochSeconds(collectedEpochSeconds),
+        confidence = confidence?.coerceIn(0f, 1f),
+        valueKind = if (qualitative) ExtractedValueKind.QUALITATIVE else ExtractedValueKind.NUMERIC,
+        rawToken = rawToken,
+    )
+}
+
 object IosRuntime {
     private val json = Json { encodeDefaults = true }
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -233,7 +247,7 @@ object IosRuntime {
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
             val manager = InstalledModelManager(catalog, files, llm)
-            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault))
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault, json))
             initialized = true
             controller.initialize()
             // Edits and deletes made in Compose reload the controller after the repository commit; notify native
@@ -410,46 +424,12 @@ object IosRuntime {
                     completion(nativeMessage("active_profile_changed"))
                     return@launch
                 }
-                require(fileName.isNotBlank() && candidates.isNotEmpty())
-                require(candidates.all { it.testCode.isNotBlank() && it.displayName.isNotBlank() && it.rawValue.isNotBlank() && it.rawUnit.isNotBlank() })
-                repository.peekProfile(profileId)
-                val documentId = randomId()
-                val reportId = randomId()
-                val sourceKey = "source-document-$documentId"
-                val document = SourceDocument(
-                    profileId, documentId, fileName.trim(), mediaType, sha256(sourceBytes).toHex(), currentInstant(), sourceKey,
-                )
-                val report = LabReport(profileId, reportId, documentId, importedAt = currentInstant())
-                val importedCandidates = candidates.map { candidate ->
-                    OcrCandidate(
-                        profileId = profileId,
-                        candidateId = randomId(),
-                        sourceDocumentId = documentId,
-                        testCode = candidate.testCode.trim(),
-                        displayName = candidate.displayName.trim(),
-                        rawValue = candidate.rawValue.trim(),
-                        rawUnit = candidate.rawUnit.trim(),
-                        referenceRange = ReferenceRange(
-                            app.vezuna.localization.parseDecimalInput(candidate.referenceLower),
-                            app.vezuna.localization.parseDecimalInput(candidate.referenceUpper),
-                            unit = candidate.rawUnit.trim(),
-                        ),
-                        collectedAt = Instant.fromEpochSeconds(candidate.collectedEpochSeconds),
-                        confidence = candidate.confidence?.coerceIn(0f, 1f),
-                        status = ConfirmationStatus.UNREVIEWED,
-                        collectedAtKnown = true,
-                        rawToken = candidate.rawToken,
-                    )
+                // The same AppController path as Android: SHA-256 dedupe, identical validation, one report per source.
+                controller.importSource(PickedSource(fileName, mediaType, sourceBytes, candidates.map { it.toExtracted() }))
+                if (controller.state.value.error != null) {
+                    completion(nativeMessage("import_save_failed"))
+                    return@launch
                 }
-                val sourceEnvelope = vault.encrypt(sourceBytes, "Vezuna source v1:$profileId:$documentId".encodeToByteArray())
-                vault.write(sourceKey, json.encodeToString(CipherEnvelope.serializer(), sourceEnvelope).encodeToByteArray())
-                try {
-                    repository.addImport(document, report, importedCandidates)
-                } catch (error: Throwable) {
-                    vault.delete(sourceKey)
-                    throw error
-                }
-                controller.initialize()
                 repositoryObserver?.repositoryDidChange()
                 completion(null)
             } catch (error: Throwable) {

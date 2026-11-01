@@ -54,6 +54,15 @@ import kotlinx.datetime.toLocalDateTime
 
 enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
 
+/** Where a platform keeps the imported source file (encrypted). Optional: a platform without one stores no file. */
+interface SourceFileStore {
+    /** Stores [bytes] for the document and returns the key to record on it. */
+    suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String
+
+    /** Removes a stored file when the import that owned it could not be recorded. */
+    suspend fun discard(key: String)
+}
+
 sealed interface AppScreen {
     data object Dashboard : AppScreen
     data object Labs : AppScreen
@@ -99,6 +108,7 @@ class AppController(
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
     /** Null when the platform offers no backup file access (previews, tests). */
     val backup: BackupService? = null,
+    private val sourceStore: SourceFileStore? = null,
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
@@ -221,15 +231,8 @@ class AppController(
         }
         val sourceHash = sha256(source.bytes).toHex()
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
-        val document = existingDocument ?: SourceDocument(
-            data.profile.profileId,
-            randomId(),
-            source.fileName.trim(),
-            source.mediaType,
-            sourceHash,
-            currentInstant(),
-        )
-        if (existingDocument == null) repository.addDocument(document)
+        val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
+        if (existingDocument == null) addDocumentKeepingFile(document)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
             repository.addReport(LabReport(data.profile.profileId, randomId(), document.documentId, importedAt = currentInstant()))
         }
@@ -270,6 +273,22 @@ class AppController(
         }
         loadProfile(data.profile.profileId)
         return inserted
+    }
+
+    private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
+        val documentId = randomId()
+        val vaultKey = sourceStore?.save(profileId, documentId, source.bytes)
+        return SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(), vaultKey)
+    }
+
+    /** A stored file must never outlive a document that was not recorded. */
+    private suspend fun addDocumentKeepingFile(document: SourceDocument) {
+        try {
+            repository.addDocument(document)
+        } catch (error: Throwable) {
+            document.vaultKey?.let { sourceStore?.discard(it) }
+            throw error
+        }
     }
 
     private fun candidateFingerprint(
