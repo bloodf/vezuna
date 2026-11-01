@@ -98,4 +98,28 @@ class KeyFileVaultCoreTest {
         assertNull(core.readData("missing"))
         assertContentEquals(byteArrayOf(3), core.readData("ok"))
     }
+
+    @Test
+    fun keyPersistsAcrossRestartAndMismatchedEnvelopeIsCorrupt() {
+        val envelope = core.encrypt(byteArrayOf(7), byteArrayOf())
+        val restarted = KeyFileVaultCore(
+            files = files, keyPath = "key", algorithm = "ALG", keyId = "ID",
+            randomKey = { generated++; ByteArray(32) { 1 } },
+            seal = { _, plain, aad -> CipherEnvelope("x", "x", byteArrayOf(1), plain, aad) },
+            open = { _, e -> e.cipherText },
+        )
+
+        assertEquals(1, generated)
+        assertContentEquals(envelope.cipherText, restarted.decrypt(envelope))
+        listOf(envelope.copy(algorithm = "OTHER"), envelope.copy(keyId = "OTHER")).forEach { bad ->
+            assertEquals(VaultFailure.CORRUPT, assertFailsWith<VaultUnreadableException> { restarted.decrypt(bad) }.failure)
+        }
+    }
+
+    @Test
+    fun readDataIsNullForMissingFileAndUnavailableForUnreadableOne() {
+        assertNull(core.readData("absent"))
+        files.data["locked"] = null
+        assertEquals(VaultFailure.UNAVAILABLE, assertFailsWith<VaultUnreadableException> { core.readData("locked") }.failure)
+    }
 }
