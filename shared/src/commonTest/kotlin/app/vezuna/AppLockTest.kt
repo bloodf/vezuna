@@ -155,11 +155,25 @@ class AppLockTest {
         assertTrue(store.stored)
         assertFalse(lock.state.value.locked)
         assertFalse(lock.state.value.enabled)
-        assertEquals(AppLockProblem.NO_SCREEN_LOCK, lock.state.value.problem)
+        assertTrue(lock.state.value.suspended)
         auth.available = true
         lock.refresh()
         assertTrue(lock.state.value.enabled)
         assertTrue(lock.state.value.locked)
+    }
+
+    @Test
+    fun failedEnableWhileSuspendedDoesNotPreventResume() = runTest {
+        val store = FakeStore(stored = true); val auth = FakeAuthenticator(available = false)
+        val lock = lock(store, auth); lock.refresh()
+        lock.setEnabled(true)
+        assertEquals(AppLockProblem.UNAVAILABLE, lock.state.value.problem)
+        assertTrue(lock.state.value.suspended)
+        auth.available = true
+        lock.refresh()
+        assertTrue(lock.state.value.enabled)
+        assertTrue(lock.state.value.locked)
+        assertFalse(lock.state.value.suspended)
     }
 
     @Test

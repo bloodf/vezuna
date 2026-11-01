@@ -28,10 +28,10 @@ object AppLockPolicy {
         backgroundedAt != null && (now < backgroundedAt || now - backgroundedAt >= BACKGROUND_TIMEOUT_MILLIS)
 }
 
-/** [NO_SCREEN_LOCK]: the setting is kept but suspended because the device lost its screen lock. */
-enum class AppLockProblem { UNAVAILABLE, FAILED, NO_SCREEN_LOCK }
+enum class AppLockProblem { UNAVAILABLE, FAILED }
 
-data class AppLockState(val enabled: Boolean, val locked: Boolean, val problem: AppLockProblem? = null)
+/** [suspended]: the setting is kept but inactive because the device lost its screen lock. */
+data class AppLockState(val enabled: Boolean, val locked: Boolean, val problem: AppLockProblem? = null, val suspended: Boolean = false)
 
 /** Lock state machine. Starts locked when enabled (launch), relocks after a long background, enabling needs auth. */
 class AppLock(
@@ -52,8 +52,8 @@ class AppLock(
         val available = authenticator.canAuthenticate() ?: return
         val current = mutableState.value
         if (current.enabled && !available) {
-            mutableState.value = AppLockState(enabled = false, locked = false, problem = AppLockProblem.NO_SCREEN_LOCK)
-        } else if (!current.enabled && available && current.problem == AppLockProblem.NO_SCREEN_LOCK && store.isEnabled()) {
+            mutableState.value = AppLockState(enabled = false, locked = false, suspended = true)
+        } else if (!current.enabled && available && current.suspended && store.isEnabled()) {
             mutableState.value = AppLockState(enabled = true, locked = true)
         }
     }
@@ -115,8 +115,6 @@ class AppLock(
             mutableState.update { it.copy(problem = AppLockProblem.FAILED) }
         }
     }
-
-    fun clearProblem() = mutableState.update { it.copy(problem = null) }
 
     /** One prompt at a time; a second request while one is showing counts as not authenticated. */
     private suspend fun authenticate(): Boolean {

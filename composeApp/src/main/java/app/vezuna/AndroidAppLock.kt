@@ -31,6 +31,13 @@ internal fun fallsBackToCredential(errorCode: Int): Boolean = when (errorCode) {
     else -> false
 }
 
+/** API 30+: only "none enrolled" proves there is no credential; other failures (busy, update needed...) are unknown. */
+internal fun credentialAvailability(canAuthenticateResult: Int): Boolean? = when (canAuthenticateResult) {
+    BiometricManager.BIOMETRIC_SUCCESS -> true
+    BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> false
+    else -> null
+}
+
 /** Plain device-local preference: the lock must be known before the encrypted vault loads. Not backed up. */
 class SharedPrefsAppLockStore(context: Context) : AppLockStore {
     private val prefs = context.applicationContext.getSharedPreferences("vezuna_app_lock", Context.MODE_PRIVATE)
@@ -61,7 +68,7 @@ class AndroidDeviceAuthenticator(private val activity: FragmentActivity) : Devic
 
     override fun canAuthenticate(): Boolean? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            biometrics.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+            credentialAvailability(biometrics.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL))
         } else {
             strongEnrolled() || keyguard.isDeviceSecure
         }
