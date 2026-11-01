@@ -93,7 +93,7 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(kept.count, 1)
         let response = PendingDoseResponse(
             notificationIdentifier: "n", action: MedicationNotificationCoordinator.skipAction, profileId: "p", medicationId: "m",
-            medicationName: "Aspirin", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date()
+            medicationName: "Aspirin", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date(timeIntervalSince1970: 100)
         )
         try store.append(response)
         XCTAssertEqual(try store.load(), [response])
