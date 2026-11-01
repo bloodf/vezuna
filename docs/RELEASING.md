@@ -4,6 +4,8 @@ Vezuna is native: Kotlin Multiplatform (Android app in `composeApp/`, shared cod
 
 Never commit keystores, `.p8` keys, service-account JSON, passwords, `samples/` or `models/`.
 
+Before submitting any build, complete the [physical-device validation](DEVICE_VALIDATION.md) checklist for the release candidate and attach the results table.
+
 ## Versions
 
 | Platform | Name | Build number | Set with |
