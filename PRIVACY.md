@@ -1,6 +1,6 @@
 # Privacy
 
-This document describes what the Vezuna source code does with data, as of this repository's current state. It is a technical description, not a legal privacy policy. The prepared publisher policy is [PUBLISHER_PRIVACY_POLICY.txt](docs/PUBLISHER_PRIVACY_POLICY.txt), with website and offline native copies generated from that file. Publisher review and deployment remain pending. Anyone publishing a build must verify their store disclosures against the exact build they ship.
+This document describes what the Vezuna source code does with data, as of this repository's current state. It is a technical description, not a legal privacy policy. The prepared publisher policy is [PUBLISHER_PRIVACY_POLICY.txt](docs/PUBLISHER_PRIVACY_POLICY.txt), with website and offline native copies generated from that file. The publisher approved this policy on November 1, 2026, and the exact generated copy is live at https://vezuna.app/privacy. Anyone publishing a build must verify their store disclosures against the exact build they ship.
 
 ## Summary
 
