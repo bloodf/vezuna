@@ -481,10 +481,14 @@ class AppController(
         )
     }
 
-    suspend fun ask(question: String) = operation {
-        val data = requireData()
-        chat.ask(data, mutableState.value.selectedObservationIds, question)
-        loadProfile(data.profile.profileId)
+    /** Returns true when the answer was stored; on failure the caller keeps the user's question. */
+    suspend fun ask(question: String): Boolean {
+        operation {
+            val data = requireData()
+            chat.ask(data, mutableState.value.selectedObservationIds, question)
+            loadProfile(data.profile.profileId)
+        }
+        return mutableState.value.error == null
     }
 
     suspend fun exportCsv() = operation {

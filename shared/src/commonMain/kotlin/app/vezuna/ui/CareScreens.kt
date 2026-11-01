@@ -267,11 +267,11 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
             label = { Text(vitaText(L10nKey.ASK_RECORD_EDUCATION)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = {
-                if (question.isNotBlank() && loadedModelId != null && !state.loading) scope.launch { controller.ask(question); question = "" }
+                if (question.isNotBlank() && loadedModelId != null && !state.loading) scope.launch { if (controller.ask(question)) question = "" }
             }),
         )
         VitaButton(vitaText(L10nKey.ASK_ON_DEVICE_MODEL), Icons.Rounded.AutoAwesome, {
-            scope.launch { controller.ask(question); question = "" }
+            scope.launch { if (controller.ask(question)) question = "" }
         }, enabled = question.isNotBlank() && loadedModelId != null && !state.loading)
     }
 }
