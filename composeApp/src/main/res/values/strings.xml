@@ -69,4 +69,8 @@
     <string name="third_party_notices_unavailable">Notices could not be opened. Contact heitor.ramon@gmail.com for a copy.</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_policy_unavailable">The privacy policy could not be loaded.</string>
+    <!-- App lock -->
+    <string name="app_lock_prompt_title">Unlock Vezuna</string>
+    <string name="app_lock_prompt_subtitle">Confirm it is you to open your health records</string>
+    <string name="app_lock_use_passcode">Use device passcode</string>
 </resources>

@@ -69,7 +69,7 @@ It runs `xcodebuild test -scheme Vezuna -destination 'platform=iOS Simulator,id=
 
 - Debug Android builds have `DEBUG_PREMIUM_BYPASS = true` and unlock AI features when `VEZUNA_LVL_PUBLIC_KEY` is empty. Release builds do not.
 - Provide the key through the `VEZUNA_LVL_PUBLIC_KEY` environment variable or as a Gradle property, for example in your user-level `~/.gradle/gradle.properties`, never in the repository: `VEZUNA_LVL_PUBLIC_KEY=<your Play licensing public key>`.
-- The model catalog is empty. To test inference locally, construct a `ModelPack` with a real size and SHA-256 in a local change you do not publish.
+- The model catalog (`shared/src/commonMain/composeResources/files/model-packs.json`, shared by both apps) is `[]`. To test inference locally, add a `ModelPack` entry with a real size and SHA-256 in a local change you do not publish.
 
 ## Release checklist
 
