@@ -48,7 +48,12 @@ fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): Profile
 fun ProfileData.isInternallyConsistent(): Boolean {
     val id = profile.profileId
     fun <T> List<T>.unique(key: (T) -> String) = map(key).toSet().size == size
-    return documents.unique { it.documentId } &&
+    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.map { it.observationId } +
+        ocrCandidates.flatMap { c -> listOf(c.candidateId) + c.revisions.map { it.revisionId } } +
+        medications.flatMap { m -> listOf(m.medicationId) + m.schedules.map { it.scheduleId } } +
+        doseEvents.map { it.eventId } + chat.map { it.messageId }
+    return ids.all(::isValidId) &&
+        documents.unique { it.documentId } &&
         reports.unique { it.reportId } &&
         observations.unique { it.observationId } &&
         ocrCandidates.unique { it.candidateId } &&
@@ -67,3 +72,8 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         } &&
         chat.all { it.profileId == id }
 }
+
+private val VALID_ID = Regex("[A-Za-z0-9_-]{1,128}")
+
+/** The app generates UUIDs and `dose-<uuid>-<epoch>` event IDs; anything else would be hostile in a file name or key. */
+private fun isValidId(value: String) = VALID_ID.matches(value)

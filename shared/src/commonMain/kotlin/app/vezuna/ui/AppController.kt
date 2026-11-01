@@ -513,11 +513,13 @@ class AppController(
             mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
             else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
         }
-        repository.restoreWithVitals(toStore)
+        val vitalsRestored = repository.restoreWithVitals(toStore)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
         switchProfile(toStore.profile.profileId)
         DashboardRefreshSignal.notifyRepositoryChanged()
-        mutableState.value = mutableState.value.copy(notice = message(L10nKey.BACKUP_RESTORED))
+        mutableState.value = mutableState.value.copy(
+            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
+        )
     }
 
     private suspend fun operation(block: suspend () -> Unit) {

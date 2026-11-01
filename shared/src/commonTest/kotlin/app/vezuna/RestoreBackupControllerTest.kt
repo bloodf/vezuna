@@ -1,6 +1,8 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.data.VezunaRepository
+import app.vezuna.domain.ProfileVitals
 import app.vezuna.llm.InstalledModel
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LlmGenerationSettings
@@ -21,7 +23,7 @@ import kotlin.test.assertTrue
 class RestoreBackupControllerTest {
     private val data = sampleProfileData()
 
-    private suspend fun controller(repository: InMemoryVezunaRepository) =
+    private suspend fun controller(repository: VezunaRepository) =
         AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModels, NoLlm), LocalHealthChat(repository, NoLlm)).also { it.initialize() }
 
     @Test
@@ -32,7 +34,7 @@ class RestoreBackupControllerTest {
         assertNull(controller.state.value.error)
         assertEquals(data.profile.profileId, controller.state.value.data?.profile?.profileId)
         assertEquals(data.medications, controller.state.value.data?.medications)
-        assertEquals(data.vitals, controller.state.value.data?.vitals)
+        assertEquals(data.vitals.copy(lastSync = null), controller.state.value.data?.vitals)
         assertEquals(UserText.Key(L10nKey.BACKUP_RESTORED), controller.state.value.notice)
         // sample data's source file is not on this device, so its key must not dangle
         assertNull(controller.state.value.data?.documents?.single()?.vaultKey)
@@ -61,9 +63,23 @@ class RestoreBackupControllerTest {
         val restored = controller.state.value.data!!
         assertTrue(restored.profile.profileId != data.profile.profileId)
         assertEquals(data.observations.single().originalValue, restored.observations.single().originalValue)
-        assertEquals(data.vitals, restored.vitals)
-        assertEquals(data.vitals, repository.readProfile(data.profile.profileId).vitals)
-        assertEquals(data, repository.readProfile(data.profile.profileId).copy(documents = data.documents))
+        assertEquals(data.vitals.copy(lastSync = null), restored.vitals)
+        // replace also clears lastSync of the existing profile's vitals
+        assertEquals(data.vitals.copy(lastSync = null), repository.readProfile(data.profile.profileId).vitals)
+        assertEquals(data.copy(vitals = data.vitals.copy(lastSync = null)), repository.readProfile(data.profile.profileId).copy(documents = data.documents))
+    }
+
+    @Test
+    fun vitalsFailureStillRestoresTheProfileAndSaysSo() = runTest {
+        val inner = InMemoryVezunaRepository()
+        val repository = object : VezunaRepository by inner {
+            override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = throw IllegalStateException("disk full")
+        }
+        val controller = controller(repository)
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertNull(controller.state.value.error)
+        assertEquals(UserText.Key(L10nKey.BACKUP_RESTORED_WITHOUT_VITALS), controller.state.value.notice)
+        assertEquals(data.medications, inner.readProfile(data.profile.profileId).medications)
     }
 
     private object NoModels : ModelFileStore {

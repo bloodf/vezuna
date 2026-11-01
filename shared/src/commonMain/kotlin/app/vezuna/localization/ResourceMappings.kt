@@ -267,6 +267,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.VAULT_RECOVERY_RESET_CONFIRM to Res.string.vault_recovery_reset_confirm,
     L10nKey.VAULT_RECOVERY_CANCEL to Res.string.vault_recovery_cancel,
     // Portable backup and restore
+    L10nKey.BACKUP_RESTORED_WITHOUT_VITALS to Res.string.backup_restored_without_vitals,
     L10nKey.BACKUP_FILE_UNREADABLE to Res.string.backup_file_unreadable,
     L10nKey.BACKUP_RESTORE_FAILED_AFTER_RESET to Res.string.backup_restore_failed_after_reset,
     L10nKey.BACKUP_PASSPHRASE_TOO_SHORT to Res.string.backup_passphrase_too_short,

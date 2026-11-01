@@ -87,10 +87,21 @@ interface VezunaRepository {
 }
 
 
-/** Restores a backup including its device vitals; the vitals replace whatever the profile had. */
-suspend fun VezunaRepository.restoreWithVitals(data: ProfileData) {
+/**
+ * Restores a backup including its device vitals; the vitals replace whatever the profile had. `lastSync` is cleared so
+ * the next device sync reads its full first window. Returns false when the profile was restored but the vitals could not
+ * be written (the profile and its records are kept).
+ */
+suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean {
     restoreProfile(data.copy(vitals = ProfileVitals()))
-    replaceVitals(data.profile.profileId, data.vitals)
+    return try {
+        replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null))
+        true
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        false
+    }
 }
 
 /** Volatile implementation used by tests and previews. */

@@ -312,6 +312,18 @@ class ProfileRestoreTest {
     }
 
     @Test
+    fun malformedIdsAreRejectedAndAppGeneratedOnesAccepted() {
+        val uuid = "123e4567-e89b-12d3-a456-426614174000"
+        assertTrue(sampleProfileData(uuid).isInternallyConsistent())
+        assertTrue(data.copy(doseEvents = listOf(data.doseEvents.single().copy(eventId = "dose-$uuid-1767225600-snooze"))).isInternallyConsistent())
+        for (bad in listOf("../etc", "a b", "", "x".repeat(129), "id\u0000", "caf\u00e9")) {
+            assertFalse(data.copy(chat = listOf(data.chat.single().copy(messageId = bad))).isInternallyConsistent(), "accepted '$bad'")
+        }
+        val renamed = data.copy(profile = data.profile.copy(profileId = "bad/id"))
+        assertFalse(renamed.isInternallyConsistent())
+    }
+
+    @Test
     fun inconsistentBackupsAreDetected() {
         val foreign = data.copy(chat = listOf(data.chat.single().copy(profileId = "someone-else")))
         assertFalse(foreign.isInternallyConsistent())
