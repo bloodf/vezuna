@@ -389,4 +389,11 @@ iOS: %2$s</string>
     <string name="stop_generating">Parar</string>
     <string name="model_insufficient_ram">Este modelo precisa de pelo menos %1$s MB de RAM; este dispositivo tem %2$s MB.</string>
     <string name="model_insufficient_storage">Armazenamento livre insuficiente: %1$s MB necessários, %2$s MB disponíveis.</string>
+    <string name="export_options">Opções de exportação</string>
+    <string name="export_from_date">Data inicial</string>
+    <string name="export_to_date">Data final</string>
+    <string name="export_date_hint">AAAA-MM-DD, opcional</string>
+    <string name="export_tests">Exames a incluir (nenhum selecionado exporta todos)</string>
+    <string name="export_active_medications_only">Somente medicamentos ativos</string>
+    <string name="export_include_medications_csv">Incluir medicamentos no CSV</string>
 </resources>

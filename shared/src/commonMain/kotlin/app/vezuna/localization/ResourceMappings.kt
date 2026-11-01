@@ -369,6 +369,13 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.STOP_GENERATING to Res.string.stop_generating,
     L10nKey.MODEL_INSUFFICIENT_RAM to Res.string.model_insufficient_ram,
     L10nKey.MODEL_INSUFFICIENT_STORAGE to Res.string.model_insufficient_storage,
+    L10nKey.EXPORT_OPTIONS to Res.string.export_options,
+    L10nKey.EXPORT_FROM_DATE to Res.string.export_from_date,
+    L10nKey.EXPORT_TO_DATE to Res.string.export_to_date,
+    L10nKey.EXPORT_DATE_HINT to Res.string.export_date_hint,
+    L10nKey.EXPORT_TESTS to Res.string.export_tests,
+    L10nKey.EXPORT_ACTIVE_MEDICATIONS_ONLY to Res.string.export_active_medications_only,
+    L10nKey.EXPORT_INCLUDE_MEDICATIONS_CSV to Res.string.export_include_medications_csv,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

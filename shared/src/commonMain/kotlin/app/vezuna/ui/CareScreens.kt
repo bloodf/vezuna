@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import kotlinx.coroutines.Job
+import app.vezuna.export.ExportOptions
 import app.vezuna.platform.currentInstant
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -399,9 +400,11 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
             }
         }
         Text(vitaText(L10nKey.EXPORT_LANGUAGE_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        var exportOptions by remember { mutableStateOf<ExportOptions?>(ExportOptions()) }
+        ExportOptionsPanel(data) { exportOptions = it }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv(exportLanguage) } }, Modifier.weight(1f))
-            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf(exportLanguage) } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { exportOptions?.let { scope.launch { controller.exportCsv(exportLanguage, it) } } }, Modifier.weight(1f), enabled = exportOptions != null)
+            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { exportOptions?.let { scope.launch { controller.exportPdf(exportLanguage, it) } } }, Modifier.weight(1f), enabled = exportOptions != null)
         }
         state.csvExport?.let { csv ->
             Card {

@@ -92,3 +92,8 @@
 "app_lock_reason" = "Confirma que eres tú para abrir tus registros de salud";
 "export_language" = "Idioma de la exportación";
 "export_language_device" = "Idioma de la app";
+"export_options" = "Opciones de exportación";
+"export_from_date" = "Fecha inicial (AAAA-MM-DD, opcional)";
+"export_to_date" = "Fecha final (AAAA-MM-DD, opcional)";
+"export_active_medications_only" = "Solo medicamentos activos";
+"export_include_medications_csv" = "Incluir medicamentos en el CSV";

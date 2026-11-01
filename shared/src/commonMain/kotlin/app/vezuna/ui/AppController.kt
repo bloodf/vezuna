@@ -28,6 +28,7 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportOptions
 import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
@@ -618,17 +619,17 @@ class AppController(
     }
 
     /** [language] is the per-export override; null follows the app/device language. */
-    suspend fun exportCsv(language: ContentLanguage? = null) = operation {
+    suspend fun exportCsv(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         mutableState.value = mutableState.value.copy(
-            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device()),
+            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device(), options),
             notice = message(L10nKey.CSV_EXPORT_PREPARED),
         )
     }
 
-    suspend fun exportPdf(language: ContentLanguage? = null) = operation {
+    suspend fun exportPdf(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         val data = requireData()
         val chosen = language ?: ContentLanguage.device()
-        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen)
+        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen, options)
         mutableState.value = mutableState.value.copy(
             pdfExport = pdfExporter.export(document),
             notice = message(L10nKey.PDF_EXPORT_PREPARED),

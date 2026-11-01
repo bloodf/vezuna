@@ -26,7 +26,8 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         text("Vezuna", MARGIN, y, 18.0, NAVY, bold = true)
         y += 26.0
         if (document.profileDisplayName.isNotEmpty()) {
-            text(document.profileDisplayName, MARGIN, y, 12.0, NAVY, bold = true)
+            val age = document.ageYears?.let { " · ${t.age}: $it" }.orEmpty()
+            text(document.profileDisplayName + age, MARGIN, y, 12.0, NAVY, bold = true)
             y += 17.0
         }
         text("${t.generated} ${DoctorReportFormat.dateTime(document.generatedAt, language)}", MARGIN, y, 7.5, MUTED)
