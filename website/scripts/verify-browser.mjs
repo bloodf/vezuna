@@ -75,46 +75,61 @@ try {
   await page.goto(origin, { waitUntil: 'networkidle' });
   assert.equal(await page.locator('.store-pending').count(), 2, 'Store availability states are missing');
   assert.equal(await page.locator('.availability-actions a').getAttribute('href'), 'https://github.com/bloodf/vezuna');
-  const scene = page.locator('[data-health-scene]');
-  await scene.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
-  const firstFrame = Number(await scene.getAttribute('data-frame'));
-  await page.waitForTimeout(450);
-  const nextFrame = Number(await scene.getAttribute('data-frame'));
-  assert(nextFrame > firstFrame, `3D scene did not animate: ${firstFrame} -> ${nextFrame}`);
-  await page.locator('.health-scene-stage').screenshot({ path: 'screenshots/health-scene-desktop.png' });
-  for (const anchor of ['how-it-works', 'routines', 'privacy', 'faq']) {
-    await page.locator(`.primary-nav a[href="#${anchor}"]`).click();
-    assert.equal(new URL(page.url()).hash, `#${anchor}`);
-    assert(await page.locator(`#${anchor}`).isVisible());
-  }
+  assert.equal(await page.locator('[data-health-scene]').count(), 0, 'Discarded abstract scene is still present');
+  assert(await page.locator('#workspace-panel-labs').isVisible(), 'Lab panel is not visible by default');
+  assert(await page.locator('.lab-chart-line').isVisible(), 'Lab comparison chart is missing');
+  assert((await page.locator('.lab-results').innerText()).includes('13.8'));
+
+  await page.locator('#workspace-tab-meds').click();
+  assert(await page.locator('#workspace-panel-meds').isVisible(), 'Medication panel did not open');
+  assert.equal(await page.locator('.meds-schedule-row').count(), 3);
+  assert((await page.locator('.meds-schedule').innerText()).includes('Snoozed'));
+  await page.locator('#workspace-tab-device').click();
+  assert(await page.locator('#workspace-panel-device').isVisible(), 'Device panel did not open');
+  const deviceText = await page.locator('.device-metrics').innerText();
+  for (const text of ['Weight', '72.4', 'Heart rate', '68', 'Steps', '6,842']) assert(deviceText.includes(text), `Missing device metric: ${text}`);
+  await page.locator('.device-panel').screenshot({ path: 'screenshots/workspace-device.png' });
+  await page.locator('#workspace-tab-household').click();
+  assert(await page.locator('#workspace-panel-household').isVisible(), 'Household panel did not open');
+  assert.equal(await page.locator('.household-profile-row').count(), 2);
+
+  await page.locator('#workspace-tab-labs').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.locator('#workspace-tab-meds').getAttribute('aria-selected'), 'true', 'Keyboard tab navigation failed');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.locator('#workspace-tab-labs').getAttribute('aria-selected'), 'true', 'Keyboard return to labs failed');
+  await page.locator('.primary-nav a[href="#workspace-tab-device"]').click();
+  assert.equal(new URL(page.url()).hash, '#workspace-tab-device');
+  await page.locator('#workspace-panel-device').waitFor({ state: 'visible' });
+  assert(await page.locator('#workspace-panel-device').isVisible(), 'Direct device navigation did not select the panel');
+  await page.locator('.primary-nav a[href="#privacy"]').click();
+  assert.equal(new URL(page.url()).hash, '#privacy');
+  await page.locator('.primary-nav a[href="#faq"]').click();
+  assert.equal(new URL(page.url()).hash, '#faq');
+
   await page.locator('.language-nav a[href="/pt-br"]').click();
   await page.waitForURL('**/pt-br');
   assert.equal(await page.locator('html').getAttribute('lang'), 'pt-BR');
-  assert((await page.locator('h1').innerText()).includes('Sua saúde'));
+  assert((await page.locator('h1').innerText()).includes('registros de saúde'));
   await page.locator('.language-nav a[href="/es"]').click();
   await page.waitForURL('**/es');
   assert.equal(await page.locator('html').getAttribute('lang'), 'es');
-  assert((await page.locator('h1').innerText()).includes('Tu salud'));
+  assert((await page.locator('h1').innerText()).includes('registros de salud'));
 
   await page.goto(origin, { waitUntil: 'networkidle' });
-  await page.screenshot({ path: 'screenshots/home-desktop.png', fullPage: false });
-  await page.screenshot({ path: 'screenshots/home-desktop-full.png', fullPage: true });
+  await page.screenshot({ path: 'screenshots/redesign-desktop.png', fullPage: false });
+  await page.screenshot({ path: 'screenshots/redesign-desktop-full.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'screenshots/home-mobile.png', fullPage: false });
-  await page.screenshot({ path: 'screenshots/home-mobile-full.png', fullPage: true });
-  await scene.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
-  await page.locator('.health-scene-stage').screenshot({ path: 'screenshots/health-scene-mobile.png' });
-  const galleryWidth = await page.locator('.screenshot').first().evaluate((element) => element.getBoundingClientRect().width);
+  await page.screenshot({ path: 'screenshots/redesign-mobile.png', fullPage: false });
+  await page.screenshot({ path: 'screenshots/redesign-mobile-full.png', fullPage: true });
+  await page.locator('.workspace-section').scrollIntoViewIfNeeded();
+  await page.locator('.workspace-section').screenshot({ path: 'screenshots/workspace-mobile.png' });
+  const galleryWidth = await page.locator('.gallery-item').first().evaluate((element) => element.getBoundingClientRect().width);
   assert(galleryWidth >= 280, `Mobile screenshots are too small: ${galleryWidth}`);
   await page.locator('.navigation > summary').click();
   assert(await page.locator('.nav-panel').isVisible(), 'Mobile menu did not open');
   await page.locator('.primary-nav a[href="#faq"]').click();
   assert.equal(new URL(page.url()).hash, '#faq');
-  const secondFaq = page.locator('.faq-list details').nth(1);
-  await secondFaq.locator('summary').click();
-  assert(await secondFaq.evaluate((element) => element.open), 'FAQ did not open');
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${origin}/docs`, { waitUntil: 'networkidle' });
@@ -126,8 +141,7 @@ try {
   await page.waitForTimeout(800);
   const searchText = await search.innerText();
   assert(/Developer guide|Privacy and data|Getting started/.test(searchText), `Search returned no relevant results: ${searchText}`);
-  const resultLinks = search.locator('a');
-  assert(await resultLinks.count() > 0, 'Documentation search returned no links');
+  assert(await search.locator('a').count() > 0, 'Documentation search returned no links');
 
   await page.goto(`${origin}/docs/developers`, { waitUntil: 'networkidle' });
   const copyButton = page.locator('.copy-code').first();
@@ -139,18 +153,11 @@ try {
   assert(await page.evaluate(() => document.activeElement !== document.body), 'Keyboard focus did not move');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior), 'auto');
+  await page.goto(origin, { waitUntil: 'networkidle' });
+  assert(await page.locator('#workspace-panel-labs').evaluate((element) => ['0s', '0ms'].includes(getComputedStyle(element).animationDuration)));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${origin}/docs/getting-started`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: 'screenshots/docs-mobile.png', fullPage: false });
-
-  await page.goto(origin, { waitUntil: 'networkidle' });
-  const staticScene = page.locator('[data-health-scene]');
-  await staticScene.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelector('[data-health-scene]')?.getAttribute('data-webgl-ready') === 'true');
-  await page.waitForTimeout(250);
-  const staticFrame = Number(await staticScene.getAttribute('data-frame'));
-  await page.waitForTimeout(350);
-  assert.equal(Number(await staticScene.getAttribute('data-frame')), staticFrame, 'Reduced-motion scene kept animating');
 
   const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/pt-br/docs/getting-started', '/support', '/privacy'];
   const violations = [];
@@ -165,7 +172,7 @@ try {
   }
   assert.deepEqual(violations, [], `Accessibility violations:\n${violations.join('\n')}`);
   assert.deepEqual(errors, [], `Browser errors:\n${[...new Set(errors)].join('\n')}`);
-  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} search=passed navigation=passed webgl=animated reducedMotion=static screenshots=8`);
+  console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} workspaces=4 keyboardTabs=passed deviceMetrics=passed reducedMotion=passed screenshots=7`);
 } finally {
   if (browser) await browser.close();
   if (server.pid) {
