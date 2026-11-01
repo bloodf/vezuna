@@ -89,7 +89,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
     implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.exifinterface:exifinterface:1.4.1")
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
