@@ -6,28 +6,32 @@ import { issuesUrl, localizedPath, securityUrl, supportAlternates, type Locale }
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const copy = supportCopy[locale];
+const supportEmail = 'heitor.ramon@gmail.com';
 ---
 <BaseLayout locale={locale} title={copy.title} description={copy.intro} path={localizedPath(locale, 'support')} alternates={supportAlternates}>
-  <main class="simple-main" id="main-content">
-    <header class="simple-hero">
-      <p class="eyebrow">{copy.eyebrow}</p>
+  <main class="page wrap" id="main-content">
+    <header class="page-head">
       <h1>{copy.title}</h1>
-      <p>{copy.intro}</p>
+      <p class="section-lead">{copy.intro}</p>
     </header>
-    <div class="support-grid">
-      <section class="support-channel" aria-labelledby="general-support">
+    <p class="notice notice--warning" role="note">{copy.warning}</p>
+    <div class="channels">
+      <section class="channel" aria-labelledby="email-support">
+        <h2 id="email-support">{copy.emailTitle}</h2>
+        <p>{copy.emailBody}</p>
+        <a class="channel-email" href={`mailto:${supportEmail}`}>{supportEmail}</a>
+      </section>
+      <section class="channel" aria-labelledby="general-support">
         <h2 id="general-support">{copy.generalTitle}</h2>
         <p>{copy.generalBody}</p>
-        <p><a href="mailto:heitor.ramon@gmail.com">heitor.ramon@gmail.com</a></p>
-        <a class="button button--primary" href={issuesUrl} rel="external">{copy.action}</a>
+        <a class="button button--secondary" href={issuesUrl} rel="external">{copy.action}</a>
       </section>
-      <section class="support-channel" aria-labelledby="security-support">
+      <section class="channel" aria-labelledby="security-support">
         <h2 id="security-support">{copy.securityTitle}</h2>
         <p>{copy.securityBody}</p>
-        <p>{copy.fallback}</p>
-        <a class="button button--primary" href={securityUrl} rel="external">{copy.securityAction}</a>
+        <p class="channel-fine">{copy.fallback}</p>
+        <a class="button button--secondary" href={securityUrl} rel="external">{copy.securityAction}</a>
       </section>
     </div>
-    <p class="support-warning"><strong>{copy.warning}</strong></p>
   </main>
 </BaseLayout>

@@ -26,7 +26,7 @@ export function docAlternates(allEntries: DocEntry[], translationKey: string): A
 }
 
 export const docsUi = {
-  en: { title: 'Documentation', search: 'Search the documentation', sidebar: 'Documentation pages', back: 'Back to documentation', previous: 'Previous', next: 'Next', copy: 'Copy code', copied: 'Copied', user: 'Using Vezuna', developer: 'Developer guide' },
-  'pt-br': { title: 'Documentação', search: 'Pesquisar na documentação', sidebar: 'Páginas da documentação', back: 'Voltar à documentação', previous: 'Anterior', next: 'Próxima', copy: 'Copiar código', copied: 'Copiado', user: 'Como usar o Vezuna', developer: 'Guia do desenvolvedor' },
-  es: { title: 'Documentación', search: 'Buscar en la documentación', sidebar: 'Páginas de documentación', back: 'Volver a la documentación', previous: 'Anterior', next: 'Siguiente', copy: 'Copiar código', copied: 'Copiado', user: 'Cómo usar Vezuna', developer: 'Guía para desarrolladores' },
+  en: { title: 'Documentation', search: 'Search the documentation', sidebar: 'Documentation pages', back: 'Back to documentation', previous: 'Previous', next: 'Next', copy: 'Copy code', copied: 'Copied', pagination: 'Previous and next page', outline: 'On this page', user: 'Using Vezuna', developer: 'Developer guide' },
+  'pt-br': { title: 'Documentação', search: 'Pesquisar na documentação', sidebar: 'Páginas da documentação', back: 'Voltar à documentação', previous: 'Anterior', next: 'Próxima', copy: 'Copiar código', copied: 'Copiado', pagination: 'Página anterior e próxima', outline: 'Nesta página', user: 'Como usar o Vezuna', developer: 'Guia do desenvolvedor' },
+  es: { title: 'Documentación', search: 'Buscar en la documentación', sidebar: 'Páginas de documentación', back: 'Volver a la documentación', previous: 'Anterior', next: 'Siguiente', copy: 'Copiar código', copied: 'Copiado', pagination: 'Página anterior y siguiente', outline: 'En esta página', user: 'Cómo usar Vezuna', developer: 'Guía para desarrolladores' },
 } as const;
