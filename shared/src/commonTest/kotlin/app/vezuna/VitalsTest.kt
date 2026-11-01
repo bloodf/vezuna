@@ -34,7 +34,7 @@ class VitalsTest {
     private val saoPaulo = TimeZone.of("America/Sao_Paulo")
     private val json = Json { encodeDefaults = true }
 
-    private fun hour(at: String, avg: Double = 70.0) = HeartRateBucket(Instant.parse(at), avg - 5, avg, avg + 5, 30)
+    private fun hour(at: String, avg: Double = 70.0) = HeartRateBucket(Instant.parse(at), avg - 5, avg, avg + 5)
     private fun weight(id: String, kg: Double, at: String) = WeightReading(id, Instant.parse(at), kg)
 
     @Test
@@ -101,7 +101,7 @@ class VitalsTest {
         assertEquals(70.0, day.avg)
         assertEquals(55.0, day.min)
         assertEquals(85.0, day.max)
-        assertEquals(60, day.count)
+        assertEquals(2, day.count)
         assertEquals(result.heartRateDaily, DeviceVitals.ingest(result, VitalsBatch(LocalDate(2026, 10, 30)), now, utc).heartRateDaily)
         // An hour that old arriving again is not accepted, so it cannot be counted twice.
         assertEquals(result.heartRateDaily, DeviceVitals.ingest(result, VitalsBatch(LocalDate(2026, 10, 30), heartRate = listOf(hour("2026-09-01T08:00:00Z", 60.0))), now, utc).heartRateDaily)
@@ -111,9 +111,9 @@ class VitalsTest {
     fun dayKeysFollowTheLocalZoneNotUtc() {
         // 01:30 UTC on Oct 31 is still Oct 30 in Sao Paulo (UTC-3).
         val late = Instant.parse("2026-10-31T01:30:00Z")
-        val points = DeviceVitals.series(ProfileVitals(heartRateHourly = listOf(HeartRateBucket(late, 60.0, 70.0, 80.0, 10))), VitalMetric.HEART_RATE_BPM, saoPaulo)
+        val points = DeviceVitals.series(ProfileVitals(heartRateHourly = listOf(HeartRateBucket(late, 60.0, 70.0, 80.0))), VitalMetric.HEART_RATE_BPM, saoPaulo)
         assertEquals(LocalDate(2026, 10, 30).atStartOfDayIn(saoPaulo).epochSeconds, points.single().first)
-        val rolled = DeviceVitals.ingest(ProfileVitals(heartRateHourly = listOf(HeartRateBucket(Instant.parse("2026-09-02T01:30:00Z"), 60.0, 70.0, 80.0, 10))), VitalsBatch(LocalDate(2026, 10, 30)), now, saoPaulo)
+        val rolled = DeviceVitals.ingest(ProfileVitals(heartRateHourly = listOf(HeartRateBucket(Instant.parse("2026-09-02T01:30:00Z"), 60.0, 70.0, 80.0))), VitalsBatch(LocalDate(2026, 10, 30)), now, saoPaulo)
         assertEquals(LocalDate(2026, 9, 1), rolled.heartRateDaily.single().date)
         // 02:00 UTC on Nov 1 is still Oct 31 in Sao Paulo, so the trailing week starts Oct 24.
         val early = Instant.parse("2026-11-01T02:00:00Z")
@@ -137,9 +137,9 @@ class VitalsTest {
     @Test
     fun invalidPlatformValuesAreRejectedAtTheMappingBoundary() {
         assertNull(StepsDay.ofOrNull(LocalDate(2026, 10, 1), -5))
-        assertNull(HeartRateBucket.ofOrNull(now, 10.0, 70.0, 80.0, 5))
-        assertNull(HeartRateBucket.ofOrNull(now, 60.0, Double.NaN, 80.0, 5))
-        assertNull(HeartRateBucket.ofOrNull(now, 60.0, 70.0, 500.0, 5))
+        assertNull(HeartRateBucket.ofOrNull(now, 10.0, 70.0, 80.0))
+        assertNull(HeartRateBucket.ofOrNull(now, 60.0, Double.NaN, 80.0))
+        assertNull(HeartRateBucket.ofOrNull(now, 60.0, 70.0, 500.0))
         assertNull(WeightReading.ofOrNull("w", now, 0.0))
         assertNull(WeightReading.ofOrNull("w", now, Double.POSITIVE_INFINITY))
     }
@@ -149,8 +149,8 @@ class VitalsTest {
         val start = Instant.parse("2025-11-02T00:00:00Z")
         val recent = Instant.parse("2026-10-01T00:00:00Z")
         // Steady state after a year: 31 days of hourly buckets, a daily heart-rate summary per day, daily steps, weekly weight.
-        val hourly = (0 until 31 * 24).map { HeartRateBucket(recent + (it * 3600).seconds, 58.5, 72.25, 131.0, 60) }
-        val daily = (0 until 365).map { HeartRateDay(LocalDate(2025, 11, 2).plus(it, DateTimeUnit.DAY), 58.5, 72.25, 131.0, 1440) }
+        val hourly = (0 until 31 * 24).map { HeartRateBucket(recent + (it * 3600).seconds, 58.5, 72.25, 131.0) }
+        val daily = (0 until 365).map { HeartRateDay(LocalDate(2025, 11, 2).plus(it, DateTimeUnit.DAY), 58.5, 72.25, 131.0, 24) }
         val steps = (0 until 365).map { StepsDay(LocalDate(2025, 11, 2).plus(it, DateTimeUnit.DAY), 8000L + it) }
         val weights = (0 until 52).map { WeightReading("record-$it-aaaaaaaa", start + (it * 7 * 24 * 3600).seconds, 70.5) }
         val stored = ProfileVitals(steps, hourly, daily, weights, now)
@@ -199,5 +199,23 @@ class VitalsTest {
         assertEquals(listOf(400.0), DeviceVitals.series(vitals, VitalMetric.STEPS, utc).map { it.second })
         assertEquals(listOf(70.0), DeviceVitals.series(vitals, VitalMetric.HEART_RATE_BPM, utc).map { it.second })
         assertEquals(listOf(70.0), DeviceVitals.series(vitals, VitalMetric.WEIGHT_KG, utc).map { it.second })
+    }
+
+    @Test
+    fun replaceVitalsStoresExactlyWhatWasGiven() = runTest {
+        val repository = InMemoryVezunaRepository()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochSeconds(1)))
+        val vitals = ProfileVitals(steps = listOf(StepsDay(LocalDate(2026, 10, 1), 5)), lastSync = now)
+        repository.replaceVitals("a", vitals)
+        assertEquals(vitals, repository.readProfile("a").vitals)
+    }
+
+    @Test
+    fun mergeOnlyBatchKeepsEverythingStored() {
+        val stored = ProfileVitals(steps = listOf(StepsDay(LocalDate(2026, 11, 1), 77)), weights = listOf(weight("w", 70.0, "2026-11-01T08:00:00Z")))
+        val result = DeviceVitals.ingest(stored, VitalsBatch(VitalsBatch.MERGE_ONLY, weights = listOf(weight("old", 69.0, "2026-09-01T08:00:00Z")), markSynced = false), now, utc)
+        assertEquals(listOf(77L), result.steps.map { it.count })
+        assertEquals(setOf("w", "old"), result.weights.map { it.recordId }.toSet())
+        assertNull(result.lastSync)
     }
 }

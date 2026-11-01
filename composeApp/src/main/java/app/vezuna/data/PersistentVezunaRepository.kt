@@ -146,11 +146,12 @@ class PersistentVezunaRepository(
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
         val removed = snapshot.records[profileId] ?: throw IllegalArgumentException("Profile not found")
-        vitals.remove(profileId)
         val remaining = snapshot.records - profileId
         val link = if (snapshot.healthLinkedProfileId == profileId) HealthLink.resolve(null, remaining.values.map { it.profile }) else snapshot.healthLinkedProfileId
         commit(snapshot.copy(records = remaining, healthLinkedProfileId = link))
         removed.vaultKeys().forEach { vault.delete(it) }
+        // Only after the new snapshot is durable; a failure above leaves the vitals in place and the sweep retries.
+        vitals.remove(profileId)
         vitalsStore.delete(profileId)
     }
 
@@ -186,6 +187,13 @@ class PersistentVezunaRepository(
     override suspend fun setLinkedHealthProfile(profileId: String) = mutate {
         require(snapshot.records.containsKey(profileId)) { "Profile not found" }
         snapshot.copy(healthLinkedProfileId = profileId)
+    }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        ensureInitialized()
+        require(snapshot.records.containsKey(profileId)) { "Profile not found" }
+        vitalsStore.save(profileId, vitals)
+        this.vitals[profileId] = vitals
     }
 
     override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
@@ -250,6 +258,7 @@ class PersistentVezunaRepository(
             val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(profileId, it) }
             if (loaded != null) vitals[profileId] = loaded
         }
+        vitalsStore.sweep(decoded.records.keys)
         snapshot = decoded.copy(records = decoded.records.mapValues { (_, data) -> data.copy(vitals = ProfileVitals()) })
         mutableProfiles.value = snapshot.records.values.map { it.profile }.sortedBy { it.displayName }
         initialized = true

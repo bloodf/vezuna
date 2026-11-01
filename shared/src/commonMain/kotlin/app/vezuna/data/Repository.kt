@@ -14,6 +14,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
@@ -74,6 +75,8 @@ interface VezunaRepository {
     suspend fun setLinkedHealthProfile(profileId: String)
     /** Merges the batch into the linked profile only; returns how many of its entries were actually stored. */
     suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int
+    /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
+    suspend fun replaceVitals(profileId: String, vitals: ProfileVitals)
 }
 
 
@@ -177,6 +180,8 @@ class InMemoryVezunaRepository : VezunaRepository {
         require(records.containsKey(profileId)) { "Profile not found" }
         healthLink = profileId
     }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutate(profileId) { it.copy(vitals = vitals) }
 
     override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")

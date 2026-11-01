@@ -24,14 +24,17 @@ data class StepsDay(val date: LocalDate, val count: Long) {
 
 /** Heart-rate statistics for one hour starting at [start]. */
 @Serializable
-data class HeartRateBucket(val start: Instant, val min: Double, val avg: Double, val max: Double, val count: Int) {
+data class HeartRateBucket(val start: Instant, val min: Double, val avg: Double, val max: Double) {
     companion object {
-        fun ofOrNull(start: Instant, min: Double, avg: Double, max: Double, count: Int): HeartRateBucket? =
-            if (validRate(min, avg, max) && count > 0) HeartRateBucket(start, min, avg, max, count) else null
+        fun ofOrNull(start: Instant, min: Double, avg: Double, max: Double): HeartRateBucket? =
+            if (validRate(min, avg, max)) HeartRateBucket(start, min, avg, max) else null
     }
 }
 
-/** Heart-rate statistics for a whole local day (hourly buckets older than [DeviceVitals.RAW_DAYS] roll up into this). */
+/**
+ * Heart-rate statistics for a whole local day. Hourly buckets older than [DeviceVitals.RAW_DAYS] roll up into this;
+ * [count] is the number of hourly buckets covered, and [avg] is their unweighted mean on every platform.
+ */
 @Serializable
 data class HeartRateDay(val date: LocalDate, val min: Double, val avg: Double, val max: Double, val count: Int)
 
@@ -91,7 +94,12 @@ data class VitalsBatch(
     val skipped: Int = 0,
     /** False for data that was not read from the platform (migrations), so the next sync still reads the full first window. */
     val markSynced: Boolean = true,
-)
+) {
+    companion object {
+        /** A [replaceFrom] that replaces nothing: the batch is only merged into what is stored. */
+        val MERGE_ONLY = LocalDate(9999, 12, 31)
+    }
+}
 
 /** Device health data belongs to one linked profile (default: the first created); others never receive it. */
 object HealthLink {
@@ -160,7 +168,7 @@ object DeviceVitals {
         )
     }
 
-    private fun HeartRateBucket.toDay(date: LocalDate) = HeartRateDay(date, min, avg, max, count)
+    private fun HeartRateBucket.toDay(date: LocalDate) = HeartRateDay(date, min, avg, max, 1)
 
     private fun combine(date: LocalDate, items: List<HeartRateDay>): HeartRateDay {
         val count = items.sumOf { it.count }

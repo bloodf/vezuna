@@ -77,17 +77,16 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
     }
 
     private suspend fun readHeartRate(start: Instant, end: Instant): Mapped<HeartRateBucket> {
-        val metrics = setOf(HeartRateRecord.BPM_MIN, HeartRateRecord.BPM_AVG, HeartRateRecord.BPM_MAX, HeartRateRecord.MEASUREMENTS_COUNT)
+        val metrics = setOf(HeartRateRecord.BPM_MIN, HeartRateRecord.BPM_AVG, HeartRateRecord.BPM_MAX)
         val groups = client.aggregateGroupByDuration(
             AggregateGroupByDurationRequest(metrics, TimeRangeFilter.between(start, end), Duration.ofHours(1)),
-        ).filter { it.result[HeartRateRecord.MEASUREMENTS_COUNT] != null }
+        ).filter { it.result[HeartRateRecord.BPM_AVG] != null } // hours without readings
         val mapped = groups.mapNotNull { group ->
             HeartRateBucket.ofOrNull(
                 group.startTime.toKotlin(),
                 group.result[HeartRateRecord.BPM_MIN]?.toDouble() ?: return@mapNotNull null,
                 group.result[HeartRateRecord.BPM_AVG]?.toDouble() ?: return@mapNotNull null,
                 group.result[HeartRateRecord.BPM_MAX]?.toDouble() ?: return@mapNotNull null,
-                (group.result[HeartRateRecord.MEASUREMENTS_COUNT] ?: 0L).toInt(),
             )
         }
         return Mapped(mapped, groups.size - mapped.size)

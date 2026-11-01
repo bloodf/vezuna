@@ -33,10 +33,11 @@ class LegacyHealthConnectMigrationTest {
             "s|STEPS|x":{"recordId":"s","metric":"STEPS","value":9.0,"startTime":"2026-10-30T00:00:00Z","endTime":"2026-10-30T01:00:00Z"}}}""",
         )
         val repository = repo()
+        repository.ingestDeviceVitals(app.vezuna.domain.VitalsBatch(java.time.LocalDate.now().let { kotlinx.datetime.LocalDate(it.year, it.monthValue, it.dayOfMonth) }, steps = listOf(app.vezuna.domain.StepsDay(kotlinx.datetime.LocalDate(2026, 11, 1), 42)), markSynced = false), now)
         LegacyHealthConnectMigration(vault, repository, { now }).run()
         val vitals = repository.readProfile("a").vitals
         assertEquals(listOf("w"), vitals.weights.map { it.recordId })
-        assertEquals(emptyList(), vitals.steps)
+        assertEquals(listOf(42L), vitals.steps.map { it.count }, "today's stored data must survive a merge-only migration")
         assertNull(vitals.lastSync)
         assertEquals(emptyList(), repository.readProfile("b").vitals.weights)
         assertNull(vault.read("health-connect-v1"))

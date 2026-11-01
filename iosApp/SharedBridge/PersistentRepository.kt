@@ -96,6 +96,7 @@ class PersistentVezunaRepository private constructor(
                 records.values.map { it.profile }.sortedBy { it.displayName },
             )
         }
+        vitalsStore.sweep(records.keys)
         publishProfiles()
     }
 
@@ -200,11 +201,11 @@ class PersistentVezunaRepository private constructor(
 
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         val removed = records[profileId] ?: throw IllegalArgumentException("Profile not found")
-        vitals.remove(profileId)
         val newIndex = records.values.map { it.profile }.filter { it.profileId != profileId }.sortedBy { it.displayName }
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
         writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
         records.remove(profileId)
+        vitals.remove(profileId)
         if (healthLinkId == profileId) {
             val next = HealthLink.resolve(null, records.values.map { it.profile })
             if (next == null) vault.delete(HEALTH_LINK_KEY) else vault.write(HEALTH_LINK_KEY, next.encodeToByteArray())
@@ -261,6 +262,12 @@ class PersistentVezunaRepository private constructor(
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
         persistHealthLink(profileId)
+    }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        require(records.containsKey(profileId)) { "Profile not found" }
+        vitalsStore.save(profileId, vitals)
+        this.vitals[profileId] = vitals
     }
 
     override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {

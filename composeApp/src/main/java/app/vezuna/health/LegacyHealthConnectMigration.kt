@@ -7,8 +7,6 @@ import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.logging.Level
@@ -45,9 +43,8 @@ class LegacyHealthConnectMigration(
             emptyList()
         }
         if (weights.isNotEmpty()) {
-            val today = clock().toLocalDateTime(TimeZone.currentSystemDefault()).date
-            // Replacement starts today, so nothing already stored is removed; only the legacy weights are added.
-            repository.ingestDeviceVitals(VitalsBatch(replaceFrom = today, weights = weights, markSynced = false), clock())
+            // Merge only: nothing already stored, including today's data, is replaced.
+            repository.ingestDeviceVitals(VitalsBatch(replaceFrom = VitalsBatch.MERGE_ONLY, weights = weights, markSynced = false), clock())
         }
         vault.delete(KEY)
     }
