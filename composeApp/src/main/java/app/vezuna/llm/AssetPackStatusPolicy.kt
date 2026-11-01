@@ -6,7 +6,9 @@ import com.google.android.play.core.assetpacks.model.AssetPackStatus
 enum class AssetPackAction { AWAIT, COMPLETE, FAIL, CONFIRM_USER, CONFIRM_CELLULAR }
 
 object AssetPackStatusPolicy {
-    const val FETCH_TIMEOUT_MS = 30L * 60 * 1000
+    /** A delivery with no progress for this long is treated as stalled. */
+    const val INACTIVITY_TIMEOUT_MS = 10L * 60 * 1000
+    const val CONFIRMATION_BIND_TIMEOUT_MS = 60L * 1000
 
     fun actionFor(status: Int): AssetPackAction = when (status) {
         AssetPackStatus.COMPLETED -> AssetPackAction.COMPLETE

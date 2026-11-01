@@ -174,7 +174,7 @@ class InstalledModelManager(
         if (catalog.byId(pack.modelId) != pack) failMessage(L10nKey.MODEL_NOT_IN_CATALOG)
         mutableState.value = mutableState.value.copy(busy = true, error = null)
         try {
-            ModelFitPolicy.requireFits(pack, capacity)
+            ModelFitPolicy.requireFits(pack, capacity, delivered = true)
             val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
             // Verified atomic replace first: a failed install keeps the loaded model and the old file.
             files.install(model, sourcePath)

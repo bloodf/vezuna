@@ -97,3 +97,6 @@
 "export_to_date" = "To date (YYYY-MM-DD, optional)";
 "export_active_medications_only" = "Active medications only";
 "export_include_medications_csv" = "Include medications in CSV";
+"export_tests" = "Tests to include (none selected exports all)";
+"export_date_invalid" = "Enter a valid date as YYYY-MM-DD.";
+"export_date_range_reversed" = "The start date must not be after the end date.";

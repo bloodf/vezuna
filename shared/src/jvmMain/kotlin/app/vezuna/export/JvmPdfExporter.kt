@@ -21,7 +21,7 @@ private class JvmPdfCanvas : PdfCanvas {
 
     override fun newPage() { pages += JvmPdfPage() }
 
-    override fun measure(text: String, size: Double, bold: Boolean) = text.sumOf { characterWidth(it, size) }
+    override fun measure(text: String, size: Double, bold: Boolean) = text.sumOf { characterWidth(it, size) } * if (bold) 1.08 else 1.0
 
     override fun text(text: String, x: Double, top: Double, size: Double, color: PdfColor, bold: Boolean) {
         commands().append("${rgb(color)} rg BT /${if (bold) "F2" else "F1"} ${n(size)} Tf 1 0 0 1 ${n(x)} ${n(pageHeight - top - size)} Tm (")

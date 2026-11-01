@@ -401,25 +401,37 @@ object IosRuntime {
      * [fromDate] and [toDate] are optional ISO dates (YYYY-MM-DD); blank means unbounded and malformed text fails the export.
      */
     fun exportCsv(
-        languageTag: String, fromDate: String, toDate: String, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
         completion: (String?, NativeMessage?) -> Unit,
     ) = withProfile(completion) { data ->
-        val options = exportOptions(fromDate, toDate, activeMedicationsOnly, includeMedicationsCsv)
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
         CsvDoctorExporter().export(data, exportLanguage(languageTag), options)
     }
 
     fun exportPdf(
-        languageTag: String, fromDate: String, toDate: String, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
         completion: (ExportedPdf?, NativeMessage?) -> Unit,
     ) = withProfile(completion) { data ->
         val language = exportLanguage(languageTag)
-        val options = exportOptions(fromDate, toDate, activeMedicationsOnly, includeMedicationsCsv)
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
         NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language, options))
     }
 
-    private fun exportOptions(fromDate: String, toDate: String, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean): ExportOptions {
+    @kotlinx.serialization.Serializable
+    private data class ExportTest(val code: String, val name: String)
+
+    /** JSON array of `{code, name}` for the confirmed tests of the active profile, for the export test picker. */
+    fun listExportTests(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        val tests = data.observations.filter { it.confirmation == app.vezuna.domain.ConfirmationStatus.CONFIRMED }
+            .groupBy { app.vezuna.domain.UnitNormalizer.canonicalTestCode(it.testCode) }
+            .map { (code, rows) -> ExportTest(code, rows.first().displayName) }
+            .sortedBy { it.code }
+        json.encodeToString(ListSerializer(ExportTest.serializer()), tests)
+    }
+
+    private fun exportOptions(fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean): ExportOptions {
         fun date(text: String) = if (text.isBlank()) null else requireNotNull(ExportOptions.parseDate(text)) { "Invalid export date" }
-        return ExportOptions(date(fromDate), date(toDate), emptySet(), activeMedicationsOnly, includeMedicationsCsv)
+        return ExportOptions(date(fromDate), date(toDate), testCodes.toSet(), activeMedicationsOnly, includeMedicationsCsv)
     }
 
     private fun exportLanguage(languageTag: String): ContentLanguage =

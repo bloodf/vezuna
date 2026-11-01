@@ -6,6 +6,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.llm.LlmGenerationSettings
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.LocalLlm
+import app.vezuna.localization.VitaMessageException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -56,6 +57,16 @@ class StreamingChatTest {
 
         job.cancel()
         runCurrent()
+
+        assertEquals(emptyList(), repository.readProfile("p").chat)
+    }
+
+    @Test
+    fun blankAnswerIsRejectedAndNothingIsStored() = runTest {
+        val repository = repositoryWithProfile()
+        val llm = ScriptedLlm(flow { emit("   ") })
+
+        assertFailsWith<VitaMessageException> { LocalHealthChat(repository, llm).ask(repository.readProfile("p"), emptySet(), "q") }
 
         assertEquals(emptyList(), repository.readProfile("p").chat)
     }

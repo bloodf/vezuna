@@ -73,4 +73,5 @@
     <string name="app_lock_prompt_title">Unlock Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirm it is you to open your health records</string>
     <string name="app_lock_use_passcode">Use device passcode</string>
+    <string name="model_confirmation_needed">Open Vezuna and confirm the model download in the Play dialog, then try again.</string>
 </resources>

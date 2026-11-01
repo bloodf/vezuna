@@ -376,6 +376,10 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_TESTS to Res.string.export_tests,
     L10nKey.EXPORT_ACTIVE_MEDICATIONS_ONLY to Res.string.export_active_medications_only,
     L10nKey.EXPORT_INCLUDE_MEDICATIONS_CSV to Res.string.export_include_medications_csv,
+    L10nKey.EMPTY_MODEL_ANSWER to Res.string.empty_model_answer,
+    L10nKey.EXPORT_DATE_INVALID to Res.string.export_date_invalid,
+    L10nKey.EXPORT_DATE_RANGE_REVERSED to Res.string.export_date_range_reversed,
+    L10nKey.EXPORT_NO_MATCHING_RESULTS to Res.string.export_no_matching_results,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

@@ -396,4 +396,8 @@ iOS: %2$s</string>
     <string name="export_tests">Exames a incluir (nenhum selecionado exporta todos)</string>
     <string name="export_active_medications_only">Somente medicamentos ativos</string>
     <string name="export_include_medications_csv">Incluir medicamentos no CSV</string>
+    <string name="empty_model_answer">O modelo não retornou resposta. Tente novamente.</string>
+    <string name="export_date_invalid">Informe uma data válida no formato AAAA-MM-DD.</string>
+    <string name="export_date_range_reversed">A data inicial não pode ser posterior à data final.</string>
+    <string name="export_no_matching_results">Nenhum resultado confirmado corresponde a estas opções; a exportação ficaria sem resultados.</string>
 </resources>

@@ -226,7 +226,8 @@ class CsvDoctorExporter {
     }
 
     internal fun escape(raw: String): String {
-        val protected = if (raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
+        // Spreadsheets run a cell as a formula after =, +, -, @ (even behind blanks) and after a leading tab or carriage return.
+        val protected = if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
         return "\"${protected.replace("\"", "\"\"")}\""
     }
 }

@@ -606,6 +606,7 @@ class AppController(
     suspend fun ask(question: String): Boolean {
         operation {
             val data = requireData()
+            mutableState.value = mutableState.value.copy(streamingAnswer = "")
             try {
                 chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
                     mutableState.value = mutableState.value.copy(streamingAnswer = partial)

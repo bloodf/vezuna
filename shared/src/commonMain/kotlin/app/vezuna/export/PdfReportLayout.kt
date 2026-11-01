@@ -26,9 +26,12 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         text("Vezuna", MARGIN, y, 18.0, NAVY, bold = true)
         y += 26.0
         if (document.profileDisplayName.isNotEmpty()) {
-            val age = document.ageYears?.let { " · ${t.age}: $it" }.orEmpty()
-            text(document.profileDisplayName + age, MARGIN, y, 12.0, NAVY, bold = true)
+            text(document.profileDisplayName, MARGIN, y, 12.0, NAVY, bold = true)
             y += 17.0
+        }
+        document.ageYears?.let {
+            text("${t.age}: $it", MARGIN, y, 9.0, INK)
+            y += 14.0
         }
         text("${t.generated} ${DoctorReportFormat.dateTime(document.generatedAt, language)}", MARGIN, y, 7.5, MUTED)
         y += 13.0
@@ -72,7 +75,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         sectionName = section.testName
         ensureSectionSpace(measuredExamHeight(section), section.testName)
         y += wrapped(section.testName, MARGIN, y, CONTENT_WIDTH - 70.0, 12.0, NAVY, bold = true)
-        right("${section.testCode} · ${section.unit}", RIGHT, y - 14.0, 7.5, MUTED)
+        right("${section.testCode}, ${section.unit}", RIGHT, y - 14.0, 7.5, MUTED)
         line(MARGIN, y, RIGHT, y, NAVY, 1.6)
         y += 8.0
         latestResult(section.latest)
@@ -82,7 +85,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
     }
 
     private fun measuredExamHeight(section: DoctorExamSection): Double {
-        val titleHeight = wrap(section.testName, CONTENT_WIDTH - 70.0, 12.0).size * 16.0 + 8.0
+        val titleHeight = wrap(section.testName, CONTENT_WIDTH - 70.0, 12.0, bold = true).size * 16.0 + 8.0
         val historyHeight = if (section.history.isEmpty()) 0.0 else {
             15.0 + section.history.chunked(4).sumOf { historyChunkHeight(it) }
         }
@@ -123,7 +126,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         y += 15.0
         chunks.forEachIndexed { index, chunk ->
             if (index == chunks.lastIndex && section.trend?.points?.size?.let { it >= 2 } == true) {
-                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} · ${t.historyAndTrend}")
+                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} - ${t.historyAndTrend}")
             }
             historyChunk(section.testName, chunk)
         }
@@ -143,7 +146,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         val referenceHeight = maxOf(28.0, referenceLines.maxOf { it.size } * 11.0 + 12.0)
         val totalHeight = 29.0 + 38.0 + referenceHeight
         if (y + totalHeight > BOTTOM) {
-            sectionName = "$testName · ${t.historyContinued}"
+            sectionName = "$testName - ${t.historyContinued}"
             newPage()
             sectionHeading(sectionName, compact = true)
         }
@@ -176,8 +179,8 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
     }
 
     private fun chart(series: DoctorTrendSeries) {
-        ensureSectionSpace(CHART_HEIGHT, "${series.testName} · ${t.trend}")
-        text("${t.historyChart} · ${series.unit}", MARGIN, y, 7.5, MUTED)
+        ensureSectionSpace(CHART_HEIGHT, "${series.testName} - ${t.trend}")
+        text("${t.historyChart} (${series.unit})", MARGIN, y, 7.5, MUTED)
         y += 15.0
         val geometry = DoctorChartGeometryFactory.create(series)
         val left = MARGIN + 34.0
@@ -212,8 +215,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         rows.forEach { row ->
             val height = medicationHeight(row)
             ensureSectionSpace(height, t.medications)
-            val detail = listOfNotNull(row.strength, row.instructions).joinToString(" · ")
-            val detailLines = if (detail.isEmpty()) emptyList() else wrap(detail, CONTENT_WIDTH - 196.0, 7.5)
+            val detailLines = medicationDetailLines(row)
             val nameLines = wrap(row.displayName, 175.0, 9.0)
             nameLines.forEachIndexed { index, value -> text(value, MARGIN + 6.0, y + 7.0 + index * 12.0, 9.0) }
             detailLines.forEachIndexed { index, value -> text(value, MARGIN + 190.0, y + 5.0 + index * 11.0, 7.5, MUTED) }
@@ -222,9 +224,12 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         }
     }
 
+    /** Strength and instructions each start on their own line. */
+    private fun medicationDetailLines(row: DoctorMedicationRow): List<String> =
+        listOfNotNull(row.strength, row.instructions).flatMap { wrap(it, CONTENT_WIDTH - 196.0, 7.5) }
+
     private fun medicationHeight(row: DoctorMedicationRow): Double {
-        val detail = listOfNotNull(row.strength, row.instructions).joinToString(" · ")
-        val detailLines = if (detail.isEmpty()) emptyList() else wrap(detail, CONTENT_WIDTH - 196.0, 7.5)
+        val detailLines = medicationDetailLines(row)
         val nameLines = wrap(row.displayName, 175.0, 9.0)
         return maxOf(26.0, maxOf(nameLines.size, detailLines.size) * 12.0 + 12.0)
     }
@@ -254,7 +259,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         rect(0.0, 0.0, pageWidth, pageHeight, PAPER)
         y = MARGIN
         if (pageNumber > 1) {
-            text("Vezuna  ·  $sectionName", MARGIN, y, 7.5, MUTED)
+            text("Vezuna - $sectionName", MARGIN, y, 7.5, MUTED)
             y += 13.0
             line(MARGIN, y, RIGHT, y, NAVY, 1.6)
             y += 12.0
@@ -263,17 +268,17 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
 
     private fun footer() {
         line(MARGIN, pageHeight - 29.0, RIGHT, pageHeight - 29.0, BORDER, 0.65)
-        text("Vezuna · ${t.footer}", MARGIN, pageHeight - 22.0, 7.5, MUTED)
+        text("Vezuna - ${t.footer}", MARGIN, pageHeight - 22.0, 7.5, MUTED)
         right("${t.page} $pageNumber", RIGHT, pageHeight - 22.0, 7.5, MUTED)
     }
 
     private fun wrapped(value: String, x: Double, top: Double, width: Double, size: Double, color: PdfColor = INK, bold: Boolean = false): Double {
-        val lines = wrap(value, width, size)
+        val lines = wrap(value, width, size, bold)
         lines.forEachIndexed { index, item -> text(item, x, top + index * (size + 4.0), size, color, bold) }
         return lines.size * (size + 4.0)
     }
 
-    private fun wrap(value: String, width: Double, size: Double): List<String> = buildList {
+    private fun wrap(value: String, width: Double, size: Double, bold: Boolean = false): List<String> = buildList {
         var remaining = value
         while (remaining.isNotEmpty()) {
             var low = 1
@@ -281,7 +286,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
             var count = 1
             while (low <= high) {
                 val middle = (low + high) / 2
-                if (measure(remaining.substring(0, middle), size) <= width) {
+                if (measure(remaining.substring(0, middle), size, bold) <= width) {
                     count = middle
                     low = middle + 1
                 } else high = middle - 1
@@ -300,8 +305,10 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
 
     private fun text(value: String, x: Double, top: Double, size: Double, color: PdfColor = INK, bold: Boolean = false) =
         canvas.text(value, x, top, size, color, bold)
-    private fun right(value: String, x: Double, top: Double, size: Double, color: PdfColor = INK) = text(value, x - measure(value, size), top, size, color)
-    private fun center(value: String, x: Double, top: Double, width: Double, size: Double, color: PdfColor = INK) = text(value, x + (width - measure(value, size)) / 2.0, top, size, color)
+    private fun right(value: String, x: Double, top: Double, size: Double, color: PdfColor = INK, bold: Boolean = false) =
+        text(value, x - measure(value, size, bold), top, size, color, bold)
+    private fun center(value: String, x: Double, top: Double, width: Double, size: Double, color: PdfColor = INK, bold: Boolean = false) =
+        text(value, x + (width - measure(value, size, bold)) / 2.0, top, size, color, bold)
     private fun line(x1: Double, y1: Double, x2: Double, y2: Double, color: PdfColor, width: Double) = canvas.line(x1, y1, x2, y2, color, width)
     private fun rect(x: Double, top: Double, width: Double, height: Double, color: PdfColor) = canvas.rect(x, top, width, height, color)
     private fun outline(x: Double, top: Double, width: Double, height: Double) = canvas.strokeRect(x, top, width, height, BORDER, 0.65)

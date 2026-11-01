@@ -21,14 +21,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.google.android.gms.tasks.Task
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.job
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.lang.ref.WeakReference
-import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface ModelPackLoadState {
     data object Idle : ModelPackLoadState
@@ -40,15 +41,19 @@ sealed interface ModelPackLoadState {
     data class Failed(val message: NativeText) : ModelPackLoadState
 }
 
-class PlayAssetPackLoader(
-    context: Context,
+class PlayAssetPackLoader internal constructor(
+    managerProvider: () -> AssetPackManager,
     private val premiumGate: PremiumLicenseGate,
+    private val inactivityTimeoutMs: Long = AssetPackStatusPolicy.INACTIVITY_TIMEOUT_MS,
 ) {
-    private val appContext = context.applicationContext
-    private val manager: AssetPackManager by lazy { AssetPackManagerFactory.getInstance(appContext) }
+    constructor(context: Context, premiumGate: PremiumLicenseGate) :
+        this({ AssetPackManagerFactory.getInstance(context.applicationContext) }, premiumGate, AssetPackStatusPolicy.INACTIVITY_TIMEOUT_MS)
+
+    private val manager: AssetPackManager by lazy(managerProvider)
     private val mutableState = MutableStateFlow<ModelPackLoadState>(ModelPackLoadState.Idle)
     val state: StateFlow<ModelPackLoadState> = mutableState.asStateFlow()
     @Volatile private var activityRef: WeakReference<Activity>? = null
+    @Volatile private var session: AssetPackFetchSession? = null
 
     /** Returns the pack file location (used in place, no release needed) of the pack file; the model store streams it into private storage. */
     suspend fun load(pack: ModelPack): ModelPackSource? {
@@ -77,48 +82,40 @@ class PlayAssetPackLoader(
     fun clearState() { mutableState.value = ModelPackLoadState.Idle }
 
     /** Activity used to show Play confirmation dialogs; held weakly so the loader can outlive recreation. */
-    fun bindActivity(activity: Activity?) { activityRef = activity?.let(::WeakReference) }
+    fun bindActivity(activity: Activity?) {
+        activityRef = activity?.let(::WeakReference)
+        if (activity != null) session?.retryPendingConfirmation()
+    }
 
-    private suspend fun fetch(packId: String): AssetPackLocation? {
-        val done = CompletableDeferred<Unit>()
-        val shown = AtomicBoolean(false)
-        val listener = AssetPackStateUpdateListener { state -> if (state.name() == packId) handle(state, packId, done, shown) }
+    private suspend fun fetch(packId: String): AssetPackLocation? = coroutineScope {
+        val current = AssetPackFetchSession(packId, manager, this, { activityRef?.get() }, ::updateFrom)
+        session = current
+        val listener = AssetPackStateUpdateListener { state -> if (state.name() == packId) current.handle(state) }
         manager.registerListener(listener)
+        var succeeded = false
         try {
-            val finished = withTimeoutOrNull(AssetPackStatusPolicy.FETCH_TIMEOUT_MS) {
-                // Listener is registered before fetch; states are re-read afterwards to catch updates emitted in between.
-                manager.fetch(listOf(packId)).await().packStates()[packId]?.let { handle(it, packId, done, shown) }
-                manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let { handle(it, packId, done, shown) }
-                done.await()
-            }
-            if (finished == null) failNative(NativeKey.MODEL_DELIVERY_FAILED)
+            // Listener is registered before fetch; states are re-read afterwards to catch updates emitted in between.
+            manager.fetch(listOf(packId)).await().packStates()[packId]?.let(current::handle)
+            manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let(current::handle)
+            awaitWithInactivityTimeout(current)
+            succeeded = true
         } finally {
+            session = null
             manager.unregisterListener(listener)
+            coroutineContext.job.cancelChildren()
+            // Stops a half-finished download when the caller gave up or the delivery failed.
+            if (!succeeded) runCatching { manager.cancel(listOf(packId)) }
         }
-        return manager.getPackLocation(packId)
+        manager.getPackLocation(packId)
     }
 
-    private fun handle(state: AssetPackState, packId: String, done: CompletableDeferred<Unit>, shown: AtomicBoolean) {
-        updateFrom(state)
-        when (AssetPackStatusPolicy.actionFor(state.status())) {
-            AssetPackAction.COMPLETE -> done.complete(Unit)
-            AssetPackAction.FAIL -> done.completeExceptionally(
-                NativeMessageException(nativeMessage(NativeKey.ASSET_PACK_UNAVAILABLE, packId, state.status(), state.errorCode())),
-            )
-            AssetPackAction.CONFIRM_USER -> confirm(done, shown) { manager.showConfirmationDialog(it) }
-            AssetPackAction.CONFIRM_CELLULAR -> confirm(done, shown) { manager.showCellularDataConfirmation(it) }
-            AssetPackAction.AWAIT -> Unit
+    private suspend fun awaitWithInactivityTimeout(current: AssetPackFetchSession) {
+        while (true) {
+            val before = current.progressMarker()
+            val finished = withTimeoutOrNull(inactivityTimeoutMs) { current.done.await() }
+            if (finished != null) return
+            if (current.progressMarker() == before) failNative(NativeKey.MODEL_DELIVERY_FAILED)
         }
-    }
-
-    private fun confirm(done: CompletableDeferred<Unit>, shown: AtomicBoolean, show: (Activity) -> Task<Int>) {
-        val activity = activityRef?.get() ?: return
-        if (!shown.compareAndSet(false, true)) return
-        show(activity)
-            .addOnSuccessListener { result ->
-                if (result != Activity.RESULT_OK) done.completeExceptionally(NativeMessageException(nativeMessage(NativeKey.MODEL_DELIVERY_FAILED)))
-            }
-            .addOnFailureListener { error -> done.completeExceptionally(error) }
     }
 
     private fun updateFrom(state: AssetPackState?) {

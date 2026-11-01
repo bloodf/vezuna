@@ -8,6 +8,8 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class LocalHealthChat(
     private val repository: VezunaRepository,
@@ -32,9 +34,14 @@ class LocalHealthChat(
             text.append(chunk)
             onPartial(text.toString())
         }
-        repository.addChatMessage(ChatMessage(profileId, randomId(), ChatMessage.Role.USER, question.trim(), currentInstant()))
+        if (text.isBlank()) failMessage(L10nKey.EMPTY_MODEL_ANSWER)
+        val user = ChatMessage(profileId, randomId(), ChatMessage.Role.USER, question.trim(), currentInstant())
         val answer = ChatMessage(profileId, randomId(), ChatMessage.Role.ASSISTANT, text.toString(), currentInstant())
-        repository.addChatMessage(answer)
+        // A cancel arriving now must not leave a question without its answer.
+        withContext(NonCancellable) {
+            repository.addChatMessage(user)
+            repository.addChatMessage(answer)
+        }
         return answer
     }
 }

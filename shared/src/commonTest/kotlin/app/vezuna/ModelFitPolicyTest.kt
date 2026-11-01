@@ -24,8 +24,17 @@ class ModelFitPolicyTest {
     }
 
     @Test
+    fun beforeDeliveryBothTheStoreCopyAndTheInstalledCopyMustFit() {
+        assertEquals(2_200_000_000, ModelFitPolicy.requiredFreeBytes(pack, delivered = false))
+        assertEquals(1_200_000_000, ModelFitPolicy.requiredFreeBytes(pack, delivered = true))
+        val error = assertFailsWith<VitaMessageException> { ModelFitPolicy.requireFits(pack, capacity(8_000_000_000, 1_500_000_000)) }
+        assertEquals(L10nKey.MODEL_INSUFFICIENT_STORAGE, error.userText.key)
+        ModelFitPolicy.requireFits(pack, capacity(8_000_000_000, 1_500_000_000), delivered = true)
+    }
+
+    @Test
     fun passesWhenEnoughOrUnknown() {
-        ModelFitPolicy.requireFits(pack, capacity(4_000_000_000, 1_200_000_000))
+        ModelFitPolicy.requireFits(pack, capacity(4_000_000_000, 1_200_000_000), delivered = true)
         ModelFitPolicy.requireFits(pack, UnknownDeviceCapacity)
     }
 
@@ -37,7 +46,7 @@ class ModelFitPolicyTest {
 
     @Test
     fun blocksLowStorage() {
-        val error = assertFailsWith<VitaMessageException> { ModelFitPolicy.requireFits(pack, capacity(8_000_000_000, 1_199_999_999)) }
+        val error = assertFailsWith<VitaMessageException> { ModelFitPolicy.requireFits(pack, capacity(8_000_000_000, 1_199_999_999), delivered = true) }
         assertEquals(L10nKey.MODEL_INSUFFICIENT_STORAGE, error.userText.key)
     }
 }

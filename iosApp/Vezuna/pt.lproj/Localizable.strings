@@ -97,3 +97,6 @@
 "export_to_date" = "Data final (AAAA-MM-DD, opcional)";
 "export_active_medications_only" = "Somente medicamentos ativos";
 "export_include_medications_csv" = "Incluir medicamentos no CSV";
+"export_tests" = "Exames a incluir (nenhum selecionado exporta todos)";
+"export_date_invalid" = "Informe uma data válida no formato AAAA-MM-DD.";
+"export_date_range_reversed" = "A data inicial não pode ser posterior à data final.";

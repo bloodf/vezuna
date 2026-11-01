@@ -106,4 +106,14 @@ class ExportOptionsTest {
         assertEquals("\"Metformin\",\"\",\"\",\"true\"", lines.last())
         assertTrue("Old drug" !in withMeds)
     }
+
+    @Test
+    fun csvFieldsStartingWithFormulaOrControlCharsAreNeutralised() {
+        val exporter = CsvDoctorExporter()
+        assertEquals("\"'=SUM(A1)\"", exporter.escape("=SUM(A1)"))
+        assertEquals("\"' @x\"", exporter.escape(" @x"))
+        assertEquals("\"'\tcmd\"", exporter.escape("\tcmd"))
+        assertEquals("\"'\rcmd\"", exporter.escape("\rcmd"))
+        assertEquals("\"plain\"", exporter.escape("plain"))
+    }
 }

@@ -3,7 +3,10 @@ package app.vezuna.llm
 import com.llamatik.core.platform.GenStream
 import com.llamatik.core.platform.LlamaBridge
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
@@ -30,23 +33,41 @@ class LlamatikLocalLlm : LocalLlm {
     }
 
     override suspend fun generate(prompt: String): String = LlamaBridge.generate(prompt)
+    /**
+     * Llamatik's native streaming call blocks the calling thread and reports through [GenStream]; it runs on its own
+     * coroutine so cancelling the collector can reach [LlamaBridge.nativeCancelGenerate]. The cancel is sent only while
+     * a generation is running: a cancel issued while idle could abort the next generation (sticky flag).
+     * A cancel racing the very start of a generation can still be lost; the channel check below narrows that window.
+     */
     override fun generateStream(prompt: String): Flow<String> = callbackFlow {
-        var finished = false
+        val run = StreamRun()
         val callbacks = object : GenStream {
-            override fun onDelta(text: String) { trySend(text) }
-            override fun onComplete() { finished = true; close() }
-            override fun onError(message: String) { finished = true; close(IllegalStateException(message)) }
+            // The buffer is unlimited, so a failed send only means the collector is gone.
+            override fun onDelta(text: String) { if (!trySend(text).isSuccess) run.cancelNative() }
+            override fun onComplete() { run.finished = true; close() }
+            override fun onError(message: String) { run.finished = true; close(IllegalStateException(message)) }
         }
         launch(Dispatchers.Default) {
+            if (!isActive) return@launch
+            run.started = true
             try {
                 LlamaBridge.generateStream(prompt, callbacks)
+                // The native call returns only after generation ended, even if no completion callback fired.
+                if (!run.finished) { run.finished = true; close() }
             } catch (error: Throwable) {
-                finished = true
+                run.finished = true
                 close(error)
             }
         }
-        awaitClose { if (!finished) LlamaBridge.nativeCancelGenerate() }
-    }.flowOn(Dispatchers.Default)
+        awaitClose { run.cancelNative() }
+    }.buffer(Channel.UNLIMITED).flowOn(Dispatchers.Default)
 
     override suspend fun unload() = LlamaBridge.shutdown()
+}
+
+private class StreamRun {
+    @Volatile var started = false
+    @Volatile var finished = false
+
+    fun cancelNative() { if (started && !finished) LlamaBridge.nativeCancelGenerate() }
 }

@@ -3,6 +3,12 @@ import UIKit
 import UniformTypeIdentifiers
 import VezunaShared
 
+struct ExportTestChoice: Identifiable, Decodable {
+    let code: String
+    let name: String
+    var id: String { code }
+}
+
 struct ActivityItem: Identifiable {
     let id = UUID()
     let url: URL
@@ -17,6 +23,8 @@ struct NativeExportView: View {
     @State private var exportLanguage = ""
     @State private var fromDate = ""
     @State private var toDate = ""
+    @State private var availableTests: [ExportTestChoice] = []
+    @State private var selectedTests: Set<String> = []
     @State private var activeMedicationsOnly = false
     @State private var includeMedicationsCsv = false
 
@@ -42,12 +50,26 @@ struct NativeExportView: View {
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.numbersAndPunctuation)
                     TextField(L10n.text(.export_to_date), text: $toDate)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.numbersAndPunctuation)
+                    if let dateError {
+                        Text(dateError).font(.footnote).foregroundStyle(Color.vezunaDanger)
+                    }
+                    if !availableTests.isEmpty {
+                        Text(L10n.text(.export_tests)).font(.footnote).foregroundStyle(.secondary)
+                        ForEach(availableTests) { test in
+                            Toggle(test.name, isOn: Binding(
+                                get: { selectedTests.contains(test.code) },
+                                set: { isOn in if isOn { selectedTests.insert(test.code) } else { selectedTests.remove(test.code) } }
+                            ))
+                        }
+                    }
                     Toggle(L10n.text(.export_active_medications_only), isOn: $activeMedicationsOnly)
                     Toggle(L10n.text(.export_include_medications_csv), isOn: $includeMedicationsCsv)
                 }
                 Section(L10n.text(.doctor_export)) {
                     Button { exportCSV() } label: { Label(L10n.text(.share_save_csv), systemImage: "tablecells") }
+                        .disabled(dateError != nil)
                     Button { exportPDF() } label: { Label(L10n.text(.share_save_pdf), systemImage: "doc.richtext") }
+                        .disabled(dateError != nil)
                 }
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(Color.vezunaDanger) }
@@ -56,6 +78,7 @@ struct NativeExportView: View {
             .navigationTitle(L10n.text(.export_title))
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.text(.close)) { dismiss() } } }
             .disabled(busy)
+            .onAppear(perform: loadTests)
             .overlay { if busy { ProgressView(L10n.text(.preparing_device)) } }
             .sheet(item: $activity) { item in
                 ActivityViewController(activityItems: [item.url]).ignoresSafeArea()
@@ -63,9 +86,28 @@ struct NativeExportView: View {
         }
     }
 
+    /// Inline validation for the optional ISO date fields; nil when both are empty or valid and not reversed.
+    private var dateError: String? {
+        let from = fromDate.trimmingCharacters(in: .whitespaces)
+        let to = toDate.trimmingCharacters(in: .whitespaces)
+        let valid = { (text: String) in text.isEmpty || text.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil }
+        if !valid(from) || !valid(to) { return L10n.text(.export_date_invalid) }
+        // ISO dates compare correctly as strings.
+        if !from.isEmpty && !to.isEmpty && from > to { return L10n.text(.export_date_range_reversed) }
+        return nil
+    }
+
+    private func loadTests() {
+        IosRuntime.shared.listExportTests { json, _ in
+            guard let json, let data = json.data(using: .utf8),
+                  let tests = try? JSONDecoder().decode([ExportTestChoice].self, from: data) else { return }
+            DispatchQueue.main.async { availableTests = tests }
+        }
+    }
+
     private func exportCSV() {
         begin()
-        IosRuntime.shared.exportCsv(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv) { csv, error in
+        IosRuntime.shared.exportCsv(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, testCodes: Array(selectedTests).sorted(), activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv) { csv, error in
             guard let csv else { self.fail(error); return }
             self.present(data: Data(csv.utf8), fileName: "vezuna-doctor-export.csv")
         }
@@ -73,7 +115,7 @@ struct NativeExportView: View {
 
     private func exportPDF() {
         begin()
-        IosRuntime.shared.exportPdf(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv) { pdf, error in
+        IosRuntime.shared.exportPdf(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, testCodes: Array(selectedTests).sorted(), activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv) { pdf, error in
             guard let pdf else { self.fail(error); return }
             self.present(data: pdf.bytes.toData(), fileName: pdf.fileName)
         }

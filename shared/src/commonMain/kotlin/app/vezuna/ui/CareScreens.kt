@@ -275,7 +275,8 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
         }
         data.chat.forEach { message -> ChatBubble(message) }
         state.streamingAnswer?.let { partial ->
-            ChatBubble(ChatMessage(data.profile.profileId, "streaming", ChatMessage.Role.ASSISTANT, partial, currentInstant()))
+            if (partial.isEmpty()) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+            else ChatBubble(ChatMessage(data.profile.profileId, "streaming", ChatMessage.Role.ASSISTANT, partial, currentInstant()))
             VitaButton(vitaText(L10nKey.STOP_GENERATING), Icons.Rounded.Stop, { askJob?.cancel() })
         }
         OutlinedTextField(
