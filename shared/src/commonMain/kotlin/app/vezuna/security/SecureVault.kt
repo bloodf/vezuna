@@ -47,7 +47,8 @@ class VaultUnreadableException(val failure: VaultFailure, cause: Throwable? = nu
 sealed interface VaultState {
     data object Loading : VaultState
     data object Ready : VaultState
-    data class Recovery(val failure: VaultFailure) : VaultState
+    /** [restoreFailed]: a backup restore began after the reset and did not finish. */
+    data class Recovery(val failure: VaultFailure, val restoreFailed: Boolean = false) : VaultState
 }
 
 expect fun createPlatformVault(storagePath: String): SecureVault

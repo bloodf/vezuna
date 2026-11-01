@@ -5,16 +5,17 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.convert
 import kotlinx.cinterop.usePinned
 import platform.CoreCrypto.CCKeyDerivationPBKDF
+import platform.Foundation.NSString
+import platform.Foundation.precomposedStringWithCanonicalMapping
 import platform.CoreCrypto.kCCPBKDF2
 import platform.CoreCrypto.kCCPRFHmacAlgSHA256
 import platform.Security.SecRandomCopyBytes
 import platform.Security.kSecRandomDefault
 
 @OptIn(ExperimentalForeignApi::class)
-internal actual fun pbkdf2HmacSha256(passphrase: CharArray, salt: ByteArray, iterations: Int, keyBytes: Int): ByteArray {
-    val password = passphrase.concatToString().encodeToByteArray()
+internal actual fun pbkdf2HmacSha256(password: ByteArray, salt: ByteArray, iterations: Int, keyBytes: Int): ByteArray {
     val derived = ByteArray(keyBytes)
-    try {
+    run {
         require(password.isNotEmpty() && salt.isNotEmpty())
         val status = password.usePinned { pass ->
             salt.asUByteArray().usePinned { saltPin ->
@@ -29,11 +30,11 @@ internal actual fun pbkdf2HmacSha256(passphrase: CharArray, salt: ByteArray, ite
             }
         }
         check(status == 0) { "PBKDF2 failed" }
-        return derived
-    } finally {
-        password.fill(0)
     }
+    return derived
 }
+
+internal actual fun normalizeNfc(value: String): String = (value as NSString).precomposedStringWithCanonicalMapping
 
 /** CryptoKit (installed Swift bridge) generates the nonce; the same primitive protects the local vault. */
 internal actual fun aesGcmEncrypt(key: ByteArray, plainText: ByteArray, associatedData: ByteArray): AesGcmSealed {

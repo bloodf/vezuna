@@ -105,8 +105,9 @@ private fun CreateBackupDialog(service: BackupService, data: ProfileData, files:
     val level = PassphraseStrength.evaluate(passphrase.toCharArray())
     val matches = passphrase == confirmation
     val ready = level != PassphraseStrengthLevel.TOO_SHORT && matches && !busy
+    val close = { passphrase = ""; confirmation = ""; onClose() }
     AlertDialog(
-        onDismissRequest = { if (!busy) onClose() },
+        onDismissRequest = { if (!busy) close() },
         title = { Text(vitaText(L10nKey.BACKUP_CREATE)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -144,7 +145,7 @@ private fun CreateBackupDialog(service: BackupService, data: ProfileData, files:
                         busy = false
                         if (saved) {
                             onSaved()
-                            onClose()
+                            close()
                         }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
@@ -157,7 +158,7 @@ private fun CreateBackupDialog(service: BackupService, data: ProfileData, files:
                 }
             }) { Text(vitaText(L10nKey.BACKUP_CREATE_ACTION)) }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onClose) { Text(vitaText(L10nKey.CANCEL)) } },
+        dismissButton = { TextButton(enabled = !busy, onClick = close) { Text(vitaText(L10nKey.CANCEL)) } },
     )
 }
 
@@ -186,12 +187,14 @@ fun RestoreBackupFlow(
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<UserText?>(null) }
     val scope = rememberCoroutineScope()
+    val close = { passphrase = ""; onClose() }
 
     fun open(file: ByteArray, secret: CharArray?) {
         busy = true
         scope.launch {
             try {
                 step = RestoreStep.Decide(service.open(file, secret))
+                passphrase = ""
                 error = null
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -210,6 +213,9 @@ fun RestoreBackupFlow(
             val file = files.pick()
             if (file == null) {
                 onClose()
+            } else if (file.isEmpty() || file.size > BackupService.MAX_BACKUP_BYTES) {
+                error = UserText.Key(L10nKey.BACKUP_FILE_UNREADABLE)
+                step = RestoreStep.Failed
             } else when (service.kind(file)) {
                 BackupKind.PORTABLE -> step = RestoreStep.Passphrase(file)
                 BackupKind.SAME_DEVICE -> open(file, null)
@@ -224,11 +230,11 @@ fun RestoreBackupFlow(
     }
 
     when (val current = step) {
-        RestoreStep.Picking -> if (busy) ErrorOrBusyDialog(null, true, onClose)
-        RestoreStep.Failed -> ErrorOrBusyDialog(error, false, onClose)
+        RestoreStep.Picking -> if (busy) ErrorOrBusyDialog(null, true, close)
+        RestoreStep.Failed -> ErrorOrBusyDialog(error, false, close)
         is RestoreStep.Passphrase -> {
             AlertDialog(
-                onDismissRequest = { if (!busy) onClose() },
+                onDismissRequest = { if (!busy) close() },
                 title = { Text(vitaText(L10nKey.BACKUP_ENTER_PASSPHRASE_TITLE)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -242,7 +248,7 @@ fun RestoreBackupFlow(
                         Text(vitaText(L10nKey.BACKUP_UNLOCK))
                     }
                 },
-                dismissButton = { TextButton(enabled = !busy, onClick = onClose) { Text(vitaText(L10nKey.CANCEL)) } },
+                dismissButton = { TextButton(enabled = !busy, onClick = close) { Text(vitaText(L10nKey.CANCEL)) } },
             )
         }
         is RestoreStep.Decide -> {
@@ -256,12 +262,12 @@ fun RestoreBackupFlow(
                         onConfirmed(opened, mode)
                     } finally {
                         busy = false
-                        onClose()
+                        close()
                     }
                 }
             }
             AlertDialog(
-                onDismissRequest = { if (!busy) onClose() },
+                onDismissRequest = { if (!busy) close() },
                 title = { Text(vitaText(if (exists) L10nKey.BACKUP_PROFILE_EXISTS_TITLE else L10nKey.BACKUP_CONFIRM_TITLE)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -284,7 +290,7 @@ fun RestoreBackupFlow(
                         TextButton(enabled = !busy, onClick = { finish(RestoreMode.REPLACE_EXISTING) }) { Text(vitaText(L10nKey.BACKUP_RESTORE_ACTION)) }
                     }
                 },
-                dismissButton = { TextButton(enabled = !busy, onClick = onClose) { Text(vitaText(L10nKey.CANCEL)) } },
+                dismissButton = { TextButton(enabled = !busy, onClick = close) { Text(vitaText(L10nKey.CANCEL)) } },
             )
         }
     }

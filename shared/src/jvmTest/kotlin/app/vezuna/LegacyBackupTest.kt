@@ -46,6 +46,16 @@ class LegacyBackupTest {
     }
 
     @Test
+    fun legacyEnvelopeBoundToAnotherProfileIsRejected() = runTest {
+        val vault = JvmSecureVault(Files.createTempDirectory("vault").toFile())
+        val payload = BackupPayload(1, data.profile.profileId, Instant.parse("2026-01-01T00:00:00Z"), data)
+        val plain = json.encodeToString(BackupPayload.serializer(), payload).encodeToByteArray()
+        val envelope = vault.encrypt(plain, "Vezuna backup v1:someone-else".encodeToByteArray())
+        val file = json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray()
+        assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { BackupService(vault).open(file, null) }.userText.key)
+    }
+
+    @Test
     fun legacyUnsupportedSchemaIsRejected() = runTest {
         val vault = JvmSecureVault(Files.createTempDirectory("vault").toFile())
         val file = legacyFile(vault, schema = 99)

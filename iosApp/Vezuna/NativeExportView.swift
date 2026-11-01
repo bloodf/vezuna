@@ -131,8 +131,16 @@ final class ComposeBackupFiles: NSObject, NativeBackupFiles {
 
 extension ComposeBackupFiles: UIDocumentPickerDelegate {
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        defer { pickCompletion = nil }
-        guard let url = urls.first, let data = try? Data(contentsOf: url) else { pickCompletion?(nil); return }
+        defer {
+            // asCopy: the picker leaves a temporary copy of the (possibly private) backup behind.
+            urls.forEach { try? FileManager.default.removeItem(at: $0) }
+            pickCompletion = nil
+        }
+        guard let url = urls.first else { pickCompletion?(nil); return }
+        let limit = 64 * 1024 * 1024
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? Int.max
+        // An empty array tells the shared flow the file is unreadable or too large, before it is read into memory.
+        guard size <= limit, let data = try? Data(contentsOf: url) else { pickCompletion?(KotlinByteArray(size: 0)); return }
         pickCompletion?(data.kotlinBytes)
     }
 

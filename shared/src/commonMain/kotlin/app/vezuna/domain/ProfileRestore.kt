@@ -43,10 +43,20 @@ fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): Profile
     })
 }
 
-/** True when every record belongs to the profile and references resolve inside it. */
+/** True when every record belongs to the profile, IDs are unique per record type and references resolve inside it. */
 fun ProfileData.isInternallyConsistent(): Boolean {
     val id = profile.profileId
-    return documents.all { it.profileId == id } &&
+    fun <T> List<T>.unique(key: (T) -> String) = map(key).toSet().size == size
+    return documents.unique { it.documentId } &&
+        reports.unique { it.reportId } &&
+        observations.unique { it.observationId } &&
+        ocrCandidates.unique { it.candidateId } &&
+        ocrCandidates.all { c -> c.revisions.all { it.profileId == id } && c.revisions.unique { it.revisionId } } &&
+        medications.unique { it.medicationId } &&
+        medications.flatMap { it.schedules }.unique { it.scheduleId } &&
+        doseEvents.unique { it.eventId } &&
+        chat.unique { it.messageId } &&
+        documents.all { it.profileId == id } &&
         reports.all { r -> r.profileId == id && documents.any { it.documentId == r.sourceDocumentId } } &&
         observations.all { o -> o.profileId == id && reports.any { it.reportId == o.reportId } } &&
         ocrCandidates.all { c -> c.profileId == id && documents.any { it.documentId == c.sourceDocumentId } } &&

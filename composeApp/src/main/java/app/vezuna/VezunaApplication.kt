@@ -72,16 +72,20 @@ class VezunaApplication : Application() {
      * Restore from the recovery screen: the unreadable vault is quarantined (never deleted), then the backup is
      * stored into the fresh vault. Both steps run in one load so the app never sees a half-restored state.
      */
-    fun restoreVaultFromBackup(data: ProfileData) = loadVault {
-        repository.resetAfterFailure()
-        repository.restoreProfile(data)
+    fun restoreVaultFromBackup(data: ProfileData) {
+        var restoreStarted = false
+        loadVault(restoreFailed = { restoreStarted }) {
+            repository.resetAfterFailure()
+            restoreStarted = true
+            repository.restoreProfile(data)
+        }
     }
 
     /** True once the repository is usable; false when the vault needs recovery. Safe from receivers. */
     suspend fun awaitRepository(): Boolean =
         withTimeoutOrNull(RECEIVER_WAIT_MS) { vaultState.first { it !is VaultState.Loading } } is VaultState.Ready
 
-    private fun loadVault(action: suspend () -> Unit) {
+    private fun loadVault(restoreFailed: () -> Boolean = { false }, action: suspend () -> Unit) {
         mutableVaultState.value = VaultState.Loading
         applicationScope.launch {
             mutableVaultState.value = try {
@@ -90,9 +94,9 @@ class VezunaApplication : Application() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: VaultUnreadableException) {
-                VaultState.Recovery(error.failure)
+                VaultState.Recovery(error.failure, restoreFailed())
             } catch (error: Exception) {
-                VaultState.Recovery(VaultFailure.UNAVAILABLE)
+                VaultState.Recovery(VaultFailure.UNAVAILABLE, restoreFailed())
             }
         }
     }

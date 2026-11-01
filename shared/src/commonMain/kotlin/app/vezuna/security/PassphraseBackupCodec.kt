@@ -17,6 +17,8 @@ import app.vezuna.localization.failMessage
  * nonce    n
  * cipher   *  AES-256-GCM ciphertext + 16-byte tag
  * ```
+ * The passphrase is NFC-normalized and UTF-8 encoded before the KDF.
+ *
  * Magic through nonceLen is the GCM associated data and the nonce is part of the GCM computation, so changing
  * any header byte fails authentication.
  */
@@ -39,7 +41,7 @@ object PassphraseBackupCodec {
         require(iterations in MIN_ITERATIONS..MAX_ITERATIONS)
         if (!PassphraseStrength.isAcceptable(passphrase)) failMessage(L10nKey.BACKUP_PASSPHRASE_TOO_SHORT)
         val salt = secureRandomBytes(SALT_BYTES)
-        val key = pbkdf2HmacSha256(passphrase, salt, iterations, KEY_BYTES)
+        val key = deriveKey(passphrase, salt, iterations)
         try {
             val header = header(iterations, salt)
             val sealed = aesGcmEncrypt(key, plainText, header)
@@ -50,9 +52,10 @@ object PassphraseBackupCodec {
         }
     }
 
+    @Throws(Exception::class)
     fun open(file: ByteArray, passphrase: CharArray): ByteArray {
         val parsed = parse(file)
-        val key = pbkdf2HmacSha256(passphrase, parsed.salt, parsed.iterations, KEY_BYTES)
+        val key = deriveKey(passphrase, parsed.salt, parsed.iterations)
         try {
             return aesGcmDecrypt(key, parsed.nonce, parsed.cipherTextAndTag, parsed.header)
         } catch (error: Exception) {
@@ -60,6 +63,16 @@ object PassphraseBackupCodec {
             failMessage(L10nKey.BACKUP_WRONG_PASSPHRASE)
         } finally {
             key.fill(0)
+        }
+    }
+
+    /** NFC-normalized, UTF-8 encoded passphrase through byte-based PBKDF2. Shared by every platform. */
+    internal fun deriveKey(passphrase: CharArray, salt: ByteArray, iterations: Int): ByteArray {
+        val password = normalizeNfc(passphrase.concatToString()).encodeToByteArray()
+        try {
+            return pbkdf2HmacSha256(password, salt, iterations, KEY_BYTES)
+        } finally {
+            password.fill(0)
         }
     }
 

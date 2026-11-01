@@ -167,6 +167,10 @@ object IosRuntime {
 
     private suspend fun openNow(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
         vaultState.value = VaultState.Loading
+        // Taken first so a failed restore can never replay on a later reset.
+        val restore = pendingRestore
+        pendingRestore = null
+        var restoreStarted = false
         try {
             vault = createPlatformVault(vaultPath)
             if (reset) {
@@ -174,18 +178,18 @@ object IosRuntime {
                 vault.discardUnusableKey()
             }
             repository = PersistentVezunaRepository.open(vault, json)
-            // Cleared before use so a failed restore can never replay on a later reset.
-            val restore = pendingRestore
-            pendingRestore = null
-            if (reset && restore != null) repository.restoreProfile(restore)
+            if (reset && restore != null) {
+                restoreStarted = true
+                repository.restoreProfile(restore)
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: VaultUnreadableException) {
-            vaultState.value = VaultState.Recovery(error.failure)
+            vaultState.value = VaultState.Recovery(error.failure, restoreStarted)
             completion(nativeMessage("storage_open_failed"))
             return
         } catch (error: Exception) {
-            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE)
+            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE, restoreStarted)
             completion(nativeMessage("storage_open_failed"))
             return
         }

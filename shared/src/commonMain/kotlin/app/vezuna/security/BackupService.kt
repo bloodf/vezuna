@@ -63,7 +63,7 @@ class BackupService(
         when (val kind = kind(file)) {
             BackupKind.PORTABLE -> {
                 if (passphrase == null) failMessage(L10nKey.BACKUP_WRONG_PASSPHRASE)
-                OpenedBackup(kind, decodePayload(PassphraseBackupCodec.open(file, passphrase)))
+                OpenedBackup(kind, decodePayload(PassphraseBackupCodec.open(file, passphrase)).data)
             }
             BackupKind.SAME_DEVICE -> {
                 val localVault = vault ?: failMessage(L10nKey.BACKUP_SAME_DEVICE_UNAVAILABLE)
@@ -75,13 +75,17 @@ class BackupService(
                 } catch (error: Exception) {
                     failMessage(L10nKey.BACKUP_SAME_DEVICE_UNAVAILABLE)
                 }
-                OpenedBackup(kind, decodePayload(plain))
+                val payload = decodePayload(plain)
+                // The associated data names the profile the old service bound the file to.
+                val expected = "Vezuna backup v1:${payload.profileId}".encodeToByteArray()
+                if (!envelope.associatedData.contentEquals(expected)) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
+                OpenedBackup(kind, payload.data)
             }
             BackupKind.UNKNOWN -> failMessage(L10nKey.BACKUP_NOT_A_BACKUP)
         }
     }
 
-    private fun decodePayload(plain: ByteArray): ProfileData {
+    private fun decodePayload(plain: ByteArray): BackupPayload {
         val payload = try {
             json.decodeFromString(BackupPayload.serializer(), plain.decodeToString())
         } catch (error: CancellationException) {
@@ -95,7 +99,7 @@ class BackupService(
         if (payload.profileId != payload.data.profile.profileId || !payload.data.isInternallyConsistent()) {
             failMessage(L10nKey.BACKUP_INVALID_CONTENT)
         }
-        return payload.data
+        return payload
     }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {

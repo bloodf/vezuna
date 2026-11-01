@@ -312,4 +312,6 @@ iOS: %2$s</string>
     <string name="backup_restore_action">Restaurar</string>
     <string name="backup_restored">Copia restaurada</string>
     <string name="backup_recovery_confirm_body">Los registros ilegibles se apartan, no se borran, y la copia se restaura en un almacén nuevo.</string>
+    <string name="backup_file_unreadable">No se pudo leer el archivo, o es demasiado grande para ser una copia</string>
+    <string name="backup_restore_failed_after_reset">La restauración no terminó. Tus datos anteriores se apartaron, no se borraron. Vuelve a intentar restaurar.</string>
 </resources>

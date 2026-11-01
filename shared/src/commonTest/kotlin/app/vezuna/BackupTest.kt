@@ -27,6 +27,8 @@ import app.vezuna.security.aesGcmDecrypt
 import app.vezuna.security.aesGcmEncrypt
 import app.vezuna.security.pbkdf2HmacSha256
 import kotlinx.coroutines.test.runTest
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
@@ -62,16 +64,17 @@ internal fun sampleProfileData(prefix: String = "OLD"): ProfileData {
     )
 }
 
+@OptIn(ExperimentalEncodingApi::class)
 class BackupCryptoVectorsTest {
     @Test
     fun pbkdf2MatchesRfc7914Vectors() {
         assertContentEquals(
             hex("55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783"),
-            pbkdf2HmacSha256("passwd".toCharArray(), "salt".encodeToByteArray(), 1, 64),
+            pbkdf2HmacSha256("passwd".encodeToByteArray(), "salt".encodeToByteArray(), 1, 64),
         )
         assertContentEquals(
             hex("4ddcd8f60b98be21830cee5ef22701f9641a4418d04c0414aeff08876b34ab56a1d425a1225833549adb841b51c9b3176a272bdebba1d078478f62b397f33c8d"),
-            pbkdf2HmacSha256("Password".toCharArray(), "NaCl".encodeToByteArray(), 80_000, 64),
+            pbkdf2HmacSha256("Password".encodeToByteArray(), "NaCl".encodeToByteArray(), 80_000, 64),
         )
     }
 
@@ -80,8 +83,35 @@ class BackupCryptoVectorsTest {
         // Generated with Python hashlib.pbkdf2_hmac('sha256', ..., 600000, 32)
         assertContentEquals(
             hex("bb06c8c0b1dd5bfd4e40f4e297a2d0e64da7ef94b4b8ec20989021c8b41536ad"),
-            pbkdf2HmacSha256("correct horse battery".toCharArray(), ByteArray(16) { it.toByte() }, 600_000, 32),
+            pbkdf2HmacSha256("correct horse battery".encodeToByteArray(), ByteArray(16) { it.toByte() }, 600_000, 32),
         )
+    }
+
+    @Test
+    fun pbkdf2NonAsciiNfcVector() {
+        // Python: hashlib.pbkdf2_hmac('sha256', NFC('p\u00e4ssw\u00f6rd').encode(), b'salt', 4096, 32)
+        assertContentEquals(
+            hex(GoldenBackup.PBKDF2_NON_ASCII_4096_HEX),
+            pbkdf2HmacSha256("p\u00e4ssw\u00f6rd".encodeToByteArray(), "salt".encodeToByteArray(), 4096, 32),
+        )
+    }
+
+    @Test
+    fun nfdAndNfcPassphrasesDeriveTheSameKey() {
+        val salt = ByteArray(16) { it.toByte() }
+        val nfc = PassphraseBackupCodec.deriveKey(GoldenBackup.PASSPHRASE_NFC.toCharArray(), salt, 600_000)
+        val nfd = PassphraseBackupCodec.deriveKey(GoldenBackup.PASSPHRASE_NFD.toCharArray(), salt, 600_000)
+        assertContentEquals(hex(GoldenBackup.KEY_HEX), nfc)
+        assertContentEquals(nfc, nfd)
+    }
+
+    @Test
+    fun goldenBackupOpensWithEitherUnicodeForm() {
+        val file = Base64.decode(GoldenBackup.FILE_BASE64)
+        for (passphrase in listOf(GoldenBackup.PASSPHRASE_NFC, GoldenBackup.PASSPHRASE_NFD)) {
+            val payload = PassphraseBackupCodec.open(file, passphrase.toCharArray()).decodeToString()
+            assertTrue(GoldenBackup.PROFILE_ID in payload)
+        }
     }
 
     @Test
@@ -264,6 +294,15 @@ class ProfileRestoreTest {
         assertNull(data.keepingOnlyAvailableSourceFiles(null).documents.single().vaultKey)
         assertEquals("source-OLD-doc", data.keepingOnlyAvailableSourceFiles(data).documents.single().vaultKey)
         assertNull(data.keepingOnlyAvailableSourceFiles(data.copy(documents = emptyList())).documents.single().vaultKey)
+    }
+
+    @Test
+    fun duplicateIdsAndForeignRevisionsAreRejected() {
+        assertFalse(data.copy(chat = data.chat + data.chat).isInternallyConsistent())
+        assertFalse(data.copy(documents = data.documents + data.documents).isInternallyConsistent())
+        val candidate = data.ocrCandidates.single()
+        val foreignRevision = candidate.copy(revisions = listOf(candidate.revisions.single().copy(profileId = "other")))
+        assertFalse(data.copy(ocrCandidates = listOf(foreignRevision)).isInternallyConsistent())
     }
 
     @Test

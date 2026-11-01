@@ -68,6 +68,7 @@ fun VaultGate(
             onReset = onReset,
             failedRetries = retries,
             backup = backup,
+            restoreFailed = state.restoreFailed,
         )
     }
 }
@@ -79,6 +80,7 @@ fun VaultRecoveryScreen(
     onReset: () -> Unit,
     failedRetries: Int = 0,
     backup: BackupRecovery? = null,
+    restoreFailed: Boolean = false,
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     var restoring by rememberSaveable { mutableStateOf(false) }
@@ -91,6 +93,9 @@ fun VaultRecoveryScreen(
                 Text(vitaText(L10nKey.VAULT_RECOVERY_TITLE), style = MaterialTheme.typography.headlineSmall)
                 Text(vitaText(failure.explanation()), style = MaterialTheme.typography.bodyLarge)
                 Text(vitaText(L10nKey.VAULT_RECOVERY_KEPT_NOTE), style = MaterialTheme.typography.bodyMedium)
+                if (restoreFailed) {
+                    Text(vitaText(L10nKey.BACKUP_RESTORE_FAILED_AFTER_RESET), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                }
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(vitaText(L10nKey.VAULT_RECOVERY_RETRY)) }
                 // A transient failure only offers the (quarantine-only, confirmed) reset after repeated failed retries.
                 if (failure != VaultFailure.UNAVAILABLE || failedRetries >= RETRIES_BEFORE_RESET) {

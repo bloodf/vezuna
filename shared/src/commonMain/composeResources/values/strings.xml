@@ -312,4 +312,6 @@ iOS: %2$s</string>
     <string name="backup_restore_action">Restore</string>
     <string name="backup_restored">Backup restored</string>
     <string name="backup_recovery_confirm_body">The unreadable records are moved aside, not deleted, and the backup is restored into a fresh vault.</string>
+    <string name="backup_file_unreadable">The file could not be read, or it is too large to be a backup</string>
+    <string name="backup_restore_failed_after_reset">The restore did not finish. Your previous data was kept aside, not deleted. Try restoring again.</string>
 </resources>
