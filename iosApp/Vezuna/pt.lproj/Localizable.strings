@@ -51,7 +51,7 @@
 "health_import" = "Importação de saúde";
 "premium_ai_activation" = "Ativação da IA premium e de modelos";
 "refresh_app_store" = "Atualizar com a App Store";
-"store_verification_description" = "A verificação da loja só é solicitada pelo botão acima. Um cache verificado pode permanecer válido por 72 horas offline. Registros, importações, lembretes e exportações nunca dependem desse estado.";
+"store_verification_description" = "A verificação da loja é solicitada ao abrir o app, ao voltar a ele e pelo botão acima. Um cache verificado pode permanecer válido por 30 dias offline. Registros, importações, lembretes e exportações nunca dependem desse estado.";
 "premium_inactive" = "A IA premium não está ativa. Registros e exportações continuam disponíveis.";
 "premium_verified" = "A IA premium está verificada para esta instalação.";
 "premium_offline_until" = "A IA premium está disponível pelo cache offline até %1$@.";
@@ -75,7 +75,6 @@
 "storage_open_failed" = "Não foi possível abrir o armazenamento criptografado do Vezuna";
 "action_failed" = "A ação falhou";
 "select_profile_first" = "Selecione um perfil primeiro";
-"model_catalog_read_failed" = "Não foi possível ler o catálogo de modelos";
 "model_catalog_invalid" = "O catálogo de modelos é inválido";
 
 "third_party_notices" = "Avisos de terceiros";
@@ -90,3 +89,6 @@
 "ambiguous_number_warning" = "Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)";
 "choose_date_button" = "Escolher data";
 "reference_text" = "Texto de referência (opcional)";
+"app_lock_reason" = "Confirme que é você para abrir seus registros de saúde";
+"export_language" = "Idioma da exportação";
+"export_language_device" = "Idioma do app";

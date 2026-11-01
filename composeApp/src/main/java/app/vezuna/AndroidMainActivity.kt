@@ -6,7 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import android.content.res.Configuration
 import android.graphics.Color
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import android.view.WindowManager
+import app.vezuna.ui.AppLockHost
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +31,10 @@ import app.vezuna.importer.NativeOcrExtractionService
 import app.vezuna.license.PlayLvlLicenseGate
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import app.vezuna.llm.loadBundledModelCatalog
+import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
@@ -40,7 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class AndroidMainActivity : ComponentActivity() {
+class AndroidMainActivity : FragmentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
     internal lateinit var controller: AppController
     private lateinit var extraction: NativeOcrExtractionService
@@ -50,6 +58,7 @@ class AndroidMainActivity : ComponentActivity() {
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private lateinit var licenseGate: PlayLvlLicenseGate
     private lateinit var modelLoader: PlayAssetPackLoader
+    private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
     private val mutableExport = MutableStateFlow<NativeExport?>(null)
@@ -75,6 +84,15 @@ class AndroidMainActivity : ComponentActivity() {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
         }
+        // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
+        deviceAuthenticator = AndroidDeviceAuthenticator(this)
+        app.deviceAuthenticator = deviceAuthenticator
+        app.appLock.refresh()
+        lifecycleScope.launch {
+            app.appLock.state.map { it.enabled }.distinctUntilChanged().collect { enabled ->
+                if (enabled) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
         extraction = NativeOcrExtractionService(this)
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
@@ -85,20 +103,24 @@ class AndroidMainActivity : ComponentActivity() {
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
         }
         val llm = llamatikLocalLlm()
+        val modelManager = InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm)
         controller = AppController(
             app.repository,
-            InstalledModelManager(app.modelCatalog, app.modelFiles, llm),
+            modelManager,
             LocalHealthChat(app.repository, llm),
             backup = BackupService(app.vault),
         )
         // Only after the vault is readable: initialize() may create a default profile.
         lifecycleScope.launch {
             app.vaultState.first { it is VaultState.Ready }
+            // Same bundled catalog file as iOS, read off the main thread.
+            withContext(Dispatchers.IO) { modelManager.configureCatalog(::loadBundledModelCatalog) }
             controller.initialize()
         }
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
+            AppLockHost(app.appLock) {
             VaultGate(
                 vaultState,
                 onRetry = app::retryVault,
@@ -123,10 +145,24 @@ class AndroidMainActivity : ComponentActivity() {
                 onDismissMessage = { mutableMessage.value = null },
             )
             }
+            }
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        app.appLock.refresh()
+        app.appLock.onForeground()
+    }
+
+    override fun onStop() {
+        app.appLock.onBackground()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        if (isFinishing) app.appLock.lockNow()
+        if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
         sourcePicker.clearExtraction()
         extraction.close()
         licenseGate.close()

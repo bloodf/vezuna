@@ -16,22 +16,33 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.loadBundledModelCatalog
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.platform.currentInstant
 import app.vezuna.security.BackupService
+import app.vezuna.platform.randomId
+import app.vezuna.platform.sha256
+import app.vezuna.platform.toHex
+import app.vezuna.security.AppLock
+import app.vezuna.security.AppLockStore
+import app.vezuna.security.DeviceAuthenticator
+import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
 import app.vezuna.security.VaultUnreadableException
 import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
+import app.vezuna.ui.AppLockHost
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.ExtractedCandidate
@@ -43,6 +54,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +79,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.dataWithContentsOfFile
 import platform.UIKit.UIViewController
 import kotlin.coroutines.resume
@@ -96,6 +111,20 @@ interface NativeModelPackLoader {
 
 interface NativeLicenseProvider {
     fun isPremiumActive(): Boolean
+}
+
+/** Face ID / Touch ID with passcode fallback (LAPolicy.deviceOwnerAuthentication); completion runs on any thread. */
+interface NativeDeviceAuthenticator {
+    fun canAuthenticate(): Boolean
+    fun authenticate(completion: (Boolean) -> Unit)
+}
+
+/** Read directly by the Swift privacy cover, so the key is part of the bridge contract. */
+const val APP_LOCK_ENABLED_KEY = "app_lock_enabled"
+
+private object IosAppLockStore : AppLockStore {
+    override fun isEnabled(): Boolean = NSUserDefaults.standardUserDefaults.boolForKey(APP_LOCK_ENABLED_KEY)
+    override fun setEnabled(enabled: Boolean) = NSUserDefaults.standardUserDefaults.setBool(enabled, APP_LOCK_ENABLED_KEY)
 }
 
 interface NativeRepositoryObserver {
@@ -169,6 +198,30 @@ object IosRuntime {
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
+
+    /** Must be installed before the first Compose view controller is made. */
+    var deviceAuthenticator: NativeDeviceAuthenticator? = null
+
+    /** Lets native chrome (toolbar, sheets) hide while the Compose lock screen is showing. */
+    fun observeLock(callback: (Boolean) -> Unit) {
+        scope.launch { appLock.state.map { it.locked }.distinctUntilChanged().collect { callback(it) } }
+    }
+
+    /** Monotonic clock that keeps counting while the device sleeps, so changing the date cannot defeat the timeout. */
+    val appLock: AppLock by lazy {
+        AppLock(
+            IosAppLockStore,
+            object : DeviceAuthenticator {
+                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate()
+                override suspend fun authenticate(): Boolean {
+                    val native = deviceAuthenticator ?: return false
+                    return suspendCancellableCoroutine { continuation ->
+                        native.authenticate { ok -> if (continuation.isActive) continuation.resume(ok) }
+                    }
+                }
+            },
+        ) { monotonicMillis() }
+    }
     var catalogError: NativeMessage? = null
         private set
 
@@ -342,13 +395,18 @@ object IosRuntime {
         }
     }
 
-    fun exportCsv(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        CsvDoctorExporter().export(data)
+    /** [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language. */
+    fun exportCsv(languageTag: String, completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        CsvDoctorExporter().export(data, exportLanguage(languageTag))
     }
 
-    fun exportPdf(completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        NativePdfExporter().export(DoctorExportContent.document(data))
+    fun exportPdf(languageTag: String, completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        val language = exportLanguage(languageTag)
+        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language))
     }
+
+    private fun exportLanguage(languageTag: String): ContentLanguage =
+        if (languageTag.isEmpty()) ContentLanguage.device() else ContentLanguage.fromTag(languageTag)
 
     fun listMedications(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })
@@ -457,18 +515,13 @@ object IosRuntime {
         }
     }
 
-    @OptIn(ExperimentalForeignApi::class)
-    private fun loadCatalog(): ModelCatalog {
+    /** Same bundled catalog file as Android (shared compose resources). */
+    private suspend fun loadCatalog(): ModelCatalog {
         catalogError = null
-        val path = NSBundle.mainBundle.pathForResource("ModelPacks", "json") ?: return ModelCatalog.unconfigured()
         return try {
-            val bytes = NSData.dataWithContentsOfFile(path)
-            if (bytes == null) {
-                catalogError = nativeMessage("model_catalog_read_failed")
-                return ModelCatalog.unconfigured()
-            }
-            val text = bytes.toByteArrayCompat().decodeToString()
-            ModelCatalog(json.decodeFromString(ListSerializer(serializer<ModelPack>()), text))
+            loadBundledModelCatalog()
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Throwable) {
             catalogError = nativeMessage("model_catalog_invalid")
             ModelCatalog.unconfigured()
@@ -480,6 +533,7 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
+    AppLockHost(IosRuntime.appLock) {
     VezunaApp(
         backupFiles = backupPicker?.let(::composeBackupFiles),
         controller = IosRuntime.controllerForCompose(),
@@ -512,6 +566,15 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
         },
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
     )
+    }
+}
+
+/** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */
+@OptIn(ExperimentalForeignApi::class)
+private fun monotonicMillis(): Long = memScoped {
+    val now = alloc<platform.posix.timespec>()
+    check(platform.posix.clock_gettime(platform.posix.CLOCK_MONOTONIC.toUInt(), now.ptr) == 0) { "monotonic clock unavailable" }
+    now.tv_sec * 1000L + now.tv_nsec / 1_000_000L
 }
 
 private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(
@@ -531,18 +594,9 @@ fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, on
             onRestore()
         }
     }
-    VaultGate(state, onRetry, onReset, recovery) {}
+    AppLockHost(IosRuntime.appLock) { VaultGate(state, onRetry, onReset, recovery) {} }
 }
 
 // These accessors keep Compose construction in this module while the runtime fields remain encapsulated.
 private fun IosRuntime.controllerForCompose(): AppController = IosRuntime.controller
 private fun IosRuntime.composeScope(): CoroutineScope = IosRuntime.scope
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArrayCompat(): ByteArray = ByteArray(length.toInt()).apply {
-    if (isNotEmpty()) {
-        usePinned { pinned ->
-            platform.posix.memcpy(pinned.addressOf(0), bytes, length)
-        }
-    }
-}

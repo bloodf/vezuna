@@ -295,6 +295,15 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.DELETE_REPORT_WARNING to Res.string.delete_report_warning,
     L10nKey.REPORT_NOT_FOUND to Res.string.report_not_found,
     L10nKey.REPORT_DELETED to Res.string.report_deleted,
+    // App lock
+    L10nKey.APP_LOCK_TITLE to Res.string.app_lock_title,
+    L10nKey.APP_LOCK_DESCRIPTION to Res.string.app_lock_description,
+    L10nKey.APP_LOCK_UNAVAILABLE to Res.string.app_lock_unavailable,
+    L10nKey.APP_LOCK_FAILED to Res.string.app_lock_failed,
+    L10nKey.APP_LOCK_SUSPENDED to Res.string.app_lock_suspended,
+    L10nKey.LOCK_SCREEN_TITLE to Res.string.lock_screen_title,
+    L10nKey.LOCK_SCREEN_BODY to Res.string.lock_screen_body,
+    L10nKey.UNLOCK to Res.string.unlock,
     // Portable backup and restore
     L10nKey.BACKUP_RESTORED_WITHOUT_VITALS to Res.string.backup_restored_without_vitals,
     L10nKey.BACKUP_FILE_UNREADABLE to Res.string.backup_file_unreadable,
@@ -350,6 +359,10 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.VITAL_UNIT_STEPS to Res.string.vital_unit_steps,
     L10nKey.VITAL_UNIT_KG to Res.string.vital_unit_kg,
     L10nKey.VITALS_RETENTION_NOTE to Res.string.vitals_retention_note,
+    L10nKey.EXPORT_LANGUAGE to Res.string.export_language,
+    L10nKey.EXPORT_LANGUAGE_DEVICE to Res.string.export_language_device,
+    L10nKey.EXPORT_LANGUAGE_EXPLANATION to Res.string.export_language_explanation,
+    L10nKey.MODEL_CATALOG_UNREADABLE to Res.string.model_catalog_unreadable,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
