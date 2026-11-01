@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 sealed interface AppScreen {
@@ -85,6 +86,8 @@ class AppController(
     val modelManager: InstalledModelManager,
     private val chat: LocalHealthChat,
     private val pdfExporter: NativePdfExporter = NativePdfExporter(),
+    private val clock: () -> kotlinx.datetime.Instant = { currentInstant() },
+    private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
@@ -300,7 +303,7 @@ class AppController(
             scheduleId = randomId(),
             medicationId = medicationId,
             recurrence = Recurrence.DAILY,
-            startDate = currentInstant().toLocalDateTime(kotlinx.datetime.TimeZone.UTC).date,
+            startDate = clock().toLocalDateTime(timeZone()).date,
             timesLocal = listOf(canonicalTime),
         )
         repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, listOf(schedule)))
@@ -398,7 +401,7 @@ class AppController(
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
-            dashboard = DashboardSnapshotFactory.create(data, currentInstant(), kotlinx.datetime.TimeZone.currentSystemDefault()),
+            dashboard = DashboardSnapshotFactory.create(data, clock(), timeZone()),
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
             ),

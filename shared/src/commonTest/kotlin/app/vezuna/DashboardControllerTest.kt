@@ -17,6 +17,7 @@ import app.vezuna.platform.currentInstant
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -75,6 +76,26 @@ class DashboardControllerTest {
         controller.refreshDashboard()
 
         assertTrue(requireNotNull(controller.state.value.dashboard?.nextDose).scheduledFor > next.scheduledFor)
+    }
+
+    @Test
+    fun newMedicationStartsOnLocalDateAtTenPmInSaoPaulo() = runTest {
+        val repository = InMemoryVezunaRepository()
+        repository.createProfile(Profile("p", "Current", createdAt = currentInstant()))
+        // 22:00 on 2026-11-01 in UTC-3 is already 2026-11-02 in UTC.
+        val controller = AppController(
+            repository,
+            InstalledModelManager(ModelCatalog.unconfigured(), EmptyModels, FakeLlm),
+            LocalHealthChat(repository, FakeLlm),
+            clock = { Instant.parse("2026-11-02T01:00:00Z") },
+            timeZone = { TimeZone.of("America/Sao_Paulo") },
+        )
+        controller.initialize()
+        controller.addMedication("Evening", "", "", "22:30")
+
+        val start = repository.readProfile("p").medications.single().schedules.single().startDate
+        assertEquals(LocalDate(2026, 11, 1), start)
+        assertEquals(Instant.parse("2026-11-02T01:30:00Z"), controller.state.value.dashboard?.nextDose?.scheduledFor)
     }
 
     private fun medication(profileId: String) = Medication(
