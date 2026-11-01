@@ -24,8 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
+import app.vezuna.domain.ProfileData
+import app.vezuna.domain.keepingOnlyAvailableSourceFiles
+import app.vezuna.security.BackupService
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
+
+/** Restore from the recovery screen: [restore] resets the unreadable vault (quarantine only) and stores the data. */
+class BackupRecovery(
+    val service: BackupService,
+    val files: BackupFileAccess,
+    val restore: (ProfileData) -> Unit,
+)
 
 /** Single entry point for both platforms: loading, recovery, or the app itself once the vault is ready. */
 @Composable
@@ -33,6 +43,7 @@ fun VaultGate(
     state: VaultState,
     onRetry: () -> Unit,
     onReset: () -> Unit,
+    backup: BackupRecovery? = null,
     ready: @Composable () -> Unit,
 ) {
     // Held here because the recovery screen leaves composition while a retry shows the loading view.
@@ -56,13 +67,21 @@ fun VaultGate(
             onRetry = { retries += 1; onRetry() },
             onReset = onReset,
             failedRetries = retries,
+            backup = backup,
         )
     }
 }
 
 @Composable
-fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () -> Unit, failedRetries: Int = 0) {
+fun VaultRecoveryScreen(
+    failure: VaultFailure,
+    onRetry: () -> Unit,
+    onReset: () -> Unit,
+    failedRetries: Int = 0,
+    backup: BackupRecovery? = null,
+) {
     var confirming by rememberSaveable { mutableStateOf(false) }
+    var restoring by rememberSaveable { mutableStateOf(false) }
     VezunaTheme {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(
@@ -78,8 +97,24 @@ fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () 
                     OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
                     }
+                    // Restoring starts from a fresh vault, so it is offered under the same conditions as the reset.
+                    if (backup != null) {
+                        OutlinedButton(onClick = { restoring = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(vitaText(L10nKey.BACKUP_RESTORE))
+                        }
+                    }
                 }
             }
+        }
+        if (restoring && backup != null) {
+            RestoreBackupFlow(
+                service = backup.service,
+                files = backup.files,
+                profileExists = { false },
+                confirmBody = L10nKey.BACKUP_RECOVERY_CONFIRM_BODY,
+                onConfirmed = { opened, _ -> backup.restore(opened.data.keepingOnlyAvailableSourceFiles(null)) },
+                onClose = { restoring = false },
+            )
         }
         if (confirming) {
             AlertDialog(

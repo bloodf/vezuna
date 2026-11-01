@@ -12,6 +12,7 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
 import app.vezuna.domain.withMedication
@@ -62,6 +63,12 @@ interface VezunaRepository {
     suspend fun deleteSchedule(profileId: String, scheduleId: String)
     suspend fun updateChatMessage(message: ChatMessage)
     suspend fun deleteChatMessage(profileId: String, messageId: String)
+
+    /**
+     * Creates the profile or atomically replaces every record of the existing one with [data] (no stale records
+     * survive). Source files of the replaced profile that [data] no longer references are removed.
+     */
+    suspend fun restoreProfile(data: ProfileData)
 }
 
 
@@ -155,6 +162,11 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        publish(records + (data.profile.profileId to data))
+    }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
         val updated = transform(records.getValue(profileId))

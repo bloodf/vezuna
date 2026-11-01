@@ -40,7 +40,8 @@ struct ContentView: View {
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
                     onRetry: { model.recoverVault(reset: false) },
-                    onReset: { model.recoverVault(reset: true) }
+                    onReset: { model.recoverVault(reset: true) },
+                    onRestore: { model.recoverVault(reset: true) }
                 )
                 .ignoresSafeArea()
             } else if let error = model.startupError {
@@ -84,9 +85,10 @@ struct ComposeHostView: UIViewControllerRepresentable {
 struct VaultRecoveryHostView: UIViewControllerRepresentable {
     let onRetry: () -> Void
     let onReset: () -> Void
+    let onRestore: () -> Void
 
     func makeUIViewController(context: Context) -> UIViewController {
-        ComposeBridgeKt.makeVaultRecoveryViewController(onRetry: onRetry, onReset: onReset)
+        ComposeBridgeKt.makeVaultRecoveryViewController(onRetry: onRetry, onReset: onReset, onRestore: onRestore)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

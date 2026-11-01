@@ -13,6 +13,7 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
@@ -222,6 +223,19 @@ class PersistentVezunaRepository private constructor(
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        val previous = records[data.profile.profileId]
+        val newIndex = (records.values.map { it.profile }.filter { it.profileId != data.profile.profileId } + data.profile).sortedBy { it.displayName }
+        persist(data)
+        writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
+        records[data.profile.profileId] = data
+        publishProfiles()
+        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
+        changeObserver?.invoke()
+        Unit
+    }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
         val current = records.getValue(profileId)

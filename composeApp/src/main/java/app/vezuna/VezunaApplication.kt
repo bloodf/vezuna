@@ -6,6 +6,7 @@ import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.HealthConnectSyncCoordinator
 import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.domain.ProfileData
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.security.AndroidSecureVault
 import app.vezuna.security.VaultFailure
@@ -66,6 +67,15 @@ class VezunaApplication : Application() {
 
     /** Explicit user reset from the recovery screen; the unreadable files are quarantined, not deleted. */
     fun resetVault() = loadVault { repository.resetAfterFailure() }
+
+    /**
+     * Restore from the recovery screen: the unreadable vault is quarantined (never deleted), then the backup is
+     * stored into the fresh vault. Both steps run in one load so the app never sees a half-restored state.
+     */
+    fun restoreVaultFromBackup(data: ProfileData) = loadVault {
+        repository.resetAfterFailure()
+        repository.restoreProfile(data)
+    }
 
     /** True once the repository is usable; false when the vault needs recovery. Safe from receivers. */
     suspend fun awaitRepository(): Boolean =

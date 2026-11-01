@@ -12,6 +12,7 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
@@ -160,6 +161,15 @@ class PersistentVezunaRepository(
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        ensureInitialized()
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        val previous = snapshot.records[data.profile.profileId]
+        commit(snapshot.with(data))
+        // Files orphaned by the replacement go only after the restored snapshot is durable.
+        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
+    }
 
     private suspend fun mutate(transform: () -> Snapshot) = mutex.withLock {
         ensureInitialized()

@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.lifecycle.lifecycleScope
+import app.vezuna.export.AndroidBackupFiles
 import app.vezuna.export.AndroidExportCoordinator
 import app.vezuna.export.NativeExport
 import app.vezuna.export.UserCancelledExport
@@ -29,16 +30,15 @@ import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
-import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
+import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 class AndroidMainActivity : ComponentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
@@ -46,6 +46,7 @@ class AndroidMainActivity : ComponentActivity() {
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
+    private lateinit var backupFiles: AndroidBackupFiles
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private lateinit var licenseGate: PlayLvlLicenseGate
     private lateinit var modelLoader: PlayAssetPackLoader
@@ -77,6 +78,7 @@ class AndroidMainActivity : ComponentActivity() {
         extraction = NativeOcrExtractionService(this)
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
+        backupFiles = AndroidBackupFiles(this, exports)
         licenseGate = PlayLvlLicenseGate(this)
         modelLoader = PlayAssetPackLoader(this, licenseGate)
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
@@ -87,6 +89,7 @@ class AndroidMainActivity : ComponentActivity() {
             app.repository,
             InstalledModelManager(app.modelCatalog, app.modelFiles, llm),
             LocalHealthChat(app.repository, llm),
+            backup = BackupService(app.vault),
         )
         // Only after the vault is readable: initialize() may create a default profile.
         lifecycleScope.launch {
@@ -96,7 +99,12 @@ class AndroidMainActivity : ComponentActivity() {
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
-            VaultGate(vaultState, onRetry = app::retryVault, onReset = app::resetVault) {
+            VaultGate(
+                vaultState,
+                onRetry = app::retryVault,
+                onReset = app::resetVault,
+                backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
+            ) {
             PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
             VezunaAndroidApp(
                 controller = controller,
@@ -107,7 +115,7 @@ class AndroidMainActivity : ComponentActivity() {
                 busyFlow = mutableBusy.asStateFlow(),
                 onHealthConnect = ::openHealthConnect,
                 onReminders = ::requestReminders,
-                onBackup = ::prepareBackup,
+                backupFiles = backupFiles.access,
                 onPresentExport = { mutableExport.value = it },
                 onDismissExport = { mutableExport.value = null },
                 onShareExport = ::shareExport,
@@ -157,26 +165,6 @@ class AndroidMainActivity : ComponentActivity() {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             mutableMessage.value = nativeMessage(NativeKey.REMINDER_SCHEDULES_ACTIVE)
-        }
-    }
-
-    private fun prepareBackup() {
-        val data = controller.state.value.data
-        if (data == null) {
-            mutableMessage.value = nativeMessage(NativeKey.BACKUP_SELECT_PROFILE)
-            return
-        }
-        mutableBusy.value = true
-        lifecycleScope.launch {
-            try {
-                val envelope = BackupService(app.vault).create(data)
-                val bytes = Json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray()
-                mutableExport.value = NativeExport("vezuna-${data.profile.displayName.safeFilePart()}.vhbak", "application/octet-stream", bytes)
-            } catch (error: Throwable) {
-                mutableMessage.value = error.toNativeText(NativeKey.BACKUP_CREATE_FAILED)
-            } finally {
-                mutableBusy.value = false
-            }
         }
     }
 
