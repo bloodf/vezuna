@@ -116,8 +116,8 @@ private class EmptyLlm : LocalLlm {
 
 private class EmptyModelStore : ModelFileStore {
     override suspend fun installed(): List<InstalledModel> = emptyList()
-    override suspend fun write(model: InstalledModel, bytes: ByteArray) = Unit
-    override suspend fun readBytes(model: InstalledModel): ByteArray = ByteArray(0)
+    override suspend fun install(model: InstalledModel, sourcePath: String) = Unit
+    override suspend fun verifyIntegrity(model: InstalledModel): Boolean = true
     override suspend fun delete(model: InstalledModel) = Unit
     override suspend fun saveSelection(modelId: String?) = Unit
     override suspend fun savedSelection(): String? = null

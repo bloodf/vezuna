@@ -21,8 +21,14 @@ def check_privacy_manifests(app):
         main = plistlib.load(source)
     if main.get("NSPrivacyTracking") is not False or main.get("NSPrivacyTrackingDomains") != []:
         raise ValueError("unexpected app tracking declaration")
-    if main.get("NSPrivacyAccessedAPITypes"):
-        raise ValueError("app-owned API reasons require an explicit evidence update")
+    if main.get("NSPrivacyCollectedDataTypes") != []:
+        raise ValueError("app manifest must declare no collected data types (data stays on device)")
+    # stat/fstat are statically linked (Skia/ICU file mapping of bundled and app-container files).
+    if main.get("NSPrivacyAccessedAPITypes") != [{
+        "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+        "NSPrivacyAccessedAPITypeReasons": ["C617.1"],
+    }]:
+        raise ValueError("app manifest must declare file-timestamp reason C617.1 and no other required-reason API")
     with (app / paths[1]).open("rb") as source:
         sdk = plistlib.load(source)
     if sdk.get("NSPrivacyAccessedAPITypes") != [{

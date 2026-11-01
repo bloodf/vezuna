@@ -46,7 +46,8 @@ class PlayAssetPackLoader(
     private val mutableState = MutableStateFlow<ModelPackLoadState>(ModelPackLoadState.Idle)
     val state: StateFlow<ModelPackLoadState> = mutableState.asStateFlow()
 
-    suspend fun load(pack: ModelPack): ByteArray? {
+    /** Returns the pack file location (used in place, no release needed) of the pack file; the model store streams it into private storage. */
+    suspend fun load(pack: ModelPack): ModelPackSource? {
         if (!FeatureAccessPolicy.isAllowed(AppFeature.PREMIUM_AI_MODEL, premiumGate.premiumAllowed())) {
             mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PREMIUM_UNAVAILABLE))
             return null
@@ -58,9 +59,9 @@ class PlayAssetPackLoader(
                 mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PACK_UNAVAILABLE))
                 return null
             }
-            val bytes = readPackFile(location, pack)
+            val path = resolvePackFile(location, pack)
             mutableState.value = ModelPackLoadState.Ready(pack.modelId)
-            bytes
+            ModelPackSource(path)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Throwable) {
@@ -121,12 +122,12 @@ class PlayAssetPackLoader(
         }
     }
 
-    private suspend fun readPackFile(location: AssetPackLocation, pack: ModelPack): ByteArray = withContext(Dispatchers.IO) {
+    private suspend fun resolvePackFile(location: AssetPackLocation, pack: ModelPack): String = withContext(Dispatchers.IO) {
         val assets = location.assetsPath() ?: failNative(NativeKey.ASSET_PATH_UNAVAILABLE)
         val root = File(assets).canonicalFile
         val file = File(root, pack.fileName).canonicalFile
         if (file.parentFile != root || !file.isFile) failNative(NativeKey.GGUF_MISSING)
-        file.readBytes()
+        file.path
     }
 
     private companion object {

@@ -28,13 +28,17 @@ import platform.Foundation.NSFileSize
 import platform.Foundation.NSNumber
 import platform.Foundation.NSURLIsExcludedFromBackupKey
 import platform.Foundation.NSURL
+import platform.Foundation.NSUUID
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.writeToFile
 import platform.posix.fclose
 import platform.posix.feof
 import platform.posix.ferror
+import platform.posix.fflush
 import platform.posix.fopen
+import platform.posix.rename
+import platform.posix.fwrite
 import platform.posix.fread
 import platform.posix.memcpy
 
@@ -49,6 +53,11 @@ class IosModelFileStore(
 
     init {
         preparePrivateDirectory(directory)
+        // Interrupted installs leave hidden ".<name>.<uuid>.tmp" files; they are never valid state.
+        (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>)
+            ?.filterIsInstance<String>()
+            ?.filter { it.startsWith(".") && it.endsWith(".tmp") }
+            ?.forEach { manager.removeItemAtPath("$directory/$it", null) }
     }
 
     override suspend fun installed(): List<InstalledModel> = mutex.withLock {
@@ -58,25 +67,71 @@ class IosModelFileStore(
         }
     }
 
-    override suspend fun write(model: InstalledModel, bytes: ByteArray) = mutex.withLock {
+    override suspend fun install(model: InstalledModel, sourcePath: String) = mutex.withLock {
         require(model.pack.fileName == model.localPath || model.pack.fileName == model.localPath.substringAfterLast('/'))
         val destination = "$directory/${model.pack.fileName}"
         preparePrivateDirectory(directory)
-        check(bytes.toNSData().writeToFile(destination, true)) { "Could not atomically write model pack" }
-        protectAndExclude(destination)
+        val temporary = "$directory/.${model.pack.fileName}.${NSUUID().UUIDString}.tmp"
+        try {
+            streamVerifiedCopy(sourcePath, temporary, model.pack.sizeBytes, model.pack.sha256)
+            protectAndExclude(temporary)
+            // rename(2) replaces atomically on the same volume; the previous model survives any failure.
+            check(rename(temporary, destination) == 0) { "Could not move verified model pack into place" }
+            protectAndExclude(destination)
+        } finally {
+            manager.removeItemAtPath(temporary, null)
+        }
         val stored = model.copy(localPath = destination)
         val models = readIndex().filterNot { it.pack.modelId == model.pack.modelId } + stored
         writePrivateText(indexPath, json.encodeToString(ListSerializer(InstalledModel.serializer()), models))
     }
 
-    override suspend fun readBytes(model: InstalledModel): ByteArray = mutex.withLock {
-        check(premiumActive()) { "Premium AI activation is required to load a model" }
-        val bytes = NSData.dataWithContentsOfFile(modelPath(model))?.toByteArray()
-            ?: error("Installed model is unavailable")
-        check(bytes.size >= 4 && bytes[0] == 0x47.toByte() && bytes[1] == 0x47.toByte() && bytes[2] == 0x55.toByte() && bytes[3] == 0x46.toByte()) {
-            "Installed model is not a GGUF file"
+    /** Copies in 1 MiB chunks while hashing; throws on size, GGUF magic or SHA-256 mismatch. */
+    private fun streamVerifiedCopy(source: String, destination: String, expectedSize: Long, expectedSha256: String) {
+        val input = fopen(source, "rb") ?: error("Model pack source is unavailable")
+        try {
+            val output = fopen(destination, "wb") ?: error("Could not create model pack temporary file")
+            var outputClosed = false
+            try {
+                memScoped {
+                    val context = alloc<CC_SHA256_CTX>()
+                    check(CC_SHA256_Init(context.ptr) == 1) { "SHA-256 init failed" }
+                    val buffer = ByteArray(1024 * 1024)
+                    val header = ByteArray(4)
+                    var total = 0L
+                    while (true) {
+                        val count = buffer.usePinned { pinned ->
+                            fread(pinned.addressOf(0), 1uL, buffer.size.toULong(), input)
+                        }.toInt()
+                        if (count > 0) {
+                            total += count
+                            check(total <= expectedSize) { "Model pack is larger than expected" }
+                            check(buffer.usePinned { CC_SHA256_Update(context.ptr, it.addressOf(0), count.toUInt()) } == 1) { "SHA-256 update failed" }
+                            val written = buffer.usePinned { fwrite(it.addressOf(0), 1uL, count.toULong(), output) }.toInt()
+                            check(written == count) { "Could not write model pack" }
+                            val offset = (total - count).toInt()
+                            if (offset < header.size) buffer.copyInto(header, offset, 0, minOf(count, header.size - offset))
+                        }
+                        if (count < buffer.size) {
+                            check(ferror(input) == 0) { "Could not read model pack" }
+                            if (feof(input) != 0) break
+                        }
+                    }
+                    check(fflush(output) == 0) { "Could not flush model pack" }
+                    outputClosed = true
+                    check(fclose(output) == 0) { "Could not close model pack" }
+                    check(total == expectedSize) { "Model pack size mismatch" }
+                    check(header.contentEquals(byteArrayOf(0x47, 0x47, 0x55, 0x46))) { "Model pack is not a GGUF file" }
+                    val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
+                    check(digest.usePinned { CC_SHA256_Final(it.addressOf(0), context.ptr) } == 1) { "SHA-256 final failed" }
+                    check(ByteArray(digest.size) { digest[it].toByte() }.toHex() == expectedSha256) { "Model pack SHA-256 mismatch" }
+                }
+            } finally {
+                if (!outputClosed) fclose(output)
+            }
+        } finally {
+            fclose(input)
         }
-        bytes
     }
 
     override suspend fun verifyIntegrity(model: InstalledModel): Boolean = mutex.withLock {
@@ -98,7 +153,7 @@ class IosModelFileStore(
                         fread(pinned.addressOf(0), 1uL, buffer.size.toULong(), file)
                     }
                     if (count > 0uL) {
-                        if (CC_SHA256_Update(context.ptr, buffer.usePinned { it.addressOf(0) }, count.toUInt()) != 1) {
+                        if (buffer.usePinned { CC_SHA256_Update(context.ptr, it.addressOf(0), count.toUInt()) } != 1) {
                             return@memScoped false
                         }
                         if (totalRead < header.size) {
@@ -120,7 +175,7 @@ class IosModelFileStore(
                     return@memScoped false
                 }
                 val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
-                if (CC_SHA256_Final(digest.usePinned { it.addressOf(0) }, context.ptr) != 1) return@memScoped false
+                if (digest.usePinned { CC_SHA256_Final(it.addressOf(0), context.ptr) } != 1) return@memScoped false
                 ByteArray(digest.size) { digest[it].toByte() }.toHex() == model.pack.sha256
             }
         } finally {
