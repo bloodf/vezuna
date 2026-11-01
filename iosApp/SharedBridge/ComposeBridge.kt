@@ -35,7 +35,10 @@ import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.security.AppLock
+import app.vezuna.security.AppLockStore
 import app.vezuna.security.BackupService
+import app.vezuna.security.DeviceAuthenticator
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
@@ -43,6 +46,7 @@ import app.vezuna.security.VaultState
 import app.vezuna.security.VaultUnreadableException
 import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
+import app.vezuna.ui.AppLockHost
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.PickedSource
@@ -50,6 +54,12 @@ import app.vezuna.ui.VaultGate
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +78,10 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
+import platform.Foundation.NSBundle
+import platform.Foundation.NSData
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.dataWithContentsOfFile
 import platform.UIKit.UIViewController
 import kotlin.coroutines.resume
@@ -99,6 +113,20 @@ interface NativeModelPackLoader {
 
 interface NativeLicenseProvider {
     fun isPremiumActive(): Boolean
+}
+
+/** Face ID / Touch ID with passcode fallback (LAPolicy.deviceOwnerAuthentication); completion runs on any thread. */
+interface NativeDeviceAuthenticator {
+    fun canAuthenticate(): Boolean
+    fun authenticate(completion: (Boolean) -> Unit)
+}
+
+/** Read directly by the Swift privacy cover, so the key is part of the bridge contract. */
+const val APP_LOCK_ENABLED_KEY = "app_lock_enabled"
+
+private object IosAppLockStore : AppLockStore {
+    override fun isEnabled(): Boolean = NSUserDefaults.standardUserDefaults.boolForKey(APP_LOCK_ENABLED_KEY)
+    override fun setEnabled(enabled: Boolean) = NSUserDefaults.standardUserDefaults.setBool(enabled, APP_LOCK_ENABLED_KEY)
 }
 
 interface NativeRepositoryObserver {
@@ -149,6 +177,30 @@ object IosRuntime {
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
+
+    /** Must be installed before the first Compose view controller is made. */
+    var deviceAuthenticator: NativeDeviceAuthenticator? = null
+
+    /** Lets native chrome (toolbar, sheets) hide while the Compose lock screen is showing. */
+    fun observeLock(callback: (Boolean) -> Unit) {
+        scope.launch { appLock.state.map { it.locked }.distinctUntilChanged().collect { callback(it) } }
+    }
+
+    /** Monotonic clock that keeps counting while the device sleeps, so changing the date cannot defeat the timeout. */
+    val appLock: AppLock by lazy {
+        AppLock(
+            IosAppLockStore,
+            object : DeviceAuthenticator {
+                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate()
+                override suspend fun authenticate(): Boolean {
+                    val native = deviceAuthenticator ?: return false
+                    return suspendCancellableCoroutine { continuation ->
+                        native.authenticate { ok -> if (continuation.isActive) continuation.resume(ok) }
+                    }
+                }
+            },
+        ) { monotonicMillis() }
+    }
     var catalogError: NativeMessage? = null
         private set
 
@@ -494,6 +546,7 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
+    AppLockHost(IosRuntime.appLock) {
     VezunaApp(
         backupFiles = backupPicker?.let(::composeBackupFiles),
         controller = IosRuntime.controllerForCompose(),
@@ -526,6 +579,15 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
         },
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
     )
+    }
+}
+
+/** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */
+@OptIn(ExperimentalForeignApi::class)
+private fun monotonicMillis(): Long = memScoped {
+    val now = alloc<platform.posix.timespec>()
+    check(platform.posix.clock_gettime(platform.posix.CLOCK_MONOTONIC.toUInt(), now.ptr) == 0) { "monotonic clock unavailable" }
+    now.tv_sec * 1000L + now.tv_nsec / 1_000_000L
 }
 
 private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(
@@ -545,7 +607,7 @@ fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, on
             onRestore()
         }
     }
-    VaultGate(state, onRetry, onReset, recovery) {}
+    AppLockHost(IosRuntime.appLock) { VaultGate(state, onRetry, onReset, recovery) {} }
 }
 
 // These accessors keep Compose construction in this module while the runtime fields remain encapsulated.

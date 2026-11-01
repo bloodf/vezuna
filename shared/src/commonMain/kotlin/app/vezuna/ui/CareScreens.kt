@@ -412,6 +412,7 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         BackupSettingsSection(state, controller, backupFiles)
         DeviceHealthSettings(state, data, controller, scope)
         SectionHeading(vitaText(L10nKey.SECTION_STORAGE_SECURITY))
+        AppLockSettings()
         Card {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
