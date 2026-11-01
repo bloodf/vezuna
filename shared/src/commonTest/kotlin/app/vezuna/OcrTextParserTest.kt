@@ -1,10 +1,12 @@
 package app.vezuna
 
+import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.importer.OcrTextParser
 import app.vezuna.ui.ExtractedValueKind
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -105,6 +107,31 @@ class OcrTextParserTest {
         assertEquals("1020", byName.getValue("Colesterol").value)
         assertEquals("1.020", byName.getValue("Colesterol").rawToken)
         assertNull(byName.getValue("Glicose").rawToken)
+    }
+
+    @Test
+    fun countUnitsSuppressTheAmbiguityFlagButKeepThousands() {
+        val rows = OcrTextParser.parseMeasurements("Plaquetas 250.000 /mm3 150.000 a 450.000\nLeucocitos 7.500 /µL 4.000 a 11.000\nLeucocitos 7.500 10^3/µL 4.000 a 11.000")
+        assertEquals(3, rows.size)
+        rows.forEach { assertNull(it.rawToken, it.displayName) }
+        assertEquals("250000", rows[0].value)
+        assertEquals(450000.0, rows[0].referenceRange.upper)
+        assertEquals("7500", rows[1].value)
+        assertEquals("7.500", rows[2].value)
+        assertEquals(11.0, rows[2].referenceRange.upper)
+    }
+
+    @Test
+    fun specificGravityAndPhStayFlagged() {
+        val rows = OcrTextParser.parseMeasurements("Densidade 1.020 mg/dL 1.005 a 1.030")
+        assertEquals("1.020", rows.first { it.displayName == "Densidade" }.rawToken)
+        assertTrue(NumberAmbiguity.isAmbiguousThousands("1.020", ""))
+        assertTrue(NumberAmbiguity.isAmbiguousThousands("7.350", "pH"))
+        listOf("/mm3", "/mm³", "/µL", "/μL", "/uL", "10^3/µL", "10³/µL", "10^3/mm³", "10^6/µL").forEach {
+            assertTrue(NumberAmbiguity.isCountUnit(it), it)
+            assertFalse(NumberAmbiguity.isAmbiguousThousands("250.000", it), it)
+        }
+        assertFalse(NumberAmbiguity.isCountUnit("mg/dL"))
     }
 
     @Test
