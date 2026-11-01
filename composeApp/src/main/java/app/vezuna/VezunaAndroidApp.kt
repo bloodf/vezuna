@@ -21,7 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 @Composable
 fun VezunaAndroidApp(
     controller: AppController,
+    scope: CoroutineScope,
     sourcePicker: AndroidSourcePicker,
     modelLoader: PlayAssetPackLoader,
     messageFlow: StateFlow<NativeText?>,
@@ -54,7 +55,6 @@ fun VezunaAndroidApp(
     onSaveExport: (NativeExport) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     val state by controller.state.collectAsState()
     val message by messageFlow.collectAsState()
     val pendingExport by exportFlow.collectAsState()

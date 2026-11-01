@@ -13,6 +13,7 @@ import app.vezuna.domain.Recurrence
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -38,6 +39,8 @@ class AppVisualInstrumentedTest {
             navigate(device, directory, "Settings", "Settings & export", "ui-settings.png")
 
             device.executeShellCommand("cmd uimode night yes")
+            // The session is retained across the recreation, so the Settings screen is still selected.
+            clickDescription(device, "Home")
             assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 10_000))
             capture(device, directory, "ui-dark.png", "Household")
             device.executeShellCommand("cmd uimode night no")
@@ -144,6 +147,8 @@ class AppVisualInstrumentedTest {
     }
 
     private fun selectVisualProfile(device: UiDevice, scenario: ActivityScenario<AndroidMainActivity>, profileId: String) {
+        // The session survives recreation, so return to the dashboard where the profile name is shown.
+        clickDescription(device, "Home")
         scenario.onActivity { activity ->
             runBlocking { activity.controller.switchProfile(profileId) }
         }
@@ -153,7 +158,13 @@ class AppVisualInstrumentedTest {
 
     private fun clickDescription(device: UiDevice, description: String) {
         assertTrue("Control $description did not appear", device.wait(Until.hasObject(By.desc(description)), 10_000))
-        device.findObject(By.desc(description)).click()
+        // Retry: the node can vanish while the Activity is being recreated after a configuration change.
+        repeat(5) {
+            device.findObject(By.desc(description))?.let { control -> control.click(); return }
+            device.waitForIdle()
+            device.wait(Until.hasObject(By.desc(description)), 2_000)
+        }
+        fail("Control $description disappeared before it could be clicked")
     }
 
     private fun navigate(device: UiDevice, directory: File, tab: String, title: String, fileName: String) {
