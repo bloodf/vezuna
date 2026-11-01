@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { supportCopy } from '../data/marketing';
+import { issuesUrl, localizedPath, securityUrl, supportAlternates, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = supportCopy[locale];
+---
+<BaseLayout locale={locale} title={copy.title} description={copy.intro} path={localizedPath(locale, 'support')} alternates={supportAlternates}>
+  <main class="simple-main" id="main-content">
+    <header class="simple-hero">
+      <p class="eyebrow">{copy.eyebrow}</p>
+      <h1>{copy.title}</h1>
+      <p>{copy.intro}</p>
+    </header>
+    <div class="support-grid">
+      <section class="support-channel" aria-labelledby="general-support">
+        <h2 id="general-support">{copy.generalTitle}</h2>
+        <p>{copy.generalBody}</p>
+        <a class="button button--primary" href={issuesUrl} rel="external">{copy.action}</a>
+      </section>
+      <section class="support-channel" aria-labelledby="security-support">
+        <h2 id="security-support">{copy.securityTitle}</h2>
+        <p>{copy.securityBody}</p>
+        <p>{copy.fallback}</p>
+        <a class="button button--primary" href={securityUrl} rel="external">{copy.securityAction}</a>
+      </section>
+    </div>
+    <p class="support-warning"><strong>{copy.warning}</strong></p>
+  </main>
+</BaseLayout>

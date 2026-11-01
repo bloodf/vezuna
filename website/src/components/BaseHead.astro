@@ -1,0 +1,58 @@
+---
+import { htmlLang, languageNames, type Alternates, type Locale } from '../lib/i18n';
+
+interface Props {
+  lang: Locale;
+  title: string;
+  description: string;
+  path: string;
+  alternates?: Alternates;
+}
+
+const { lang, title, description, path, alternates = {} } = Astro.props;
+const site = Astro.site ?? new URL('https://vezuna.app');
+const canonical = new URL(path, site);
+const socialImage = new URL('/assets/og-1200x630.png', site);
+const fullTitle = title === 'Vezuna' ? 'Vezuna — Your health, in one place.' : `${title} | Vezuna`;
+const structuredData = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Vezuna',
+  url: 'https://vezuna.app',
+  inLanguage: ['en', 'pt-BR', 'es'],
+});
+---
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<meta name="theme-color" content="#123B46" />
+<meta name="color-scheme" content="light" />
+<link rel="canonical" href={canonical} />
+{Object.entries(alternates).map(([locale, href]) => (
+  <link rel="alternate" hreflang={htmlLang[locale as Locale]} href={new URL(href, site)} title={languageNames[locale as Locale]} />
+))}
+{alternates.en && <link rel="alternate" hreflang="x-default" href={new URL(alternates.en, site)} />}
+<link rel="sitemap" href="/sitemap-index.xml" />
+<link rel="icon" href="/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<link rel="preload" href="/fonts/NotoSans-Regular.ttf" as="font" type="font/ttf" crossorigin />
+<link rel="preload" href="/fonts/NotoSans-Bold.ttf" as="font" type="font/ttf" crossorigin />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Vezuna" />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={socialImage} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Vezuna. Your health, in one place." />
+<meta property="og:locale" content={htmlLang[lang].replace('-', '_')} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={socialImage} />
+<script type="application/ld+json" set:html={structuredData} />
+<slot name="head" />

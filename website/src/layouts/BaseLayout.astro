@@ -1,0 +1,33 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { htmlLang, type Alternates, type Locale } from '../lib/i18n';
+import '../styles/global.css';
+
+interface Props {
+  locale: Locale;
+  title: string;
+  description: string;
+  path: string;
+  alternates?: Alternates;
+  darkHeader?: boolean;
+  marketing?: boolean;
+}
+
+const { locale, title, description, path, alternates, darkHeader = false, marketing = false } = Astro.props;
+---
+<!doctype html>
+<html lang={htmlLang[locale]}>
+  <head>
+    <BaseHead lang={locale} title={title} description={description} path={path} alternates={alternates}>
+      <slot name="head" slot="head" />
+    </BaseHead>
+  </head>
+  <body class:list={[{ 'has-dark-header': darkHeader }]}>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <Header locale={locale} alternates={alternates} dark={darkHeader} marketing={marketing} />
+    <slot />
+    <Footer locale={locale} />
+  </body>
+</html>

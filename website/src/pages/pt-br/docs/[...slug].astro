@@ -1,0 +1,25 @@
+---
+import { getCollection, render } from 'astro:content';
+import DocsLayout from '../../../layouts/DocsLayout.astro';
+import { docAlternates, docPath, docSlug, sortDocs, type DocEntry } from '../../../lib/docs';
+import type { Alternates } from '../../../lib/i18n';
+
+export async function getStaticPaths() {
+  const allEntries = await getCollection('docs');
+  const entries = sortDocs(allEntries.filter((entry) => entry.data.lang === 'pt-br'));
+  return entries.map((entry) => {
+    const slug = docSlug(entry);
+    return {
+      params: { slug: slug === 'index' ? undefined : slug },
+      props: { entry, entries, path: docPath('pt-br', slug), alternates: docAlternates(allEntries, entry.data.translationKey) },
+    };
+  });
+}
+
+interface Props { entry: DocEntry; entries: DocEntry[]; path: string; alternates: Alternates }
+const { entry, entries, path, alternates } = Astro.props;
+const { Content } = await render(entry);
+---
+<DocsLayout locale="pt-br" entry={entry} entries={entries} path={path} alternates={alternates}>
+  <Content />
+</DocsLayout>

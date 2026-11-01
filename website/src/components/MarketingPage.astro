@@ -1,0 +1,128 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { marketingCopy } from '../data/marketing';
+import { localizedPath, marketingAlternates, repositoryUrl, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = marketingCopy[locale];
+const path = localizedPath(locale);
+const descriptions = {
+  en: 'Organize household lab reports, medications, and health records on your device. Check OCR drafts, compare confirmed results, and prepare PDF or CSV exports.',
+  'pt-br': 'Organize exames, medicamentos e registros de saúde da família no seu dispositivo. Revise OCR, compare resultados confirmados e exporte em PDF ou CSV.',
+  es: 'Organiza informes, medicamentos y registros de salud familiares en tu dispositivo. Revisa OCR, compara resultados confirmados y exporta en PDF o CSV.',
+};
+---
+<BaseLayout locale={locale} title="Vezuna" description={descriptions[locale]} path={path} alternates={marketingAlternates} darkHeader marketing>
+  <main id="main-content">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">{copy.hero.eyebrow}</p>
+        <div>
+          <h1 id="hero-title">{copy.hero.title}</h1>
+          <p class="hero-intro">{copy.hero.body}</p>
+        </div>
+        <div class="hero-actions">
+          <div class="button-row">
+            <a class="button button--aqua" href={localizedPath(locale, 'docs')}>{copy.hero.primary}</a>
+            <a class="button button--outline-light" href={repositoryUrl} rel="external">{copy.hero.secondary}</a>
+          </div>
+          <p class="hero-note">{copy.hero.note}</p>
+        </div>
+      </div>
+      <div class="screenshot-gallery" role="group" aria-label={copy.hero.galleryLabel}>
+        {copy.hero.screenshots.map((screen, index) => (
+          <figure class="screenshot">
+            <div class="screenshot-frame">
+              <img src={screen.src} width="1080" height="2340" alt={screen.alt} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} data-screenshot />
+            </div>
+            <figcaption>{screen.label}</figcaption>
+          </figure>
+        ))}
+      </div>
+      <div class="hero-provenance"><p>{copy.hero.caption}</p></div>
+    </section>
+
+    <section class="story" id="how-it-works" aria-labelledby="story-title">
+      <div class="story-grid">
+        <div>
+          <header class="story-heading">
+            <p class="eyebrow">{copy.story.eyebrow}</p>
+            <h2 id="story-title">{copy.story.title}</h2>
+            <p>{copy.story.intro}</p>
+          </header>
+          <ol class="story-steps">
+            {copy.story.steps.map((step) => (
+              <li class="story-step"><h3>{step.title}</h3><p>{step.body}</p></li>
+            ))}
+          </ol>
+          <p class="confirmation-note">{copy.story.confirmation}</p>
+        </div>
+        <figure class="story-visual">
+          <img src="/assets/android-labs.png" width="1080" height="2340" loading="lazy" alt={copy.hero.screenshots[1].alt} />
+          <figcaption>{copy.hero.caption}</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="routines" id="routines" aria-labelledby="routines-title">
+      <div class="routines-inner">
+        <header class="routines-heading">
+          <p class="eyebrow">{copy.routines.eyebrow}</p>
+          <h2 id="routines-title">{copy.routines.title}</h2>
+          <p class="section-intro">{copy.routines.intro}</p>
+        </header>
+        <div class="routine-layout">
+          <ul class="routine-list">
+            {copy.routines.items.map((item, index) => (
+              <li class="routine-item">
+                <img src={['/assets/medication.svg', '/assets/calendar.svg', '/assets/records.svg'][index]} width="28" height="28" alt="" />
+                <div><h3>{item.title}</h3><p>{item.body}</p></div>
+              </li>
+            ))}
+          </ul>
+          <aside class="day-example" aria-labelledby="example-title">
+            <p class="example-label">{copy.routines.exampleLabel}</p>
+            <h3 id="example-title">{copy.routines.exampleTitle}</h3>
+            <p class="example-note">{copy.routines.exampleNote}</p>
+            <ol class="schedule">
+              {copy.routines.schedule.map((item) => (
+                <li><time>{item.time}</time><h4>{item.title}</h4><p>{item.detail}</p><span>{item.state}</span></li>
+              ))}
+            </ol>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="privacy-section" id="privacy" aria-labelledby="privacy-title">
+      <div class="privacy-inner">
+        <header class="privacy-heading">
+          <p class="eyebrow">{copy.privacy.eyebrow}</p>
+          <h2 id="privacy-title">{copy.privacy.title}</h2>
+          <p>{copy.privacy.intro}</p>
+        </header>
+        <div class="privacy-points">
+          {copy.privacy.items.map((item) => (
+            <article class="privacy-point"><h3>{item.title}</h3><p>{item.body}</p></article>
+          ))}
+        </div>
+        <p class="sharing-boundary">{copy.privacy.boundary}</p>
+      </div>
+    </section>
+
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <div class="faq-inner">
+        <header class="faq-heading"><p class="eyebrow">{copy.faq.eyebrow}</p><h2 id="faq-title">{copy.faq.title}</h2></header>
+        <div class="faq-list">
+          {copy.faq.items.map((item, index) => (
+            <details open={index === 0}>
+              <summary>{item.question}</summary>
+              <div class="faq-answer"><p>{item.answer}</p></div>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

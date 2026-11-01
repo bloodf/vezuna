@@ -1,0 +1,29 @@
+---
+import { marketingCopy } from '../data/marketing';
+import { localizedPath, repositoryUrl, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = marketingCopy[locale].footer;
+const home = localizedPath(locale);
+---
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a href={home} aria-label="Vezuna — home"><img src="/assets/lockup-dark.svg" width="174" height="50" alt="Vezuna" /></a>
+      <p>{copy.tagline}</p>
+    </div>
+    <nav class="footer-nav" aria-label="Footer navigation">
+      <a href={localizedPath(locale, 'docs')}>{copy.docs}</a>
+      <a href={localizedPath(locale, 'support')}>{copy.support}</a>
+      <a href="/privacy">{copy.privacy}</a>
+      <a href={repositoryUrl} rel="external">{copy.source}</a>
+      <a href="/notices">{copy.notices}</a>
+    </nav>
+    <p class="footer-medical">{copy.medical}</p>
+    <div class="footer-meta">
+      <span>© 2026 Vezuna contributors</span>
+      <span>Source and original artwork: MIT · Noto Sans: SIL OFL 1.1</span>
+    </div>
+  </div>
+</footer>
