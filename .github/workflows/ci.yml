@@ -40,8 +40,15 @@ jobs:
           python3 tools/release/sync_privacy_policy.py --check
       - name: Build Android and run unit tests
         run: bash gradlew :shared:jvmTest :composeApp:testDebugUnitTest :composeApp:assembleDebug :composeApp:assembleDebugAndroidTest
-      - name: Android lint and unsigned release build
-        run: bash gradlew :composeApp:lintDebug :composeApp:assembleRelease
+      - name: Android lint
+        run: bash gradlew :composeApp:lintDebug
+      - name: Release build (throwaway CI key, not a real signing key)
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -storepass ci-throwaway -keypass ci-throwaway \
+            -alias ci -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=ci'
+          VEZUNA_UPLOAD_STORE_FILE="$RUNNER_TEMP/ci.jks" VEZUNA_UPLOAD_STORE_PASSWORD=ci-throwaway \
+            VEZUNA_UPLOAD_KEY_ALIAS=ci VEZUNA_UPLOAD_KEY_PASSWORD=ci-throwaway \
+            bash gradlew :composeApp:assembleRelease
       - name: Verify test results
         run: python3 tools/localization/check_test_results.py
       - name: Check debug native library ELF alignment
