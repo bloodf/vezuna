@@ -125,29 +125,13 @@ class PersistentVezunaRepository private constructor(
 
     suspend fun peekProfile(profileId: String): ProfileData = mutex.withLock { records.getValue(profileId).withVitals() }
 
-    suspend fun addImport(document: SourceDocument, report: LabReport, candidates: List<OcrCandidate>) = mutex.withLock {
-        val data = records.getValue(document.profileId)
-        require(report.profileId == document.profileId && report.sourceDocumentId == document.documentId)
-        require(candidates.isNotEmpty() && candidates.all {
-            it.profileId == document.profileId && it.sourceDocumentId == document.documentId
-        })
-        require(data.documents.none { it.documentId == document.documentId })
-        require(data.reports.none { it.reportId == report.reportId })
-        require(candidates.map { it.candidateId }.distinct().size == candidates.size)
-        commit(data.copy(
-            documents = data.documents + document,
-            reports = data.reports + report,
-            ocrCandidates = data.ocrCandidates + candidates,
-        ))
-    }
-
     override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) { data ->
         require(data.documents.none { it.documentId == document.documentId })
         data.copy(documents = data.documents + document)
     }
 
     override suspend fun addReport(report: LabReport) = mutate(report.profileId) { data ->
-        require(data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(report.sourceDocumentId == null || data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
         require(data.reports.none { it.reportId == report.reportId })
         data.copy(reports = data.reports + report)
     }

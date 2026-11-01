@@ -44,7 +44,7 @@ internal fun pickedDateToInstant(utcMidnightMillis: Long): Instant = Instant.fro
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun CollectionDateField(date: Instant?, onDate: (Instant) -> Unit, onApplyToAll: () -> Unit) {
+internal fun CollectionDateField(date: Instant?, onDate: (Instant) -> Unit, onApplyToAll: () -> Unit, showApplyToAll: Boolean = true) {
     var open by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val label = "${vitaText(L10nKey.COLLECTION_DATE)}: ${date?.let { formatUiDate(it) } ?: vitaText(L10nKey.COLLECTION_DATE_NOT_SET)}"
@@ -52,7 +52,7 @@ internal fun CollectionDateField(date: Instant?, onDate: (Instant) -> Unit, onAp
         OutlinedButton(onClick = { open = true }, Modifier.defaultMinSize(minHeight = 48.dp).semantics { contentDescription = "$label. $action" }) {
             Text(label)
         }
-        if (date != null) {
+        if (date != null && showApplyToAll) {
             TextButton(onClick = onApplyToAll, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.APPLY_DATE_TO_ALL)) }
         }
     }

@@ -64,24 +64,6 @@ class ImportSourceTest {
         assertEquals(1, duplicateAttempt.documents.size)
         assertEquals(1, duplicateAttempt.reports.size)
         assertEquals(3, duplicateAttempt.ocrCandidates.size)
-
-        controller.importCandidate(
-            source.fileName,
-            source.mediaType,
-            source.bytes,
-            "HGB",
-            "Hemoglobina",
-            "13.4",
-            "g/dL",
-            "12.0",
-            "15.0",
-            firstDate,
-        )
-        val withManual = repository.readProfile(imported.profile.profileId)
-        assertEquals(1, withManual.documents.size)
-        assertEquals(1, withManual.reports.size)
-        assertEquals(4, withManual.ocrCandidates.size)
-        assertTrue(withManual.observations.isEmpty())
     }
 
     @Test

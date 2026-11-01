@@ -1,0 +1,156 @@
+{
+  "attachments": [],
+  "document_type": "laboratory",
+  "extraction": {
+    "character_count": 321,
+    "page_count": 1,
+    "status": "text"
+  },
+  "observations": [
+    {
+      "additional_values": [],
+      "analyte": "Plaquetas",
+      "normalized_unit": "/mm3",
+      "normalized_value": 245000,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 150000,
+        "text": "150.000 a 450.000 /mm3",
+        "unit": "/mm3",
+        "upper": 450000
+      },
+      "unit": "/mm3",
+      "value": 245000,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Leucócitos",
+      "normalized_unit": "/mm³",
+      "normalized_value": 5600,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 4000,
+        "text": "4.000 a 10.000 /mm³",
+        "unit": "/mm³",
+        "upper": 10000
+      },
+      "unit": "/mm³",
+      "value": 5600,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Plaquetas",
+      "normalized_unit": "10^3/µL",
+      "normalized_value": 245,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 150,
+        "text": "150 a 450 10^3/µL",
+        "unit": "10^3/µL",
+        "upper": 450
+      },
+      "unit": "10^3/µL",
+      "value": 245,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Eritrócitos",
+      "normalized_unit": "10^6/µL",
+      "normalized_value": 4.8,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 4,
+        "text": "4,0 a 5,2 10^6/µL",
+        "unit": "10^6/µL",
+        "upper": 5.2
+      },
+      "unit": "10^6/µL",
+      "value": 4.8,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "Sódio",
+      "normalized_unit": "mEq/L",
+      "normalized_value": 140,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 135,
+        "text": "135 a 145 mEq/L",
+        "unit": "mEq/L",
+        "upper": 145
+      },
+      "unit": "mEq/L",
+      "value": 140,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "TSH",
+      "normalized_unit": "mIU/L",
+      "normalized_value": 2.1,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 0.4,
+        "text": "0,4 a 4,0 mIU/L",
+        "unit": "mIU/L",
+        "upper": 4
+      },
+      "unit": "mIU/L",
+      "value": 2.1,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "INR",
+      "normalized_unit": "IU/L",
+      "normalized_value": 1.1,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 0.8,
+        "text": "0,8 a 1,2 IU/L",
+        "unit": "IU/L",
+        "upper": 1.2
+      },
+      "unit": "IU/L",
+      "value": 1.1,
+      "value_operator": null,
+      "value_type": "numeric"
+    },
+    {
+      "additional_values": [],
+      "analyte": "VHS",
+      "normalized_unit": "mm/h",
+      "normalized_value": 12,
+      "range_assessment": "within",
+      "reference": {
+        "kind": "range",
+        "lower": 0,
+        "text": "0 a 20 mm/h",
+        "unit": "mm/h",
+        "upper": 20
+      },
+      "unit": "mm/h",
+      "value": 12,
+      "value_operator": null,
+      "value_type": "numeric"
+    }
+  ],
+  "study": null
+}
