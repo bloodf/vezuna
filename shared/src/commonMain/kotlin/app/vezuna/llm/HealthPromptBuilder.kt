@@ -24,6 +24,7 @@ object HealthPromptBuilder {
             "No confirmed records were selected. Do not invent patient facts."
         } else {
             selected.joinToString("\n") {
+                if (it.isQualitative) return@joinToString "- ${it.collectedAt}: ${it.displayName} (${it.testCode}), qualitative result ${it.qualitativeValue}, report reference ${DoctorExportContent.rangeText(it.referenceRange)}"
                 "- ${it.collectedAt}: ${it.displayName} (${it.testCode}), original ${it.originalValue} ${it.originalUnit}, normalized ${it.normalizedValue} ${it.normalizedUnit}, report reference ${DoctorExportContent.rangeText(it.referenceRange)}"
             }
         }

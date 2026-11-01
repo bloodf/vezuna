@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
+import app.vezuna.domain.QualitativeTimelines
 import app.vezuna.domain.Profile
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.TrendSeries
@@ -322,7 +323,7 @@ private fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
                 }
                 StatusPill(vitaText(L10nKey.CONFIRMED), Icons.Rounded.CheckCircle, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
             }
-            Text("${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(vitaText(L10nKey.REFERENCE, uiRangeText(observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.CalendarMonth, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -396,11 +397,15 @@ private fun CandidateEditor(candidate: app.vezuna.domain.OcrCandidate, controlle
                 StatusPill(vitaText(L10nKey.DRAFT), Icons.Rounded.FactCheck, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onTertiaryContainer)
             }
             Text(vitaText(L10nKey.CONFIDENCE, candidate.confidence?.toString() ?: vitaText(L10nKey.CONFIDENCE_NOT_REPORTED)), style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_NUMERIC_VALUE)) }, singleLine = true)
-            OutlinedTextField(unit, { unit = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_ORIGINAL_UNIT)) }, singleLine = true)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(lower, { lower = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_LOWER)) }, singleLine = true)
-                OutlinedTextField(upper, { upper = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_UPPER)) }, singleLine = true)
+            if (candidate.qualitative) {
+                OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_QUALITATIVE_VALUE)) }, singleLine = true)
+            } else {
+                OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_NUMERIC_VALUE)) }, singleLine = true)
+                OutlinedTextField(unit, { unit = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_ORIGINAL_UNIT)) }, singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(lower, { lower = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_LOWER)) }, singleLine = true)
+                    OutlinedTextField(upper, { upper = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_UPPER)) }, singleLine = true)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
@@ -416,7 +421,7 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
     val observation = data.observations.firstOrNull { it.observationId == observationId }
         ?: return EmptyState(vitaText(L10nKey.RESULT_UNAVAILABLE), vitaText(L10nKey.RESULT_UNAVAILABLE_EXPLANATION))
     val previous = data.observations.filter {
-        it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
+        !it.isQualitative && !observation.isQualitative && it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
     }.maxByOrNull { it.collectedAt }
     val comparison = previous?.let { LabComparator.compare(it, observation) }
     ScreenColumn(observation.displayName, "${observation.testCode} · ${formatUiDate(observation.collectedAt)}") {
@@ -424,8 +429,8 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
             Column(Modifier.padding(20.dp)) {
                 Text(vitaText(L10nKey.ORIGINAL_RESULT), style = MaterialTheme.typography.labelLarge)
-                Text("${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
-                if (observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue) {
+                Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
+                if (!observation.isQualitative && observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue) {
                     Text(vitaText(L10nKey.NORMALIZED, observation.normalizedValue, observation.normalizedUnit), style = MaterialTheme.typography.bodyMedium)
                 }
             }
@@ -442,13 +447,14 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
 @Composable
 fun TrendsScreen(state: AppUiState, controller: AppController) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_TRENDS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
-    val codes = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.testCode }.distinct().sorted()
+    val codes = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative }.map { it.testCode }.distinct().sorted()
+    val timelines = QualitativeTimelines.forProfile(data.profile.profileId, data.observations)
     var selected by remember(data.profile.profileId) { mutableStateOf(codes.firstOrNull().orEmpty()) }
     if (selected !in codes) selected = codes.firstOrNull().orEmpty()
     ScreenColumn(vitaText(L10nKey.LAB_TRENDS), vitaText(L10nKey.LAB_TRENDS_SUBTITLE)) {
-        if (codes.isEmpty()) {
+        if (codes.isEmpty() && timelines.isEmpty()) {
             EmptyState(vitaText(L10nKey.NO_CONFIRMED_TREND_DATA), vitaText(L10nKey.TREND_INCOMPATIBLE_UNITS), Icons.Rounded.ShowChart)
-        } else {
+        } else if (codes.isNotEmpty()) {
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -497,6 +503,22 @@ fun TrendsScreen(state: AppUiState, controller: AppController) {
                                     Text(vitaText(L10nKey.REFERENCE, uiRangeText(point.observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Text("${point.y} ${current.unit}", style = MaterialTheme.typography.titleSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (timelines.isNotEmpty()) {
+            SectionHeading(vitaText(L10nKey.QUALITATIVE_TIMELINE))
+            timelines.forEach { timeline ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(timeline.displayName, style = MaterialTheme.typography.titleMedium)
+                        timeline.entries.forEach { entry ->
+                            Row(Modifier.fillMaxWidth()) {
+                                Text(formatUiDate(entry.collectedAt), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                Text(entry.qualitativeValue.orEmpty(), style = MaterialTheme.typography.titleSmall)
                             }
                         }
                     }

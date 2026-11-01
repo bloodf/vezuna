@@ -37,7 +37,8 @@ object UnitNormalizer {
     }
 
     fun areComparable(first: LabObservation, second: LabObservation): Boolean =
-        first.profileId == second.profileId &&
+        !first.isQualitative && !second.isQualitative &&
+            first.profileId == second.profileId &&
             canonicalTestCode(first.testCode) == canonicalTestCode(second.testCode) &&
             first.normalizedUnit.equals(second.normalizedUnit, ignoreCase = true)
 
@@ -68,6 +69,7 @@ object LabComparator {
     }
 
     fun assess(observation: LabObservation): RangeAssessment {
+        if (observation.isQualitative) return RangeAssessment.UNKNOWN
         val range = observation.referenceRange
         val rangeUnit = range.unit ?: observation.originalUnit
         val lower = range.lower?.let { UnitNormalizer.normalize(it, rangeUnit) }
@@ -98,6 +100,15 @@ object LabComparator {
 
 object ClinicalDuplicateDetector {
     fun fingerprint(observation: LabObservation): String {
+        observation.qualitativeValue?.let {
+            return listOf(
+                observation.profileId,
+                UnitNormalizer.canonicalTestCode(observation.testCode),
+                observation.collectedAt.toString(),
+                "qualitative",
+                it.trim().lowercase(),
+            ).joinToString("|")
+        }
         val normalized = UnitNormalizer.normalize(observation.normalizedValue, observation.normalizedUnit)
         val canonicalValue = (normalized.value * 1_000_000_000).roundToLong()
         return listOf(
@@ -120,7 +131,7 @@ object TrendPreparation {
     fun forTest(profileId: String, testCode: String, observations: List<LabObservation>): TrendSeries? {
         val matching = observations.filter {
             it.profileId == profileId &&
-                it.confirmation == ConfirmationStatus.CONFIRMED &&
+                it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative &&
                 UnitNormalizer.canonicalTestCode(it.testCode) == UnitNormalizer.canonicalTestCode(testCode)
         }
         val unit = matching.firstOrNull()?.normalizedUnit ?: return null
@@ -129,6 +140,20 @@ object TrendPreparation {
             .map { TrendPoint(it, it.collectedAt.epochSeconds, it.normalizedValue) }
         return TrendSeries(profileId, UnitNormalizer.canonicalTestCode(testCode), unit, points)
     }
+}
+
+/** Plain-text history of qualitative results for one test, oldest first. */
+data class QualitativeTimeline(val testCode: String, val displayName: String, val entries: List<LabObservation>)
+
+object QualitativeTimelines {
+    fun forProfile(profileId: String, observations: List<LabObservation>): List<QualitativeTimeline> = observations
+        .filter { it.profileId == profileId && it.confirmation == ConfirmationStatus.CONFIRMED && it.isQualitative }
+        .groupBy { UnitNormalizer.canonicalTestCode(it.testCode) }
+        .map { (code, rows) ->
+            val ordered = rows.sortedWith(compareBy({ it.collectedAt }, { it.observationId }))
+            QualitativeTimeline(code, ordered.last().displayName, ordered)
+        }
+        .sortedBy { it.displayName.lowercase() }
 }
 
 object MedicationRecurrence {

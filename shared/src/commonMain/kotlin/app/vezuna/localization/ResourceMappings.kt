@@ -266,6 +266,15 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.VAULT_RECOVERY_RESET_CONFIRM_BODY to Res.string.vault_recovery_reset_confirm_body,
     L10nKey.VAULT_RECOVERY_RESET_CONFIRM to Res.string.vault_recovery_reset_confirm,
     L10nKey.VAULT_RECOVERY_CANCEL to Res.string.vault_recovery_cancel,
+    // Lab import review
+    L10nKey.COLLECTION_DATE to Res.string.collection_date,
+    L10nKey.COLLECTION_DATE_NOT_SET to Res.string.collection_date_not_set,
+    L10nKey.COLLECTION_DATE_REQUIRED to Res.string.collection_date_required,
+    L10nKey.APPLY_DATE_TO_ALL to Res.string.apply_date_to_all,
+    L10nKey.CHOOSE_DATE to Res.string.choose_date,
+    L10nKey.CONFIRMED_QUALITATIVE_VALUE to Res.string.confirmed_qualitative_value,
+    L10nKey.QUALITATIVE_RESULT_REQUIRED to Res.string.qualitative_result_required,
+    L10nKey.QUALITATIVE_TIMELINE to Res.string.qualitative_timeline,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

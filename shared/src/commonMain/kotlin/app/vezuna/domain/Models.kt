@@ -65,10 +65,15 @@ data class LabObservation(
     val referenceRange: ReferenceRange,
     val collectedAt: Instant,
     val confirmation: ConfirmationStatus = ConfirmationStatus.UNREVIEWED,
+    /** Non-null for qualitative results (e.g. "Negative"); numeric fields are then 0.0 placeholders and must not be read. Absent in pre-qualitative stored data. */
+    val qualitativeValue: String? = null,
 ) {
     init {
         require(originalValue.isFinite() && normalizedValue.isFinite())
+        require(qualitativeValue == null || qualitativeValue.isNotBlank())
     }
+
+    val isQualitative: Boolean get() = qualitativeValue != null
 }
 
 @Serializable
@@ -95,6 +100,10 @@ data class OcrCandidate(
     val confidence: Float? = null,
     val status: ConfirmationStatus = ConfirmationStatus.UNREVIEWED,
     val revisions: List<OcrRevision> = emptyList(),
+    /** True when the result is text (e.g. "Negative") rather than a number. */
+    val qualitative: Boolean = false,
+    /** True only when the collection date came from the report or the user, not the import-time fallback. */
+    val collectedAtKnown: Boolean = false,
 ) {
     init {
         require(confidence == null || confidence in 0f..1f)
