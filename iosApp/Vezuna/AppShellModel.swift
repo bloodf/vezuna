@@ -11,6 +11,7 @@ final class AppShellModel: ObservableObject {
     @Published private(set) var ready = false
     @Published private(set) var startupError: String?
     @Published private(set) var catalogError: String?
+    @Published private(set) var needsVaultRecovery = false
 
     let licenseManager = LicenseManager()
     let notifications = MedicationNotificationCoordinator()
@@ -18,6 +19,8 @@ final class AppShellModel: ObservableObject {
     private let sourcePicker = ComposeSourcePicker()
     private(set) var healthImporter: HealthKitImporter?
     private var didConfigure = false
+    private var vaultPath: String?
+    private var modelPath: String?
 
     func configure() {
         guard !didConfigure else { return }
@@ -37,19 +40,32 @@ final class AppShellModel: ObservableObject {
                 let anchors = try FileHealthAnchorStore(directory: support.appendingPathComponent("HealthAnchors", isDirectory: true))
                 healthImporter = HealthKitImporter(anchors: anchors)
             }
-            IosRuntime.shared.configure(vaultPath: vault.path, modelPath: models.path) { error in
-                DispatchQueue.main.async {
-                    if let error {
-                        self.startupError = error.localized()
-                    } else {
-                        self.ready = true
-                        self.catalogError = IosRuntime.shared.catalogError?.localized()
-                        Task { await self.notifications.reconcile() }
-                    }
-                }
-            }
+            vaultPath = vault.path
+            modelPath = models.path
+            IosRuntime.shared.configure(vaultPath: vault.path, modelPath: models.path, completion: finishOpening)
         } catch {
             startupError = L10n.text(.storage_open_failed)
+        }
+    }
+
+    /// Recovery screen actions. `reset` moves the unreadable vault aside (never deletes it) and starts empty.
+    func recoverVault(reset: Bool) {
+        guard let vaultPath, let modelPath else { return }
+        IosRuntime.shared.recoverVault(vaultPath: vaultPath, modelPath: modelPath, reset: reset, completion: finishOpening)
+    }
+
+    private func finishOpening(_ error: NativeMessage?) {
+        DispatchQueue.main.async {
+            if let error {
+                self.startupError = error.localized()
+                self.needsVaultRecovery = IosRuntime.shared.isVaultRecoveryNeeded()
+            } else {
+                self.needsVaultRecovery = false
+                self.startupError = nil
+                self.ready = true
+                self.catalogError = IosRuntime.shared.catalogError?.localized()
+                Task { await self.notifications.reconcile() }
+            }
         }
     }
 

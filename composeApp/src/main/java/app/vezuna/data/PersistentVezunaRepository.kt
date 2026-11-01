@@ -28,6 +28,9 @@ import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +38,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /** Write-through, profile-isolated persistence. The plaintext snapshot never touches disk. */
 class PersistentVezunaRepository(
@@ -47,8 +52,16 @@ class PersistentVezunaRepository(
     private val mutex = Mutex()
     private var snapshot = Snapshot()
     private var initialized = false
+    private var corruptCurrentPending = false
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private val mutableRevision = MutableStateFlow(0L)
+
+    private val mutableOpenedFromPrevious = MutableStateFlow(false)
+
+    /** True when the last load had to use the previous generation, so recent changes may be missing. */
+    val openedFromPreviousGeneration: StateFlow<Boolean> = mutableOpenedFromPrevious.asStateFlow()
+
+    fun acknowledgePreviousGeneration() { mutableOpenedFromPrevious.value = false }
 
     override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
     val revision: StateFlow<Long> = mutableRevision.asStateFlow()
@@ -177,36 +190,76 @@ class PersistentVezunaRepository(
     }
 
     private suspend fun persist(updated: Snapshot) {
+        if (corruptCurrentPending) {
+            // If this throws the write fails, but the corrupt file is never rotated over the good previous copy.
+            vault.quarantineCurrent(STORAGE_KEY)
+            corruptCurrentPending = false
+        }
         val plaintext = json.encodeToString(Snapshot.serializer(), updated).encodeToByteArray()
         val envelope = vault.encrypt(plaintext, ASSOCIATED_DATA)
         vault.write(STORAGE_KEY, json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray())
     }
 
     private suspend fun restore() {
-        val encoded = vault.read(STORAGE_KEY)
-        snapshot = if (encoded == null) {
-            Snapshot()
-        } else {
-            val envelope = json.decodeFromString(CipherEnvelope.serializer(), encoded.decodeToString())
-            val plaintext = vault.decrypt(envelope)
-            json.decodeFromString(Snapshot.serializer(), plaintext.decodeToString()).also { restored ->
-                restored.records.forEach { (profileId, data) ->
-                    require(profileId == data.profile.profileId) { "Corrupt profile scope in repository" }
-                    require(data.documents.all { it.profileId == profileId } &&
-                        data.reports.all { it.profileId == profileId } &&
-                        data.observations.all { it.profileId == profileId } &&
-                        data.ocrCandidates.all { it.profileId == profileId } &&
-                        data.medications.all { it.profileId == profileId } &&
-                        data.doseEvents.all { it.profileId == profileId } &&
-                        data.chat.all { it.profileId == profileId }) { "Corrupt cross-profile record in repository" }
-                }
-            }.let { restored ->
-                // Older builds could store several terminal events for one dose; keep one.
-                restored.copy(records = restored.records.mapValues { (_, data) -> data.copy(doseEvents = DoseEvents.collapse(data.doseEvents)) })
-            }
-        }
+        snapshot = decodeSnapshot(vault.read(STORAGE_KEY))
         mutableProfiles.value = snapshot.records.values.map { it.profile }.sortedBy { it.displayName }
         initialized = true
+    }
+
+    /** Current generation first; only a corrupt one falls back to the previous generation. */
+    private suspend fun decodeSnapshot(current: ByteArray?): Snapshot = try {
+        decode(current)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: VaultUnreadableException) {
+        if (error.failure != VaultFailure.CORRUPT) throw error
+        decodePrevious(error)
+    } catch (error: Exception) {
+        decodePrevious(VaultUnreadableException(VaultFailure.CORRUPT, error))
+    }
+
+    private suspend fun decodePrevious(failure: VaultUnreadableException): Snapshot {
+        val previous = vault.readPrevious(STORAGE_KEY) ?: throw failure
+        val restored = try {
+            decode(previous)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw failure
+        }
+        // Keep the damaged file as evidence and out of the rotation that would overwrite the good previous copy.
+        try {
+            vault.quarantineCurrent(STORAGE_KEY)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Still open with the good previous data; the first write retries before anything can be rotated.
+            logger.log(Level.WARNING, "Could not quarantine corrupt vault file", error)
+            corruptCurrentPending = true
+        }
+        mutableOpenedFromPrevious.value = true
+        return restored
+    }
+
+    private suspend fun decode(encoded: ByteArray?): Snapshot {
+        if (encoded == null) return Snapshot()
+        val envelope = json.decodeFromString(CipherEnvelope.serializer(), encoded.decodeToString())
+        val plaintext = vault.decrypt(envelope)
+        return json.decodeFromString(Snapshot.serializer(), plaintext.decodeToString()).also { restored ->
+            restored.records.forEach { (profileId, data) ->
+                require(profileId == data.profile.profileId) { "Corrupt profile scope in repository" }
+                require(data.documents.all { it.profileId == profileId } &&
+                    data.reports.all { it.profileId == profileId } &&
+                    data.observations.all { it.profileId == profileId } &&
+                    data.ocrCandidates.all { it.profileId == profileId } &&
+                    data.medications.all { it.profileId == profileId } &&
+                    data.doseEvents.all { it.profileId == profileId } &&
+                    data.chat.all { it.profileId == profileId }) { "Corrupt cross-profile record in repository" }
+            }
+        }.let { restored ->
+            // Older builds could store several terminal events for one dose; keep one.
+            restored.copy(records = restored.records.mapValues { (_, data) -> data.copy(doseEvents = DoseEvents.collapse(data.doseEvents)) })
+        }
     }
 
     /** Called once by the Application before any controller can observe profiles. */
@@ -214,7 +267,19 @@ class PersistentVezunaRepository(
         if (!initialized) restore()
     }
 
+    /**
+     * Explicit user reset: keeps the unreadable files in a quarantine folder, drops a dead key, and starts empty.
+     * Never deletes the evidence; refuses when the vault cannot preserve it.
+     */
+    suspend fun resetAfterFailure() = mutex.withLock {
+        check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
+        vault.discardUnusableKey()
+        initialized = false
+        restore()
+    }
+
     private companion object {
+        val logger: Logger = Logger.getLogger("PersistentVezunaRepository")
         const val STORAGE_KEY = "repository-v1"
         val ASSOCIATED_DATA = "Vezuna repository v1".encodeToByteArray()
     }

@@ -29,16 +29,24 @@ import app.vezuna.platform.toHex
 import app.vezuna.security.BackupService
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultState
+import app.vezuna.security.VaultUnreadableException
 import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
 import app.vezuna.ui.PickedSource
+import app.vezuna.ui.VaultGate
 import app.vezuna.ui.VezunaApp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -105,32 +113,82 @@ object IosRuntime {
     var catalogError: NativeMessage? = null
         private set
 
+    internal val vaultState = MutableStateFlow<VaultState>(VaultState.Loading)
+
+    fun isVaultRecoveryNeeded(): Boolean = vaultState.value is VaultState.Recovery
+
     fun configure(vaultPath: String, modelPath: String, completion: (NativeMessage?) -> Unit) {
         if (initialized) {
             completion(null)
             return
         }
+        open(vaultPath, modelPath, reset = false, completion)
+    }
+
+    /** Recovery screen actions. [reset] quarantines the unreadable vault (never deletes it) before reopening. */
+    fun recoverVault(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
+        if (initialized) {
+            completion(null)
+            return
+        }
+        open(vaultPath, modelPath, reset, completion)
+    }
+
+    private var opening = false
+
+    private fun open(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
+        // Double taps and overlapping configure/recover calls: the first call's completion reports the outcome.
+        if (opening) return
+        opening = true
         scope.launch {
             try {
-                vault = createPlatformVault(vaultPath)
-                repository = PersistentVezunaRepository.open(vault, json)
-                repository.changeObserver = { repositoryObserver?.repositoryDidChange() }
-                llm = llamatikLocalLlm()
-                val catalog = loadCatalog()
-                val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
-                val manager = InstalledModelManager(catalog, files, llm)
-                controller = AppController(repository, manager, LocalHealthChat(repository, llm))
-                initialized = true
-                controller.initialize()
-                // Edits and deletes made in Compose reload the controller after the repository commit; notify native
-                // reminder reconciliation once the controller's view of the active profile is consistent again.
-                scope.launch {
-                    controller.state.map { it.data }.distinctUntilChanged().drop(1).collect { repositoryObserver?.repositoryDidChange() }
-                }
-                completion(null)
-            } catch (error: Throwable) {
-                completion(nativeMessage("storage_open_failed"))
+                openNow(vaultPath, modelPath, reset, completion)
+            } finally {
+                opening = false
             }
+        }
+    }
+
+    private suspend fun openNow(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
+        vaultState.value = VaultState.Loading
+        try {
+            vault = createPlatformVault(vaultPath)
+            if (reset) {
+                check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
+                vault.discardUnusableKey()
+            }
+            repository = PersistentVezunaRepository.open(vault, json)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: VaultUnreadableException) {
+            vaultState.value = VaultState.Recovery(error.failure)
+            completion(nativeMessage("storage_open_failed"))
+            return
+        } catch (error: Exception) {
+            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE)
+            completion(nativeMessage("storage_open_failed"))
+            return
+        }
+        vaultState.value = VaultState.Ready
+        try {
+            repository.changeObserver = { repositoryObserver?.repositoryDidChange() }
+            llm = llamatikLocalLlm()
+            val catalog = loadCatalog()
+            val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
+            val manager = InstalledModelManager(catalog, files, llm)
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm))
+            initialized = true
+            controller.initialize()
+            // Edits and deletes made in Compose reload the controller after the repository commit; notify native
+            // reminder reconciliation once the controller's view of the active profile is consistent again.
+            scope.launch {
+                controller.state.map { it.data }.distinctUntilChanged().drop(1).collect { repositoryObserver?.repositoryDidChange() }
+            }
+            completion(null)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            completion(nativeMessage("storage_open_failed"))
         }
     }
 
@@ -355,6 +413,11 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
         },
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
     )
+}
+
+fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit): UIViewController = ComposeUIViewController {
+    val state by IosRuntime.vaultState.collectAsState()
+    VaultGate(state, onRetry, onReset) {}
 }
 
 // These accessors keep Compose construction in this module while the runtime fields remain encapsulated.
