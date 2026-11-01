@@ -66,8 +66,11 @@ fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () 
                 Text(vitaText(failure.explanation()), style = MaterialTheme.typography.bodyLarge)
                 Text(vitaText(L10nKey.VAULT_RECOVERY_KEPT_NOTE), style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(vitaText(L10nKey.VAULT_RECOVERY_RETRY)) }
-                OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
+                // A transient failure must never lead to a reset; only permanent damage offers it.
+                if (failure != VaultFailure.UNAVAILABLE) {
+                    OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
+                    }
                 }
             }
         }
@@ -91,4 +94,19 @@ internal fun VaultFailure.explanation(): L10nKey = when (this) {
     VaultFailure.CORRUPT -> L10nKey.VAULT_RECOVERY_BODY_CORRUPT
     VaultFailure.KEY_INVALIDATED -> L10nKey.VAULT_RECOVERY_BODY_KEY_INVALIDATED
     VaultFailure.KEY_UNAVAILABLE -> L10nKey.VAULT_RECOVERY_BODY_KEY_UNAVAILABLE
+    VaultFailure.UNAVAILABLE -> L10nKey.VAULT_RECOVERY_BODY_UNAVAILABLE
+}
+
+/** One-time notice shown when the app opened from the previous generation. */
+@Composable
+fun PreviousGenerationNotice(visible: Boolean, onDismiss: () -> Unit) {
+    if (!visible) return
+    VezunaTheme {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(vitaText(L10nKey.VAULT_NOTICE_TITLE)) },
+            text = { Text(vitaText(L10nKey.VAULT_NOTICE_BODY)) },
+            confirmButton = { TextButton(onClick = onDismiss) { Text(vitaText(L10nKey.DISMISS)) } },
+        )
+    }
 }

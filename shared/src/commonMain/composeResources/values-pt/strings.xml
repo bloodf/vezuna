@@ -194,9 +194,12 @@ iOS: %2$s</string>
     <string name="trend_incompatible_units">Confirme pelo menos um resultado. Somente unidades normalizadas correspondentes são exibidas juntas no gráfico.</string>
     <string name="trends">Tendências</string>
     <string name="unreviewed_ocr_candidate">Candidato de OCR não revisado</string>
+    <string name="vault_notice_body">A cópia mais recente dos seus registros estava danificada, então o Vezuna abriu a anterior. Alterações feitas pouco antes do último fechamento podem estar ausentes. O arquivo danificado foi mantido neste dispositivo.</string>
+    <string name="vault_notice_title">Aberto a partir de uma cópia anterior</string>
     <string name="vault_recovery_body_corrupt">O arquivo criptografado que guarda seus registros está danificado ou incompleto, e nenhuma cópia anterior pôde ser lida.</string>
     <string name="vault_recovery_body_key_invalidated">A chave de segurança do dispositivo que protege seus registros não é mais válida. Isso pode ocorrer após alterar o bloqueio de tela ou a biometria.</string>
     <string name="vault_recovery_body_key_unavailable">A chave que protege seus registros está ausente ou ilegível neste dispositivo.</string>
+    <string name="vault_recovery_body_unavailable">Seus registros estão temporariamente indisponíveis. O dispositivo pode estar bloqueado ou o armazenamento seguro ocupado. Tente novamente em instantes.</string>
     <string name="vault_recovery_cancel">Cancelar</string>
     <string name="vault_recovery_kept_note">Nada é apagado automaticamente. Os arquivos ilegíveis permanecem neste dispositivo em uma pasta separada.</string>
     <string name="vault_recovery_reset">Começar com um cofre vazio</string>

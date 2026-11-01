@@ -5,10 +5,13 @@ import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import java.io.File
-import java.security.GeneralSecurityException
+import java.security.InvalidAlgorithmParameterException
+import java.security.InvalidKeyException
 import java.security.KeyStore
 import java.security.UnrecoverableKeyException
+import javax.crypto.BadPaddingException
 import javax.crypto.Cipher
+import javax.crypto.IllegalBlockSizeException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -28,25 +31,26 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
 
     override suspend fun decrypt(envelope: CipherEnvelope): ByteArray {
         if (envelope.algorithm != ALGORITHM || envelope.keyId != KEY_ALIAS) throw VaultUnreadableException(VaultFailure.CORRUPT)
-        // Never mint a fresh key while decrypting: a missing alias means the old key is gone for good.
-        val secret = existingKey() ?: throw VaultUnreadableException(VaultFailure.KEY_INVALIDATED)
         try {
+            // Never mint a fresh key while decrypting: a missing alias means the old key is gone for good.
+            val secret = existingKey() ?: throw VaultUnreadableException(VaultFailure.KEY_INVALIDATED)
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, secret, GCMParameterSpec(128, envelope.iv))
             cipher.updateAAD(envelope.associatedData)
             return cipher.doFinal(envelope.cipherText)
-        } catch (error: KeyPermanentlyInvalidatedException) {
-            throw VaultUnreadableException(VaultFailure.KEY_INVALIDATED, error)
-        } catch (error: GeneralSecurityException) {
-            throw VaultUnreadableException(VaultFailure.CORRUPT, error)
-        } catch (error: IllegalArgumentException) {
-            throw VaultUnreadableException(VaultFailure.CORRUPT, error)
+        } catch (error: VaultUnreadableException) {
+            throw error
+        } catch (error: Exception) {
+            throw VaultUnreadableException(classifyDecryptFailure(error), error)
         }
     }
 
     override suspend fun write(key: String, ciphertext: ByteArray) = files.write(safeName(key), ciphertext)
 
     override suspend fun read(key: String): ByteArray? = files.read(safeName(key))
+
+    override suspend fun quarantineCurrent(key: String): Boolean =
+        files.quarantineCurrent(safeName(key), System.currentTimeMillis().toString())
 
     override suspend fun readPrevious(key: String): ByteArray? = files.readPrevious(safeName(key))
 
@@ -63,17 +67,13 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
             true
         } catch (_: KeyPermanentlyInvalidatedException) {
             false
-        } catch (_: VaultUnreadableException) {
+        } catch (_: UnrecoverableKeyException) {
             false
         }
         if (!usable) keyStore.deleteEntry(KEY_ALIAS)
     }
 
-    private fun existingKey(): SecretKey? = try {
-        keyStore.getKey(KEY_ALIAS, null) as? SecretKey
-    } catch (error: UnrecoverableKeyException) {
-        throw VaultUnreadableException(VaultFailure.KEY_INVALIDATED, error)
-    }
+    private fun existingKey(): SecretKey? = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
 
     private fun key(): SecretKey {
         existingKey()?.let { return it }
@@ -94,4 +94,12 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
         const val KEY_ALIAS = "app.vezuna.vault.v1"
         const val ALGORITHM = "AES-256-GCM"
     }
+}
+
+/** Only definite key/data damage is permanent; anything unknown (Keystore daemon, IO) stays retryable. */
+fun classifyDecryptFailure(error: Throwable): VaultFailure = when (error) {
+    is KeyPermanentlyInvalidatedException, is UnrecoverableKeyException -> VaultFailure.KEY_INVALIDATED
+    is BadPaddingException, is IllegalBlockSizeException, is IllegalArgumentException,
+    is InvalidAlgorithmParameterException, is InvalidKeyException -> VaultFailure.CORRUPT
+    else -> VaultFailure.UNAVAILABLE
 }

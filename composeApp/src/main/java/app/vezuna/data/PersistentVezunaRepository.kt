@@ -37,6 +37,13 @@ class PersistentVezunaRepository(
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private val mutableRevision = MutableStateFlow(0L)
 
+    private val mutableOpenedFromPrevious = MutableStateFlow(false)
+
+    /** True when the last load had to use the previous generation, so recent changes may be missing. */
+    val openedFromPreviousGeneration: StateFlow<Boolean> = mutableOpenedFromPrevious.asStateFlow()
+
+    fun acknowledgePreviousGeneration() { mutableOpenedFromPrevious.value = false }
+
     override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
     val revision: StateFlow<Long> = mutableRevision.asStateFlow()
 
@@ -154,13 +161,17 @@ class PersistentVezunaRepository(
 
     private suspend fun decodePrevious(failure: VaultUnreadableException): Snapshot {
         val previous = vault.readPrevious(STORAGE_KEY) ?: throw failure
-        return try {
+        val restored = try {
             decode(previous)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             throw failure
         }
+        // Keep the damaged file as evidence and out of the rotation that would overwrite the good previous copy.
+        vault.quarantineCurrent(STORAGE_KEY)
+        mutableOpenedFromPrevious.value = true
+        return restored
     }
 
     private suspend fun decode(encoded: ByteArray?): Snapshot {

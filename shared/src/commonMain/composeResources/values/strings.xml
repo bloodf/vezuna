@@ -194,9 +194,12 @@ iOS: %2$s</string>
     <string name="trend_incompatible_units">Confirm at least one result. Only matching normalized units are graphed together.</string>
     <string name="trends">Trends</string>
     <string name="unreviewed_ocr_candidate">Unreviewed OCR candidate</string>
+    <string name="vault_notice_body">The latest copy of your records was damaged, so Vezuna opened the one before it. Changes made just before the last close may be missing. The damaged file was kept on this device.</string>
+    <string name="vault_notice_title">Opened from an earlier copy</string>
     <string name="vault_recovery_body_corrupt">The encrypted file that holds your records is damaged or incomplete, and no earlier copy could be read.</string>
     <string name="vault_recovery_body_key_invalidated">The device security key that protects your records is no longer valid. This can happen after changing the screen lock or biometrics.</string>
     <string name="vault_recovery_body_key_unavailable">The key that protects your records is missing or unreadable on this device.</string>
+    <string name="vault_recovery_body_unavailable">Your records are temporarily unavailable. The device may be locked or its secure storage busy. Try again in a moment.</string>
     <string name="vault_recovery_cancel">Cancel</string>
     <string name="vault_recovery_kept_note">Nothing is deleted automatically. The unreadable files stay on this device in a separate folder.</string>
     <string name="vault_recovery_reset">Start with an empty vault</string>

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 class VezunaApplication : Application() {
@@ -68,7 +69,7 @@ class VezunaApplication : Application() {
 
     /** True once the repository is usable; false when the vault needs recovery. Safe from receivers. */
     suspend fun awaitRepository(): Boolean =
-        vaultState.first { it !is VaultState.Loading } is VaultState.Ready
+        withTimeoutOrNull(RECEIVER_WAIT_MS) { vaultState.first { it !is VaultState.Loading } } is VaultState.Ready
 
     private fun loadVault(action: suspend () -> Unit) {
         mutableVaultState.value = VaultState.Loading
@@ -81,8 +82,13 @@ class VezunaApplication : Application() {
             } catch (error: VaultUnreadableException) {
                 VaultState.Recovery(error.failure)
             } catch (error: Exception) {
-                VaultState.Recovery(VaultFailure.CORRUPT)
+                VaultState.Recovery(VaultFailure.UNAVAILABLE)
             }
         }
+    }
+
+    private companion object {
+        /** Receivers run inside goAsync(), which the system cuts off after roughly ten seconds. */
+        const val RECEIVER_WAIT_MS = 8_000L
     }
 }

@@ -2,6 +2,8 @@ package app.vezuna.security
 
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.channels.FileChannel
+import java.nio.file.StandardOpenOption
 
 /**
  * Crash-safe file writes: data goes to `name.tmp`, is fsynced, and only then renamed over `name`.
@@ -19,6 +21,21 @@ class GenerationalFileStore(private val directory: File) {
         }
         if (current.isFile) check(current.renameTo(File(directory, "$name$PREVIOUS"))) { "Could not keep previous generation" }
         check(temp.renameTo(current)) { "Could not commit vault write" }
+        syncDirectory()
+    }
+
+    /** Persists the renames themselves; without it a power cut can undo them after the data was fsynced. */
+    private fun syncDirectory() {
+        FileChannel.open(directory.toPath(), StandardOpenOption.READ).use { it.force(true) }
+    }
+
+    /** Moves only the current file into `unreadable-<stamp>/`; the previous generation stays readable. */
+    fun quarantineCurrent(name: String, stamp: String): Boolean {
+        val current = File(directory, name).takeIf { it.isFile } ?: return false
+        val target = File(directory, "$QUARANTINE-$stamp").also { check(it.mkdirs() || it.isDirectory) }
+        check(current.renameTo(File(target, name))) { "Could not quarantine $name" }
+        syncDirectory()
+        return true
     }
 
     /** Current generation; if a crash hit between the two renames, the previous one stands in. */

@@ -32,6 +32,7 @@ import app.vezuna.security.BackupService
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
+import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,7 +95,9 @@ class AndroidMainActivity : ComponentActivity() {
         }
         setContent {
             val vaultState by app.vaultState.collectAsState()
+            val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
             VaultGate(vaultState, onRetry = app::retryVault, onReset = app::resetVault) {
+            PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
             VezunaAndroidApp(
                 controller = controller,
                 sourcePicker = sourcePicker,

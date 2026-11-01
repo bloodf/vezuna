@@ -60,4 +60,15 @@ class GenerationalFileStoreTest {
         assertTrue(folder.name.startsWith("unreadable"))
         assertContentEquals("one".encodeToByteArray(), File(folder, "repo").readBytes())
     }
+
+    @Test
+    fun quarantineCurrentLeavesPreviousGenerationReadable() {
+        store.write("repo", "one".encodeToByteArray())
+        store.write("repo", "two".encodeToByteArray())
+
+        assertTrue(store.quarantineCurrent("repo", "7"))
+
+        assertContentEquals("one".encodeToByteArray(), store.read("repo"))
+        assertContentEquals("two".encodeToByteArray(), File(directory, "unreadable-7/repo").readBytes())
+    }
 }

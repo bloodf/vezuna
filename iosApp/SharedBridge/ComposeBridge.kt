@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -124,39 +125,56 @@ object IosRuntime {
         open(vaultPath, modelPath, reset, completion)
     }
 
+    private var opening = false
+
     private fun open(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
+        // Double taps and overlapping configure/recover calls: the first call's completion reports the outcome.
+        if (opening) return
+        opening = true
         scope.launch {
-            vaultState.value = VaultState.Loading
             try {
-                vault = createPlatformVault(vaultPath)
-                if (reset) {
-                    check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
-                    vault.discardUnusableKey()
-                }
-                repository = PersistentVezunaRepository.open(vault, json)
-            } catch (error: VaultUnreadableException) {
-                vaultState.value = VaultState.Recovery(error.failure)
-                completion(nativeMessage("storage_open_failed"))
-                return@launch
-            } catch (error: Exception) {
-                vaultState.value = VaultState.Recovery(VaultFailure.CORRUPT)
-                completion(nativeMessage("storage_open_failed"))
-                return@launch
+                openNow(vaultPath, modelPath, reset, completion)
+            } finally {
+                opening = false
             }
-            vaultState.value = VaultState.Ready
-            try {
-                repository.changeObserver = { repositoryObserver?.repositoryDidChange() }
-                llm = llamatikLocalLlm()
-                val catalog = loadCatalog()
-                val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
-                val manager = InstalledModelManager(catalog, files, llm)
-                controller = AppController(repository, manager, LocalHealthChat(repository, llm))
-                initialized = true
-                controller.initialize()
-                completion(null)
-            } catch (error: Throwable) {
-                completion(nativeMessage("storage_open_failed"))
+        }
+    }
+
+    private suspend fun openNow(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
+        vaultState.value = VaultState.Loading
+        try {
+            vault = createPlatformVault(vaultPath)
+            if (reset) {
+                check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
+                vault.discardUnusableKey()
             }
+            repository = PersistentVezunaRepository.open(vault, json)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: VaultUnreadableException) {
+            vaultState.value = VaultState.Recovery(error.failure)
+            completion(nativeMessage("storage_open_failed"))
+            return
+        } catch (error: Exception) {
+            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE)
+            completion(nativeMessage("storage_open_failed"))
+            return
+        }
+        vaultState.value = VaultState.Ready
+        try {
+            repository.changeObserver = { repositoryObserver?.repositoryDidChange() }
+            llm = llamatikLocalLlm()
+            val catalog = loadCatalog()
+            val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
+            val manager = InstalledModelManager(catalog, files, llm)
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm))
+            initialized = true
+            controller.initialize()
+            completion(null)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            completion(nativeMessage("storage_open_failed"))
         }
     }
 

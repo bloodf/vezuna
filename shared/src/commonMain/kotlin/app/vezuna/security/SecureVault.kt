@@ -27,11 +27,18 @@ interface SecureVault {
      */
     suspend fun quarantineAll(): Boolean = false
 
+    /**
+     * Moves only the current generation of [key] into quarantine, leaving the previous generation in place.
+     * Used right after falling back to the previous generation so a later write cannot rotate corrupt data over it.
+     */
+    suspend fun quarantineCurrent(key: String): Boolean = false
+
     /** Drops key material that can no longer decrypt (for example an invalidated Keystore key). No-op when the key works. */
     suspend fun discardUnusableKey() {}
 }
 
-enum class VaultFailure { CORRUPT, KEY_INVALIDATED, KEY_UNAVAILABLE }
+/** [UNAVAILABLE] is transient (locked device, Keystore or IO hiccup): retry, never offer a reset for it. */
+enum class VaultFailure { CORRUPT, KEY_INVALIDATED, KEY_UNAVAILABLE, UNAVAILABLE }
 
 /** The vault cannot be opened. Recoverable: callers show the recovery screen instead of crashing. */
 class VaultUnreadableException(val failure: VaultFailure, cause: Throwable? = null) :

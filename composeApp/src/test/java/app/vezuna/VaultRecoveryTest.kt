@@ -33,6 +33,7 @@ private class FileVault(private val directory: File, var keyInvalidated: Boolean
     override suspend fun read(key: String) = files.read(key)
     override suspend fun readPrevious(key: String) = files.readPrevious(key)
     override suspend fun delete(key: String) = files.delete(key)
+    override suspend fun quarantineCurrent(key: String) = files.quarantineCurrent(key, "cur")
     override suspend fun quarantineAll(): Boolean { files.quarantineAll("1"); return true }
     override suspend fun discardUnusableKey() { keyInvalidated = false }
 
@@ -59,6 +60,26 @@ class VaultRecoveryTest {
         restored.load()
 
         assertEquals(listOf("Ana"), restored.profiles.value.map { it.displayName })
+    }
+
+    @Test
+    fun fallbackQuarantinesCorruptCurrentSoLaterWritesCannotOverwriteGoodPrevious() = runTest {
+        seed("Ana", "Bia")
+        val broken = "{truncated".encodeToByteArray()
+        File(directory, key).writeBytes(broken)
+
+        val restored = PersistentVezunaRepository(vault)
+        restored.load()
+
+        assertTrue(restored.openedFromPreviousGeneration.value)
+        val kept = directory.listFiles { file -> file.isDirectory }.orEmpty().single()
+        assertContentEquals(broken, File(kept, key).readBytes())
+        restored.createProfile(Profile("id-Cy", "Cy", createdAt = Instant.fromEpochMilliseconds(3)))
+        // The good previous generation is still the pre-corruption snapshot, not the corrupt bytes.
+        val previous = PersistentVezunaRepository(FileVault(directory)).also { it.load() }
+        assertEquals(listOf("Ana", "Cy"), previous.profiles.value.map { it.displayName })
+        restored.acknowledgePreviousGeneration()
+        assertEquals(false, restored.openedFromPreviousGeneration.value)
     }
 
     @Test
