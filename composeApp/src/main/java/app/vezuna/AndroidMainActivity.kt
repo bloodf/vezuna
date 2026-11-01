@@ -136,9 +136,11 @@ class AndroidMainActivity : FragmentActivity() {
         super.onStart()
         app.appLock.refresh()
         app.appLock.onForeground()
+        modelLoader.bindActivity(this)
     }
 
     override fun onStop() {
+        modelLoader.bindActivity(null)
         app.appLock.onBackground()
         super.onStop()
     }

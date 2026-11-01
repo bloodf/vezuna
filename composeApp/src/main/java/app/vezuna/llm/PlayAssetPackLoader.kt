@@ -1,5 +1,6 @@
 package app.vezuna.llm
 
+import android.app.Activity
 import android.content.Context
 import app.vezuna.NativeKey
 import app.vezuna.NativeMessageException
@@ -20,12 +21,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import com.google.android.gms.tasks.Task
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface ModelPackLoadState {
     data object Idle : ModelPackLoadState
@@ -45,6 +48,7 @@ class PlayAssetPackLoader(
     private val manager: AssetPackManager by lazy { AssetPackManagerFactory.getInstance(appContext) }
     private val mutableState = MutableStateFlow<ModelPackLoadState>(ModelPackLoadState.Idle)
     val state: StateFlow<ModelPackLoadState> = mutableState.asStateFlow()
+    @Volatile private var activityRef: WeakReference<Activity>? = null
 
     /** Returns the pack file location (used in place, no release needed) of the pack file; the model store streams it into private storage. */
     suspend fun load(pack: ModelPack): ModelPackSource? {
@@ -72,38 +76,49 @@ class PlayAssetPackLoader(
 
     fun clearState() { mutableState.value = ModelPackLoadState.Idle }
 
+    /** Activity used to show Play confirmation dialogs; held weakly so the loader can outlive recreation. */
+    fun bindActivity(activity: Activity?) { activityRef = activity?.let(::WeakReference) }
+
     private suspend fun fetch(packId: String): AssetPackLocation? {
-        val initial = manager.fetch(listOf(packId)).await()
-        updateFrom(initial.packStates()[packId])
-        val terminal = initial.packStates()[packId]?.takeIf { it.status() in TERMINAL_STATUSES }
-        if (terminal != null && terminal.status() != AssetPackStatus.COMPLETED) {
-            failNative(NativeKey.ASSET_PACK_UNAVAILABLE, packId, terminal.status(), terminal.errorCode())
+        val done = CompletableDeferred<Unit>()
+        val shown = AtomicBoolean(false)
+        val listener = AssetPackStateUpdateListener { state -> if (state.name() == packId) handle(state, packId, done, shown) }
+        manager.registerListener(listener)
+        try {
+            val finished = withTimeoutOrNull(AssetPackStatusPolicy.FETCH_TIMEOUT_MS) {
+                // Listener is registered before fetch; states are re-read afterwards to catch updates emitted in between.
+                manager.fetch(listOf(packId)).await().packStates()[packId]?.let { handle(it, packId, done, shown) }
+                manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let { handle(it, packId, done, shown) }
+                done.await()
+            }
+            if (finished == null) failNative(NativeKey.MODEL_DELIVERY_FAILED)
+        } finally {
+            manager.unregisterListener(listener)
         }
-        if (terminal == null) awaitCompletion(packId)
         return manager.getPackLocation(packId)
     }
 
-    private suspend fun awaitCompletion(packId: String) = suspendCancellableCoroutine<Unit> { continuation ->
-        lateinit var listener: AssetPackStateUpdateListener
-        listener = AssetPackStateUpdateListener { state ->
-            if (state.name() != packId) return@AssetPackStateUpdateListener
-            updateFrom(state)
-            when (state.status()) {
-                AssetPackStatus.COMPLETED -> {
-                    manager.unregisterListener(listener)
-                    if (continuation.isActive) continuation.resume(Unit)
-                }
-                AssetPackStatus.FAILED,
-                AssetPackStatus.CANCELED,
-                AssetPackStatus.NOT_INSTALLED,
-                -> {
-                    manager.unregisterListener(listener)
-                    if (continuation.isActive) continuation.resumeWithException(NativeMessageException(nativeMessage(NativeKey.ASSET_PACK_UNAVAILABLE, packId, state.status(), state.errorCode())))
-                }
-            }
+    private fun handle(state: AssetPackState, packId: String, done: CompletableDeferred<Unit>, shown: AtomicBoolean) {
+        updateFrom(state)
+        when (AssetPackStatusPolicy.actionFor(state.status())) {
+            AssetPackAction.COMPLETE -> done.complete(Unit)
+            AssetPackAction.FAIL -> done.completeExceptionally(
+                NativeMessageException(nativeMessage(NativeKey.ASSET_PACK_UNAVAILABLE, packId, state.status(), state.errorCode())),
+            )
+            AssetPackAction.CONFIRM_USER -> confirm(done, shown) { manager.showConfirmationDialog(it) }
+            AssetPackAction.CONFIRM_CELLULAR -> confirm(done, shown) { manager.showCellularDataConfirmation(it) }
+            AssetPackAction.AWAIT -> Unit
         }
-        manager.registerListener(listener)
-        continuation.invokeOnCancellation { manager.unregisterListener(listener) }
+    }
+
+    private fun confirm(done: CompletableDeferred<Unit>, shown: AtomicBoolean, show: (Activity) -> Task<Int>) {
+        val activity = activityRef?.get() ?: return
+        if (!shown.compareAndSet(false, true)) return
+        show(activity)
+            .addOnSuccessListener { result ->
+                if (result != Activity.RESULT_OK) done.completeExceptionally(NativeMessageException(nativeMessage(NativeKey.MODEL_DELIVERY_FAILED)))
+            }
+            .addOnFailureListener { error -> done.completeExceptionally(error) }
     }
 
     private fun updateFrom(state: AssetPackState?) {
@@ -128,9 +143,5 @@ class PlayAssetPackLoader(
         val file = File(root, pack.fileName).canonicalFile
         if (file.parentFile != root || !file.isFile) failNative(NativeKey.GGUF_MISSING)
         file.path
-    }
-
-    private companion object {
-        val TERMINAL_STATUSES = setOf(AssetPackStatus.COMPLETED, AssetPackStatus.FAILED, AssetPackStatus.CANCELED, AssetPackStatus.NOT_INSTALLED)
     }
 }
