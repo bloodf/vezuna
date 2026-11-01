@@ -69,6 +69,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.vezuna.domain.AnalyteConversions
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
@@ -199,7 +200,10 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
         SectionHeading(vitaText(L10nKey.RECENT_RESULTS), vitaText(L10nKey.RECENT_RESULTS_SUBTITLE))
         val recentResults = state.dashboard?.recentResults.orEmpty()
         if (recentResults.isEmpty()) {
-            EmptyState(vitaText(L10nKey.NO_CONFIRMED_RESULTS_YET), vitaText(L10nKey.TREND_INCOMPATIBLE_UNITS), Icons.Rounded.Science)
+            EmptyState(
+                vitaText(L10nKey.NO_CONFIRMED_RESULTS_YET), vitaText(L10nKey.LABS_EMPTY_EXPLANATION), Icons.Rounded.Science,
+                vitaText(L10nKey.IMPORT_REVIEW), { controller.navigate(AppScreen.ImportReview) },
+            )
         } else {
             recentResults.forEach { recent ->
                 ResultRow(recent.observation) { controller.navigate(AppScreen.ResultDetail(recent.observation.observationId)) }
@@ -310,7 +314,10 @@ fun LabsScreen(state: AppUiState, controller: AppController) {
             VitaButton(vitaText(L10nKey.TRENDS), Icons.Rounded.Insights, { controller.navigate(AppScreen.Trends) }, Modifier.weight(0.7f), outlined = true)
         }
         if (observations.isEmpty()) {
-            EmptyState(vitaText(L10nKey.NO_CONFIRMED_RESULTS), vitaText(L10nKey.TREND_INCOMPATIBLE_UNITS), Icons.Rounded.Science)
+            EmptyState(
+                vitaText(L10nKey.NO_CONFIRMED_RESULTS), vitaText(L10nKey.LABS_EMPTY_EXPLANATION), Icons.Rounded.Science,
+                vitaText(L10nKey.IMPORT_REVIEW), { controller.navigate(AppScreen.ImportReview) },
+            )
         } else observations.forEach { observation ->
             ResultRow(observation) { controller.navigate(AppScreen.ResultDetail(observation.observationId)) }
         }
@@ -446,7 +453,8 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
     val observation = data.observations.firstOrNull { it.observationId == observationId }
         ?: return EmptyState(vitaText(L10nKey.RESULT_UNAVAILABLE), vitaText(L10nKey.RESULT_UNAVAILABLE_EXPLANATION))
     val previous = data.observations.filter {
-        !it.isQualitative && !observation.isQualitative && it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt && it.testCode.equals(observation.testCode, true)
+        !it.isQualitative && !observation.isQualitative && it.confirmation == ConfirmationStatus.CONFIRMED && it.collectedAt < observation.collectedAt &&
+            app.vezuna.domain.UnitNormalizer.canonicalTestCode(it.testCode) == app.vezuna.domain.UnitNormalizer.canonicalTestCode(observation.testCode)
     }.maxByOrNull { it.collectedAt }
     val comparison = previous?.let { LabComparator.compare(it, observation) }
     var editing by remember(observationId) { mutableStateOf(false) }
@@ -472,6 +480,14 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
                 }
             }
         }
+        if (!observation.isQualitative) {
+            AnalyteConversions.alternatives(observation.testCode, observation.originalValue, observation.originalUnit).forEach { alternative ->
+                Text(
+                    vitaText(L10nKey.CONVERTED_VALUE, "${formatLabValue(alternative.value)} ${alternative.unit}", formatLabValue(alternative.factor)),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
         SectionHeading(vitaText(L10nKey.CLINICAL_CONTEXT))
         Text(vitaText(L10nKey.PER_RESULT_REFERENCE, uiRangeText(observation.referenceRange)))
         Text(vitaText(L10nKey.RANGE_ASSESSMENT, rangeLabel(LabComparator.assess(observation))))
@@ -484,92 +500,7 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
 }
 
 @Composable
-fun TrendsScreen(state: AppUiState, controller: AppController) {
-    val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_TRENDS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
-    val codes = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative }.map { it.testCode }.distinct().sorted()
-    val timelines = QualitativeTimelines.forProfile(data.profile.profileId, data.observations)
-    var selected by remember(data.profile.profileId) { mutableStateOf(codes.firstOrNull().orEmpty()) }
-    if (selected !in codes) selected = codes.firstOrNull().orEmpty()
-    ScreenColumn(vitaText(L10nKey.LAB_TRENDS), vitaText(L10nKey.LAB_TRENDS_SUBTITLE)) {
-        if (codes.isEmpty() && timelines.isEmpty()) {
-            EmptyState(vitaText(L10nKey.NO_CONFIRMED_TREND_DATA), vitaText(L10nKey.TREND_INCOMPATIBLE_UNITS), Icons.Rounded.ShowChart)
-        } else if (codes.isNotEmpty()) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                codes.forEach { code ->
-                    FilterChip(selected = selected == code, onClick = { selected = code }, label = { Text(code) }, leadingIcon = { Icon(Icons.Rounded.Science, null, Modifier.size(17.dp)) })
-                }
-            }
-            val series = TrendPreparation.forTest(data.profile.profileId, selected, data.observations)
-            val motionEnabled = LocalVitaAnimationsEnabled.current
-            AnimatedContent(
-                targetState = series,
-                transitionSpec = {
-                    if (motionEnabled) androidx.compose.animation.fadeIn() togetherWith androidx.compose.animation.fadeOut()
-                    else androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
-                },
-                label = "trend-selection",
-            ) { current ->
-                if (current != null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                            Column(Modifier.padding(18.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(current.points.last().observation.displayName, style = MaterialTheme.typography.titleLarge)
-                                        Text(vitaPlural(L10nKey.CONFIRMED_POINTS, current.points.size, current.unit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Icon(Icons.Rounded.Insights, vitaText(L10nKey.TREND_CHART), tint = MaterialTheme.colorScheme.primary)
-                                }
-                                Spacer(Modifier.height(12.dp))
-                                TrendChart(current, Modifier.fillMaxWidth().height(210.dp))
-                                Row {
-                                    Text(formatUiDate(current.points.first().observation.collectedAt), style = MaterialTheme.typography.labelSmall)
-                                    Spacer(Modifier.weight(1f))
-                                    Text(formatUiDate(current.points.last().observation.collectedAt), style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        }
-                        SectionHeading(vitaText(L10nKey.CONFIRMED_DATA), vitaText(L10nKey.CONFIRMED_DATA_SUBTITLE))
-                        current.points.forEach { point ->
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.History, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.size(8.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(formatUiDate(point.observation.collectedAt), style = MaterialTheme.typography.bodyMedium)
-                                    Text(vitaText(L10nKey.REFERENCE, uiRangeText(point.observation.referenceRange)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Text("${formatLabValue(point.y)} ${current.unit}", style = MaterialTheme.typography.titleSmall)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (timelines.isNotEmpty()) {
-            SectionHeading(vitaText(L10nKey.QUALITATIVE_TIMELINE))
-            timelines.forEach { timeline ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(timeline.displayName, style = MaterialTheme.typography.titleMedium)
-                        timeline.entries.forEach { entry ->
-                            Row(Modifier.fillMaxWidth()) {
-                                Text(formatUiDate(entry.collectedAt), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                                Text(entry.qualitativeValue.orEmpty(), style = MaterialTheme.typography.titleSmall)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        LinkRow(vitaText(L10nKey.BACK_TO_LABS)) { controller.navigate(AppScreen.Labs) }
-    }
-}
-
-@Composable
-private fun TrendChart(series: TrendSeries, modifier: Modifier) {
+internal fun TrendChart(series: TrendSeries, modifier: Modifier) {
     val description = vitaPlural(L10nKey.TREND_CHART_ACCESSIBILITY, series.points.size, series.unit)
     LineChart(series.points.map { it.xEpochSeconds to it.y }, "${series.testCode}|${series.unit}", description, modifier)
 }

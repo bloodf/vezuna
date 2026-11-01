@@ -365,6 +365,11 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_LANGUAGE_DEVICE to Res.string.export_language_device,
     L10nKey.EXPORT_LANGUAGE_EXPLANATION to Res.string.export_language_explanation,
     L10nKey.MODEL_CATALOG_UNREADABLE to Res.string.model_catalog_unreadable,
+    L10nKey.TREND_UNITS_DROPPED to Res.string.trend_units_dropped,
+    L10nKey.TREND_CONVERTED_NOTE to Res.string.trend_converted_note,
+    L10nKey.CONVERTED_VALUE to Res.string.converted_value,
+    L10nKey.LABS_EMPTY_EXPLANATION to Res.string.labs_empty_explanation,
+    L10nKey.TRENDS_EMPTY_EXPLANATION to Res.string.trends_empty_explanation,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

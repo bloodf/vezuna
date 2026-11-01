@@ -89,11 +89,28 @@ class AnalyteConversionsTest {
         val series = assertNotNull(TrendPreparation.forTest("p", "glicose", listOf(glucoseOld, glucoseNew)))
         assertEquals(2, series.points.size)
         assertEquals("mmol/L", series.unit)
+        assertEquals(listOf(true, false), series.points.map { it.converted })
         near(5.55, series.points.first().y)
         assertTrue(series.points.first().converted)
         assertTrue(series.droppedUnits.isEmpty())
         // stored data is untouched
         assertEquals(100.0, series.points.first().observation.originalValue)
+    }
+
+    @Test
+    fun trendShowsTheNewestEnteredUnitAndScalesPlainUnits() {
+        val hbOld = obs("o1", "HGB", "Hemoglobina", 140.0, "g/L", "2026-01-10T12:00:00Z")
+        val hbNew = obs("o2", "HGB", "Hemoglobina", 13.5, "g/dL", "2026-06-10T12:00:00Z")
+        val series = assertNotNull(TrendPreparation.forTest("p", "HGB", listOf(hbOld, hbNew)))
+        assertEquals("g/dL", series.unit)
+        near(14.0, series.points.first().y)
+        near(13.5, series.points.last().y)
+        val glucose = TrendPreparation.forTest("p", "GLICOSE", listOf(
+            obs("a", "GLICOSE", "Glicose", 5.55, "mmol/L", "2026-01-10T12:00:00Z"),
+            obs("b", "GLICOSE", "Glicose", 100.0, "mg/dL", "2026-06-10T12:00:00Z"),
+        ))
+        assertEquals("mg/dL", glucose?.unit)
+        near(100.0, glucose?.points?.first()?.y, 0.01)
     }
 
     @Test

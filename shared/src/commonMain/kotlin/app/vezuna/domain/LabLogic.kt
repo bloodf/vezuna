@@ -158,22 +158,28 @@ object TrendPreparation {
         }
         // The newest result decides the series unit: it is the one the reader compares against.
         val anchor = matching.maxWithOrNull(compareBy({ it.collectedAt }, { it.observationId })) ?: return null
-        val unit = anchor.normalizedUnit
         val points = mutableListOf<TrendPoint>()
         val dropped = linkedSetOf<String>()
         matching.sortedBy { it.collectedAt }.forEach { observation ->
             val y = alignedValue(code, observation, anchor)
             if (y == null) dropped += observation.originalUnit
-            else points += TrendPoint(observation, observation.collectedAt.epochSeconds, y, converted = !observation.normalizedUnit.equals(unit, ignoreCase = true))
+            else points += TrendPoint(observation, observation.collectedAt.epochSeconds, y, converted = !sameUnit(observation.originalUnit, anchor.originalUnit))
         }
-        return TrendSeries(profileId, code, unit, points, dropped.toList())
+        return TrendSeries(profileId, code, anchor.originalUnit, points, dropped.toList())
     }
 
+    /** The result expressed in the anchor's own unit, or null when neither unit scaling nor a cited factor links them. */
     private fun alignedValue(code: String, observation: LabObservation, anchor: LabObservation): Double? {
-        if (observation.normalizedUnit.equals(anchor.normalizedUnit, ignoreCase = true)) return observation.normalizedValue
+        if (sameUnit(observation.originalUnit, anchor.originalUnit)) return observation.originalValue
+        if (observation.normalizedUnit.equals(anchor.normalizedUnit, ignoreCase = true)) {
+            return observation.normalizedValue / UnitNormalizer.normalize(1.0, anchor.originalUnit).value
+        }
         val factor = AnalyteConversions.factor(code, observation.originalUnit, anchor.originalUnit) ?: return null
-        return UnitNormalizer.normalize(observation.originalValue * factor, anchor.originalUnit).value
+        return observation.originalValue * factor
     }
+
+    private fun sameUnit(first: String, second: String): Boolean =
+        first.trim().replace('μ', 'µ').equals(second.trim().replace('μ', 'µ'), ignoreCase = true)
 }
 
 /** Plain-text history of qualitative results for one test, oldest first. */

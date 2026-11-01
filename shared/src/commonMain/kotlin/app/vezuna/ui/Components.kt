@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeviceHub
 import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -157,7 +158,7 @@ fun PrivacyStatus() {
 }
 
 @Composable
-fun EmptyState(title: String, explanation: String, icon: ImageVector = Icons.Rounded.Info) {
+fun EmptyState(title: String, explanation: String, icon: ImageVector = Icons.Rounded.Info, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     Card(
         Modifier.fillMaxWidth().semantics { contentDescription = "$title. $explanation" },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -166,6 +167,7 @@ fun EmptyState(title: String, explanation: String, icon: ImageVector = Icons.Rou
             Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(explanation, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (actionLabel != null && onAction != null) VitaButton(actionLabel, Icons.Rounded.UploadFile, onAction)
         }
     }
 }
