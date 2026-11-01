@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.datetime.Instant
@@ -135,6 +136,7 @@ object IosRuntime {
     }
 
     private var opening = false
+    private var stateObserverJob: Job? = null
 
     private fun open(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
         // Double taps and overlapping configure/recover calls: the first call's completion reports the outcome.
@@ -181,7 +183,8 @@ object IosRuntime {
             controller.initialize()
             // Edits and deletes made in Compose reload the controller after the repository commit; notify native
             // reminder reconciliation once the controller's view of the active profile is consistent again.
-            scope.launch {
+            stateObserverJob?.cancel()
+            stateObserverJob = scope.launch {
                 controller.state.map { it.data }.distinctUntilChanged().drop(1).collect { repositoryObserver?.repositoryDidChange() }
             }
             completion(null)
