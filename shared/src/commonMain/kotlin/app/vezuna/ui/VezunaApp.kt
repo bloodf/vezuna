@@ -97,7 +97,7 @@ fun VezunaApp(
     modelFiles: ModelFileStore,
     catalog: ModelCatalog,
     sourcePicker: (suspend () -> PickedSource?)? = null,
-    modelPackLoader: (suspend (ModelPack) -> ByteArray?)? = null,
+    modelPackLoader: (suspend (ModelPack) -> String?)? = null,
 ) {
     val llm = remember { llamatikLocalLlm() }
     val controller = remember(repository, modelFiles, catalog) {
@@ -113,7 +113,7 @@ fun VezunaApp(
     controller: AppController,
     scope: CoroutineScope,
     sourcePicker: (suspend () -> PickedSource?)? = null,
-    modelPackLoader: (suspend (ModelPack) -> ByteArray?)? = null,
+    modelPackLoader: (suspend (ModelPack) -> String?)? = null,
     onDevice: (() -> Unit)? = null,
     animationsEnabled: Boolean = true,
 ) {

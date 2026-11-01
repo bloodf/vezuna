@@ -208,7 +208,7 @@ private fun ChatBubble(message: ChatMessage) {
 }
 
 @Composable
-fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, modelPackLoader: (suspend (ModelPack) -> ByteArray?)?) {
+fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, modelPackLoader: (suspend (ModelPack) -> String?)?) {
     val modelState by controller.modelManager.state.collectAsState()
     ScreenColumn(vitaText(L10nKey.LOCAL_GGUF_MODELS), vitaText(L10nKey.MODELS_SUBTITLE)) {
         InlineNotice(vitaText(L10nKey.MODEL_SECURITY_NOTICE), Icons.Rounded.Lock)
@@ -240,8 +240,8 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                     when {
                         installed == null && modelPackLoader != null -> VitaButton(vitaText(L10nKey.INSTALL_VERIFIED_STORE_PACK), Icons.Rounded.Download, {
                             scope.launch {
-                                val bytes = modelPackLoader(pack)
-                                if (bytes == null) controller.navigate(AppScreen.Models) else controller.installModel(pack, bytes)
+                                val sourcePath = modelPackLoader(pack)
+                                if (sourcePath == null) controller.navigate(AppScreen.Models) else controller.installModel(pack, sourcePath)
                             }
                         }, enabled = !modelState.busy)
                         installed == null -> InlineNotice(vitaText(L10nKey.AWAITING_NATIVE_STORE_LOADER), Icons.Rounded.Download)

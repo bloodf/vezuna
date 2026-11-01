@@ -59,7 +59,8 @@ fun nativeMessage(key: String, vararg args: Any?): NativeMessage =
     NativeMessage(key, args.map { it?.toString().orEmpty() })
 
 interface NativeModelPackLoader {
-    fun loadModelPack(pack: ModelPack, completion: (ByteArray?, NativeMessage?) -> Unit)
+    /** Completion receives the absolute path of the pack file; the store streams it, so no full copy is made. */
+    fun loadModelPack(pack: ModelPack, completion: (String?, NativeMessage?) -> Unit)
 }
 
 interface NativeLicenseProvider {
@@ -310,8 +311,8 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
                     null
                 } else {
                     suspendCancellableCoroutine { continuation ->
-                        loader.loadModelPack(pack) { bytes, _ ->
-                            if (continuation.isActive) continuation.resume(bytes)
+                        loader.loadModelPack(pack) { path, _ ->
+                            if (continuation.isActive) continuation.resume(path)
                         }
                     }
                 }
