@@ -10,6 +10,7 @@ import platform.Foundation.NSLocale
 import platform.Foundation.NSTimeZone
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.localTimeZone
+import platform.Foundation.timeZoneWithName
 import platform.Foundation.preferredLanguages
 
 actual fun deviceLanguageTag(): String =
@@ -23,7 +24,8 @@ actual fun formatUiDateTime(instant: Instant, languageTag: String): String =
 
 private fun formatter(languageTag: String, withTime: Boolean) = NSDateFormatter().apply {
     locale = NSLocale(localeIdentifier = languageTag)
-    timeZone = NSTimeZone.localTimeZone
+    // Collection dates are calendar days stored as noon UTC; date-only output must not shift with the device zone.
+    timeZone = if (withTime) NSTimeZone.localTimeZone else (NSTimeZone.timeZoneWithName("UTC") ?: NSTimeZone.localTimeZone)
     dateStyle = NSDateFormatterMediumStyle
     timeStyle = if (withTime) NSDateFormatterShortStyle else NSDateFormatterNoStyle
 }

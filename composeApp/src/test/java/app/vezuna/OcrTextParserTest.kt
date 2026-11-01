@@ -76,7 +76,7 @@ class OcrTextParserTest {
     fun confidentInlineDatesAndAdministrativeNoiseAreHandledConservatively() {
         val dated = OcrTextParser.parseMeasurementLine("Zinco sérico 88 µg/L 60 a 120 µg/L 28/02/2026")
         requireNotNull(dated)
-        assertEquals(Instant.parse("2026-02-28T00:00:00Z"), dated.collectedAt)
+        assertEquals(Instant.parse("2026-02-28T12:00:00Z"), dated.collectedAt)
         val invalidDate = OcrTextParser.parseMeasurementLine("Zinco sérico 88 µg/L 60 a 120 µg/L 31/02/2026")
         requireNotNull(invalidDate)
         assertNull(invalidDate.collectedAt)
@@ -94,5 +94,22 @@ class OcrTextParserTest {
             "1.234.567" to "1234567", "+12,5" to "12.5", "-1.234,5" to "-1234.5",
         )
         cases.forEach { (raw, expected) -> assertEquals(expected, OcrTextParser.canonicalNumber(raw), raw) }
+    }
+
+    @Test
+    fun ambiguousDotGroupedNumbersKeepOriginalTokenForReview() {
+        val rows = OcrTextParser.parseMeasurements("Ferritina 7.350 ng/mL 15 a 300\nColesterol 1.020 mg/dL 0 a 200\nGlicose 5,7 mg/dL 70 a 99")
+        val byName = rows.associateBy { it.displayName }
+        assertEquals("7350", byName.getValue("Ferritina").value)
+        assertEquals("7.350", byName.getValue("Ferritina").rawToken)
+        assertEquals("1020", byName.getValue("Colesterol").value)
+        assertEquals("1.020", byName.getValue("Colesterol").rawToken)
+        assertNull(byName.getValue("Glicose").rawToken)
+    }
+
+    @Test
+    fun extractedDatesAreNoonUtcCalendarDays() {
+        val dated = OcrTextParser.parseMeasurements("Coleta 28/02/2026\nGlicose 90 mg/dL 70 a 99 28/02/2026").first()
+        assertEquals(Instant.parse("2026-02-28T12:00:00Z"), dated.collectedAt)
     }
 }

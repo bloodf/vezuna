@@ -249,6 +249,7 @@ class AppController(
                         confidence = candidate.confidence,
                         status = ConfirmationStatus.UNREVIEWED,
                         qualitative = candidate.valueKind == ExtractedValueKind.QUALITATIVE,
+                        rawToken = candidate.rawToken,
                         collectedAtKnown = candidate.collectedAt != null,
                     ),
                 )
@@ -287,6 +288,7 @@ class AppController(
         collectedAt: kotlinx.datetime.Instant? = null,
         testCode: String? = null,
         displayName: String? = null,
+        asText: Boolean? = null,
     ) = operation {
         val data = requireData()
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
@@ -297,7 +299,7 @@ class AppController(
         val code = (testCode ?: candidate.testCode).trim()
         val name = (displayName ?: candidate.displayName).trim()
         if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
-        val qualitativeValue = if (candidate.qualitative) {
+        val qualitativeValue = if (asText ?: candidate.looksQualitative) {
             correctedValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
         } else null
         val value = if (qualitativeValue != null) 0.0 else parseDecimalInput(correctedValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
@@ -310,8 +312,8 @@ class AppController(
             data.profile.profileId,
             randomId(),
             currentInstant(),
-            "${candidate.rawValue} ${candidate.rawUnit}",
-            "$correctedValue $unit",
+            "${candidate.rawValue} ${candidate.rawUnit}".trim(),
+            "$correctedValue $unit".trim(),
         )
         val report = data.reports.first { it.sourceDocumentId == candidate.sourceDocumentId }
         val inserted = repository.addObservation(

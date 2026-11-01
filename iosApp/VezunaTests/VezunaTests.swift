@@ -62,6 +62,16 @@ final class VezunaTests: XCTestCase {
         XCTAssertEqual(results[0].referenceUpper, "450000")
     }
 
+    func testAmbiguousThousandsKeepRawTokenAndLowConfidence() {
+        let results = LabTextParser.parse("Ferritina 7.350 ng/mL 15-300\nColesterol 1.020 mg/dL 0-200\nGlicose 5,7 mg/dL 70-99", confidence: 0.9)
+        XCTAssertEqual(results.map(\.rawValue), ["7350", "1020", "5.7"])
+        XCTAssertEqual(results.map(\.rawToken), ["7.350", "1.020", nil])
+        XCTAssertEqual(results[0].confidence, 0.4)
+        XCTAssertEqual(results[2].confidence, 0.9)
+        XCTAssertFalse(LabTextParser.isAmbiguousThousands("0.500"))
+        XCTAssertFalse(LabTextParser.isAmbiguousThousands("1.234.567"))
+    }
+
     func testDailyAndWeeklyReminderPlanningAndSnooze() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))

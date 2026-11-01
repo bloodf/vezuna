@@ -72,6 +72,7 @@ data class ExtractedCandidate(
     val collectedAt: kotlinx.datetime.Instant? = null,
     val confidence: Float? = null,
     val valueKind: ExtractedValueKind = ExtractedValueKind.NUMERIC,
+    val rawToken: String? = null,
 )
 
 data class PickedSource(

@@ -251,6 +251,9 @@ iOS: %2$s</string>
     <string name="confirmed_qualitative_value">Resultado confirmado (texto)</string>
     <string name="qualitative_result_required">Ingrese el resultado en texto</string>
     <string name="qualitative_timeline">Resultados en texto a lo largo del tiempo</string>
+    <string name="text_result_toggle">Resultado en texto (no numérico)</string>
+    <string name="ocr_read_token">OCR leyó: %1$s</string>
+    <string name="ambiguous_number_warning">Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)</string>
     <string name="save">Guardar</string>
     <string name="edit">Editar</string>
     <string name="rename_profile">Renombrar perfil</string>

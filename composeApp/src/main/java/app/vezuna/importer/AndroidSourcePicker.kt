@@ -108,6 +108,8 @@ class AndroidSourcePicker(
                             referenceRange = parsed.referenceRange,
                             collectedAt = parsed.collectedAt,
                             valueKind = parsed.valueKind,
+                            rawToken = parsed.rawToken,
+                            confidence = parsed.rawToken?.let { app.vezuna.domain.NumberAmbiguity.LOW_CONFIDENCE },
                         )
                     }
                 }

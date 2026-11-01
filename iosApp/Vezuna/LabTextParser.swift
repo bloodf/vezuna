@@ -11,8 +11,10 @@ struct ImportedLabCandidate: Identifiable, Equatable {
     var confidence: Float?
     /// Chosen by the user during review; nil until set. Never defaulted to the import time.
     var collectedAt: Date?
+    /// Original OCR number token, kept only when its reading is ambiguous (e.g. "1.020").
+    var rawToken: String?
 
-    init(id: UUID = UUID(), testCode: String, displayName: String, rawValue: String, rawUnit: String, referenceLower: String = "", referenceUpper: String = "", confidence: Float? = nil) {
+    init(id: UUID = UUID(), testCode: String, displayName: String, rawValue: String, rawUnit: String, referenceLower: String = "", referenceUpper: String = "", confidence: Float? = nil, rawToken: String? = nil) {
         self.id = id
         self.testCode = testCode
         self.displayName = displayName
@@ -21,6 +23,7 @@ struct ImportedLabCandidate: Identifiable, Equatable {
         self.referenceLower = referenceLower
         self.referenceUpper = referenceUpper
         self.confidence = confidence
+        self.rawToken = rawToken
     }
 }
 
@@ -61,7 +64,9 @@ enum LabTextParser {
             let rawName = String(line[nameRange]).trimmingCharacters(in: CharacterSet(charactersIn: ":- "))
             let normalizedName = rawName.uppercased()
             guard !normalizedName.contains("DATE"), !normalizedName.contains("PATIENT"), !normalizedName.contains("REFERENCE") else { return nil }
-            let value = canonicalNumber(String(line[valueRange]))
+            let token = String(line[valueRange])
+            let value = canonicalNumber(token)
+            let ambiguous = isAmbiguousThousands(token)
             let unit = String(line[unitRange]).trimmingCharacters(in: CharacterSet(charactersIn: ",;"))
             guard Double(value) != nil, unit.count <= 32, !unit.contains(":") else { return nil }
             let alias = aliases[normalizedName]
@@ -82,9 +87,17 @@ enum LabTextParser {
                 rawUnit: unit,
                 referenceLower: lower,
                 referenceUpper: upper,
-                confidence: confidence
+                confidence: ambiguous ? min(confidence ?? ambiguousConfidence, ambiguousConfidence) : confidence,
+                rawToken: ambiguous ? token : nil
             )
         }
+    }
+
+    static let ambiguousConfidence: Float = 0.4
+
+    /// A lone "d.ddd" token may be pt-BR thousands (1.020 = 1020) or a decimal; review must check it.
+    static func isAmbiguousThousands(_ token: String) -> Bool {
+        token.range(of: #"^[+-]?[1-9]\d{0,2}\.\d{3}$"#, options: .regularExpression) != nil
     }
 
     /// Mirrors Kotlin OcrTextParser.canonicalNumber: pt-BR "." thousands and "," decimals.

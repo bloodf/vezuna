@@ -70,7 +70,12 @@ data class LabObservation(
 ) {
     init {
         require(originalValue.isFinite() && normalizedValue.isFinite())
-        require(qualitativeValue == null || qualitativeValue.isNotBlank())
+        if (qualitativeValue != null) {
+            require(qualitativeValue.isNotBlank())
+            require(originalValue == 0.0 && normalizedValue == 0.0) { "Qualitative result must not carry numeric values" }
+            require(originalUnit.isBlank() && normalizedUnit.isBlank()) { "Qualitative result must not carry units" }
+            require(referenceRange.lower == null && referenceRange.upper == null) { "Qualitative result must not carry numeric range bounds" }
+        }
     }
 
     val isQualitative: Boolean get() = qualitativeValue != null
@@ -104,7 +109,13 @@ data class OcrCandidate(
     val qualitative: Boolean = false,
     /** True only when the collection date came from the report or the user, not the import-time fallback. */
     val collectedAtKnown: Boolean = false,
+    /** Original OCR number token, kept only when its reading is ambiguous (e.g. "1.020") so review can show it. */
+    val rawToken: String? = null,
 ) {
+    /** Text result: flagged at import, or (older stored candidates) a non-numeric value with no unit. */
+    val looksQualitative: Boolean
+        get() = qualitative || (rawUnit.isBlank() && app.vezuna.localization.parseDecimalInput(rawValue) == null)
+
     init {
         require(confidence == null || confidence in 0f..1f)
     }

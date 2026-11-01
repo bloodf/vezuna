@@ -86,3 +86,6 @@
 "collection_date" = "Data da coleta";
 "collection_date_required" = "Escolha a data da coleta de cada resultado antes de adicionar";
 "apply_date_to_all" = "Aplicar esta data a todos os resultados deste laudo";
+"ocr_read_token" = "OCR leu: %1$@";
+"ambiguous_number_warning" = "Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)";
+"choose_date_button" = "Escolher data";

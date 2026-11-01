@@ -124,6 +124,7 @@ data class NativeCandidateInput(
     val referenceUpper: String,
     val confidence: Float?,
     val collectedEpochSeconds: Long,
+    val rawToken: String? = null,
 )
 
 object IosRuntime {
@@ -416,6 +417,7 @@ object IosRuntime {
                         confidence = candidate.confidence?.coerceIn(0f, 1f),
                         status = ConfirmationStatus.UNREVIEWED,
                         collectedAtKnown = true,
+                        rawToken = candidate.rawToken,
                     )
                 }
                 val sourceEnvelope = vault.encrypt(sourceBytes, "Vezuna source v1:$profileId:$documentId".encodeToByteArray())

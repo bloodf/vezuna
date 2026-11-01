@@ -169,7 +169,7 @@ def parse_number(token: str) -> float:
         return float(token.replace(".", "").replace(",", "."))
     # Brazilian lab reports use a period as a thousands separator when there
     # are exactly three following digits (5.600 /µL).
-    if re.fullmatch(r"[+-]?\d{1,3}(?:\.\d{3})+", token):
+    if re.fullmatch(r"[+-]?[1-9]\d{0,2}(?:\.\d{3})+", token):
         return float(token.replace(".", ""))
     return float(token)
 

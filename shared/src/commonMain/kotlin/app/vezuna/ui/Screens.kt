@@ -405,6 +405,7 @@ private fun CandidateEditor(
     var name by remember(candidate.candidateId) { mutableStateOf(candidate.displayName) }
     var value by remember(candidate.candidateId) { mutableStateOf(candidate.rawValue) }
     var unit by remember(candidate.candidateId) { mutableStateOf(candidate.rawUnit) }
+    var asText by remember(candidate.candidateId) { mutableStateOf(candidate.looksQualitative) }
     var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.toString().orEmpty()) }
     var upper by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.upper?.toString().orEmpty()) }
     Card(Modifier.fillMaxWidth().vitaAnimateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
@@ -420,7 +421,12 @@ private fun CandidateEditor(
             OutlinedTextField(code, { code = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.TEST_CODE_EXAMPLE)) }, singleLine = true)
             CollectionDateField(date, onDate, onApplyDateToReport)
             if (date == null) Text(vitaText(L10nKey.COLLECTION_DATE_REQUIRED), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            if (candidate.qualitative) {
+            FilterChip(selected = asText, onClick = { asText = !asText }, label = { Text(vitaText(L10nKey.TEXT_RESULT_TOGGLE)) })
+            if (candidate.rawToken != null && !asText) {
+                Text(vitaText(L10nKey.OCR_READ_TOKEN, candidate.rawToken!!), style = MaterialTheme.typography.bodyMedium)
+                Text(vitaText(L10nKey.AMBIGUOUS_NUMBER_WARNING), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            if (asText) {
                 OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_QUALITATIVE_VALUE)) }, singleLine = true)
             } else {
                 OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.CONFIRMED_NUMERIC_VALUE)) }, singleLine = true)
@@ -431,7 +437,7 @@ private fun CandidateEditor(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
+                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name, asText) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
                 OutlinedButton(onClick = { scope.launch { controller.rejectCandidate(candidate.candidateId) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.REJECT)) }
             }
         }
@@ -453,7 +459,7 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
             Column(Modifier.padding(20.dp)) {
                 Text(vitaText(L10nKey.ORIGINAL_RESULT), style = MaterialTheme.typography.labelLarge)
                 Text(observation.qualitativeValue ?: "${observation.originalValue} ${observation.originalUnit}", style = MaterialTheme.typography.headlineMedium)
-                if (!observation.isQualitative && observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue) {
+                if (!observation.isQualitative && (observation.normalizedUnit != observation.originalUnit || observation.normalizedValue != observation.originalValue)) {
                     Text(vitaText(L10nKey.NORMALIZED, observation.normalizedValue, observation.normalizedUnit), style = MaterialTheme.typography.bodyMedium)
                 }
             }

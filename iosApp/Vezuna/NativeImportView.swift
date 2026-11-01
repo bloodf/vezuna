@@ -17,6 +17,8 @@ struct NativeImportView: View {
     @State private var sourceMediaType = ""
     @State private var candidates: [ImportedLabCandidate] = []
     @State private var extractionNote = ""
+    @State private var editingDateId: UUID?
+    @State private var draftDate = Date()
 
     var body: some View {
         NavigationStack {
@@ -51,16 +53,22 @@ struct NativeImportView: View {
                                     TextField(L10n.text(.reference_lower), text: $candidate.referenceLower).keyboardType(.decimalPad)
                                     TextField(L10n.text(.reference_upper), text: $candidate.referenceUpper).keyboardType(.decimalPad)
                                 }
+                                if let token = candidate.rawToken {
+                                    Text(L10n.text(.ocr_read_token, token)).font(.subheadline)
+                                    Text(L10n.text(.ambiguous_number_warning)).font(.footnote).foregroundStyle(Color.vezunaDanger)
+                                }
+                                let dateLabel = candidate.collectedAt.map { $0.formatted(date: .abbreviated, time: .omitted) }
+                                Button {
+                                    draftDate = candidate.collectedAt ?? Date()
+                                    editingDateId = candidate.id
+                                } label: {
+                                    Text("\(L10n.text(.collection_date)): \(dateLabel ?? "-")")
+                                }
+                                .accessibilityLabel(L10n.text(.collection_date))
+                                .accessibilityValue(dateLabel ?? "")
+                                .accessibilityHint(L10n.text(.choose_date_button))
                                 if let chosen = candidate.collectedAt {
-                                    DatePicker(
-                                        L10n.text(.collection_date),
-                                        selection: Binding(get: { chosen }, set: { candidate.collectedAt = $0 }),
-                                        in: ...Date(),
-                                        displayedComponents: .date
-                                    )
                                     Button(L10n.text(.apply_date_to_all)) { applyDateToAll(chosen) }
-                                } else {
-                                    Button(L10n.text(.collection_date)) { candidate.collectedAt = Date() }
                                 }
                             }
                             .padding(.vertical, 4)
@@ -79,6 +87,26 @@ struct NativeImportView: View {
             .navigationTitle(L10n.text(.offline_import))
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.text(.close)) { dismiss() } } }
             .disabled(saving)
+            .sheet(isPresented: Binding(get: { editingDateId != nil }, set: { if !$0 { editingDateId = nil } })) {
+                NavigationStack {
+                    DatePicker(L10n.text(.collection_date), selection: $draftDate, in: ...Date(), displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .padding()
+                        .navigationTitle(L10n.text(.collection_date))
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) { Button(L10n.text(.close)) { editingDateId = nil } }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(L10n.text(.choose_date_button)) {
+                                    if let id = editingDateId, let index = candidates.firstIndex(where: { $0.id == id }) {
+                                        candidates[index].collectedAt = draftDate
+                                    }
+                                    editingDateId = nil
+                                }
+                            }
+                        }
+                }
+                .presentationDetents([.medium, .large])
+            }
             .overlay { if saving { ProgressView(L10n.text(.encrypting_saving)) } }
             .onChange(of: photoItem) { item in
                 guard let item else { return }
@@ -164,7 +192,8 @@ struct NativeImportView: View {
                 referenceLower: candidate.referenceLower,
                 referenceUpper: candidate.referenceUpper,
                 confidence: candidate.confidence.map { KotlinFloat(float: $0) },
-                collectedEpochSeconds: storedInstant(date)
+                collectedEpochSeconds: storedInstant(date),
+                rawToken: candidate.rawToken
             )
         }
         IosRuntime.shared.importNativeCandidates(

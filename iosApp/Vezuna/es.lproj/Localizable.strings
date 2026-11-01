@@ -86,3 +86,6 @@
 "collection_date" = "Fecha de recolección";
 "collection_date_required" = "Elija la fecha de recolección de cada resultado antes de añadir";
 "apply_date_to_all" = "Aplicar esta fecha a todos los resultados de este informe";
+"ocr_read_token" = "OCR leyó: %1$@";
+"ambiguous_number_warning" = "Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)";
+"choose_date_button" = "Elegir fecha";
