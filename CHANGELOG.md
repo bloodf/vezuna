@@ -20,6 +20,7 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 
 ### Changed
 
+- Android model and controller state now lives in an Activity ViewModel, surviving configuration changes and unloading the native model when the session is cleared.
 - Android OCR instrumentation test now uses only the synthetic image in `composeApp/src/androidTest/assets/` and a PDF generated at run time from fictional text. The PDF test checks page count and extracted text only; it does not assert whether text came from embedded PDF text or the OCR fallback. The test no longer reads private reports, and the `androidTest` asset sources for `samples/lab-reports` and `build/qa/ui` were removed from `composeApp/build.gradle.kts`.
 - `tools/lab_importer/test_importer.py` is synthetic-only: the optional private-sample test class was removed, so no test reads `samples/`.
 

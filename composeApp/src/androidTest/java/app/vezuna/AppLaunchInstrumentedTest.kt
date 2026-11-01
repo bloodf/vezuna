@@ -7,12 +7,33 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AppLaunchInstrumentedTest {
+    @Test
+    fun controllerSurvivesConfigurationChange() {
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
+        try {
+            assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.textContains("Household")), 15_000))
+            lateinit var first: app.vezuna.ui.AppController
+            scenario.onActivity { first = it.controller }
+
+            scenario.recreate()
+
+            lateinit var second: app.vezuna.ui.AppController
+            scenario.onActivity { second = it.controller }
+            assertSame("Controller was recreated during configuration change", first, second)
+            println("ANDROID_SESSION_CONTROLLER_RETAINED_PASSED")
+        } finally {
+            scenario.close()
+        }
+    }
+
     @Test
     fun initializesHouseholdAndPersistsCreatedProfileAcrossRecreation() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

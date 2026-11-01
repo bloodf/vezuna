@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.health.connect.client.HealthConnectClient
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import app.vezuna.export.AndroidExportCoordinator
 import app.vezuna.export.NativeExport
@@ -23,32 +24,28 @@ import app.vezuna.export.UserCancelledExport
 import app.vezuna.health.HealthConnectPermissionFlow
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.importer.NativeOcrExtractionService
-import app.vezuna.license.PlayLvlLicenseGate
-import app.vezuna.llm.InstalledModelManager
-import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.PlayAssetPackLoader
-import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
 import app.vezuna.security.CipherEnvelope
-import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
 import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 class AndroidMainActivity : ComponentActivity() {
     private val app: VezunaApplication get() = application as VezunaApplication
-    internal lateinit var controller: AppController
+    private val session: AndroidSessionViewModel by lazy {
+        ViewModelProvider(this, AndroidSessionViewModel.Factory(app))[AndroidSessionViewModel::class.java]
+    }
+    internal val controller: AppController get() = session.controller
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
     private lateinit var healthPermissions: HealthConnectPermissionFlow
-    private lateinit var licenseGate: PlayLvlLicenseGate
-    private lateinit var modelLoader: PlayAssetPackLoader
+    private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
     private val mutableExport = MutableStateFlow<NativeExport?>(null)
@@ -77,22 +74,11 @@ class AndroidMainActivity : ComponentActivity() {
         extraction = NativeOcrExtractionService(this)
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
-        licenseGate = PlayLvlLicenseGate(this)
-        modelLoader = PlayAssetPackLoader(this, licenseGate)
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
         }
-        val llm = llamatikLocalLlm()
-        controller = AppController(
-            app.repository,
-            InstalledModelManager(app.modelCatalog, app.modelFiles, llm),
-            LocalHealthChat(app.repository, llm),
-        )
         // Only after the vault is readable: initialize() may create a default profile.
-        lifecycleScope.launch {
-            app.vaultState.first { it is VaultState.Ready }
-            controller.initialize()
-        }
+        session.initialize()
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
@@ -121,7 +107,6 @@ class AndroidMainActivity : ComponentActivity() {
     override fun onDestroy() {
         sourcePicker.clearExtraction()
         extraction.close()
-        licenseGate.close()
         super.onDestroy()
     }
 
