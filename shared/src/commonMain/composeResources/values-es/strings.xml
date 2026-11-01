@@ -280,4 +280,36 @@ iOS: %2$s</string>
         <item quantity="one">%1$d candidato sin revisar añadido; confirma cada resultado individualmente</item>
         <item quantity="other">%1$d candidatos sin revisar añadidos; confirma cada resultado individualmente</item>
     </plurals>
+    <!-- Portable backup and restore -->
+    <string name="backup_passphrase_too_short">Usa al menos 12 caracteres en la frase secreta de la copia</string>
+    <string name="backup_wrong_passphrase">Frase secreta incorrecta o archivo de copia dañado</string>
+    <string name="backup_not_a_backup">Este archivo no es una copia de seguridad de Vezuna</string>
+    <string name="backup_unsupported_version">Esta copia viene de una versión más nueva o incompatible de Vezuna</string>
+    <string name="backup_same_device_unavailable">Esta es una copia del mismo dispositivo. Solo puede abrirse en el dispositivo que la creó, y la clave de ese dispositivo no está disponible aquí</string>
+    <string name="backup_invalid_content">El contenido de la copia está dañado o no es válido</string>
+    <string name="backup_section_title">Copia y restauración</string>
+    <string name="backup_create">Crear copia cifrada</string>
+    <string name="backup_restore">Restaurar desde una copia</string>
+    <string name="backup_passphrase_warning">La copia se protege solo con esta frase secreta. Vezuna no puede recuperarla: si la pierdes, la copia nunca podrá abrirse.</string>
+    <string name="backup_passphrase_label">Frase secreta</string>
+    <string name="backup_passphrase_confirm_label">Confirmar frase secreta</string>
+    <string name="backup_passphrase_mismatch">Las frases secretas no coinciden</string>
+    <string name="backup_strength_too_short">Demasiado corta: usa al menos 12 caracteres</string>
+    <string name="backup_strength_fair">Aceptable. Una frase más larga con caracteres variados es más fuerte</string>
+    <string name="backup_strength_strong">Frase secreta fuerte</string>
+    <string name="backup_create_action">Crear copia</string>
+    <string name="backup_saved">Copia guardada. Conserva bien la frase secreta</string>
+    <string name="backup_enter_passphrase_title">Introduce la frase secreta de la copia</string>
+    <string name="backup_unlock">Abrir copia</string>
+    <string name="backup_same_device_label">Copia del mismo dispositivo: solo se restaura en el dispositivo que la creó</string>
+    <string name="backup_contents">Copia del perfil %1$s</string>
+    <string name="backup_profile_exists_title">Este perfil ya existe</string>
+    <string name="backup_profile_exists_body">Este dispositivo ya tiene el perfil %1$s. Reemplázalo con la copia (se eliminan sus registros actuales) o restaura la copia como un perfil nuevo.</string>
+    <string name="backup_replace">Reemplazar el perfil existente</string>
+    <string name="backup_restore_as_new">Restaurar como perfil nuevo</string>
+    <string name="backup_confirm_title">¿Restaurar esta copia?</string>
+    <string name="backup_confirm_body">El perfil %1$s se añadirá a este dispositivo.</string>
+    <string name="backup_restore_action">Restaurar</string>
+    <string name="backup_restored">Copia restaurada</string>
+    <string name="backup_recovery_confirm_body">Los registros ilegibles se apartan, no se borran, y la copia se restaura en un almacén nuevo.</string>
 </resources>

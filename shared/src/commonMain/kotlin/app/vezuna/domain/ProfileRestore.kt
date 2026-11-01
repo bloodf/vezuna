@@ -1,0 +1,58 @@
+package app.vezuna.domain
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
+private val restoreJson = Json { encodeDefaults = true }
+
+/**
+ * Restore-as-new: gives the profile and every child record fresh IDs. Works on the serialized form so that any
+ * `*Id` field, including ones added to [ProfileData] later, is remapped consistently (same old ID, same new ID),
+ * which keeps cross-references such as report -> source document intact.
+ */
+fun ProfileData.remappedAsNew(newId: () -> String): ProfileData {
+    val mapping = mutableMapOf<String, String>()
+    fun walk(element: JsonElement): JsonElement = when (element) {
+        is JsonObject -> JsonObject(element.mapValues { (key, value) ->
+            when {
+                key == "vaultKey" -> JsonNull
+                isIdField(key) && value is JsonPrimitive && value.isString -> JsonPrimitive(mapping.getOrPut(value.content, newId))
+                else -> walk(value)
+            }
+        })
+        is kotlinx.serialization.json.JsonArray -> kotlinx.serialization.json.JsonArray(element.map(::walk))
+        else -> element
+    }
+    val encoded = restoreJson.encodeToJsonElement(ProfileData.serializer(), this)
+    return restoreJson.decodeFromJsonElement(ProfileData.serializer(), walk(encoded))
+}
+
+private fun isIdField(key: String) = key == "profileId" || (key.length > 2 && key.endsWith("Id"))
+
+/**
+ * Backups carry records, not source files, so a restored document keeps its vault key only when [existing]
+ * (the profile being replaced) still holds that exact file; otherwise the key would dangle.
+ */
+fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): ProfileData {
+    val available = existing?.documents?.mapNotNull { doc -> doc.vaultKey?.let { doc.documentId to it } }?.toSet().orEmpty()
+    return copy(documents = documents.map { doc ->
+        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) doc else doc.copy(vaultKey = null)
+    })
+}
+
+/** True when every record belongs to the profile and references resolve inside it. */
+fun ProfileData.isInternallyConsistent(): Boolean {
+    val id = profile.profileId
+    return documents.all { it.profileId == id } &&
+        reports.all { r -> r.profileId == id && documents.any { it.documentId == r.sourceDocumentId } } &&
+        observations.all { o -> o.profileId == id && reports.any { it.reportId == o.reportId } } &&
+        ocrCandidates.all { c -> c.profileId == id && documents.any { it.documentId == c.sourceDocumentId } } &&
+        medications.all { m -> m.profileId == id && m.schedules.all { it.profileId == id && it.medicationId == m.medicationId } } &&
+        doseEvents.all { e ->
+            e.profileId == id && medications.any { m -> m.medicationId == e.medicationId && m.schedules.any { it.scheduleId == e.scheduleId } }
+        } &&
+        chat.all { it.profileId == id }
+}
