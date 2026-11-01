@@ -33,6 +33,7 @@ import app.vezuna.llm.ModelPackLoadState
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupFileAccess
+import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VezunaApp
 import kotlinx.coroutines.flow.StateFlow
 
@@ -48,6 +49,7 @@ fun VezunaAndroidApp(
     onHealthConnect: () -> Unit,
     onReminders: () -> Unit,
     backupFiles: BackupFileAccess,
+    reminders: ReminderPlatformState,
     onPresentExport: (NativeExport) -> Unit,
     onDismissExport: () -> Unit,
     onShareExport: (NativeExport) -> Unit,
@@ -84,6 +86,7 @@ fun VezunaAndroidApp(
                     onDevice = { deviceMenu = true },
                     animationsEnabled = animationsEnabled,
                     backupFiles = backupFiles,
+                    reminders = reminders,
                 )
                 DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
                     DropdownMenuItem(text = { Text(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_MENU).resolve(context)) }, onClick = { deviceMenu = false; onHealthConnect() }, enabled = !nativeBusy)

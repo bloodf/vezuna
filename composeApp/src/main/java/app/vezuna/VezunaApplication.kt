@@ -1,6 +1,7 @@
 package app.vezuna
 
 import android.app.Application
+import android.util.Log
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.data.restoreWithVitals
 import app.vezuna.health.AndroidHealthConnectImporter
@@ -16,6 +17,7 @@ import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
 import app.vezuna.security.VaultUnreadableException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,7 +30,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 class VezunaApplication : Application() {
-    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val applicationScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error -> Log.e(TAG, "Unhandled background failure", error) },
+    )
     lateinit var vault: AndroidSecureVault
         private set
     lateinit var repository: PersistentVezunaRepository
@@ -64,7 +68,14 @@ class VezunaApplication : Application() {
         applicationScope.launch {
             vaultState.first { it is VaultState.Ready }
             repository.revision.collect {
-                notifications.rescheduleAll(repository)
+                try {
+                    notifications.rescheduleAll(repository)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    // One failed pass must not end the collector; the next revision retries.
+                    Log.e(TAG, "Reminder reschedule failed", error)
+                }
             }
         }
     }
@@ -108,6 +119,8 @@ class VezunaApplication : Application() {
     }
 
     private companion object {
+        const val TAG = "VezunaApplication"
+
         /** Receivers run inside goAsync(), which the system cuts off after roughly ten seconds. */
         const val RECEIVER_WAIT_MS = 8_000L
     }
