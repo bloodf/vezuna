@@ -66,6 +66,7 @@ final class AppShellModel: ObservableObject {
                 self.ready = true
                 self.catalogError = IosRuntime.shared.catalogError?.localized()
                 Task { await self.notifications.reconcile() }
+                Task { await self.licenseManager.refreshIfDue() }
             }
         }
     }
@@ -75,5 +76,6 @@ final class AppShellModel: ObservableObject {
         licenseManager.reconcileCache()
         IosRuntime.shared.refresh()
         Task { await notifications.reconcile() }
+        Task { await licenseManager.refreshIfDue() }
     }
 }

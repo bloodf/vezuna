@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">Nenhum perfil</string>
     <string name="no_profile_selected">Nenhum perfil selecionado</string>
     <string name="no_settings">Nenhum ajuste</string>
-    <string name="no_store_model_packs">Nenhum pacote de modelo da loja configurado</string>
-    <string name="no_store_model_packs_explanation">O shell nativo fornece metadados assinados do catálogo e bytes GGUF hospedados na loja. Nenhuma URL de download é presumida.</string>
+    <string name="no_store_model_packs">Modelo de IA ainda não disponível</string>
+    <string name="no_store_model_packs_explanation">Nenhum modelo de IA no dispositivo está incluído nesta versão ainda. Seus registros, importações e exportações funcionam normalmente sem ele.</string>
     <string name="no_trends">Nenhuma tendência</string>
     <string name="no_upcoming_doses">Nenhuma dose futura</string>
     <string name="no_upcoming_doses_explanation">Adicione um medicamento e seu horário prescrito para ver o próximo lembrete.</string>
@@ -352,4 +352,9 @@ iOS: %2$s</string>
         <item quantity="other">Gráfico com %1$d leituras, unidade %2$s</item>
     </plurals>
     <string name="backup_restored_without_vitals">Backup restaurado, mas os dados de saúde do aparelho não puderam ser restaurados</string>
+    <!-- Export language -->
+    <string name="export_language">Idioma da exportação</string>
+    <string name="export_language_device">Idioma do app</string>
+    <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
+    <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
 </resources>

@@ -7,7 +7,6 @@ import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.llm.AndroidModelFileStore
-import app.vezuna.llm.ModelCatalog
 import app.vezuna.domain.ProfileData
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.platform.currentInstant
@@ -41,8 +40,6 @@ class VezunaApplication : Application() {
         private set
     lateinit var healthSync: DeviceVitalsSync
         private set
-
-    val modelCatalog: ModelCatalog = ModelCatalog.unconfigured()
 
     private val mutableVaultState = MutableStateFlow<VaultState>(VaultState.Loading)
     /** Nothing may touch the repository (or create a default profile) until this reaches [VaultState.Ready]. */

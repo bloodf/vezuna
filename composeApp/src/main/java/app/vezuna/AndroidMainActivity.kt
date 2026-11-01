@@ -27,6 +27,10 @@ import app.vezuna.importer.NativeOcrExtractionService
 import app.vezuna.license.PlayLvlLicenseGate
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import app.vezuna.llm.loadBundledModelCatalog
+import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
@@ -85,15 +89,18 @@ class AndroidMainActivity : ComponentActivity() {
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
         }
         val llm = llamatikLocalLlm()
+        val modelManager = InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm)
         controller = AppController(
             app.repository,
-            InstalledModelManager(app.modelCatalog, app.modelFiles, llm),
+            modelManager,
             LocalHealthChat(app.repository, llm),
             backup = BackupService(app.vault),
         )
         // Only after the vault is readable: initialize() may create a default profile.
         lifecycleScope.launch {
             app.vaultState.first { it is VaultState.Ready }
+            // Same bundled catalog file as iOS, read off the main thread.
+            withContext(Dispatchers.IO) { modelManager.configureCatalog(::loadBundledModelCatalog) }
             controller.initialize()
         }
         setContent {
