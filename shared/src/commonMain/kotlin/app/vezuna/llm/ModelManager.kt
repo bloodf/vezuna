@@ -5,8 +5,6 @@ import app.vezuna.localization.UserText
 import app.vezuna.localization.failMessage
 import app.vezuna.localization.message
 import app.vezuna.localization.toUserText
-import app.vezuna.platform.sha256
-import app.vezuna.platform.toHex
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,17 +59,23 @@ class ModelCatalog(packs: List<ModelPack>) {
     }
 }
 
+/** A store-delivered pack file; [release] must be called once installation finished or failed. */
+class ModelPackSource(val path: String, val release: () -> Unit = {})
+
 interface ModelFileStore {
     suspend fun installed(): List<InstalledModel>
-    suspend fun write(model: InstalledModel, bytes: ByteArray)
-    suspend fun readBytes(model: InstalledModel): ByteArray
+    /**
+     * Streams the file at [sourcePath] into private storage, verifying size and lowercase SHA-256 while copying.
+     * Implementations must never buffer the whole file, must remove partial output on failure and must
+     * leave any previously installed copy untouched unless verification succeeds.
+     */
+    suspend fun install(model: InstalledModel, sourcePath: String)
     suspend fun delete(model: InstalledModel)
     suspend fun saveSelection(modelId: String?)
     suspend fun savedSelection(): String?
 
-    /** Native stores should stream the file digest; the default preserves source compatibility. */
-    suspend fun verifyIntegrity(model: InstalledModel): Boolean =
-        sha256(readBytes(model)).toHex() == model.pack.sha256
+    /** Must stream the file digest; implementations never load the whole model into memory. */
+    suspend fun verifyIntegrity(model: InstalledModel): Boolean
 }
 
 data class ModelManagerState(
@@ -128,22 +132,17 @@ class InstalledModelManager(
         }
     }
 
-    suspend fun install(pack: ModelPack, bytes: ByteArray, installedAtEpochSeconds: Long) = mutex.withLock {
+    suspend fun install(pack: ModelPack, sourcePath: String, installedAtEpochSeconds: Long) = mutex.withLock {
         if (catalog.byId(pack.modelId) != pack) failMessage(L10nKey.MODEL_NOT_IN_CATALOG)
         mutableState.value = mutableState.value.copy(busy = true, error = null)
         try {
-            if (bytes.size.toLong() != pack.sizeBytes) failMessage(L10nKey.MODEL_SIZE_MISMATCH)
-            if (sha256(bytes).toHex() != pack.sha256) failMessage(L10nKey.MODEL_SHA_FAILED)
-            val existing = files.installed().firstOrNull { it.pack.modelId == pack.modelId }
-            if (existing != null) {
-                if (mutableState.value.loadedModelId == pack.modelId) {
-                    llm.unload()
-                    mutableState.value = mutableState.value.copy(loadedModelId = null)
-                }
-                files.delete(existing)
-            }
             val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
-            files.write(model, bytes)
+            // Verified atomic replace first: a failed install keeps the loaded model and the old file.
+            files.install(model, sourcePath)
+            if (mutableState.value.loadedModelId == pack.modelId) {
+                llm.unload()
+                mutableState.value = mutableState.value.copy(loadedModelId = null)
+            }
             if (mutableState.value.selectedModelId == pack.modelId) files.saveSelection(pack.modelId)
             mutableState.value = mutableState.value.copy(installed = files.installed(), busy = false)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
