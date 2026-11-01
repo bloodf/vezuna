@@ -1,4 +1,5 @@
 import BackgroundTasks
+import UIKit
 import Foundation
 import VezunaShared
 
@@ -24,8 +25,10 @@ final class AppShellModel: ObservableObject {
     private var vaultPath: String?
     private var modelPath: String?
 
+    /// The vault files use Complete protection: while the device is locked (a background launch) they cannot be read.
+    /// Opening is deferred, not failed, so the recovery screen is only ever shown for a real storage problem.
     func configure() {
-        guard !didConfigure else { return }
+        guard !didConfigure, !Self.isHostingTests, UIApplication.shared.isProtectedDataAvailable else { return }
         didConfigure = true
         do {
             let support = try AppFileStorage.applicationSupportDirectory()
@@ -46,9 +49,12 @@ final class AppShellModel: ObservableObject {
             modelPath = models.path
             IosRuntime.shared.configure(vaultPath: vault.path, modelPath: models.path, completion: finishOpening)
         } catch {
+            didConfigure = false
             startupError = L10n.text(.storage_open_failed)
         }
     }
+
+    static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     /// Recovery screen actions. `reset` moves the unreadable vault aside (never deletes it) and starts empty.
     func recoverVault(reset: Bool) {
@@ -59,6 +65,11 @@ final class AppShellModel: ObservableObject {
     private func finishOpening(_ error: NativeMessage?) {
         DispatchQueue.main.async {
             if let error {
+                if !UIApplication.shared.isProtectedDataAvailable {
+                    // Locked while opening: not a corrupt vault. Retried when protected data becomes available.
+                    self.didConfigure = false
+                    return
+                }
                 self.startupError = error.localized()
                 self.needsVaultRecovery = IosRuntime.shared.isVaultRecoveryNeeded()
             } else {
@@ -74,6 +85,13 @@ final class AppShellModel: ObservableObject {
 
     /// BGAppRefreshTask body: open the runtime if the process was launched only for this task, then re-plan reminders.
     func runBackgroundRefresh(_ task: BGAppRefreshTask) {
+        // Always chain the next refresh, even if this one cannot finish.
+        notifications.scheduleBackgroundRefresh()
+        let completion = OnceCompletion(task)
+        guard UIApplication.shared.isProtectedDataAvailable else {
+            completion.complete(success: false)
+            return
+        }
         let work = Task {
             configure()
             let deadline = Date().addingTimeInterval(20)
@@ -82,21 +100,42 @@ final class AppShellModel: ObservableObject {
             }
             let opened = await MainActor.run { self.ready }
             if opened { await notifications.reconcile() }
-            task.setTaskCompleted(success: opened && !Task.isCancelled)
+            completion.complete(success: opened && !Task.isCancelled)
         }
         task.expirationHandler = {
             work.cancel()
-            task.setTaskCompleted(success: false)
+            completion.complete(success: false)
         }
-        // Always chain the next refresh, even if this one cannot finish.
-        notifications.scheduleBackgroundRefresh()
+    }
+
+    func protectedDataBecameAvailable() {
+        if !ready { configure() }
     }
 
     func sceneBecameActive() {
-        guard ready else { return }
+        guard ready else {
+            configure()
+            return
+        }
         licenseManager.reconcileCache()
         IosRuntime.shared.refresh()
         Task { await notifications.reconcile() }
         Task { await licenseManager.refreshIfDue() }
+    }
+}
+
+/// `setTaskCompleted` must be called exactly once; the work and the expiration handler can both finish.
+final class OnceCompletion {
+    private let task: BGTask
+    private let lock = NSLock()
+    private var done = false
+
+    init(_ task: BGTask) { self.task = task }
+
+    func complete(success: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        guard !done else { return }
+        done = true
+        task.setTaskCompleted(success: success)
     }
 }

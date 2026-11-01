@@ -10,6 +10,11 @@ struct PendingDoseResponse: Codable, Equatable {
     let scheduleId: String
     let scheduledEpochSeconds: Int
     let receivedAt: Date
+
+    static let maxAge: TimeInterval = 7 * 24 * 60 * 60
+
+    /// An action that has failed to record for a week is abandoned rather than retried forever.
+    func isExpired(now: Date) -> Bool { now.timeIntervalSince(receivedAt) > Self.maxAge }
 }
 
 /// Persists responses so a "Taken" tap survives process suspension or termination before the vault opens.
@@ -56,7 +61,14 @@ final class PendingDoseResponseStore {
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([PendingDoseResponse].self, from: Data(contentsOf: url))
+        do {
+            return try decoder.decode([PendingDoseResponse].self, from: Data(contentsOf: url))
+        } catch is DecodingError {
+            // Keep the unreadable file for inspection and continue empty, so one bad write never blocks later actions.
+            let aside = url.deletingLastPathComponent().appendingPathComponent("responses.corrupt-\(Int(Date().timeIntervalSince1970)).json")
+            try FileManager.default.moveItem(at: url, to: aside)
+            return []
+        }
     }
 
     private func write(_ responses: [PendingDoseResponse]) throws {

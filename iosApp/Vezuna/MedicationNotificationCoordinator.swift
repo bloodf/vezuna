@@ -22,6 +22,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     private let defaults: UserDefaults
     private let log = Logger(subsystem: "app.vezuna", category: "reminders")
     private var ready = false
+    private let reconcileLock = NSLock()
+    private var reconcileTail: Task<Void, Never>?
     private var settingsObserver: NSObjectProtocol?
     private var lastHideNames: Bool
 
@@ -76,10 +78,22 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
+    /// Reconciles run one after another: concurrent passes (activation, delivery, repository change, background
+    /// refresh) would otherwise race on the pending-request diff and add duplicates or remove each other's requests.
     func reconcile() async {
+        reconcileLock.lock()
+        let previous = reconcileTail
+        let task = Task { await previous?.value; await performReconcile() }
+        reconcileTail = task
+        reconcileLock.unlock()
+        await task.value
+    }
+
+    private func performReconcile() async {
         ready = true
         await replayPendingResponses()
-        lastHideNames = hideNames
+        let hidden = hideNames
+        lastHideNames = hidden
         defer { scheduleBackgroundRefresh() }
         do {
             // Every active medication of every profile, not just the selected one (household reminders).
@@ -103,22 +117,25 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 return
             }
             let now = Date()
-            let hidden = hideNames
             let reminders = planner.reminders(for: medications, after: now)
             let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.dose.") }
             let desired = Set(reminders.map { $0.identifier(hidingName: hidden) })
+            // A snooze is user-scheduled: keep it unless its medication is no longer active; rebuild it when the privacy mode flipped.
+            var rebuiltSnoozes: [DoseReminder] = []
             let stale = pending.filter { request in
                 guard !desired.contains(request.identifier) else { return false }
-                // A snooze is user-scheduled: keep it unless its medication is no longer active.
-                guard request.identifier.hasSuffix(DoseReminder.snoozeSuffix) else { return true }
-                guard let snoozed = reminder(from: request.content.userInfo) else { return true }
-                return !activeMedicationIds.contains(snoozed.medicationId)
+                guard request.identifier.hasSuffix(DoseReminder.snoozeSuffix), var snoozed = reminder(from: request.content.userInfo) else { return true }
+                guard activeMedicationIds.contains(snoozed.medicationId) else { return true }
+                snoozed.isSnooze = true
+                if snoozed.identifier(hidingName: hidden) != request.identifier, snoozed.scheduledAt > now { rebuiltSnoozes.append(snoozed) }
+                return snoozed.identifier(hidingName: hidden) != request.identifier
             }
             center.removePendingNotificationRequests(withIdentifiers: stale.map(\.identifier))
             let existing = Set(pending.map(\.identifier))
             for reminder in reminders where !existing.contains(reminder.identifier(hidingName: hidden)) {
-                try await center.add(request(for: reminder))
+                try await center.add(request(for: reminder, hidden: hidden))
             }
+            for snoozed in rebuiltSnoozes { try await center.add(request(for: snoozed, hidden: hidden)) }
             let coverage = planner.coverageEnd(of: reminders, after: now)
             IosRuntime.shared.setReminderCoverage(untilEpochSeconds: coverage.map { Int64($0.timeIntervalSince1970) } ?? -1)
             await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
@@ -128,8 +145,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
-    private func request(for reminder: DoseReminder) -> UNNotificationRequest {
-        let hidden = hideNames
+    private func request(for reminder: DoseReminder, hidden: Bool) -> UNNotificationRequest {
         let components = planner.calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminder.scheduledAt)
         return UNNotificationRequest(
             identifier: reminder.identifier(hidingName: hidden),
@@ -183,8 +199,10 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         )
     }
 
-    /// Records an action. Returns false when it could not be recorded, so the caller keeps it for a retry.
-    private func handle(_ response: PendingDoseResponse) async -> Bool {
+    enum Outcome { case done, retry, drop }
+
+    /// Records an action. `.retry` keeps it for a later attempt; `.drop` means it can never succeed (deleted medication).
+    private func handle(_ response: PendingDoseResponse) async -> Outcome {
         let reminder = DoseReminder(
             profileId: response.profileId,
             medicationId: response.medicationId,
@@ -194,18 +212,27 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         )
         switch response.action {
         case Self.takenAction:
-            guard await record(reminder, status: "TAKEN") else { return false }
+            let outcome = await record(reminder, status: "TAKEN")
+            guard outcome == .done else { return clearDelivered(response, after: outcome) }
         case Self.skipAction:
-            guard await record(reminder, status: "SKIPPED") else { return false }
+            let outcome = await record(reminder, status: "SKIPPED")
+            guard outcome == .done else { return clearDelivered(response, after: outcome) }
         case Self.snoozeAction:
             let snoozed = planner.snooze(reminder, from: response.receivedAt)
-            guard snoozed.scheduledAt > Date() else { break }
-            do { try await center.add(request(for: snoozed)) } catch { lastError = L10n.text(.action_failed); return false }
+            if snoozed.scheduledAt > Date() {
+                do { try await center.add(request(for: snoozed, hidden: hideNames)) } catch { lastError = L10n.text(.action_failed); return .retry }
+            }
         default:
-            return true
+            return .done
         }
         center.removeDeliveredNotifications(withIdentifiers: [response.notificationIdentifier])
-        return true
+        return .done
+    }
+
+    /// A dropped action also clears its notification, so a button that can never work does not stay on screen.
+    private func clearDelivered(_ response: PendingDoseResponse, after outcome: Outcome) -> Outcome {
+        if outcome == .drop { center.removeDeliveredNotifications(withIdentifiers: [response.notificationIdentifier]) }
+        return outcome
     }
 
     /// Replays actions saved while the runtime was not ready (for example a cold background launch from an action button).
@@ -214,8 +241,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         do {
             for response in try pendingResponses.load() {
                 // The dose event id is deterministic, so a replay of an already recorded action is a no-op.
-                guard await handle(response) else { continue }
-                try pendingResponses.remove(response)
+                let outcome = response.isExpired(now: Date()) ? .drop : await handle(response)
+                if outcome != .retry { try pendingResponses.remove(response) }
             }
         } catch {
             log.error("Could not replay pending dose responses: \(error.localizedDescription, privacy: .public)")
@@ -223,7 +250,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
-    private func record(_ reminder: DoseReminder, status: String) async -> Bool {
+    private func record(_ reminder: DoseReminder, status: String) async -> Outcome {
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 IosRuntime.shared.recordDoseEvent(
@@ -237,10 +264,11 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                     else { continuation.resume() }
                 }
             }
-            return true
+            return .done
         } catch {
+            if case BridgeError.message(let message) = error, message.key == "medication_schedule_missing" { return .drop }
             lastError = error.localizedDescription
-            return false
+            return .retry
         }
     }
 
@@ -260,7 +288,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         for notification in delivered {
             guard let reminder = reminder(from: notification.request.content.userInfo), reminder.scheduledAt < cutoff,
                   activeMedicationIds.contains(reminder.medicationId) else { continue }
-            guard await record(reminder, status: "MISSED") else { continue }
+            guard await record(reminder, status: "MISSED") != .retry else { continue }
             center.removeDeliveredNotifications(withIdentifiers: [notification.request.identifier])
         }
     }
@@ -291,8 +319,11 @@ extension MedicationNotificationCoordinator: UNUserNotificationCenterDelegate {
             persist(pending)
             return
         }
-        if await handle(pending) { await reconcile() }
-        else { persist(pending) }
+        switch await handle(pending) {
+        case .done: await reconcile()
+        case .retry: persist(pending)
+        case .drop: break
+        }
     }
 
     private func persist(_ response: PendingDoseResponse) {

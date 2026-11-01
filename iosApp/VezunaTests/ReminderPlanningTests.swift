@@ -81,4 +81,31 @@ final class ReminderPlanningTests: XCTestCase {
         try reopened.remove(response)
         XCTAssertEqual(try PendingDoseResponseStore(url: url).load(), [])
     }
+
+    func testCorruptResponseFileIsSetAsideAndStoreContinues() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("responses.json")
+        try Data("not json".utf8).write(to: url)
+        let store = PendingDoseResponseStore(url: url)
+        XCTAssertEqual(try store.load(), [])
+        let kept = try FileManager.default.contentsOfDirectory(atPath: directory.path).filter { $0.hasPrefix("responses.corrupt-") }
+        XCTAssertEqual(kept.count, 1)
+        let response = PendingDoseResponse(
+            notificationIdentifier: "n", action: MedicationNotificationCoordinator.skipAction, profileId: "p", medicationId: "m",
+            medicationName: "Aspirin", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date()
+        )
+        try store.append(response)
+        XCTAssertEqual(try store.load(), [response])
+    }
+
+    func testResponsesExpireAfterSevenDays() {
+        let received = Date(timeIntervalSince1970: 0)
+        let response = PendingDoseResponse(
+            notificationIdentifier: "n", action: "a", profileId: "p", medicationId: "m",
+            medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: received
+        )
+        XCTAssertFalse(response.isExpired(now: received.addingTimeInterval(6 * 24 * 3600)))
+        XCTAssertTrue(response.isExpired(now: received.addingTimeInterval(8 * 24 * 3600)))
+    }
 }

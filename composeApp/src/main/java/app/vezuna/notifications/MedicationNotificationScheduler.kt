@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.vezuna.NativeKey
@@ -19,6 +20,7 @@ import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
 import app.vezuna.domain.ProfileData
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -43,42 +45,61 @@ class MedicationNotificationScheduler(private val context: Context) {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
         val loaded = mutableMapOf<String, ProfileData>()
+        var failed = false
         repository.profiles.value.forEach { profile ->
-            val data = repository.readProfile(profile.profileId)
-            loaded[profile.profileId] = data
-            val terminalEvents = data.doseEvents.filter {
-                it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED || it.status == DoseEventStatus.MISSED
+            try {
+                val data = repository.readProfile(profile.profileId)
+                loaded[profile.profileId] = data
+                armProfile(data, now, zone, armed)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // One unreadable profile must not stop the others from being armed.
+                failed = true
+                Log.e(TAG, "Could not arm reminders for a profile", error)
             }
-            val scheduledEvents = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED }
-            data.medications.filter(Medication::active).forEach { medication ->
-                medication.schedules.forEach { schedule ->
-                    val occurrence = NotificationScheduleLogic.nextOccurrences(schedule, now, zone).firstOrNull() ?: return@forEach
-                    val at = occurrence.toInstant()
-                    val alarmId = NotificationScheduleLogic.alarmId(schedule.scheduleId, at)
-                    cancelAlarm(medication, schedule.scheduleId, at, alarmId)
-                    val completed = terminalEvents.any { it.scheduleId == schedule.scheduleId && it.scheduledFor.epochSeconds == at.epochSecond }
-                    val superseded = scheduledEvents.any { it.scheduleId == schedule.scheduleId && it.replacesScheduledFor?.epochSeconds == at.epochSecond }
-                    if (!completed && !superseded) {
-                        armed += armedKey(medication.medicationId, alarmId)
-                        setAlarm(at.toEpochMilli(), showIntent(medication, schedule.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
-                    }
-                }
-            }
-            scheduledEvents.distinctBy { it.scheduleId to it.scheduledFor }.forEach { event ->
-                val medication = data.medications.firstOrNull { it.medicationId == event.medicationId } ?: return@forEach
-                val at = java.time.Instant.ofEpochSecond(event.scheduledFor.epochSeconds)
-                val alarmId = NotificationScheduleLogic.alarmId(event.scheduleId, at)
-                cancelAlarm(medication, event.scheduleId, at, alarmId)
-                val completed = terminalEvents.any { it.scheduleId == event.scheduleId && it.scheduledFor == event.scheduledFor }
-                val superseded = scheduledEvents.any { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
-                if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && !completed && !superseded) {
-                    armed += armedKey(medication.medicationId, alarmId)
-                    setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
-                }
-            }
+        }
+        if (failed) {
+            // Keep what an earlier pass armed: without this profile's data its alarms would look stale.
+            val previous = armedStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
+            armedStore.edit().putStringSet(ARMED_KEY, previous + armed).apply()
+            return@withLock
         }
         cancelStale(armed)
         cancelStaleNotifications(loaded)
+    }
+
+    private fun armProfile(data: ProfileData, now: Instant, zone: ZoneId, armed: MutableSet<String>) {
+        val terminalEvents = data.doseEvents.filter {
+            it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED || it.status == DoseEventStatus.MISSED
+        }
+        val scheduledEvents = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED }
+        data.medications.filter(Medication::active).forEach { medication ->
+            medication.schedules.forEach { schedule ->
+                val occurrence = NotificationScheduleLogic.nextOccurrences(schedule, now, zone).firstOrNull() ?: return@forEach
+                val at = occurrence.toInstant()
+                val alarmId = NotificationScheduleLogic.alarmId(schedule.scheduleId, at)
+                cancelAlarm(medication, schedule.scheduleId, at, alarmId)
+                val completed = terminalEvents.any { it.scheduleId == schedule.scheduleId && it.scheduledFor.epochSeconds == at.epochSecond }
+                val superseded = scheduledEvents.any { it.scheduleId == schedule.scheduleId && it.replacesScheduledFor?.epochSeconds == at.epochSecond }
+                if (!completed && !superseded) {
+                    armed += armedKey(medication.medicationId, alarmId)
+                    setAlarm(at.toEpochMilli(), showIntent(medication, schedule.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
+                }
+            }
+        }
+        scheduledEvents.distinctBy { it.scheduleId to it.scheduledFor }.forEach { event ->
+            val medication = data.medications.firstOrNull { it.medicationId == event.medicationId } ?: return@forEach
+            val at = java.time.Instant.ofEpochSecond(event.scheduledFor.epochSeconds)
+            val alarmId = NotificationScheduleLogic.alarmId(event.scheduleId, at)
+            cancelAlarm(medication, event.scheduleId, at, alarmId)
+            val completed = terminalEvents.any { it.scheduleId == event.scheduleId && it.scheduledFor == event.scheduledFor }
+            val superseded = scheduledEvents.any { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
+            if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && !completed && !superseded) {
+                armed += armedKey(medication.medicationId, alarmId)
+                setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
+            }
+        }
     }
 
     /**
@@ -238,6 +259,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "VezunaReminders"
         const val CHANNEL_ID = "recorded-medication-reminders"
         const val ACTION_SHOW = "app.vezuna.action.SHOW_RECORDED_REMINDER"
         const val EXTRA_PROFILE_ID = "profileId"

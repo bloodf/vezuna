@@ -87,7 +87,7 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
     var name by remember { mutableStateOf("") }
     var strength by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
-    val today = remember { currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+    val today = currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date
     var drafts by remember { mutableStateOf(listOf(ScheduleDraft(startDate = today))) }
     var editTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     var stopTarget by remember { mutableStateOf<MedicationRecord?>(null) }

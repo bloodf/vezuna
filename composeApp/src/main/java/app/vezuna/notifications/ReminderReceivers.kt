@@ -40,7 +40,14 @@ class ReminderReceiver : BroadcastReceiver() {
         guarded(app, goAsync(), "ReminderReceiver") {
             val ready = app.awaitRepository()
             // With the vault unavailable we cannot tell whether the medication is current; still remind the user.
-            if (!ready || isCurrent(app, intent)) app.notifications.showReminder(intent)
+            try {
+                if (!ready || isCurrent(app, intent)) app.notifications.showReminder(intent)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // A failed notification must not skip re-arming the next alarm in the chain.
+                Log.e(TAG, "Could not show reminder", error)
+            }
             if (ready) {
                 app.notifications.rescheduleAll(app.repository)
                 DashboardRefreshSignal.notifyRepositoryChanged()
