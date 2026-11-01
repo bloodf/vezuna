@@ -22,6 +22,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /** Write-through, profile-isolated persistence. The plaintext snapshot never touches disk. */
 class PersistentVezunaRepository(
@@ -34,6 +36,7 @@ class PersistentVezunaRepository(
     private val mutex = Mutex()
     private var snapshot = Snapshot()
     private var initialized = false
+    private var corruptCurrentPending = false
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private val mutableRevision = MutableStateFlow(0L)
 
@@ -136,6 +139,11 @@ class PersistentVezunaRepository(
     }
 
     private suspend fun persist(updated: Snapshot) {
+        if (corruptCurrentPending) {
+            // If this throws the write fails, but the corrupt file is never rotated over the good previous copy.
+            vault.quarantineCurrent(STORAGE_KEY)
+            corruptCurrentPending = false
+        }
         val plaintext = json.encodeToString(Snapshot.serializer(), updated).encodeToByteArray()
         val envelope = vault.encrypt(plaintext, ASSOCIATED_DATA)
         vault.write(STORAGE_KEY, json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray())
@@ -169,7 +177,15 @@ class PersistentVezunaRepository(
             throw failure
         }
         // Keep the damaged file as evidence and out of the rotation that would overwrite the good previous copy.
-        vault.quarantineCurrent(STORAGE_KEY)
+        try {
+            vault.quarantineCurrent(STORAGE_KEY)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Still open with the good previous data; the first write retries before anything can be rotated.
+            logger.log(Level.WARNING, "Could not quarantine corrupt vault file", error)
+            corruptCurrentPending = true
+        }
         mutableOpenedFromPrevious.value = true
         return restored
     }
@@ -209,6 +225,7 @@ class PersistentVezunaRepository(
     }
 
     private companion object {
+        val logger: Logger = Logger.getLogger("PersistentVezunaRepository")
         const val STORAGE_KEY = "repository-v1"
         val ASSOCIATED_DATA = "Vezuna repository v1".encodeToByteArray()
     }

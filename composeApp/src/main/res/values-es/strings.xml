@@ -7,6 +7,7 @@
     <string name="taken">Tomada</string>
     <string name="skip">Omitir</string>
     <string name="minutes_snooze">Posponer 10 min</string>
+    <string name="dose_record_unavailable">No se pudo registrar esta dosis. Abre Vezuna e inténtalo de nuevo.</string>
     <string name="reminders_enabled">Los recordatorios de medicación están activados para los horarios registrados.</string>
     <string name="notification_permission_denied">No se concedió el permiso de notificaciones. Los horarios siguen guardados; activa las notificaciones para recibir recordatorios.</string>
     <string name="health_connect_permission_denied">No se concedieron permisos de lectura de Health Connect. No se importaron métricas de salud.</string>

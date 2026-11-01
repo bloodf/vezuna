@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 /** File-backed vault with toy crypto so recovery paths run on the JVM without an Android Keystore. */
-private class FileVault(private val directory: File, var keyInvalidated: Boolean = false) : SecureVault {
+private class FileVault(private val directory: File, var keyInvalidated: Boolean = false, var quarantineFailures: Int = 0) : SecureVault {
     private val files = GenerationalFileStore(directory)
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray) =
@@ -33,7 +33,10 @@ private class FileVault(private val directory: File, var keyInvalidated: Boolean
     override suspend fun read(key: String) = files.read(key)
     override suspend fun readPrevious(key: String) = files.readPrevious(key)
     override suspend fun delete(key: String) = files.delete(key)
-    override suspend fun quarantineCurrent(key: String) = files.quarantineCurrent(key, "cur")
+    override suspend fun quarantineCurrent(key: String): Boolean {
+        if (quarantineFailures > 0) { quarantineFailures--; error("disk busy") }
+        return files.quarantineCurrent(key, "cur")
+    }
     override suspend fun quarantineAll(): Boolean { files.quarantineAll("1"); return true }
     override suspend fun discardUnusableKey() { keyInvalidated = false }
 
@@ -80,6 +83,37 @@ class VaultRecoveryTest {
         assertEquals(listOf("Ana", "Cy"), previous.profiles.value.map { it.displayName })
         restored.acknowledgePreviousGeneration()
         assertEquals(false, restored.openedFromPreviousGeneration.value)
+    }
+
+    @Test
+    fun failedQuarantineStillOpensAndIsRetriedBeforeTheFirstWrite() = runTest {
+        seed("Ana", "Bia")
+        File(directory, key).writeBytes("{truncated".encodeToByteArray())
+        val flaky = FileVault(directory, quarantineFailures = 1)
+
+        val restored = PersistentVezunaRepository(flaky)
+        restored.load()
+        assertEquals(listOf("Ana"), restored.profiles.value.map { it.displayName })
+        restored.createProfile(Profile("id-Cy", "Cy", createdAt = Instant.fromEpochMilliseconds(3)))
+
+        assertEquals(listOf("Ana", "Cy"), PersistentVezunaRepository(vault).also { it.load() }.profiles.value.map { it.displayName })
+        assertEquals("{truncated", directory.listFiles { f -> f.isDirectory }.orEmpty().single().resolve(key).readText())
+    }
+
+    @Test
+    fun writeIsRefusedRatherThanRotatingCorruptDataOverPrevious() = runTest {
+        seed("Ana", "Bia")
+        File(directory, key).writeBytes("{truncated".encodeToByteArray())
+        val stuck = FileVault(directory, quarantineFailures = 2)
+        val restored = PersistentVezunaRepository(stuck)
+        restored.load()
+
+        assertFailsWith<IllegalStateException> {
+            restored.createProfile(Profile("id-Cy", "Cy", createdAt = Instant.fromEpochMilliseconds(3)))
+        }
+
+        assertEquals("{truncated", File(directory, key).readText())
+        assertTrue(File(directory, "$key.prev").length() > 0)
     }
 
     @Test

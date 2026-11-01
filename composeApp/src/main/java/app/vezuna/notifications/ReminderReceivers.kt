@@ -3,7 +3,9 @@ package app.vezuna.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import app.vezuna.NativeKey
 import app.vezuna.VezunaApplication
+import app.vezuna.nativeMessage
 import app.vezuna.domain.DoseEvent
 import app.vezuna.ui.DashboardRefreshSignal
 import kotlinx.coroutines.CancellationException
@@ -40,7 +42,11 @@ class DoseActionReceiver : BroadcastReceiver() {
         app.applicationScope.launch {
             try {
                 val action = DoseAction.valueOf(intent.action.orEmpty())
-                if (action != DoseAction.SNOOZE && !app.awaitRepository()) return@launch
+                if (action != DoseAction.SNOOZE && !app.awaitRepository()) {
+                    // Leave the notification and its actions in place and tell the user why nothing was recorded.
+                    app.notifications.showReminder(intent, nativeMessage(NativeKey.DOSE_RECORD_UNAVAILABLE))
+                    return@launch
+                }
                 when (action) {
                     DoseAction.SNOOZE -> app.notifications.snooze(intent)
                     DoseAction.TAKEN, DoseAction.SKIP -> recordDose(app, intent, action)

@@ -24,6 +24,7 @@ class DecryptFailureClassifierTest {
     @Test
     fun transientKeystoreAndIoErrorsStayRetryable() {
         assertEquals(VaultFailure.UNAVAILABLE, classifyDecryptFailure(KeyStoreException("daemon busy")))
+        assertEquals(VaultFailure.UNAVAILABLE, classifyDecryptFailure(java.security.InvalidKeyException("keystore not ready")))
         assertEquals(VaultFailure.UNAVAILABLE, classifyDecryptFailure(IOException("disk")))
         assertEquals(VaultFailure.UNAVAILABLE, classifyDecryptFailure(RuntimeException("provider")))
     }

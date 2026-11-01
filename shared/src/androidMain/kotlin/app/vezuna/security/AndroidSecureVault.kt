@@ -6,7 +6,6 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import java.io.File
 import java.security.InvalidAlgorithmParameterException
-import java.security.InvalidKeyException
 import java.security.KeyStore
 import java.security.UnrecoverableKeyException
 import javax.crypto.BadPaddingException
@@ -96,10 +95,10 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
     }
 }
 
-/** Only definite key/data damage is permanent; anything unknown (Keystore daemon, IO) stays retryable. */
+/** Only definite key/data damage is permanent; anything else (including a plain InvalidKeyException from a Keystore daemon or boot hiccup) stays retryable. */
 fun classifyDecryptFailure(error: Throwable): VaultFailure = when (error) {
     is KeyPermanentlyInvalidatedException, is UnrecoverableKeyException -> VaultFailure.KEY_INVALIDATED
     is BadPaddingException, is IllegalBlockSizeException, is IllegalArgumentException,
-    is InvalidAlgorithmParameterException, is InvalidKeyException -> VaultFailure.CORRUPT
+    is InvalidAlgorithmParameterException -> VaultFailure.CORRUPT
     else -> VaultFailure.UNAVAILABLE
 }

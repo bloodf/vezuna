@@ -35,6 +35,8 @@ fun VaultGate(
     onReset: () -> Unit,
     ready: @Composable () -> Unit,
 ) {
+    // Held here because the recovery screen leaves composition while a retry shows the loading view.
+    var retries by rememberSaveable { mutableStateOf(0) }
     when (state) {
         VaultState.Ready -> ready()
         VaultState.Loading -> VezunaTheme {
@@ -49,12 +51,17 @@ fun VaultGate(
                 }
             }
         }
-        is VaultState.Recovery -> VaultRecoveryScreen(state.failure, onRetry, onReset)
+        is VaultState.Recovery -> VaultRecoveryScreen(
+            failure = state.failure,
+            onRetry = { retries += 1; onRetry() },
+            onReset = onReset,
+            failedRetries = retries,
+        )
     }
 }
 
 @Composable
-fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () -> Unit) {
+fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () -> Unit, failedRetries: Int = 0) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     VezunaTheme {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -66,8 +73,8 @@ fun VaultRecoveryScreen(failure: VaultFailure, onRetry: () -> Unit, onReset: () 
                 Text(vitaText(failure.explanation()), style = MaterialTheme.typography.bodyLarge)
                 Text(vitaText(L10nKey.VAULT_RECOVERY_KEPT_NOTE), style = MaterialTheme.typography.bodyMedium)
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(vitaText(L10nKey.VAULT_RECOVERY_RETRY)) }
-                // A transient failure must never lead to a reset; only permanent damage offers it.
-                if (failure != VaultFailure.UNAVAILABLE) {
+                // A transient failure only offers the (quarantine-only, confirmed) reset after repeated failed retries.
+                if (failure != VaultFailure.UNAVAILABLE || failedRetries >= RETRIES_BEFORE_RESET) {
                     OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
                     }
@@ -110,3 +117,5 @@ fun PreviousGenerationNotice(visible: Boolean, onDismiss: () -> Unit) {
         )
     }
 }
+
+private const val RETRIES_BEFORE_RESET = 3

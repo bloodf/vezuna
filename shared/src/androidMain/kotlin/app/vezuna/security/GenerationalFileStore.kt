@@ -2,6 +2,9 @@ package app.vezuna.security
 
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.util.logging.Level
+import java.util.logging.Logger
 import java.nio.channels.FileChannel
 import java.nio.file.StandardOpenOption
 
@@ -26,7 +29,12 @@ class GenerationalFileStore(private val directory: File) {
 
     /** Persists the renames themselves; without it a power cut can undo them after the data was fsynced. */
     private fun syncDirectory() {
-        FileChannel.open(directory.toPath(), StandardOpenOption.READ).use { it.force(true) }
+        // The renames already happened, so a failed directory sync must not report the write as failed.
+        try {
+            FileChannel.open(directory.toPath(), StandardOpenOption.READ).use { it.force(true) }
+        } catch (error: IOException) {
+            logger.log(Level.WARNING, "Vault directory sync failed after commit", error)
+        }
     }
 
     /** Moves only the current file into `unreadable-<stamp>/`; the previous generation stays readable. */
@@ -58,6 +66,7 @@ class GenerationalFileStore(private val directory: File) {
     }
 
     companion object {
+        private val logger: Logger = Logger.getLogger("GenerationalFileStore")
         const val PREVIOUS = ".prev"
         const val TEMP = ".tmp"
         const val QUARANTINE = "unreadable"

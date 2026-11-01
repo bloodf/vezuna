@@ -7,6 +7,7 @@
     <string name="taken">Tomada</string>
     <string name="skip">Pular</string>
     <string name="minutes_snooze">Adiar 10 min</string>
+    <string name="dose_record_unavailable">Não foi possível registrar esta dose. Abra o Vezuna e tente novamente.</string>
     <string name="reminders_enabled">Os lembretes de medicamentos estão ativos para os horários registrados.</string>
     <string name="notification_permission_denied">A permissão de notificações não foi concedida. Os horários continuam salvos; ative as notificações para receber lembretes.</string>
     <string name="health_connect_permission_denied">As permissões de leitura do Health Connect não foram concedidas. Nenhuma métrica de saúde foi importada.</string>
