@@ -408,6 +408,7 @@ private fun CandidateEditor(
     var asText by remember(candidate.candidateId) { mutableStateOf(candidate.looksQualitative) }
     var lower by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.lower?.toString().orEmpty()) }
     var upper by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.upper?.toString().orEmpty()) }
+    var rangeText by remember(candidate.candidateId) { mutableStateOf(candidate.referenceRange.text.orEmpty()) }
     Card(Modifier.fillMaxWidth().vitaAnimateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -436,8 +437,9 @@ private fun CandidateEditor(
                     OutlinedTextField(upper, { upper = it }, Modifier.weight(1f), label = { Text(vitaText(L10nKey.REFERENCE_UPPER)) }, singleLine = true)
                 }
             }
+            OutlinedTextField(rangeText, { rangeText = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.REFERENCE_TEXT_OPTIONAL)) }, singleLine = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name, asText) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
+                Button(onClick = { scope.launch { controller.confirmCandidate(candidate.candidateId, value, unit, lower, upper, date, code, name, asText, rangeText) } }, enabled = date != null && code.isNotBlank() && name.isNotBlank(), modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CONFIRM_RESULT)) }
                 OutlinedButton(onClick = { scope.launch { controller.rejectCandidate(candidate.candidateId) } }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.REJECT)) }
             }
         }

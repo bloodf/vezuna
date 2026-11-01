@@ -45,7 +45,7 @@ object OcrTextParser {
         RegexOption.IGNORE_CASE,
     )
     private val THRESHOLD = Regex(
-        "(inferior(?:\\s+[àa])?|menor\\s+que|até|ate|no\\s+m[áa]ximo|superior(?:\\s+[àa])?|maior\\s+que|acima\\s+de)\\s*[:=]?\\s*($NUMBER)(?:\\s*($UNIT_PATTERN))?",
+        "(inferior(?:\\s+[àa])?|menor\\s+que|até|ate|no\\s+m[áa]ximo|superior(?:\\s+[àa])?|maior\\s+que|acima\\s+de|<=|>=|<|>|≤|≥)\\s*[:=]?\\s*($NUMBER)(?:\\s*($UNIT_PATTERN))?",
         RegexOption.IGNORE_CASE,
     )
     private val QUALITATIVE_VALUES = listOf("Não reagente", "Nao reagente", "Ausente", "Presente", "Negativo", "Positivo", "Reagente")
@@ -175,6 +175,9 @@ object OcrTextParser {
 
     private data class FoundReference(val range: ReferenceRange, val start: Int, val unit: String?)
 
+    /** Reference text typed or read as free text: ranges and one-sided `<`, `>`, `≤`, `≥` thresholds only; never invented. */
+    fun referenceFromText(text: String, resultUnit: String): ReferenceRange = parseReference(normalizeText(text), resultUnit)
+
     private fun parseReference(rest: String, resultUnit: String): ReferenceRange {
         val text = rest.trim()
         val flat = folded(text)
@@ -198,7 +201,9 @@ object OcrTextParser {
             val operator = folded(match.groupValues[1])
             val value = numericValue(match.groupValues[2])
             val unit = match.groupValues[3].ifBlank { null }?.replace('μ', 'µ')
-            val range = if (operator.startsWith("inferior") || operator.startsWith("menor") || operator.startsWith("ate") || operator.startsWith("no maximo")) {
+            val upperBound = operator.startsWith("inferior") || operator.startsWith("menor") || operator.startsWith("ate") ||
+                operator.startsWith("no maximo") || operator.startsWith("<") || operator.startsWith("≤")
+            val range = if (upperBound) {
                 ReferenceRange(upper = value, text = match.value.trim(), unit = unit)
             } else {
                 ReferenceRange(lower = value, text = match.value.trim(), unit = unit)

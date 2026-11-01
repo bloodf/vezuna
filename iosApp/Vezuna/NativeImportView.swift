@@ -53,6 +53,7 @@ struct NativeImportView: View {
                                     TextField(L10n.text(.reference_lower), text: $candidate.referenceLower).keyboardType(.decimalPad)
                                     TextField(L10n.text(.reference_upper), text: $candidate.referenceUpper).keyboardType(.decimalPad)
                                 }
+                                TextField(L10n.text(.reference_text), text: $candidate.referenceText)
                                 if let token = candidate.rawToken {
                                     Text(L10n.text(.ocr_read_token, token)).font(.subheadline)
                                     Text(L10n.text(.ambiguous_number_warning)).font(.footnote).foregroundStyle(Color.vezunaDanger)

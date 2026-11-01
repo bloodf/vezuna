@@ -21,6 +21,7 @@ import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.importer.OcrTextParser
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -320,6 +321,8 @@ class AppController(
         testCode: String? = null,
         displayName: String? = null,
         asText: Boolean? = null,
+        /** The reviewer's reference text; null keeps the candidate's own text. Blank clears it. */
+        referenceText: String? = null,
     ) = operation {
         val data = requireData()
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
@@ -337,8 +340,7 @@ class AppController(
         val unit = if (qualitativeValue != null) "" else correctedUnit.trim()
         if (qualitativeValue == null && unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
         val normalized = UnitNormalizer.normalize(value, unit)
-        val range = if (qualitativeValue != null) ReferenceRange(text = candidate.referenceRange.text)
-        else ReferenceRange(optionalDouble(referenceLower), optionalDouble(referenceUpper), unit = unit)
+        val range = reviewedRange(candidate.referenceRange.text, referenceText, referenceLower, referenceUpper, unit, qualitativeValue != null)
         val revisions = candidate.revisions + OcrRevision(
             data.profile.profileId,
             randomId(),
@@ -572,6 +574,31 @@ class AppController(
     }
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+
+    /**
+     * Bounds come from the reviewer's fields. Text the reviewer left alone survives unchanged; text the reviewer
+     * typed fills empty bounds only when it is an explicit range or one-sided `<`, `>`, `≤`, `≥` threshold.
+     * Nothing is inferred from anything else, so a range is never invented.
+     */
+    private fun reviewedRange(
+        originalText: String?,
+        editedText: String?,
+        lowerInput: String,
+        upperInput: String,
+        unit: String,
+        textResult: Boolean,
+    ): ReferenceRange {
+        val text = (editedText ?: originalText)?.trim()?.takeIf { it.isNotEmpty() }
+        if (textResult) return ReferenceRange(text = text)
+        var lower = optionalDouble(lowerInput)
+        var upper = optionalDouble(upperInput)
+        if (lower == null && upper == null && text != null && text != originalText) {
+            val derived = OcrTextParser.referenceFromText(text, unit)
+            lower = derived.lower
+            upper = derived.upper
+        }
+        return ReferenceRange(lower, upper, text, unit)
+    }
 
     private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
         parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)

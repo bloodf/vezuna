@@ -228,7 +228,7 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
     references: list[dict[str, Any]] = []
     range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|to|–|—|-)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
     threshold_pattern = re.compile(
-        rf"(inferior(?:\s+[àa])?|menor\s+que|até|ate|no\s+m[áa]ximo|superior(?:\s+[àa])?|maior\s+que|acima\s+de)\s*[:=]?\s*({NUMBER})\s*({UNIT_PATTERN})?",
+        rf"(inferior(?:\s+[àa])?|menor\s+que|até|ate|no\s+m[áa]ximo|superior(?:\s+[àa])?|maior\s+que|acima\s+de|<=|>=|<|>|≤|≥)\s*[:=]?\s*({NUMBER})\s*({UNIT_PATTERN})?",
         re.I,
     )
     occupied: list[tuple[int, int]] = []
@@ -244,13 +244,14 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
     for match in threshold_pattern.finditer(rest):
         if any(match.start() >= start and match.end() <= end for start, end in occupied):
             continue
-        operator_text = folded(match.group(1))
+        operator_text = folded(match.group(1)) or match.group(1)
+        symbol = match.group(1)
         value = parse_number(match.group(2))
-        if operator_text.startswith(("inferior", "menor", "até", "ate", "no maximo")):
+        if operator_text.startswith(("inferior", "menor", "até", "ate", "no maximo")) or symbol.startswith(("<", "≤")):
             reference = _reference(
                 upper=value,
                 kind="threshold",
-                operator="<=" if operator_text.startswith(("até", "ate", "no maximo")) else "<",
+                operator="<=" if operator_text.startswith(("até", "ate", "no maximo")) or symbol in ("<=", "≤") else "<",
                 unit=match.group(3),
                 text=match.group(0).strip(),
                 _start=match.start(),
@@ -259,7 +260,7 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
             reference = _reference(
                 lower=value,
                 kind="threshold",
-                operator=">",
+                operator=">=" if symbol in (">=", "≥") else ">",
                 unit=match.group(3),
                 text=match.group(0).strip(),
                 _start=match.start(),

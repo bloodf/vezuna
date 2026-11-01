@@ -89,3 +89,4 @@
 "ocr_read_token" = "OCR leu: %1$@";
 "ambiguous_number_warning" = "Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)";
 "choose_date_button" = "Escolher data";
+"reference_text" = "Texto de referência (opcional)";
