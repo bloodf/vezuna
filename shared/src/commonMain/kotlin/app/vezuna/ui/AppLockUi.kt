@@ -82,6 +82,7 @@ fun AppLockSettings() {
             when (state.problem) {
                 AppLockProblem.UNAVAILABLE -> Text(vitaText(L10nKey.APP_LOCK_UNAVAILABLE), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 AppLockProblem.FAILED -> Text(vitaText(L10nKey.APP_LOCK_FAILED), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                AppLockProblem.NO_SCREEN_LOCK -> Text(vitaText(L10nKey.APP_LOCK_SUSPENDED), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 null -> Unit
             }
         }

@@ -9,8 +9,8 @@ import kotlinx.coroutines.sync.Mutex
 
 /** Platform prompt: biometrics with the device passcode as fallback. Implementations return false on any failure. */
 interface DeviceAuthenticator {
-    /** False when the device has no enrolled biometrics and no screen lock. */
-    fun canAuthenticate(): Boolean
+    /** False when the device has no enrolled biometrics and no screen lock; null when that cannot be known now. */
+    fun canAuthenticate(): Boolean?
     suspend fun authenticate(): Boolean
 }
 
@@ -28,7 +28,8 @@ object AppLockPolicy {
         backgroundedAt != null && (now < backgroundedAt || now - backgroundedAt >= BACKGROUND_TIMEOUT_MILLIS)
 }
 
-enum class AppLockProblem { UNAVAILABLE, FAILED }
+/** [NO_SCREEN_LOCK]: the setting is kept but suspended because the device lost its screen lock. */
+enum class AppLockProblem { UNAVAILABLE, FAILED, NO_SCREEN_LOCK }
 
 data class AppLockState(val enabled: Boolean, val locked: Boolean, val problem: AppLockProblem? = null)
 
@@ -44,14 +45,23 @@ class AppLock(
     private val prompt = Mutex()
 
     /**
-     * Drops a stale setting when the device lost its screen lock (restored or changed device): otherwise the
-     * user would be locked out of their own records with no way to authenticate.
+     * Suspends the lock when the device has no screen lock (otherwise the user could never authenticate), keeping
+     * the stored setting; resumes it, locked, once a screen lock exists again. Unknown capability changes nothing.
      */
     fun refresh() {
-        if (mutableState.value.enabled && !authenticator.canAuthenticate()) {
-            store.setEnabled(false)
-            mutableState.value = AppLockState(enabled = false, locked = false)
+        val available = authenticator.canAuthenticate() ?: return
+        val current = mutableState.value
+        if (current.enabled && !available) {
+            mutableState.value = AppLockState(enabled = false, locked = false, problem = AppLockProblem.NO_SCREEN_LOCK)
+        } else if (!current.enabled && available && current.problem == AppLockProblem.NO_SCREEN_LOCK && store.isEnabled()) {
+            mutableState.value = AppLockState(enabled = true, locked = true)
         }
+    }
+
+    /** Ends the session, e.g. when the app is closed. */
+    fun lockNow() {
+        backgroundedAt = null
+        if (mutableState.value.enabled) mutableState.update { it.copy(locked = true, problem = null) }
     }
 
     fun onBackground() {
@@ -72,15 +82,29 @@ class AppLock(
         else mutableState.update { it.copy(problem = AppLockProblem.FAILED) }
     }
 
-    /** Enabling requires a successful authentication first; disabling happens while unlocked. */
+    /**
+     * Enabling and disabling both require a successful authentication. Without any device credential there is
+     * nothing to authenticate with, so disabling is then allowed (and enabling refused).
+     */
     suspend fun setEnabled(enabled: Boolean) {
-        if (enabled == mutableState.value.enabled) return
-        if (!enabled) {
-            store.setEnabled(false)
-            mutableState.value = AppLockState(enabled = false, locked = false)
+        if (enabled == mutableState.value.enabled) {
+            // Suspended (no screen lock): switching off must also clear the kept setting.
+            if (!enabled && store.isEnabled()) {
+                store.setEnabled(false)
+                mutableState.value = AppLockState(enabled = false, locked = false)
+            }
             return
         }
-        if (!authenticator.canAuthenticate()) {
+        if (!enabled) {
+            if (authenticator.canAuthenticate() == false || authenticate()) {
+                store.setEnabled(false)
+                mutableState.value = AppLockState(enabled = false, locked = false)
+            } else {
+                mutableState.update { it.copy(problem = AppLockProblem.FAILED) }
+            }
+            return
+        }
+        if (authenticator.canAuthenticate() != true) {
             mutableState.update { it.copy(problem = AppLockProblem.UNAVAILABLE) }
             return
         }

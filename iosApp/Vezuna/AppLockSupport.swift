@@ -9,9 +9,17 @@ final class AppLockAuthenticator: NativeDeviceAuthenticator {
         return LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
     }
 
+    // Held for the whole evaluation: an LAContext released early invalidates the prompt.
+    private var context: LAContext?
+
     func authenticate(completion: @escaping (KotlinBoolean) -> Void) {
-        LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.text(.app_lock_reason)) { success, _ in
-            DispatchQueue.main.async { completion(KotlinBoolean(bool: success)) }
+        let context = LAContext()
+        self.context = context
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.text(.app_lock_reason)) { [weak self] success, _ in
+            DispatchQueue.main.async {
+                self?.context = nil
+                completion(KotlinBoolean(bool: success))
+            }
         }
     }
 }
@@ -44,7 +52,10 @@ final class PrivacyCover {
                 self?.show(in: scene)
             },
             center.addObserver(forName: UIScene.didActivateNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.hide()
+                // Lock state first, so the lock screen is in place before the cover goes away.
+                IosRuntime.shared.appLock.refresh()
+                IosRuntime.shared.appLock.onForeground()
+                DispatchQueue.main.async { self?.hide() }
             },
         ]
     }

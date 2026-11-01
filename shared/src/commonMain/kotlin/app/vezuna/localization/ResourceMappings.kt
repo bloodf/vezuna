@@ -283,6 +283,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.APP_LOCK_DESCRIPTION to Res.string.app_lock_description,
     L10nKey.APP_LOCK_UNAVAILABLE to Res.string.app_lock_unavailable,
     L10nKey.APP_LOCK_FAILED to Res.string.app_lock_failed,
+    L10nKey.APP_LOCK_SUSPENDED to Res.string.app_lock_suspended,
     L10nKey.LOCK_SCREEN_TITLE to Res.string.lock_screen_title,
     L10nKey.LOCK_SCREEN_BODY to Res.string.lock_screen_body,
     L10nKey.UNLOCK to Res.string.unlock,

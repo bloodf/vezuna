@@ -53,7 +53,7 @@ class VezunaApplication : Application() {
         AppLock(
             SharedPrefsAppLockStore(this),
             object : DeviceAuthenticator {
-                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate() ?: false
+                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate()
                 override suspend fun authenticate() = deviceAuthenticator?.authenticate() ?: false
             },
             SystemClock::elapsedRealtime,

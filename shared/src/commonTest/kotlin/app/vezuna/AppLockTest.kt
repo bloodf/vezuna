@@ -17,7 +17,7 @@ private class FakeStore(var stored: Boolean = false) : AppLockStore {
     override fun setEnabled(enabled: Boolean) { stored = enabled }
 }
 
-private class FakeAuthenticator(var available: Boolean = true, var succeeds: Boolean = true, var throws: Boolean = false) : DeviceAuthenticator {
+private class FakeAuthenticator(var available: Boolean? = true, var succeeds: Boolean = true, var throws: Boolean = false) : DeviceAuthenticator {
     var prompts = 0
     override fun canAuthenticate() = available
     override suspend fun authenticate(): Boolean {
@@ -118,21 +118,73 @@ class AppLockTest {
     }
 
     @Test
-    fun disablingClearsSettingAndLock() = runTest {
-        val store = FakeStore(stored = true)
-        val lock = lock(store); lock.unlock()
+    fun disablingRequiresAuthentication() = runTest {
+        val store = FakeStore(stored = true); val auth = FakeAuthenticator()
+        val lock = lock(store, auth); lock.unlock()
+        auth.succeeds = false
+        lock.setEnabled(false)
+        assertTrue(store.stored)
+        assertTrue(lock.state.value.enabled)
+        assertEquals(AppLockProblem.FAILED, lock.state.value.problem)
+        auth.succeeds = true
         lock.setEnabled(false)
         assertFalse(store.stored)
         assertFalse(lock.state.value.enabled)
     }
 
     @Test
-    fun refreshDropsSettingWhenDeviceLostItsScreenLock() {
-        val store = FakeStore(stored = true)
-        val lock = lock(store, FakeAuthenticator(available = false))
+    fun clockRollbackInsideTheWindowStillLocks() = runTest {
+        val lock = lock(FakeStore(stored = true)); lock.unlock()
+        lock.onBackground(); now -= 2 * minute; lock.onForeground()
+        assertTrue(lock.state.value.locked)
+    }
+
+    @Test
+    fun lockNowEndsTheSession() = runTest {
+        val lock = lock(FakeStore(stored = true)); lock.unlock()
+        lock.lockNow()
+        assertTrue(lock.state.value.locked)
+    }
+
+    @Test
+    fun refreshSuspendsButKeepsSettingWhenDeviceLostItsScreenLock() {
+        val store = FakeStore(stored = true); val auth = FakeAuthenticator(available = false)
+        val lock = lock(store, auth)
         assertTrue(lock.state.value.locked)
         lock.refresh()
-        assertFalse(store.stored)
+        assertTrue(store.stored)
         assertFalse(lock.state.value.locked)
+        assertFalse(lock.state.value.enabled)
+        assertEquals(AppLockProblem.NO_SCREEN_LOCK, lock.state.value.problem)
+        auth.available = true
+        lock.refresh()
+        assertTrue(lock.state.value.enabled)
+        assertTrue(lock.state.value.locked)
+    }
+
+    @Test
+    fun suspendedLockCanBeSwitchedOffForGood() = runTest {
+        val store = FakeStore(stored = true)
+        val lock = lock(store, FakeAuthenticator(available = false)); lock.refresh()
+        lock.setEnabled(false)
+        assertFalse(store.stored)
+        assertNull(lock.state.value.problem)
+    }
+
+    @Test
+    fun unknownCapabilityChangesNothing() {
+        val store = FakeStore(stored = true)
+        val lock = lock(store, FakeAuthenticator(available = null))
+        lock.refresh()
+        assertTrue(store.stored)
+        assertTrue(lock.state.value.enabled)
+        assertTrue(lock.state.value.locked)
+    }
+
+    @Test
+    fun enablingIsRefusedWhenCapabilityUnknown() = runTest {
+        val lock = lock(FakeStore(), FakeAuthenticator(available = null))
+        lock.setEnabled(true)
+        assertFalse(lock.state.value.enabled)
     }
 }

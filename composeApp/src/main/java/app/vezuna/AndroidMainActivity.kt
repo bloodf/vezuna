@@ -54,6 +54,7 @@ class AndroidMainActivity : FragmentActivity() {
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private lateinit var licenseGate: PlayLvlLicenseGate
     private lateinit var modelLoader: PlayAssetPackLoader
+    private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
     private val mutableExport = MutableStateFlow<NativeExport?>(null)
@@ -80,7 +81,8 @@ class AndroidMainActivity : FragmentActivity() {
             isAppearanceLightNavigationBars = !darkTheme
         }
         // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
-        app.deviceAuthenticator = AndroidDeviceAuthenticator(this)
+        deviceAuthenticator = AndroidDeviceAuthenticator(this)
+        app.deviceAuthenticator = deviceAuthenticator
         app.appLock.refresh()
         lifecycleScope.launch {
             app.appLock.state.map { it.enabled }.distinctUntilChanged().collect { enabled ->
@@ -152,6 +154,8 @@ class AndroidMainActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing) app.appLock.lockNow()
+        if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
         sourcePicker.clearExtraction()
         extraction.close()
         licenseGate.close()

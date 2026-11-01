@@ -53,6 +53,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -180,12 +183,12 @@ object IosRuntime {
         scope.launch { appLock.state.map { it.locked }.distinctUntilChanged().collect { callback(it) } }
     }
 
-    /** Wall clock, because device sleep must count as time in the background. */
+    /** Monotonic clock that keeps counting while the device sleeps, so changing the date cannot defeat the timeout. */
     val appLock: AppLock by lazy {
         AppLock(
             IosAppLockStore,
             object : DeviceAuthenticator {
-                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate() ?: false
+                override fun canAuthenticate() = deviceAuthenticator?.canAuthenticate()
                 override suspend fun authenticate(): Boolean {
                     val native = deviceAuthenticator ?: return false
                     return suspendCancellableCoroutine { continuation ->
@@ -193,7 +196,7 @@ object IosRuntime {
                     }
                 }
             },
-        ) { currentInstant().toEpochMilliseconds() }
+        ) { monotonicMillis() }
     }
     var catalogError: NativeMessage? = null
         private set
@@ -574,6 +577,14 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
     )
     }
+}
+
+/** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */
+@OptIn(ExperimentalForeignApi::class)
+private fun monotonicMillis(): Long = memScoped {
+    val now = alloc<platform.posix.timespec>()
+    check(platform.posix.clock_gettime(platform.posix.CLOCK_MONOTONIC.toUInt(), now.ptr) == 0) { "monotonic clock unavailable" }
+    now.tv_sec * 1000L + now.tv_nsec / 1_000_000L
 }
 
 private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(

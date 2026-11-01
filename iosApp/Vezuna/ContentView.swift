@@ -58,7 +58,12 @@ struct ContentView: View {
             }
         }
         .task { model.configure() }
-        .onChange(of: lock.locked) { locked in if locked { model.sheet = nil } }
+        .onChange(of: lock.locked) { locked in
+            guard locked else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { model.sheet = nil }
+        }
         .sheet(item: $model.sheet) { sheet in
             switch sheet {
             case .importSource:

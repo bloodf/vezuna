@@ -16,6 +16,21 @@ import app.vezuna.security.DeviceAuthenticator
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
+/**
+ * Pre-API-30 prompts offer only biometrics, so errors that leave the user unable to use them hand over to the
+ * system credential screen instead of locking them out. User or system cancellation stays closed.
+ */
+internal fun fallsBackToCredential(errorCode: Int): Boolean = when (errorCode) {
+    BiometricPrompt.ERROR_NEGATIVE_BUTTON,
+    BiometricPrompt.ERROR_LOCKOUT,
+    BiometricPrompt.ERROR_LOCKOUT_PERMANENT,
+    BiometricPrompt.ERROR_HW_UNAVAILABLE,
+    BiometricPrompt.ERROR_NO_BIOMETRICS,
+    BiometricPrompt.ERROR_HW_NOT_PRESENT,
+    -> true
+    else -> false
+}
+
 /** Plain device-local preference: the lock must be known before the encrypted vault loads. Not backed up. */
 class SharedPrefsAppLockStore(context: Context) : AppLockStore {
     private val prefs = context.applicationContext.getSharedPreferences("vezuna_app_lock", Context.MODE_PRIVATE)
@@ -44,7 +59,7 @@ class AndroidDeviceAuthenticator(private val activity: FragmentActivity) : Devic
 
     private fun strongEnrolled() = biometrics.canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
 
-    override fun canAuthenticate(): Boolean =
+    override fun canAuthenticate(): Boolean? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             biometrics.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
         } else {
@@ -66,7 +81,7 @@ class AndroidDeviceAuthenticator(private val activity: FragmentActivity) : Devic
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    credentialFallback = fallbackToCredential && errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    credentialFallback = fallbackToCredential && fallsBackToCredential(errorCode)
                     if (continuation.isActive) continuation.resume(false)
                 }
             }
