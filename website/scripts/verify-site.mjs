@@ -19,13 +19,13 @@ const fileForUrl = (url) => {
   return join(dist, path.replace(/\/$/, ''), 'index.html');
 };
 const requiredText = {
-  '/': ['Your health, in one place.', 'Only confirmed results', 'same device key', 'See how records connect.', 'Follow development on GitHub.', 'data-health-scene'],
-  '/pt-br': ['Sua saúde, em um só lugar.', 'resultados confirmados', 'mesmo dispositivo', 'Veja como os registros se conectam.', 'Acompanhe o desenvolvimento no GitHub.', 'data-health-scene'],
-  '/es': ['Tu salud, en un solo lugar.', 'resultados confirmados', 'mismo dispositivo', 'Descubre cómo se conectan los registros.', 'Sigue el desarrollo en GitHub.', 'data-health-scene'],
+  '/': ['Keep everyday health records together.', 'Weight', '72.4', 'Heart rate', '6,842', 'Demo Medicine', 'data-workspace'],
+  '/pt-br': ['Mantenha os registros de saúde do dia a dia juntos.', 'Peso', '72,4', 'Frequência cardíaca', '6.842', 'data-workspace'],
+  '/es': ['Mantén juntos los registros de salud diarios.', 'Peso', '72,4', 'Frecuencia cardíaca', '6.842', 'data-workspace'],
   '/docs/developers': ['JDK 17', 'Android SDK API 37', 'iOS 26 SDK', 'EAS Submit', 'app.vezuna'],
   '/docs/privacy-and-data': ['same device key', 'Denying health permissions', 'Vercel'],
   '/privacy': ['Vezuna privacy policy', 'Publisher and contact', 'Vercel hosts the website'],
-  '/support': ['GitHub private vulnerability reporting', 'Never attach real medical documents'],
+  '/support': ['GitHub private vulnerability reporting', 'Never attach actual medical documents'],
 };
 
 assert(existsSync(dist), 'dist is missing; run npm run build first');
