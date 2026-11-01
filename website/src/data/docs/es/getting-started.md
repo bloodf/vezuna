@@ -37,7 +37,7 @@ Los servicios de las tiendas pueden gestionar licencias y la entrega prevista de
 
 ## Copias de seguridad e identidad
 
-Las copias de seguridad de la app están cifradas para restaurarse **únicamente en el mismo dispositivo y con la misma clave**. No existe recuperación entre dispositivos ni entre apps con identificadores diferentes. No las considers protección contra la pérdida del dispositivo.
+Las copias de seguridad nuevas son archivos portátiles protegidos con una frase de contraseña que tú eliges (al menos 12 caracteres). Puedes restaurarlas en otro teléfono o después de reinstalar la app. Vezuna no puede recuperar una frase perdida: sin ella, la copia no se puede abrir nunca. Las copias creadas por builds anteriores solo se abren en el mismo dispositivo y con la misma clave, y la app las identifica así.
 
 El identificador actual es `app.vezuna`. Cambiarlo crea una instalación separada y no transfiere la sandbox anterior ni las claves de Android Keystore.
 

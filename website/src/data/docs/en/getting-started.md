@@ -36,7 +36,7 @@ Camera and selected-image access support report import. Notification permission 
 
 The current Android application ID and iOS bundle ID are `app.vezuna`. Changing an app ID does **not** transfer another app’s sandbox or Android Keystore keys. A build with the new ID installs separately; the earlier installation is not removed, and its data is not moved or deleted.
 
-The same-device encrypted backup format does not provide cross-app recovery. Read [Privacy and data](/docs/privacy-and-data) before relying on a backup or changing builds.
+To move records to a new phone or a differently identified build, create a passphrase backup and restore it there. Read [Privacy and data](/docs/privacy-and-data) before relying on a backup or changing builds.
 
 ## What Vezuna does not do
 
