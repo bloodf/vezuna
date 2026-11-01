@@ -27,11 +27,19 @@ struct DoseReminder: Equatable {
     let medicationName: String
     let scheduleId: String
     let scheduledAt: Date
+    /// A snoozed copy of a delivered reminder. Planning never replaces or removes it; only an inactive medication does.
+    var isSnooze = false
 
     /// The name is part of the identifier so renaming a medication replaces its already scheduled requests.
-    var identifier: String {
-        "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970)).\(String(UInt32(truncatingIfNeeded: stableHash(medicationName)), radix: 16))"
+    var identifier: String { identifier(hidingName: false) }
+
+    /// The lock-screen privacy mode is part of the identifier so toggling it replaces already scheduled requests.
+    func identifier(hidingName: Bool) -> String {
+        let base = "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970)).\(String(UInt32(truncatingIfNeeded: stableHash(medicationName)), radix: 16))"
+        return base + (hidingName ? ".private" : "") + (isSnooze ? Self.snoozeSuffix : "")
     }
+
+    static let snoozeSuffix = ".snooze"
 
     private func stableHash(_ text: String) -> UInt64 {
         text.utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
@@ -70,7 +78,18 @@ struct NotificationPlanner {
                 }
             }
         }
-        return Array(reminders.sorted { $0.scheduledAt < $1.scheduledAt }.prefix(limit))
+        // Nearest doses first across every profile, so the shared budget never starves a profile with earlier doses.
+        let ordered = reminders.sorted {
+            ($0.scheduledAt, $0.profileId, $0.scheduleId) < ($1.scheduledAt, $1.profileId, $1.scheduleId)
+        }
+        return Array(ordered.prefix(limit))
+    }
+
+    /// Latest moment up to which every dose is scheduled. A full budget ends at its last reminder; otherwise the horizon.
+    func coverageEnd(of reminders: [DoseReminder], after now: Date, horizonDays: Int = 60, limit: Int = 60) -> Date? {
+        guard let last = reminders.last else { return nil }
+        if reminders.count >= limit { return last.scheduledAt }
+        return calendar.date(byAdding: .day, value: horizonDays, to: now)
     }
 
     func snooze(_ reminder: DoseReminder, from now: Date, delay: TimeInterval = 10 * 60) -> DoseReminder {
@@ -79,7 +98,8 @@ struct NotificationPlanner {
             medicationId: reminder.medicationId,
             medicationName: reminder.medicationName,
             scheduleId: reminder.scheduleId,
-            scheduledAt: now.addingTimeInterval(delay)
+            scheduledAt: now.addingTimeInterval(delay),
+            isSnooze: true
         )
     }
 

@@ -1,3 +1,4 @@
+import BackgroundTasks
 import Foundation
 import VezunaShared
 
@@ -68,6 +69,26 @@ final class AppShellModel: ObservableObject {
                 Task { await self.notifications.reconcile() }
             }
         }
+    }
+
+    /// BGAppRefreshTask body: open the runtime if the process was launched only for this task, then re-plan reminders.
+    func runBackgroundRefresh(_ task: BGAppRefreshTask) {
+        let work = Task {
+            configure()
+            let deadline = Date().addingTimeInterval(20)
+            while !(await MainActor.run { self.ready }) && Date() < deadline && !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            let opened = await MainActor.run { self.ready }
+            if opened { await notifications.reconcile() }
+            task.setTaskCompleted(success: opened && !Task.isCancelled)
+        }
+        task.expirationHandler = {
+            work.cancel()
+            task.setTaskCompleted(success: false)
+        }
+        // Always chain the next refresh, even if this one cannot finish.
+        notifications.scheduleBackgroundRefresh()
     }
 
     func sceneBecameActive() {
