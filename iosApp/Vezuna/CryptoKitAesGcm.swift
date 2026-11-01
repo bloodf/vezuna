@@ -34,33 +34,25 @@ enum CryptoKitAESGCM {
     }
 }
 
-/** Shared's non-throwing bridge cannot return a Kotlin error. Any cryptographic failure therefore terminates rather than returning plaintext or fabricated output. */
+/** Failures are thrown to Shared (`@Throws` on `IosAesGcm`), which turns them into the vault recovery state. */
 final class CryptoKitAesGcm: NSObject, IosAesGcm {
-    func encrypt(key: KotlinByteArray, plainText: KotlinByteArray, associatedData: KotlinByteArray) -> CipherEnvelope {
-        do {
-            let encrypted = try CryptoKitAESGCM.encrypt(key: key.toData(), plaintext: plainText.toData(), associatedData: associatedData.toData())
-            return CipherEnvelope(
-                algorithm: "AES-256-GCM-IOS-FILE-PROTECTION",
-                keyId: "ios-protected-key-v1",
-                iv: encrypted.nonce.kotlinBytes,
-                cipherText: encrypted.ciphertextAndTag.kotlinBytes,
-                associatedData: associatedData
-            )
-        } catch {
-            fatalError("AES-GCM encryption failed closed: \(error.localizedDescription)")
-        }
+    func encrypt(key: KotlinByteArray, plainText: KotlinByteArray, associatedData: KotlinByteArray) throws -> CipherEnvelope {
+        let encrypted = try CryptoKitAESGCM.encrypt(key: key.toData(), plaintext: plainText.toData(), associatedData: associatedData.toData())
+        return CipherEnvelope(
+            algorithm: "AES-256-GCM-IOS-FILE-PROTECTION",
+            keyId: "ios-protected-key-v1",
+            iv: encrypted.nonce.kotlinBytes,
+            cipherText: encrypted.ciphertextAndTag.kotlinBytes,
+            associatedData: associatedData
+        )
     }
 
-    func decrypt(key: KotlinByteArray, envelope: CipherEnvelope) -> KotlinByteArray {
-        do {
-            let value = AESGCMValue(
-                nonce: envelope.iv.toData(),
-                ciphertextAndTag: envelope.cipherText.toData(),
-                associatedData: envelope.associatedData.toData()
-            )
-            return try CryptoKitAESGCM.decrypt(key: key.toData(), value: value).kotlinBytes
-        } catch {
-            fatalError("AES-GCM authentication failed closed: \(error.localizedDescription)")
-        }
+    func decrypt(key: KotlinByteArray, envelope: CipherEnvelope) throws -> KotlinByteArray {
+        let value = AESGCMValue(
+            nonce: envelope.iv.toData(),
+            ciphertextAndTag: envelope.cipherText.toData(),
+            associatedData: envelope.associatedData.toData()
+        )
+        return try CryptoKitAESGCM.decrypt(key: key.toData(), value: value).kotlinBytes
     }
 }

@@ -13,6 +13,8 @@ import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultUnreadableException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,18 @@ class PersistentVezunaRepository private constructor(
     override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
 
     private suspend fun load() = mutex.withLock {
+        try {
+            loadLocked()
+        } catch (error: VaultUnreadableException) {
+            throw error
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw VaultUnreadableException(VaultFailure.CORRUPT, error)
+        }
+    }
+
+    private suspend fun loadLocked() {
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         val index = readEncrypted<List<Profile>>(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer())).orEmpty()
         index.forEach { profile ->

@@ -12,6 +12,9 @@ import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -132,32 +135,66 @@ class PersistentVezunaRepository(
     }
 
     private suspend fun restore() {
-        val encoded = vault.read(STORAGE_KEY)
-        snapshot = if (encoded == null) {
-            Snapshot()
-        } else {
-            val envelope = json.decodeFromString(CipherEnvelope.serializer(), encoded.decodeToString())
-            val plaintext = vault.decrypt(envelope)
-            json.decodeFromString(Snapshot.serializer(), plaintext.decodeToString()).also { restored ->
-                restored.records.forEach { (profileId, data) ->
-                    require(profileId == data.profile.profileId) { "Corrupt profile scope in repository" }
-                    require(data.documents.all { it.profileId == profileId } &&
-                        data.reports.all { it.profileId == profileId } &&
-                        data.observations.all { it.profileId == profileId } &&
-                        data.ocrCandidates.all { it.profileId == profileId } &&
-                        data.medications.all { it.profileId == profileId } &&
-                        data.doseEvents.all { it.profileId == profileId } &&
-                        data.chat.all { it.profileId == profileId }) { "Corrupt cross-profile record in repository" }
-                }
-            }
-        }
+        snapshot = decodeSnapshot(vault.read(STORAGE_KEY))
         mutableProfiles.value = snapshot.records.values.map { it.profile }.sortedBy { it.displayName }
         initialized = true
+    }
+
+    /** Current generation first; only a corrupt one falls back to the previous generation. */
+    private suspend fun decodeSnapshot(current: ByteArray?): Snapshot = try {
+        decode(current)
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: VaultUnreadableException) {
+        if (error.failure != VaultFailure.CORRUPT) throw error
+        decodePrevious(error)
+    } catch (error: Exception) {
+        decodePrevious(VaultUnreadableException(VaultFailure.CORRUPT, error))
+    }
+
+    private suspend fun decodePrevious(failure: VaultUnreadableException): Snapshot {
+        val previous = vault.readPrevious(STORAGE_KEY) ?: throw failure
+        return try {
+            decode(previous)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw failure
+        }
+    }
+
+    private suspend fun decode(encoded: ByteArray?): Snapshot {
+        if (encoded == null) return Snapshot()
+        val envelope = json.decodeFromString(CipherEnvelope.serializer(), encoded.decodeToString())
+        val plaintext = vault.decrypt(envelope)
+        return json.decodeFromString(Snapshot.serializer(), plaintext.decodeToString()).also { restored ->
+            restored.records.forEach { (profileId, data) ->
+                require(profileId == data.profile.profileId) { "Corrupt profile scope in repository" }
+                require(data.documents.all { it.profileId == profileId } &&
+                    data.reports.all { it.profileId == profileId } &&
+                    data.observations.all { it.profileId == profileId } &&
+                    data.ocrCandidates.all { it.profileId == profileId } &&
+                    data.medications.all { it.profileId == profileId } &&
+                    data.doseEvents.all { it.profileId == profileId } &&
+                    data.chat.all { it.profileId == profileId }) { "Corrupt cross-profile record in repository" }
+            }
+        }
     }
 
     /** Called once by the Application before any controller can observe profiles. */
     suspend fun load() = mutex.withLock {
         if (!initialized) restore()
+    }
+
+    /**
+     * Explicit user reset: keeps the unreadable files in a quarantine folder, drops a dead key, and starts empty.
+     * Never deletes the evidence; refuses when the vault cannot preserve it.
+     */
+    suspend fun resetAfterFailure() = mutex.withLock {
+        check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
+        vault.discardUnusableKey()
+        initialized = false
+        restore()
     }
 
     private companion object {
