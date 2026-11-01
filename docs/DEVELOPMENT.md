@@ -39,6 +39,16 @@ bash scripts/build-ios.sh            # Debug; CONFIGURATION=Release for release
 
 The script links the shared framework, syncs Compose resources, and runs `xcodebuild` with code signing disabled. It prints `IOS_BUILD_PASSED` on success.
 
+Local gates (all verification runs locally; there is no GitHub CI for these):
+
+```bash
+bash scripts/check-all.sh            # localization, brand, lab importer, Gradle (incl. lint + release), iOS; fails fast, prints CHECK_ALL_PASSED
+bash scripts/check-ios.sh            # iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
+bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a device/emulator, else skips with a message
+```
+
+`check-all.sh` builds the release variant with a throwaway keystore, because release signing is required by design. Never use a real key there.
+
 iOS XCTest suite (run the build first; it produces the shared framework):
 
 ```bash

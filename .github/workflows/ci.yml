@@ -40,35 +40,10 @@ jobs:
           python3 tools/release/sync_privacy_policy.py --check
       - name: Build Android and run unit tests
         run: bash gradlew :shared:jvmTest :composeApp:testDebugUnitTest :composeApp:assembleDebug :composeApp:assembleDebugAndroidTest
-      - name: Android lint
-        run: bash gradlew :composeApp:lintDebug
-      - name: Release build (throwaway CI key, not a real signing key)
-        run: |
-          keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -storepass ci-throwaway -keypass ci-throwaway \
-            -alias ci -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=ci'
-          VEZUNA_UPLOAD_STORE_FILE="$RUNNER_TEMP/ci.jks" VEZUNA_UPLOAD_STORE_PASSWORD=ci-throwaway \
-            VEZUNA_UPLOAD_KEY_ALIAS=ci VEZUNA_UPLOAD_KEY_PASSWORD=ci-throwaway \
-            bash gradlew :composeApp:assembleRelease
       - name: Verify test results
         run: python3 tools/localization/check_test_results.py
       - name: Check debug native library ELF alignment
         run: python3 tools/release/check_android_native.py composeApp/build/outputs/apk/debug/composeApp-debug.apk
-  ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-      - name: Build iOS simulator app
-        run: bash scripts/build-ios.sh
-      - name: Run iOS XCTest suite
-        run: bash scripts/test-ios.sh
   release-tooling:
     runs-on: ubuntu-latest
     steps:
