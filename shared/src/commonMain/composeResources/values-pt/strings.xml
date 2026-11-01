@@ -280,6 +280,40 @@ iOS: %2$s</string>
         <item quantity="one">%1$d candidato não revisado adicionado; confirme cada resultado individualmente</item>
         <item quantity="other">%1$d candidatos não revisados adicionados; confirme cada resultado individualmente</item>
     </plurals>
+    <!-- Portable backup and restore -->
+    <string name="backup_passphrase_too_short">Use pelo menos 12 caracteres na frase secreta do backup</string>
+    <string name="backup_wrong_passphrase">Frase secreta incorreta ou arquivo de backup danificado</string>
+    <string name="backup_not_a_backup">Este arquivo não é um backup do Vezuna</string>
+    <string name="backup_unsupported_version">Este backup vem de uma versão mais nova ou incompatível do Vezuna</string>
+    <string name="backup_same_device_unavailable">Este é um backup do mesmo aparelho. Só pode ser aberto no aparelho que o criou, e a chave desse aparelho não está disponível aqui</string>
+    <string name="backup_invalid_content">O conteúdo do backup está danificado ou inválido</string>
+    <string name="backup_section_title">Backup e restauração</string>
+    <string name="backup_create">Criar backup criptografado</string>
+    <string name="backup_restore">Restaurar de um backup</string>
+    <string name="backup_passphrase_warning">O backup é protegido somente por esta frase secreta. O Vezuna não consegue recuperá-la: se você a perder, o backup nunca poderá ser aberto.</string>
+    <string name="backup_passphrase_label">Frase secreta</string>
+    <string name="backup_passphrase_confirm_label">Confirmar frase secreta</string>
+    <string name="backup_passphrase_mismatch">As frases secretas não coincidem</string>
+    <string name="backup_strength_too_short">Muito curta: use pelo menos 12 caracteres</string>
+    <string name="backup_strength_fair">Aceitável. Uma frase mais longa com caracteres variados é mais forte</string>
+    <string name="backup_strength_strong">Frase secreta forte</string>
+    <string name="backup_create_action">Criar backup</string>
+    <string name="backup_saved">Backup salvo. Guarde bem a frase secreta</string>
+    <string name="backup_enter_passphrase_title">Digite a frase secreta do backup</string>
+    <string name="backup_unlock">Abrir backup</string>
+    <string name="backup_same_device_label">Backup do mesmo aparelho: só restaura no aparelho que o criou</string>
+    <string name="backup_contents">Backup do perfil %1$s</string>
+    <string name="backup_profile_exists_title">Este perfil já existe</string>
+    <string name="backup_profile_exists_body">Este aparelho já tem o perfil %1$s. Substitua-o pelo backup (os registros atuais são removidos) ou restaure o backup como um novo perfil.</string>
+    <string name="backup_replace">Substituir o perfil existente</string>
+    <string name="backup_restore_as_new">Restaurar como novo perfil</string>
+    <string name="backup_confirm_title">Restaurar este backup?</string>
+    <string name="backup_confirm_body">O perfil %1$s será adicionado a este aparelho.</string>
+    <string name="backup_restore_action">Restaurar</string>
+    <string name="backup_restored">Backup restaurado</string>
+    <string name="backup_recovery_confirm_body">Os registros ilegíveis são separados, não apagados, e o backup é restaurado em um cofre novo.</string>
+    <string name="backup_file_unreadable">Não foi possível ler o arquivo, ou ele é grande demais para ser um backup</string>
+    <string name="backup_restore_failed_after_reset">A restauração não terminou. Seus dados anteriores foram separados, não apagados. Tente restaurar novamente.</string>
     <!-- Device vitals -->
     <string name="vitals_title">Sinais do dispositivo</string>
     <string name="vitals_subtitle">Frequência cardíaca, passos e peso deste dispositivo para %1$s.</string>
@@ -305,4 +339,5 @@ iOS: %2$s</string>
         <item quantity="one">Gráfico com %1$d leitura, unidade %2$s</item>
         <item quantity="other">Gráfico com %1$d leituras, unidade %2$s</item>
     </plurals>
+    <string name="backup_restored_without_vitals">Backup restaurado, mas os dados de saúde do aparelho não puderam ser restaurados</string>
 </resources>

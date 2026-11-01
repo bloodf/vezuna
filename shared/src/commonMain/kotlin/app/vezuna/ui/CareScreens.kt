@@ -353,7 +353,7 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
 }
 
 @Composable
-fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope) {
+fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, backupFiles: BackupFileAccess? = null) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_SETTINGS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
     ScreenColumn(vitaText(L10nKey.SETTINGS_EXPORT), vitaText(L10nKey.SETTINGS_SUBTITLE, data.profile.displayName)) {
         SectionHeading(vitaText(L10nKey.SECTION_OFFLINE_BOUNDARY))
@@ -389,6 +389,7 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         state.pdfExport?.let { pdf ->
             StatusPill(vitaText(L10nKey.PDF_READY_BYTES, pdf.bytes.size), Icons.Rounded.PictureAsPdf, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
         }
+        BackupSettingsSection(state, controller, backupFiles)
         DeviceHealthSettings(state, data, controller, scope)
         SectionHeading(vitaText(L10nKey.SECTION_STORAGE_SECURITY))
         Card {
