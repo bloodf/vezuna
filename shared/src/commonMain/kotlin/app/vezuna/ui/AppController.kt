@@ -97,6 +97,8 @@ data class AppUiState(
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
     val healthLinkedProfileId: String? = null,
+    /** Assistant text received so far while an answer is being generated; null when idle. */
+    val streamingAnswer: String? = null,
 )
 
 object DashboardRefreshSignal {
@@ -599,12 +601,18 @@ class AppController(
         )
     }
 
-    /** Returns true when the answer was stored; on failure the caller keeps the user's question. */
+    /** Returns true when the answer was stored; on failure (or cancellation of the calling job) the caller keeps the user's question. */
     suspend fun ask(question: String): Boolean {
         operation {
             val data = requireData()
-            chat.ask(data, mutableState.value.selectedObservationIds, question)
-            loadProfile(data.profile.profileId)
+            try {
+                chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
+                    mutableState.value = mutableState.value.copy(streamingAnswer = partial)
+                }
+                loadProfile(data.profile.profileId)
+            } finally {
+                mutableState.value = mutableState.value.copy(streamingAnswer = null)
+            }
         }
         return mutableState.value.error == null
     }

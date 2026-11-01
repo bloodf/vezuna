@@ -385,4 +385,6 @@ iOS: %2$s</string>
     <string name="export_language_device">App language</string>
     <string name="export_language_explanation">Choose the language of headings, statuses and numbers in the export. Clinical values and units never change.</string>
     <string name="model_catalog_unreadable">The model catalog bundled with the app could not be read. AI models are unavailable.</string>
+    <string name="generated_text_disclaimer">Generated text, may be wrong</string>
+    <string name="stop_generating">Stop</string>
 </resources>
