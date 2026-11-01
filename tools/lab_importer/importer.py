@@ -28,7 +28,7 @@ LIGATURES = str.maketrans(
     }
 )
 NBSP = dict.fromkeys(map(ord, "\u00a0\u202f\u2007\u2009"), " ")
-NUMBER = r"[+-]?(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?|\d+\.\d+)"
+NUMBER = r"[+-]?(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)"
 UNITS = (
     "µUI/mL",
     "μUI/mL",
@@ -226,7 +226,7 @@ def _reference(lower: float | None = None, upper: float | None = None, **extra: 
 
 def _find_references(rest: str) -> list[dict[str, Any]]:
     references: list[dict[str, Any]] = []
-    range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|–|—)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
+    range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|to|–|—|-)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
     threshold_pattern = re.compile(
         rf"(inferior(?:\s+[àa])?|menor\s+que|até|ate|no\s+m[áa]ximo|superior(?:\s+[àa])?|maior\s+que|acima\s+de)\s*[:=]?\s*({NUMBER})\s*({UNIT_PATTERN})?",
         re.I,

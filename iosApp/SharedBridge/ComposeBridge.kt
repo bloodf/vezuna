@@ -136,6 +136,9 @@ data class NativeCandidateInput(
     val confidence: Float?,
     val collectedEpochSeconds: Long,
     val rawToken: String? = null,
+    val referenceText: String? = null,
+    val referenceUnit: String? = null,
+    val qualitative: Boolean = false,
 )
 
 object IosRuntime {

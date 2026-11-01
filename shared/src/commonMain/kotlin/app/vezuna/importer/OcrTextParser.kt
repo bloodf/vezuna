@@ -9,8 +9,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
-import java.text.Normalizer
-import java.util.Locale
+import app.vezuna.security.normalizeNfc
 
 data class ParsedOcrMeasurement(
     val displayName: String,
@@ -25,7 +24,7 @@ data class ParsedOcrMeasurement(
 
 /** Conservative Portuguese clinical-row parsing. Ambiguous and historical rows stay out of review. */
 object OcrTextParser {
-    private const val NUMBER = "[+-]?(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+(?:,\\d+)?|\\d+\\.\\d+)"
+    private const val NUMBER = "[+-]?(?:\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+\\.\\d+|\\d+(?:,\\d+)?)"
     private val UNITS = listOf(
         "ng/mL FEU", "µUI/mL", "μUI/mL", "uUI/mL", "mUI/mL", "UI/mL", "U/mL",
         "ng/dL", "ng/mL", "pg/mL", "µg/dL", "μg/dL", "ug/dL", "µg/L", "μg/L", "ug/L",
@@ -74,9 +73,9 @@ object OcrTextParser {
         var normalized = value
         mapOf("ﬀ" to "ff", "ﬁ" to "fi", "ﬂ" to "fl", "ﬃ" to "ffi", "ﬄ" to "ffl", "ﬅ" to "st", "ﬆ" to "st")
             .forEach { (ligature, replacement) -> normalized = normalized.replace(ligature, replacement) }
-        normalized = normalized.replace(Regex("[\\u00a0\\u202f\\u2007\\u2009]"), " ").replace("\u00ad", "")
-        normalized = Normalizer.normalize(normalized, Normalizer.Form.NFC).replace("\r\n", "\n").replace('\r', '\n')
-        return normalized.split('\n').joinToString("\n") { line -> line.replace(Regex("[\\t\\f\\u000b ]+"), " ").trim() }
+        normalized = normalized.replace(Regex("[\u00a0\u202f\u2007\u2009]"), " ").replace("\u00ad", "")
+        normalized = normalizeNfc(normalized).replace("\r\n", "\n").replace('\r', '\n')
+        return normalized.split('\n').joinToString("\n") { line -> line.replace(Regex("[\t\u000c\u000b ]+"), " ").trim() }
     }
 
     fun parseMeasurementLine(line: String): ParsedOcrMeasurement? {
@@ -119,8 +118,8 @@ object OcrTextParser {
         return value
     }
 
-    fun canonicalTestCode(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFC)
-        .uppercase(Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }
+    fun canonicalTestCode(value: String): String = normalizeNfc(value)
+        .uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }
 
     private fun parseQualifiedNumeric(line: String, date: Instant?): ParsedOcrMeasurement? {
         val match = QUALIFIED_NUMERIC.matchEntire(line) ?: return null
@@ -246,8 +245,7 @@ object OcrTextParser {
         return true
     }
 
-    private fun folded(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKD)
-        .replace(Regex("\\p{Mn}+"), "").lowercase(Locale.ROOT)
+    private fun folded(value: String): String = foldedText(value)
 
     private fun String.startsWithAny(prefixes: List<String>): Boolean = prefixes.any(::startsWith)
 }

@@ -149,7 +149,8 @@ struct NativeImportView: View {
         defer { busy = false }
         do {
             let extracted = try await SourceTextExtractor.extract(data: data, mediaType: mediaType)
-            let parsed = LabTextParser.parse(extracted.text, confidence: extracted.ocrConfidence)
+            let parsed = LabTextBridge.shared.parse(text: extracted.text, ocrConfidence: extracted.ocrConfidence.map { KotlinFloat(float: $0) })
+                .map(ImportedLabCandidate.init(parsed:))
             guard !parsed.isEmpty else { throw ImportError.noStructuredResults }
             sourceData = data
             sourceName = name
@@ -193,7 +194,10 @@ struct NativeImportView: View {
                 referenceUpper: candidate.referenceUpper,
                 confidence: candidate.confidence.map { KotlinFloat(float: $0) },
                 collectedEpochSeconds: storedInstant(date),
-                rawToken: candidate.rawToken
+                rawToken: candidate.rawToken,
+                referenceText: candidate.referenceText.isEmpty ? nil : candidate.referenceText,
+                referenceUnit: candidate.referenceUnit,
+                qualitative: candidate.qualitative
             )
         }
         IosRuntime.shared.importNativeCandidates(
