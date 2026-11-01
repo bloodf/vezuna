@@ -1,0 +1,26 @@
+[
+  {
+    "file": "llamatik-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/llamatik/Llamatik/414d6190459bd64ee4d9863c4ab2a7f7761834e1/LICENSE",
+    "revision": "414d6190459bd64ee4d9863c4ab2a7f7761834e1",
+    "sha256": "2d403c77e2c6f39e9e0385a23bb61b878b5aed8ca6393016243e018656b9567e"
+  },
+  {
+    "file": "llama.cpp-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/LICENSE",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+  },
+  {
+    "file": "whisper.cpp-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/d1be6fde11ac6e0407606b4e42fe72d34add8037/LICENSE",
+    "revision": "d1be6fde11ac6e0407606b4e42fe72d34add8037",
+    "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+  },
+  {
+    "file": "stable-diffusion.cpp-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/LICENSE",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "sha256": "b53fa08f515cb5a6fff7b9fd8fcd0961a4b80df29d74372d25e1f9171aa042ee"
+  }
+]

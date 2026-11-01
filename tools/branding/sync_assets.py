@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BRAND = ROOT / "brand"
 SHARED = ROOT / "shared/src/commonMain/composeResources"
 ANDROID = ROOT / "composeApp/src/main"
-IOS = ROOT / "iosApp/VitaHearth"
+IOS = ROOT / "iosApp/Vezuna"
 
 
 def copy(source, target):

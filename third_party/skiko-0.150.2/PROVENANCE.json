@@ -1,0 +1,18 @@
+{
+  "skikoVersion": "0.150.2",
+  "skikoRevision": "caed3841b8725429bb9b9805ff162a40eb7bce47",
+  "skikoSourceUrl": "https://github.com/JetBrains/skiko/tree/caed3841b8725429bb9b9805ff162a40eb7bce47",
+  "skiaTag": "m150-a3f509bf52",
+  "skiaRevision": "a3f509bf52564dc8b27940bebe599d77ac0c4ae3",
+  "officialSkiaAssetUrl": "https://github.com/JetBrains/skia/releases/download/m150-a3f509bf52/Skia-m150-a3f509bf52-ios-Release-arm64.zip",
+  "officialSkiaAssetSha256": "91707cc747d53f1a5814a976303c549c813784d1f422fb383dfcd26a1a4be224",
+  "klibSha256": "8e70c2e80b8b3ac026c44c381e57dbb87a8b371ae42cb2f9e1f009a193195b90",
+  "transformation": "Pinned PatchSkiaSymbolsTask symbol renaming, xcrun nm -g --defined-only and llvm-objcopy --redefine-syms",
+  "llvmObjcopyVersion": "Android NDK r28c LLVM 19.0.1, revision 97a699bf4812a18fb657c2779f5296a4ab2694d2",
+  "result": "All 21 embedded Skia/dependency archives match byte-for-byte after symbol renaming",
+  "limits": [
+    "Skiko bridge compiled separately and not rebuilt in this proof",
+    "Source license copies are not yet an exhaustive bundled attribution set",
+    "Homebrew LLVM 22 output differed; LLVM 19.0.1 reproduced all archive hashes"
+  ]
+}

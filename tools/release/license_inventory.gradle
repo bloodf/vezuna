@@ -1,0 +1,27 @@
+import groovy.json.JsonOutput
+
+// Read resolved external artifacts without selecting the shared project's Android artifact variants.
+// Run explicitly with --init-script; normal application builds do not load this file.
+gradle.projectsEvaluated {
+    [
+        [projectPath: ':composeApp', configuration: 'releaseRuntimeClasspath', platform: 'android'],
+        [projectPath: ':shared', configuration: 'iosArm64CompileKlibraries', platform: 'ios'],
+    ].each { spec ->
+        def target = gradle.rootProject.findProject(spec.projectPath)
+        target.tasks.register('writeVezunaLicenseInventory') {
+            notCompatibleWithConfigurationCache('Release license audit reads the live resolved dependency configurations')
+            doLast {
+                def artifacts = target.configurations.getByName(spec.configuration).incoming.artifactView { view ->
+                    view.componentFilter { id -> id instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier }
+                }.artifacts.artifacts
+                def rows = artifacts.collect { artifact ->
+                    [component: artifact.id.componentIdentifier.toString(), file: artifact.file.absolutePath, type: artifact.file.name.tokenize('.').last()]
+                }.sort { it.component }
+                def outputDir = gradle.rootProject.layout.buildDirectory.dir('reports/licenses').get().asFile
+                outputDir.mkdirs()
+                new File(outputDir, "${spec.platform}-artifacts.json").text = JsonOutput.prettyPrint(JsonOutput.toJson(rows))
+                println "VEZUNA_${spec.platform.toUpperCase()}_LICENSE_INVENTORY ${rows.size()}"
+            }
+        }
+    }
+}

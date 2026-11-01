@@ -1,0 +1,249 @@
+[
+  {
+    "id": "llama-json-license",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "licenses/LICENSE-jsonhpp",
+    "output": "licenses/llama.cpp/licenses_LICENSE-jsonhpp",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/licenses/LICENSE-jsonhpp",
+    "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86",
+    "sourceGitBlobSha": "b5a10275c1cdff6d2d1b4d84f51922d42499dec5"
+  },
+  {
+    "id": "llama-httplib-license",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/cpp-httplib/LICENSE",
+    "output": "licenses/llama.cpp/vendor_cpp-httplib_LICENSE",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/cpp-httplib/LICENSE",
+    "sha256": "4b45cbe16d7b71b89ae6127e26e0d90a029198ca5e958ad8e3d0b8bbed364d8b",
+    "sourceGitBlobSha": "3e5ed359a2bb16f52c383745c25f14bb7a81c9e4"
+  },
+  {
+    "id": "llama-sha256-license",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/hash/sha256/LICENSE",
+    "output": "licenses/llama.cpp/vendor_hash_sha256_LICENSE",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/hash/sha256/LICENSE",
+    "sha256": "b81d0022ca6367918c67b57e9647d3513ee58809fd4b0ef0b3492f1356bced25",
+    "sourceGitBlobSha": "950b19483ab03709fc810c59a76c24666b99dab2"
+  },
+  {
+    "id": "llama-xxhash-license",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/hash/xxhash/LICENSE",
+    "output": "licenses/llama.cpp/vendor_hash_xxhash_LICENSE",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/hash/xxhash/LICENSE",
+    "sha256": "6ffedbc0f7878612d2b23589f1ff2ab15633e1df7963a5d9fc750ec5500c7e7a",
+    "sourceGitBlobSha": "e4c5da7234eca7baad9a46f0b144e49ccad2e500"
+  },
+  {
+    "id": "llama-rotate-license",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/hash/rotate-bits/LICENSE.md",
+    "output": "licenses/llama.cpp/vendor_hash_rotate-bits_LICENSE.md",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/hash/rotate-bits/LICENSE.md",
+    "sha256": "ca0b44aec101afb6b46f4c39b23369fa06a64fb9c0add37c2689d702156fee55",
+    "sourceGitBlobSha": "4a07c57f26755bfe13453ad4a23f8ebb8b3d3d92"
+  },
+  {
+    "id": "sd-onig-license",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/oniguruma/COPYING",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_oniguruma_COPYING",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/oniguruma/COPYING",
+    "sha256": "0dff717fb611b9c9bd9776a5df9c4e029030f8dbc023b77f3678cf495495b933",
+    "sourceGitBlobSha": "cd10bd8456793ef1eef23b7976e75dfef9cffae8"
+  },
+  {
+    "id": "sd-utf8proc-license",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/utf8proc/LICENSE.md",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_utf8proc_LICENSE.md",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/utf8proc/LICENSE.md",
+    "sha256": "767edbcafb23016d7f203aaf2cbdef5690ad58bcede52ee241427dcb816cd644",
+    "sourceGitBlobSha": "d5c535e7ed5ac37d33fd4913f90d6252fd3c3d97"
+  },
+  {
+    "id": "sd-darts-license",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/LICENSE.darts_clone.txt",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_LICENSE.darts_clone.txt",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/LICENSE.darts_clone.txt",
+    "sha256": "155f59997298ee336602c49f9c1110f268ac394ca2197eb02647a3555935ad52",
+    "sourceGitBlobSha": "28203b3b2d937ad240a79425d6ffe15001d2a298"
+  },
+  {
+    "id": "llama-sha1-source",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/hash/sha1/sha1.c",
+    "output": "licenses/llama.cpp/vendor_hash_sha1_sha1.c-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/hash/sha1/sha1.c",
+    "sha256": "46fc0c6d8b1e82892861b8093beb214f1531d5367d6d6ebbee0b16a9ecc37daa",
+    "sourceGitBlobSha": "4d84340d43e625f90011c39d7694a48aa539d80a"
+  },
+  {
+    "id": "llama-sheredom-source",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/sheredom/subprocess.h",
+    "output": "licenses/llama.cpp/vendor_sheredom_subprocess.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/sheredom/subprocess.h",
+    "sha256": "1c7b71e03e1be684d51dfeb56d6358cc728097d844cfd72484f28835ff4c091b",
+    "sourceGitBlobSha": "67420c10356bcdad03b89d04700a598ac0c768df"
+  },
+  {
+    "id": "llama-stb-source",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "vendor/stb/stb_image.h",
+    "output": "licenses/llama.cpp/vendor_stb_stb_image.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/vendor/stb/stb_image.h",
+    "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d",
+    "sourceGitBlobSha": "9eedabedc45b3e6fd88fae6f14a160b4d53272ec"
+  },
+  {
+    "id": "sd-miniz-source",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/miniz.h",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_miniz.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/miniz.h",
+    "sha256": "f924f3448e5955f32add8be46194e30cc6de5dafe05442e0afe7850567533484",
+    "sourceGitBlobSha": "71958ccfd4e5bc2c8561090638045b58088f84b3"
+  },
+  {
+    "id": "sd-zip-source",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/zip.c",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_zip.c-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/zip.c",
+    "sha256": "a172b8c2f152e58f6f25cc67f053ae6451b81b7ba350a174f9426aa6f2e93f46",
+    "sourceGitBlobSha": "030c9a6dc3e99575230ae6988689ac957e1a156b"
+  },
+  {
+    "id": "sd-stb-image-source",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/stb_image.h",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_stb_image.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/stb_image.h",
+    "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d",
+    "sourceGitBlobSha": "5e807a0a6e7cdbfbbf48dff5f5d3f3693c2bc851"
+  },
+  {
+    "id": "sd-stb-write-source",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/stb_image_write.h",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_stb_image_write.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/stb_image_write.h",
+    "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d",
+    "sourceGitBlobSha": "9128a3131f8ce0c9571078bd374c6a4aa808d4f3"
+  },
+  {
+    "id": "sd-stb-resize-source",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/stb_image_resize.h",
+    "output": "licenses/stable-diffusion.cpp/thirdparty_stb_image_resize.h-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/stb_image_resize.h",
+    "sha256": "9488a3b46dfad6dc2d77ff181fe811b3da47f580d37a3a1aa368d8b32b8adbd7",
+    "sourceGitBlobSha": "bcca92c2dca11a31355e3f026e8779d2d522d33c"
+  },
+  {
+    "id": "mozilla-llamafile",
+    "repo": "ggml-org/llama.cpp",
+    "revision": "620d2225cc436ab0b001e3200e590e3b286ef9ab",
+    "path": "ggml/src/ggml-cpu/llamafile/sgemm.cpp",
+    "output": "licenses/llama.cpp/llamafile-sgemm-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/620d2225cc436ab0b001e3200e590e3b286ef9ab/ggml/src/ggml-cpu/llamafile/sgemm.cpp",
+    "sha256": "08b820564baaf70af73099bdbb0f1a0d69b3362a55d4564160b0e3e3b6648116",
+    "sourceGitBlobSha": "d28840a91504a4c0ce14ec2e384ba759dc4c0797"
+  },
+  {
+    "id": "sd-json-license",
+    "repo": "nlohmann/json",
+    "revision": "bc889afb4c5bf1c0d8ee29ef35eaaf4c8bef8a5d",
+    "path": "LICENSE.MIT",
+    "output": "licenses/stable-diffusion.cpp/nlohmann-json-3.11.2-LICENSE.MIT",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/nlohmann/json/bc889afb4c5bf1c0d8ee29ef35eaaf4c8bef8a5d/LICENSE.MIT",
+    "sha256": "86b998c792894ccb911a1cb7994f7a9652894e7a094c0b5e45be2f553f45cf14"
+  },
+  {
+    "id": "zip-license",
+    "repo": "kuba--/zip",
+    "revision": "b7c63224ed78596cef8567fe7bfeef045961b8a0",
+    "path": "LICENSE.txt",
+    "output": "licenses/stable-diffusion.cpp/zip-LICENSE.txt",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/kuba--/zip/b7c63224ed78596cef8567fe7bfeef045961b8a0/LICENSE.txt",
+    "sha256": "6c1643ab0353b42030e903654fdb3845570b741da5ffafcaf9d305e8ec79a4a0"
+  },
+  {
+    "id": "abseil-license",
+    "repo": "abseil/abseil-cpp",
+    "revision": "10cb35e459f5ecca5b2ff107635da0bfa41011b4",
+    "path": "LICENSE",
+    "output": "licenses/stable-diffusion.cpp/json-abseil-LICENSE.txt",
+    "extracted": false,
+    "url": "https://raw.githubusercontent.com/abseil/abseil-cpp/10cb35e459f5ecca5b2ff107635da0bfa41011b4/LICENSE",
+    "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747"
+  },
+  {
+    "id": "abseil-utility-notice",
+    "repo": "abseil/abseil-cpp",
+    "revision": "10cb35e459f5ecca5b2ff107635da0bfa41011b4",
+    "path": "absl/utility/utility.h",
+    "output": "licenses/stable-diffusion.cpp/json-abseil-utility-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/abseil/abseil-cpp/10cb35e459f5ecca5b2ff107635da0bfa41011b4/absl/utility/utility.h",
+    "sha256": "5cb7e330f4854103db05d6407211f88082f53292c7a2a85007a944b5da1cbe22"
+  },
+  {
+    "id": "json-attributions",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/json.hpp",
+    "output": "licenses/stable-diffusion.cpp/json-spdx-attributions.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/json.hpp",
+    "sha256": "cc2ed188d83cdafcca1267b903c902c36df1bfb1fb5e04b54c901c4d3f0dbf6a"
+  },
+  {
+    "id": "sd-httplib-attribution",
+    "repo": "leejet/stable-diffusion.cpp",
+    "revision": "95b3090664d019fcf8fa032a44d1d4793ba244b8",
+    "path": "thirdparty/httplib.h",
+    "output": "licenses/stable-diffusion.cpp/httplib-copyright-notice.txt",
+    "extracted": true,
+    "url": "https://raw.githubusercontent.com/leejet/stable-diffusion.cpp/95b3090664d019fcf8fa032a44d1d4793ba244b8/thirdparty/httplib.h",
+    "sha256": "1ff67ea64d6387e68b7d2c7876bceda33e205608dbb88fb69d7bb9cd57c0d41d"
+  }
+]

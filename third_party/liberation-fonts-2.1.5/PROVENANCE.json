@@ -1,0 +1,11 @@
+{
+  "fontVersionFromNameTable": "2.1.5",
+  "artifact": "com.tom-roush:pdfbox-android:2.0.27.0",
+  "artifactFontEntry": "assets/com/tom_roush/pdfbox/resources/ttf/LiberationSans-Regular.ttf",
+  "fontSha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8",
+  "fontCopyrightFromNameTable": "Digitized data copyright (c) 2010 Google Corporation. Copyright (c) 2012 Red Hat, Inc.",
+  "fontLicenseFromNameTable": "Licensed under the SIL Open Font License, Version 1.1",
+  "licenseUrl": "https://raw.githubusercontent.com/liberationfonts/liberation-fonts/4b0192046158094654e865245832c66d2104219e/LICENSE",
+  "licenseSha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",
+  "scope": "font metadata identifies version and OFL; upstream TTF byte reproducibility not claimed"
+}

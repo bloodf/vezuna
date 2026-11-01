@@ -1,4 +1,4 @@
-"""VitaHearth laboratory-import reference harness."""
+"""Vezuna laboratory-import reference harness."""
 
 from .importer import (
     canonical_clinical_text,

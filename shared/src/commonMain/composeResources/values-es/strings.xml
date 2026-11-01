@@ -194,7 +194,7 @@ iOS: %2$s</string>
     <string name="trend_incompatible_units">Confirma al menos un resultado. Solo se representan juntas las unidades normalizadas coincidentes.</string>
     <string name="trends">Tendencias</string>
     <string name="unreviewed_ocr_candidate">Candidato OCR sin revisar</string>
-    <string name="vitahearth">Vezuna</string>
+    <string name="vezuna">Vezuna</string>
     <string name="workflow_accessibility">Flujo de %1$s</string>
     <string name="workflow_import_review">Importar o revisar un análisis</string>
     <string name="workflow_trends">Ver tendencias confirmadas</string>

@@ -1,1 +1,1 @@
-"""Development tools for VitaHearth."""
+"""Development tools for Vezuna."""

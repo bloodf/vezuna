@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.VitaHearth" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Vezuna" parent="android:Theme.Material.NoActionBar">
         <item name="android:fontFamily">@font/notosans_regular</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">#F5FAF9</item>

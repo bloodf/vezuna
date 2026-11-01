@@ -6,4 +6,4 @@
 - Google Play, criação/listagem: https://support.google.com/googleplay/android-developer/answer/9859152?hl=pt-BR
 - Fontes Noto: avisos originais incluídos em fonts/NOTO-LICENSE.txt.
 
-Busca pública de nomes não constitui verificação de marca registrada, domínio ou reserva nas lojas. A identidade é uma proposta gráfica v1.0, não um registro de exclusividade. Nenhuma conta, domínio ou marca foi registrada.
+Busca pública de nomes não constitui verificação de marca registrada nem reserva nas lojas. A identidade é uma proposta gráfica v1.0, não um registro de exclusividade. O proprietário informou a compra de `vezuna.app` e sua configuração na Vercel em 31 de outubro de 2026. Isso não estabelece registro de marca ou reserva de nome nas lojas.

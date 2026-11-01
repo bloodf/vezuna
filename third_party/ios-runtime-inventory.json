@@ -1,0 +1,1044 @@
+[
+  {
+    "component": "androidx.annotation:annotation-iosarm64:1.9.1",
+    "artifact": "annotation.klib",
+    "sha256": "7f5b56c89b8acbde25178a480de6f6bb8de23f2ac5c5f765471b349567ffa93c",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.annotation:annotation-iosarm64:1.9.1",
+        "pomSha256": "2539a800a3b6e1ce8579fb394fb9f4622f35b033c662f4a3f5973df8ef888a52"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/annotation/annotation/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.collection:collection-iosarm64:1.5.0",
+    "artifact": "collection-iosArm64Main-1.5.0.klib",
+    "sha256": "58baf49e376e3de985eca30197c2d9e07d5a92621915ae2170b4dbcc2f08dba7",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.collection:collection-iosarm64:1.5.0",
+        "pomSha256": "6895c155cfd92d1e166e8f1859a41e16eb77b3ba7a2a109285163ecfa303e561"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/collection/collection/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.compose.runtime:runtime-annotation-iosarm64:1.12.1",
+    "artifact": "runtime-annotation-iosArm64Main-1.12.1.klib",
+    "sha256": "e83c7b86f0706f21ce8cbd8cbba08d2da8669c29d1ee4faeaa64045eb572084b",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.compose.runtime:runtime-annotation-iosarm64:1.12.1",
+        "pomSha256": "009c45c3cb43f1733eae5c5a036b1c388c9e6de535407ef22f0f7169fd849640"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/compose/runtime/runtime-annotation/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.compose.runtime:runtime-iosarm64:1.12.1",
+    "artifact": "runtime-iosArm64Main-1.12.1.klib",
+    "sha256": "6613d9a97e4f68a9e17e5fc520b027ce9d77d4a65f2fd57a0e1e4a22fe711a96",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.compose.runtime:runtime-iosarm64:1.12.1",
+        "pomSha256": "2fc6a9830f47e970a8122d96cff31325b1294ea328c46ff52b92c088b4077095"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/compose/runtime/runtime/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.compose.runtime:runtime-retain-iosarm64:1.12.1",
+    "artifact": "runtime-retain-iosArm64Main-1.12.1.klib",
+    "sha256": "def6601b5b5f7e1a0c44d7b05ce35e747b1431e6b1ff3ba9147c6b6ee83461f6",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.compose.runtime:runtime-retain-iosarm64:1.12.1",
+        "pomSha256": "4476fa55b59aac0b004639c0747e19260eeaced3b4f5efb9398ce413f98edb49"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/compose/runtime/runtime-retain/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.compose.runtime:runtime-saveable-iosarm64:1.12.1",
+    "artifact": "runtime-saveable-iosArm64Main-1.12.1.klib",
+    "sha256": "0d593404b460f0c220bbc7378a06c562b5f97c50074d958d4caceac4b75ccfc2",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.compose.runtime:runtime-saveable-iosarm64:1.12.1",
+        "pomSha256": "4d2f64ba0539b90fca18dc17c621f204d59553b9f27b944829d40f558303b1c2"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/compose/runtime/runtime-saveable/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-common-iosarm64:2.11.0",
+    "artifact": "lifecycle-common-iosArm64Main-2.11.0.klib",
+    "sha256": "6da9e28278dd66c7be633fcf7668962f74ceca22ffd94a26f87e7344215a6817",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-common-iosarm64:2.11.0",
+        "pomSha256": "efc44be7b4d72ca1cc0b608090be16fa5cb3092b319e3ee5368e8e46acc4be51"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-common/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-runtime-compose-iosarm64:2.11.0",
+    "artifact": "lifecycle-runtime-compose-iosArm64Main-2.11.0.klib",
+    "sha256": "302ebb774be3f9603eab0437205fde9c84b3d30fea36cdc26d32df1b0907c4f5",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-runtime-compose-iosarm64:2.11.0",
+        "pomSha256": "e5f2e155ede4fe13d70d2325440ddcbcc224101c49d0728886e9480d1df0018e"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-runtime-compose/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-runtime-iosarm64:2.11.0",
+    "artifact": "lifecycle-runtime-iosArm64Main-2.11.0.klib",
+    "sha256": "ad424bc3ac1bd99dc72d0978fb30ae325b9d3fc6a1f3aa665815e00d78b9541b",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-runtime-iosarm64:2.11.0",
+        "pomSha256": "2bd6713059ae2ac0f6bf5b96086ded4f2d03ef4e358d8633e273a82d9629c852"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-runtime/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-viewmodel-compose-iosarm64:2.11.0",
+    "artifact": "lifecycle-viewmodel-compose-iosArm64Main-2.11.0.klib",
+    "sha256": "7937f5133227682ceea6e4a0692886439ad5c6add9852b195560fd41a68b4521",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-viewmodel-compose-iosarm64:2.11.0",
+        "pomSha256": "f36363a2cda746704b244cc2e7989ef11ae59e7290eefb21d29d25a04bbd18c8"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-viewmodel-compose/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-viewmodel-iosarm64:2.11.0",
+    "artifact": "lifecycle-viewmodel-iosArm64Main-2.11.0.klib",
+    "sha256": "a7cf6e4b629173adf68f778d2a8a379d62ec8e399161c96bf0f17d14e14b976f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-viewmodel-iosarm64:2.11.0",
+        "pomSha256": "2f86483f3bd34ac0021b1fb0f8ee8f06d5544a9ffa5fac813ffd02ff7e103674"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-viewmodel/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.lifecycle:lifecycle-viewmodel-savedstate-iosarm64:2.11.0",
+    "artifact": "lifecycle-viewmodel-savedstate-iosArm64Main-2.11.0.klib",
+    "sha256": "c6042fa182c83ebbb833928206ec6c947cb981368083c55e7ff81ee94cf4e119",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.lifecycle:lifecycle-viewmodel-savedstate-iosarm64:2.11.0",
+        "pomSha256": "43675332845d41d363f1163937a80a16042eecb49d861bda455eff42db9d9c6e"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/lifecycle/lifecycle-viewmodel-savedstate/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.navigationevent:navigationevent-compose-iosarm64:1.1.1",
+    "artifact": "navigationevent-compose-iosArm64Main-1.1.1.klib",
+    "sha256": "b9ac10bb3e43e43fd21b075b48960277c71cd182059641dbcecb2c88dc767bb1",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.navigationevent:navigationevent-compose-iosarm64:1.1.1",
+        "pomSha256": "bca3f9bc5a1364b8a12962de0a73cf6207de568fd1b1a655d01ffb61fba1aa47"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/navigationevent/navigationevent-compose/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.navigationevent:navigationevent-iosarm64:1.1.1",
+    "artifact": "navigationevent-iosArm64Main-1.1.1.klib",
+    "sha256": "41e454b4b2ed540ab02e9180dc279a54a75a0a0dd630cd671d6f8e5ab8ad8f7f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.navigationevent:navigationevent-iosarm64:1.1.1",
+        "pomSha256": "1fd827596ebcba20a25b90379f6b8cd728e696ea7bdb11892f93787179d938ab"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/navigationevent/navigationevent/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.savedstate:savedstate-compose-iosarm64:1.4.0",
+    "artifact": "savedstate-compose-iosArm64Main-1.4.0.klib",
+    "sha256": "353a699b8618cce62aa02e2cadf7ad5c08e63f2f764f7eccf9a8820d730e5d4b",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.savedstate:savedstate-compose-iosarm64:1.4.0",
+        "pomSha256": "6c96c4afbe5cef6686d26353b8110895e9c039c344548e40a6f773ecdc882f0f"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/savedstate/savedstate-compose/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "androidx.savedstate:savedstate-iosarm64:1.4.0",
+    "artifact": "savedstate-iosArm64Main-1.4.0.klib",
+    "sha256": "64f3fdda5ff9aa549aee224a7dfeb7b54d4fa3fed157874fb78550a305c3f57a",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "androidx.savedstate:savedstate-iosarm64:1.4.0",
+        "pomSha256": "b5e6140b338865132cc202f364b42978e7cc7e58860be7d25063a60578946709"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/savedstate/savedstate/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "com.llamatik:core-iosarm64:2.1.0",
+    "artifact": "core-iosArm64Main-2.1.0.klib",
+    "sha256": "9c9135e694c3ada33b285cdea873803b7bd2889913a8325b706b40ffc6062656",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "declaredBy": "com.llamatik:core-iosarm64:2.1.0",
+        "pomSha256": "b783a060e04ace2527be1d3a8615dc1078c5d6047fbe6175364511d18d58e27c"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "com.llamatik:core-iosarm64:2.1.0",
+    "artifact": "core-iosArm64Cinterop-llamaMain-2.1.0.klib",
+    "sha256": "4fa5ce6de9145be9f6241bae0fe52016522ba34e58c4e8e9ded6893cd8657db8",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "declaredBy": "com.llamatik:core-iosarm64:2.1.0",
+        "pomSha256": "b783a060e04ace2527be1d3a8615dc1078c5d6047fbe6175364511d18d58e27c"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "com.llamatik:core-iosarm64:2.1.0",
+    "artifact": "core-iosArm64Cinterop-whisperMain-2.1.0.klib",
+    "sha256": "b3173757625add17621cb22da5e7ff2966114ebfdb7d7099a6f703b8e43a2d98",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "declaredBy": "com.llamatik:core-iosarm64:2.1.0",
+        "pomSha256": "b783a060e04ace2527be1d3a8615dc1078c5d6047fbe6175364511d18d58e27c"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "com.llamatik:core-iosarm64:2.1.0",
+    "artifact": "core-iosArm64Cinterop-stableDiffusionMain-2.1.0.klib",
+    "sha256": "f946e82757d06bf101723530d85e4eedd0561e9e9fe5a19a8dbc82acbc1809ad",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "declaredBy": "com.llamatik:core-iosarm64:2.1.0",
+        "pomSha256": "b783a060e04ace2527be1d3a8615dc1078c5d6047fbe6175364511d18d58e27c"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "com.llamatik:core-iosarm64:2.1.0",
+    "artifact": "core-iosArm64Cinterop-multimodalMain-2.1.0.klib",
+    "sha256": "7663e95bef7a9f1e04178f22a50c2c48cfebb62ca40c49e4ce33db4f67bbb960",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0",
+        "declaredBy": "com.llamatik:core-iosarm64:2.1.0",
+        "pomSha256": "b783a060e04ace2527be1d3a8615dc1078c5d6047fbe6175364511d18d58e27c"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-uikitarm64:2.9.6",
+    "artifact": "lifecycle-runtime-compose-uikitArm64Main-2.9.6.klib",
+    "sha256": "03c737cb868e358b40eb7404c278512b9af388de90eba3bf09e162e10d55683f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-uikitarm64:2.9.6",
+        "pomSha256": "aa1e27bcd8c39cadf9d8229c1873d14543f77de8fcaec5724927892ebdd386a4"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.androidx.navigationevent:navigationevent-compose-iosarm64:1.1.0",
+    "artifact": "navigationevent-compose-iosArm64Main-1.1.0.klib",
+    "sha256": "5931f6bcae923f6918b39763a9cd1d4d8f661b952f38f77a5d56b54c256100c0",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.androidx.navigationevent:navigationevent-compose-iosarm64:1.1.0",
+        "pomSha256": "5b10ec708d2332e2315b57b4ff45e13882f568a1296e442b479d198fbd485ff0"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/androidx/navigationevent/navigationevent-compose/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.androidx.savedstate:savedstate-compose-uikitarm64:1.3.6",
+    "artifact": "savedstate-compose-uikitArm64Main-1.3.6.klib",
+    "sha256": "de9566cb2f8dd2cb58c8c7ac5c0df7c12a95d81166e00b4d380fbb8cdca80b7c",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.androidx.savedstate:savedstate-compose-uikitarm64:1.3.6",
+        "pomSha256": "00987bb29fea8ce03946a09747d0fa7ae59f845122a26d0a2e58fcb62f550a0d"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.animation:animation-core-iosarm64:1.12.2",
+    "artifact": "animation-core-iosArm64Main-1.12.2.klib",
+    "sha256": "32d45581de91d5a4cb45120fb6a512fe6af0801f09133ceca4ff915647ec4bc2",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.animation:animation-core-iosarm64:1.12.2",
+        "pomSha256": "2c7727e94991350e411f7edca8a42e761662e877d6c063145911a24557e323a0"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/animation/animation-core/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.animation:animation-iosarm64:1.12.2",
+    "artifact": "animation-iosArm64Main-1.12.2.klib",
+    "sha256": "39eb9e3a0813f74fd98f56729a4656c44d150c7bd63968b290cc754e6d9db602",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.animation:animation-iosarm64:1.12.2",
+        "pomSha256": "6a2b4faf01dc3f342665d9d10d1fbb49c97e6b3e14b14dfff85b72fc3645cbc1"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/animation/animation/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.components:components-resources-iosArm64:1.12.2",
+    "artifact": "library-iosArm64Main-1.12.2.klib",
+    "sha256": "1ba540b39164459605a0d4035ba970c315e620b9eede3b88aec62539b106058c",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.components:components-resources-iosArm64:1.12.2",
+        "pomSha256": "f9003426dd38a03c8819d3f01d1b719c15d3a8fd13eadaae9ae717012eecbf71"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.foundation:foundation-iosarm64:1.12.2",
+    "artifact": "foundation-iosArm64Main-1.12.2.klib",
+    "sha256": "397aa76a03de31f6628a3dcce52e4cec1ee723b9027aa36c903a9a695ce65b36",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.foundation:foundation-iosarm64:1.12.2",
+        "pomSha256": "0159bd257adf289ad3bb45efebc489c9e93d1b49670c6bf782e3f43669928ef9"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/foundation/foundation/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.foundation:foundation-layout-iosarm64:1.12.2",
+    "artifact": "foundation-layout-iosArm64Main-1.12.2.klib",
+    "sha256": "2079e0798ac7c7a56fd1b8dce004f63acfcf7d08c518e45bac2179cf15e07756",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.foundation:foundation-layout-iosarm64:1.12.2",
+        "pomSha256": "e614bf4f67d2bb8b586c8655bef05a22b2cb5ae601deee7d56e07ccb8be9a9f2"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/foundation/foundation-layout/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.material3:material3-uikitarm64:1.9.0",
+    "artifact": "material3-uikitArm64Main-1.9.0.klib",
+    "sha256": "fa637880ccc0b8f6cae9af6a62159f4abd7c5be33e6d6134a3bc9f865e4437e2",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.material3:material3-uikitarm64:1.9.0",
+        "pomSha256": "0addd4b555da2b9a87a3590b9db14e244dca341ce4897387a71e35a02148a854"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.material:material-icons-core-uikitarm64:1.7.3",
+    "artifact": "material-icons-core.klib",
+    "sha256": "263c49e3014a2f458abfed6d801d1f6f6cc844466b2e30ee9b9f0e9758610514",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.material:material-icons-core-uikitarm64:1.7.3",
+        "pomSha256": "dcf14f8bb8a33b8f1b252cd171bc790fc9f2a65a90ac04659b3d24635e94e4d3"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.material:material-icons-extended-uikitarm64:1.7.3",
+    "artifact": "material-icons-extended.klib",
+    "sha256": "9aabe5ac8700de22fd7cbead082de0c2963dbc583f2a52a1da0b36a7868ca4de",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.material:material-icons-extended-uikitarm64:1.7.3",
+        "pomSha256": "f66bab4a9e6deb70c2b38831b991febbd6d5ed8b14df47974d6ef1e3a7a21d98"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.material:material-ripple-uikitarm64:1.9.1",
+    "artifact": "material-ripple-uikitArm64Main-1.9.1.klib",
+    "sha256": "331f2f3eef11a0eecf834e9ce4133657336f93d50d446f0391f15075e0aa2d42",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.material:material-ripple-uikitarm64:1.9.1",
+        "pomSha256": "dea64343daa21838797463b8e10798d73c8d0d97a4edca71f68d27afee2f4c5d"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.runtime:runtime-iosarm64:1.12.2",
+    "artifact": "runtime-iosArm64Main-1.12.2.klib",
+    "sha256": "dbcea40a289b54c09a85e3cc219c374f462dffdc2fc4d753c4a5d80fa1f0bd2f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.runtime:runtime-iosarm64:1.12.2",
+        "pomSha256": "a866cf6212b2a34c37d4edc48fa07b27930c24eab3da19862d45226deb4a1d65"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/runtime/runtime/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.runtime:runtime-saveable-iosarm64:1.12.2",
+    "artifact": "runtime-saveable-iosArm64Main-1.12.2.klib",
+    "sha256": "b7c766e2aa2c416b9c49b05d27b8ec8fa368f403afa0dcd05df99ec5ae48a847",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.runtime:runtime-saveable-iosarm64:1.12.2",
+        "pomSha256": "e57becdd8e60455577895f6dde96473990f089a740c444968aed4a2d1d3f2d2f"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/runtime/runtime-saveable/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-backhandler-iosarm64:1.12.2",
+    "artifact": "ui-backhandler-iosArm64Main-1.12.2.klib",
+    "sha256": "26f6d1215e1d61323eafca94f9b77116a70083e4d4f921b058101f4a02f21959",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-backhandler-iosarm64:1.12.2",
+        "pomSha256": "af8fd4fb719c3a58e0a35ee30da79a17ca93aa8cab3ec890ba70e876bf61b465"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-backhandler/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-geometry-iosarm64:1.12.2",
+    "artifact": "ui-geometry-iosArm64Main-1.12.2.klib",
+    "sha256": "4ba36474fe6359fb2a4e7c94bf35e3c1448ab347b0fd206631490369cf98785a",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-geometry-iosarm64:1.12.2",
+        "pomSha256": "c034b19883c9ec8aa9466d8de5b2b14cbd735e4e31c6805c062d27e0db5c0656"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-geometry/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-graphics-iosarm64:1.12.2",
+    "artifact": "ui-graphics-iosArm64Main-1.12.2.klib",
+    "sha256": "bc48749b3f8443590fb2ad84e52abe67d343f9a5e191125ae53553a02bcbb23f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-graphics-iosarm64:1.12.2",
+        "pomSha256": "23d51614adeb8a486f0fd142e60bcc973f65800805b2215477bdb82163159ac7"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-graphics/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-iosarm64:1.12.2",
+    "artifact": "ui-iosArm64Main-1.12.2.klib",
+    "sha256": "d8a9558a5c0b1458bd890bd1160a281acf8298ffda3c4d6d0ea622f7f243ee92",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-iosarm64:1.12.2",
+        "pomSha256": "33c2a8b6527699575a3fb10bb758edbaafefb6516f92edbcb82c74d3ccaa1dc7"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-text-iosarm64:1.12.2",
+    "artifact": "ui-text-iosArm64Main-1.12.2.klib",
+    "sha256": "55a3a32b075ba608df1d92ff6b1fe5554462ffffaf7e32a2b5017676d00afbe3",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-text-iosarm64:1.12.2",
+        "pomSha256": "08d1519808a7a57bf6447c740d491911f816fe10f3cdf69bd77bc7606db2ddd4"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-text/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-uikit-iosarm64:1.12.2",
+    "artifact": "ui-uikit-iosArm64Main-1.12.2.klib",
+    "sha256": "22313c6e16e0b07551a00d519322a2af44d515dd814f61ccb0e476d00ca4d552",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-uikit-iosarm64:1.12.2",
+        "pomSha256": "0b470e7dca159a0d075550d14fbbe90384755e8a21e8d8a158217a8d6287504f"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-uikit-iosarm64:1.12.2",
+    "artifact": "ui-uikit-iosArm64Cinterop-utilsMain-1.12.2.klib",
+    "sha256": "da3881a34372521df8f563c47462c643c9cc52a5b7ba0cde090d20f2831be82f",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-uikit-iosarm64:1.12.2",
+        "pomSha256": "0b470e7dca159a0d075550d14fbbe90384755e8a21e8d8a158217a8d6287504f"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-unit-iosarm64:1.12.2",
+    "artifact": "ui-unit-iosArm64Main-1.12.2.klib",
+    "sha256": "2d2990d2fb0ad636b39646ad863fe4e1de543cd1fad523afbf6ba9bec2dafd35",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-unit-iosarm64:1.12.2",
+        "pomSha256": "39603b3e35b1365d32aa4913c0e89e0999a7723d23ec71f9d1bbd5cb46892b32"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-unit/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.compose.ui:ui-util-iosarm64:1.12.2",
+    "artifact": "ui-util-iosArm64Main-1.12.2.klib",
+    "sha256": "56e934db8d3f37b992e9fd0f4fe80537b36c72e956c0f3df20d1b264040eb2a8",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache Software License, Version 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.compose.ui:ui-util-iosarm64:1.12.2",
+        "pomSha256": "09b82d20c0cf629e8f660723f96f92d064d3ee7eed90aae85d591a6365623810"
+      }
+    ],
+    "embeddedNotices": [
+      {
+        "entry": "default/licenses/org/jetbrains/compose/ui/ui-util/LICENSE.txt",
+        "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+        "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0",
+        "sizeBytes": 10175
+      }
+    ],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
+    "artifact": "atomicfu-iosArm64Main-0.28.0.klib",
+    "sha256": "1e62be5ec58e237c225a7367d1a664c40926ea2a46822a51b16968fa2ba10281",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
+        "pomSha256": "57d562d093435e19f6283b0b2a69b7ce280a95e10c2558bb5db5c76283becaab"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
+    "artifact": "atomicfu-iosArm64Cinterop-interopMain-0.28.0.klib",
+    "sha256": "08294ca39001e16e38869de5021e40101317195d78a1a5f6b2ec44b629fd9dc7",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
+        "pomSha256": "57d562d093435e19f6283b0b2a69b7ce280a95e10c2558bb5db5c76283becaab"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.10.2",
+    "artifact": "kotlinx-coroutines-core-iosArm64Main-1.10.2.klib",
+    "sha256": "ab366e02eafb48e7cfd94f3f57ba1e7c3593fcb8bd347d8f364e46efe84ba173",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.10.2",
+        "pomSha256": "18773c9950ac30020f3a6b84ef180f807a345880ded97a21cfaf75a4f3e6655e"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.7.1",
+    "artifact": "kotlinx-datetime-iosArm64Main-0.7.1.klib",
+    "sha256": "98b82c54f1a46e7f7d70fe2fa8ed5e67e19fd48a817c572241b609dc6012f630",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.7.1",
+        "pomSha256": "71678b76b7e9bc2df4366704fc5dda55aaba766f6748dcda2843a5479a25f4c3"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.9.0",
+    "artifact": "kotlinx-serialization-core-iosArm64Main-1.9.0.klib",
+    "sha256": "7dbdb88a32cfdfd829a96ef69414982102f0396fd5a2cd73e2143801bb35e35b",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.9.0",
+        "pomSha256": "5778babe2be678a7f1a37aebe8180a8ad05a0eed8c950aab9ba756f67d05ae01"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.9.0",
+    "artifact": "kotlinx-serialization-json-iosArm64Main-1.9.0.klib",
+    "sha256": "db01ec8216ea242dc6433caa645d1eef7cedf683376fb6e71410065d6a9a6fd1",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "Apache-2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.9.0",
+        "pomSha256": "07b1b744b4d6d525e9d44fcf4be720469f0d91391f39fc331a80712cf9c2e644"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.skiko:skiko-iosarm64:0.150.2",
+    "artifact": "skiko-iosArm64Main-0.150.2.klib",
+    "sha256": "8e70c2e80b8b3ac026c44c381e57dbb87a8b371ae42cb2f9e1f009a193195b90",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.skiko:skiko-iosarm64:0.150.2",
+        "pomSha256": "7e6cc896fa3ca758612034e92e97c1ccde0173bc84e13f7a98125d2f796ad7d6"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  },
+  {
+    "component": "org.jetbrains.skiko:skiko-iosarm64:0.150.2",
+    "artifact": "skiko-iosArm64Cinterop-uikitMain-0.150.2.klib",
+    "sha256": "1a5c05052e0321166e7519b7aaec2306ea940732c28c24a679fb8df4161df72c",
+    "type": "klib",
+    "pomLicenses": [
+      {
+        "name": "The Apache License, Version 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+        "declaredBy": "org.jetbrains.skiko:skiko-iosarm64:0.150.2",
+        "pomSha256": "7e6cc896fa3ca758612034e92e97c1ccde0173bc84e13f7a98125d2f796ad7d6"
+      }
+    ],
+    "embeddedNotices": [],
+    "bundledFonts": []
+  }
+]

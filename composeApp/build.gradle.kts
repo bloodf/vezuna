@@ -7,7 +7,9 @@ plugins {
     id("org.jetbrains.compose") version "1.12.2"
 }
 
-val lvlPublicKey = providers.gradleProperty("VITAHEARTH_LVL_PUBLIC_KEY").orElse("")
+val lvlPublicKey = providers.gradleProperty("VEZUNA_LVL_PUBLIC_KEY")
+    .orElse(providers.environmentVariable("VEZUNA_LVL_PUBLIC_KEY"))
+    .orElse("")
 
 // Release signing comes from Gradle properties or same-named environment variables; never commit values.
 fun signingValue(name: String): String? =
@@ -22,11 +24,11 @@ val releaseVersionCode = providers.gradleProperty("VEZUNA_VERSION_CODE").orNull?
 val releaseVersionName = providers.gradleProperty("VEZUNA_VERSION_NAME").orNull ?: "1.0"
 
 android {
-    namespace = "com.bloodf.vitahearth"
+    namespace = "app.vezuna"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.bloodf.vitahearth"
+        applicationId = "app.vezuna"
         minSdk = 26
         targetSdk = 37
         versionCode = releaseVersionCode
@@ -65,6 +67,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     sourceSets["main"].assets.srcDir("${rootDir}/shared/build/intermediates/assets/androidMain")
+    sourceSets["androidTest"].assets.srcDir(layout.buildDirectory.dir("generated/modelSmokeAssets").get().asFile)
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

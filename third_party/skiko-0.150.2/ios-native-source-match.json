@@ -1,0 +1,149 @@
+[
+  {
+    "name": "libdng_sdk.a",
+    "originalSha256": "764063d567c34f6bbca786d982760a1aafe615ec0a48fdd7d16eb60f90a740b5",
+    "transformedSha256": "4560f0456772af0d3a08dd2202ae00729424ee94492212eb683ed3d9b19e73c7",
+    "publishedSha256": "4560f0456772af0d3a08dd2202ae00729424ee94492212eb683ed3d9b19e73c7",
+    "matches": true
+  },
+  {
+    "name": "libexpat.a",
+    "originalSha256": "372bf7267c48f6f5998fcca1bb66abcb90c897c6142a2c148c79634801093aaf",
+    "transformedSha256": "b3acdd889ec4725a3c79b6198c9da2599c9ddaff1ef3a3be05e208166bcc4257",
+    "publishedSha256": "b3acdd889ec4725a3c79b6198c9da2599c9ddaff1ef3a3be05e208166bcc4257",
+    "matches": true
+  },
+  {
+    "name": "libharfbuzz.a",
+    "originalSha256": "bef76354d3301e50b79ca3f22bd4a9a95d4facbb2141f4fe1ec204652b1a3df9",
+    "transformedSha256": "f8a240160f9a6f389ca4d9e1d5fe1ff3c6481e140c5aa89860e4668851db25fd",
+    "publishedSha256": "f8a240160f9a6f389ca4d9e1d5fe1ff3c6481e140c5aa89860e4668851db25fd",
+    "matches": true
+  },
+  {
+    "name": "libicu.a",
+    "originalSha256": "ef40fb138716d2579a4abba134730f646dbb2a3072ba5c464f1298b19abb07a1",
+    "transformedSha256": "076a69fe7fc6465c2d4ad0d3b1e18ea7366afde0f2bbdf425962f5e8bc0eeeb6",
+    "publishedSha256": "076a69fe7fc6465c2d4ad0d3b1e18ea7366afde0f2bbdf425962f5e8bc0eeeb6",
+    "matches": true
+  },
+  {
+    "name": "libjpeg.a",
+    "originalSha256": "6e1587f99edef83e119f4ea27ff43e949232b7a867fcba0814b21801b0ee0057",
+    "transformedSha256": "24d31e342ffe60a070f4b5a847d108422f504d664b9bff4eff52a183bace7703",
+    "publishedSha256": "24d31e342ffe60a070f4b5a847d108422f504d664b9bff4eff52a183bace7703",
+    "matches": true
+  },
+  {
+    "name": "libjsonreader.a",
+    "originalSha256": "0568485177cb1cd879883cecb4907eac860d45d3ebffb23f18cbcb8d8e8ca6a4",
+    "transformedSha256": "4aa923cf58ead5b39d3d684bea9b6063f7d84599edcff87b6a9f533716014c00",
+    "publishedSha256": "4aa923cf58ead5b39d3d684bea9b6063f7d84599edcff87b6a9f533716014c00",
+    "matches": true
+  },
+  {
+    "name": "libpiex.a",
+    "originalSha256": "3737db2ced8030974b4ba0d085fe7cea218b17b5d54445ef90eb50b9ff852433",
+    "transformedSha256": "425914455696d391cee961882bb2c4ea381c691e37cfa70fa7a9cdcbab7b5cdd",
+    "publishedSha256": "425914455696d391cee961882bb2c4ea381c691e37cfa70fa7a9cdcbab7b5cdd",
+    "matches": true
+  },
+  {
+    "name": "libpng.a",
+    "originalSha256": "0cfca18a835ddf1edcb44ddce1e85dcc3016b971d6b64604ae326fc582daac86",
+    "transformedSha256": "a7ce40960e2c753c9f30e02ca749aeb261ac453d7be9d4cb7e7010068de149db",
+    "publishedSha256": "a7ce40960e2c753c9f30e02ca749aeb261ac453d7be9d4cb7e7010068de149db",
+    "matches": true
+  },
+  {
+    "name": "libskia.a",
+    "originalSha256": "610d26943303e1421b6b0693043bc404df10cc7d9438070c128ec7a383217133",
+    "transformedSha256": "005e97137947c923b3d8415b74f8a981fe39caa1da928f417fa85501c4f4fbe5",
+    "publishedSha256": "005e97137947c923b3d8415b74f8a981fe39caa1da928f417fa85501c4f4fbe5",
+    "matches": true
+  },
+  {
+    "name": "libskia_ganesh_ext.a",
+    "originalSha256": "2afc1ad4d0525896f180b5858873d53ed73169902a4fda17c69f468bf174f6b5",
+    "transformedSha256": "a38a4c44f409323e2c72826c419666b21f75826e44ca2b92bfd5119127fe1241",
+    "publishedSha256": "a38a4c44f409323e2c72826c419666b21f75826e44ca2b92bfd5119127fe1241",
+    "matches": true
+  },
+  {
+    "name": "libskottie.a",
+    "originalSha256": "4c41de33e883f016aeb486cae86ced16e86a54b13a904524811984ba2dbf4453",
+    "transformedSha256": "8a4d75c1fc77f3a3b8fb1a33ab9a56e73c0f39d2340407d77e4fe82647744135",
+    "publishedSha256": "8a4d75c1fc77f3a3b8fb1a33ab9a56e73c0f39d2340407d77e4fe82647744135",
+    "matches": true
+  },
+  {
+    "name": "libskparagraph.a",
+    "originalSha256": "436a8d4f2d78d3bc859cca76eeee5fac80996f3d68f83c01f905bfc62f43b232",
+    "transformedSha256": "1d285bab41a4a8c89c47f704781e20834f8c7686a30eca8275a1a8784b856eef",
+    "publishedSha256": "1d285bab41a4a8c89c47f704781e20834f8c7686a30eca8275a1a8784b856eef",
+    "matches": true
+  },
+  {
+    "name": "libskresources.a",
+    "originalSha256": "d0d4e66431fb55ead007fd99bbfa06c9fa369705847e32bba35bf5d224d3e7e8",
+    "transformedSha256": "126b6436d5c7bcf5012a773b50132ad623a85190cd5ff63d0fe694ba23efcdb4",
+    "publishedSha256": "126b6436d5c7bcf5012a773b50132ad623a85190cd5ff63d0fe694ba23efcdb4",
+    "matches": true
+  },
+  {
+    "name": "libsksg.a",
+    "originalSha256": "0245c5366d64046db0dc8a662c64a317fbae5de90161ff917e400bd5508d130e",
+    "transformedSha256": "121822ce069e73187a09d86b4129cc14137b88ffa32e815807f0ebadfa22d404",
+    "publishedSha256": "121822ce069e73187a09d86b4129cc14137b88ffa32e815807f0ebadfa22d404",
+    "matches": true
+  },
+  {
+    "name": "libskshaper.a",
+    "originalSha256": "d28c54f719e483f0b3abb3c86808bb16a9d2d97f3b26b64c2ccf1fcbbb55bea1",
+    "transformedSha256": "8076ecca8eefb4e7f08c6f3940c899c1c6ae520b86ce422c586e397ac8978b8c",
+    "publishedSha256": "8076ecca8eefb4e7f08c6f3940c899c1c6ae520b86ce422c586e397ac8978b8c",
+    "matches": true
+  },
+  {
+    "name": "libskunicode_core.a",
+    "originalSha256": "37a582763f8092666292fb0463ca597007fbcea7bfbef6db8f942f92d46e93ac",
+    "transformedSha256": "beb4ac34caee41706fb9907c0a59941b8142f24ddb9d925143bac69e523e25a8",
+    "publishedSha256": "beb4ac34caee41706fb9907c0a59941b8142f24ddb9d925143bac69e523e25a8",
+    "matches": true
+  },
+  {
+    "name": "libskunicode_icu.a",
+    "originalSha256": "032d0725542317d84af7079ef44f6ba224c4cd4c9afb67e0287ef3c5d3e1ad12",
+    "transformedSha256": "0f44bf6dbfc4d8131b425cd7a17ae818ae39be180d2fe994fc24f919b0d614d8",
+    "publishedSha256": "0f44bf6dbfc4d8131b425cd7a17ae818ae39be180d2fe994fc24f919b0d614d8",
+    "matches": true
+  },
+  {
+    "name": "libsvg.a",
+    "originalSha256": "39a42d106928d058bee6736c64feede43c9b33d852f0de9dffd88a17d5490d59",
+    "transformedSha256": "407ffc689ff7b3cef4e61d6d126f9f65a879f781f89db1fcf929686b56f2628a",
+    "publishedSha256": "407ffc689ff7b3cef4e61d6d126f9f65a879f781f89db1fcf929686b56f2628a",
+    "matches": true
+  },
+  {
+    "name": "libwebp.a",
+    "originalSha256": "8bab260d720978c92a7feb64858919a55e7bd8d2f15fc07ddfd63eaad7d77f00",
+    "transformedSha256": "def250c5dc252980cdd75195d1e8fc922be80865596a14b453c071adaa3ccb47",
+    "publishedSha256": "def250c5dc252980cdd75195d1e8fc922be80865596a14b453c071adaa3ccb47",
+    "matches": true
+  },
+  {
+    "name": "libwebp_sse41.a",
+    "originalSha256": "4e351ed595d36c3212438f5195777866a8bd2016f536b5fcd0f1b085b25be8bf",
+    "transformedSha256": "7eff1111e69b1bd35bfe5213cbbbc2c5293a01791ad9d1c9ad2ac0bc5bcd487c",
+    "publishedSha256": "7eff1111e69b1bd35bfe5213cbbbc2c5293a01791ad9d1c9ad2ac0bc5bcd487c",
+    "matches": true
+  },
+  {
+    "name": "libzlib.a",
+    "originalSha256": "d0c18571bc2047b1381718e8416078a6577eeab5c9b4eb4ca6166f06651f7bfc",
+    "transformedSha256": "9088eae2e796899dd825b2e2d0b6057eacff4d76a51c0637a9ec0be71bb707c7",
+    "publishedSha256": "9088eae2e796899dd825b2e2d0b6057eacff4d76a51c0637a9ec0be71bb707c7",
+    "matches": true
+  }
+]

@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
+import plistlib
 import sys
 import xml.etree.ElementTree as ET
 
@@ -33,7 +34,7 @@ def main():
     for name in ("lockup-color", "lockup-dark", "mark-color", "mark-dark"):
         assert_same(BRAND / f"logos/{name}.png", ROOT / f"shared/src/commonMain/composeResources/drawable/vezuna_{name.replace('-', '_')}.png")
     for name in ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "NOTO-LICENSE.txt"):
-        assert_same(BRAND / f"fonts/{name}", ROOT / f"iosApp/VitaHearth/Fonts/{name}")
+        assert_same(BRAND / f"fonts/{name}", ROOT / f"iosApp/Vezuna/Fonts/{name}")
     assert_same(BRAND / "fonts/NOTO-LICENSE.txt", ROOT / "shared/src/commonMain/composeResources/files/NOTO-LICENSE.txt")
     assert_same(BRAND / "fonts/NOTO-LICENSE.txt", ROOT / "composeApp/src/main/assets/NOTO-LICENSE.txt")
     for source in (BRAND / "icons/android/res").rglob("*"):
@@ -41,9 +42,9 @@ def main():
             assert_same(source, ROOT / "composeApp/src/main/res" / source.relative_to(BRAND / "icons/android/res"))
     for source in (BRAND / "icons/ios/AppIcon.appiconset").rglob("*"):
         if source.is_file():
-            assert_same(source, ROOT / "iosApp/VitaHearth/Assets.xcassets/AppIcon.appiconset" / source.name)
+            assert_same(source, ROOT / "iosApp/Vezuna/Assets.xcassets/AppIcon.appiconset" / source.name)
 
-    token_text = (ROOT / "shared/src/commonMain/kotlin/com/bloodf/vitahearth/ui/VezunaTokens.kt").read_text()
+    token_text = (ROOT / "shared/src/commonMain/kotlin/app/vezuna/ui/VezunaTokens.kt").read_text()
     tokens = json.loads((BRAND / "tokens/tokens.json").read_text())
     for group in ("light", "dark"):
         for name, value in tokens["color"][group].items():
@@ -52,15 +53,18 @@ def main():
         assert value.removeprefix("#") in token_text, f"Missing brand primitive {value}"
 
     android_build = (ROOT / "composeApp/build.gradle.kts").read_text()
-    assert 'applicationId = "com.bloodf.vitahearth"' in android_build
-    pbx = (ROOT / "iosApp/VitaHearth.xcodeproj/project.pbxproj").read_text()
-    assert "PRODUCT_BUNDLE_IDENTIFIER = com.bloodf.vitahearth;" in pbx
+    assert 'applicationId = "app.vezuna"' in android_build
+    pbx = (ROOT / "iosApp/Vezuna.xcodeproj/project.pbxproj").read_text()
+    assert "PRODUCT_BUNDLE_IDENTIFIER = app.vezuna;" in pbx
     assert "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;" in pbx
     assert "INFOPLIST_KEY_CFBundleDisplayName = Vezuna;" in pbx
-    assert "NotoSans-Regular.ttf NotoSans-Bold.ttf" in pbx
-    scheduler = (ROOT / "composeApp/src/main/java/com/bloodf/vitahearth/notifications/MedicationNotificationScheduler.kt").read_text()
+    assert 'INFOPLIST_FILE = "Vezuna-Info.plist";' in pbx
+    with (ROOT / "iosApp/Vezuna-Info.plist").open("rb") as source:
+        ios_info = plistlib.load(source)
+    assert ios_info.get("UIAppFonts") == ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf"], "Missing iOS font registration array"
+    scheduler = (ROOT / "composeApp/src/main/java/app/vezuna/notifications/MedicationNotificationScheduler.kt").read_text()
     assert 'CHANNEL_ID = "recorded-medication-reminders"' in scheduler
-    health = (ROOT / "composeApp/src/main/java/com/bloodf/vitahearth/health/HealthConnectGateway.kt").read_text()
+    health = (ROOT / "composeApp/src/main/java/app/vezuna/health/HealthConnectGateway.kt").read_text()
     assert 'STORAGE_KEY = "health-connect-v1"' in health
 
     expected = {
@@ -72,7 +76,7 @@ def main():
         catalog = ET.parse(ROOT / f"shared/src/commonMain/composeResources/values{suffix}/strings.xml").getroot()
         values = {element.attrib["name"]: "".join(element.itertext()) for element in catalog.findall("string")}
         assert values["home_hero"] == tagline, f"Tagline mismatch in values{suffix}"
-        assert values["vitahearth"] == "Vezuna"
+        assert values["vezuna"] == "Vezuna"
     for suffix in ("", "-en", "-pt", "-es"):
         catalog = ET.parse(ROOT / f"composeApp/src/main/res/values{suffix}/strings.xml").getroot()
         values = {element.attrib["name"]: "".join(element.itertext()) for element in catalog.findall("string")}

@@ -56,5 +56,5 @@ O kit não é uma liberação jurídica do nome, uma certificação de acessibil
 
 ## Licença
 
-A arte original da Vezuna neste diretório (logos, símbolos, ícones, imagens sociais, tokens, previews e texto do guia) está sob licença MIT, conforme `LICENSE` neste diretório, por decisão do proprietário do projeto. A licença não concede direitos de marca: nenhuma marca, domínio ou nome de loja foi registrado ou liberado para "Vezuna", e ninguém pode usar o nome ou o logotipo para sugerir endosso ou para identificar outro produto como o aplicativo oficial. As fontes em `fonts/` (Noto Sans) não são relicenciadas e continuam sob a SIL Open Font License 1.1, conforme `fonts/NOTO-LICENSE.txt`.
+A arte original da Vezuna neste diretório (logos, símbolos, ícones, imagens sociais, tokens, previews e texto do guia) está sob licença MIT, conforme `LICENSE` neste diretório, por decisão do proprietário do projeto. O proprietário informou a compra de `vezuna.app` em 31 de outubro de 2026. A compra do domínio não estabelece registro de marca nem reserva nas lojas. A licença não concede direitos de marca, e ninguém pode usar o nome ou o logotipo para sugerir endosso ou para identificar outro produto como o aplicativo oficial. As fontes em `fonts/` (Noto Sans) não são relicenciadas e continuam sob a SIL Open Font License 1.1, conforme `fonts/NOTO-LICENSE.txt`.
 

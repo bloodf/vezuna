@@ -49,3 +49,6 @@ eas.local.json
 # Local design references have no redistribution grant
 design/inspiration/
 .impeccable/
+
+# Local git worktrees
+.worktrees/

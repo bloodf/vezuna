@@ -17,12 +17,14 @@ GRADLE=("$ROOT/gradlew" -p "$ROOT" --init-script "$ROOT/iosApp/SharedBridge.grad
 copy_framework() { # $1 source framework, $2 destination subdir under iosApp/Frameworks
   [[ -d "$1" ]] || { echo "Framework not found: $1" >&2; exit 1; }
   mkdir -p "$ROOT/iosApp/Frameworks/$2"
-  rm -rf "$ROOT/iosApp/Frameworks/$2/VitaHearthShared.framework"
-  cp -R "$1" "$ROOT/iosApp/Frameworks/$2/VitaHearthShared.framework"
+  rm -rf "$ROOT/iosApp/Frameworks/$2/VezunaShared.framework"
+  cp -R "$1" "$ROOT/iosApp/Frameworks/$2/VezunaShared.framework"
 }
 
 case "$MODE" in
   simulator)
+    python3 "$ROOT/tools/release/build_notices.py" --check
+    python3 "$ROOT/tools/release/sync_privacy_policy.py" --check
     CONFIGURATION="${CONFIGURATION:-Debug}"
     if [[ "$CONFIGURATION" == "Release" ]]; then
       TASK=":shared:linkReleaseFrameworkIosSimulatorArm64"; KIND="releaseFramework"
@@ -31,10 +33,10 @@ case "$MODE" in
     fi
     "${GRADLE[@]}" "$TASK"
     PLATFORM_NAME=iphonesimulator ARCHS=arm64 "$ROOT/gradlew" -p "$ROOT" :shared:syncComposeResourcesForIos
-    copy_framework "$ROOT/shared/build/bin/iosSimulatorArm64/$KIND/VitaHearthShared.framework" "$CONFIGURATION/iphonesimulator"
+    copy_framework "$ROOT/shared/build/bin/iosSimulatorArm64/$KIND/VezunaShared.framework" "$CONFIGURATION/iphonesimulator"
     xcodebuild \
-      -project "$ROOT/iosApp/VitaHearth.xcodeproj" \
-      -scheme VitaHearth \
+      -project "$ROOT/iosApp/Vezuna.xcodeproj" \
+      -scheme Vezuna \
       -configuration "$CONFIGURATION" \
       -sdk iphonesimulator \
       -destination 'generic/platform=iOS Simulator' \
@@ -42,6 +44,9 @@ case "$MODE" in
       CODE_SIGNING_ALLOWED=NO \
       ARCHS=arm64 \
       build
+    python3 "$ROOT/tools/release/check_ios_metadata.py" "$ROOT/iosApp/.ios-build/derived-data/$CONFIGURATION/Build/Products/$CONFIGURATION-iphonesimulator/Vezuna.app"
+    python3 "$ROOT/tools/release/check_bundled_notices.py" "$ROOT/iosApp/.ios-build/derived-data/$CONFIGURATION/Build/Products/$CONFIGURATION-iphonesimulator/Vezuna.app"
+    python3 "$ROOT/tools/release/sync_privacy_policy.py" --check --artifact "$ROOT/iosApp/.ios-build/derived-data/$CONFIGURATION/Build/Products/$CONFIGURATION-iphonesimulator/Vezuna.app"
     echo "IOS_BUILD_PASSED"
     ;;
   device-archive|device-export)
@@ -52,9 +57,14 @@ case "$MODE" in
     OUT="${OUT_DIR:-$ROOT/build/ios}"
     mkdir -p "$OUT"
 
+    "${GRADLE[@]}" --init-script "$ROOT/tools/release/license_inventory.gradle" :shared:writeVezunaLicenseInventory
+    python3 "$ROOT/tools/release/inventory_runtime_notices.py" \
+      "$ROOT/build/reports/licenses/ios-artifacts.json" --platform ios --check
+    python3 "$ROOT/tools/release/build_notices.py" --check
+    python3 "$ROOT/tools/release/sync_privacy_policy.py" --check
     "${GRADLE[@]}" :shared:linkReleaseFrameworkIosArm64
     PLATFORM_NAME=iphoneos ARCHS=arm64 "$ROOT/gradlew" -p "$ROOT" :shared:syncComposeResourcesForIos
-    copy_framework "$ROOT/shared/build/bin/iosArm64/releaseFramework/VitaHearthShared.framework" "Release/iphoneos"
+    copy_framework "$ROOT/shared/build/bin/iosArm64/releaseFramework/VezunaShared.framework" "Release/iphoneos"
 
     VERSION_ARGS=()
     [[ -n "${VEZUNA_BUILD_NUMBER:-}" ]] && VERSION_ARGS+=("CURRENT_PROJECT_VERSION=$VEZUNA_BUILD_NUMBER")
@@ -63,8 +73,8 @@ case "$MODE" in
     ARCHIVE="$OUT/Vezuna.xcarchive"
     rm -rf "$ARCHIVE"
     xcodebuild archive \
-      -project "$ROOT/iosApp/VitaHearth.xcodeproj" \
-      -scheme VitaHearth \
+      -project "$ROOT/iosApp/Vezuna.xcodeproj" \
+      -scheme Vezuna \
       -configuration Release \
       -destination 'generic/platform=iOS' \
       -archivePath "$ARCHIVE" \
@@ -73,6 +83,9 @@ case "$MODE" in
       DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
       IPHONEOS_DEPLOYMENT_TARGET=18.5 \
       ${VERSION_ARGS[@]+"${VERSION_ARGS[@]}"}
+    python3 "$ROOT/tools/release/check_ios_metadata.py" "$ARCHIVE/Products/Applications/Vezuna.app"
+    python3 "$ROOT/tools/release/check_bundled_notices.py" "$ARCHIVE/Products/Applications/Vezuna.app"
+    python3 "$ROOT/tools/release/sync_privacy_policy.py" --check --artifact "$ARCHIVE/Products/Applications/Vezuna.app"
     echo "IOS_ARCHIVE_PASSED $ARCHIVE"
 
     if [[ "$MODE" == "device-export" ]]; then
@@ -97,6 +110,8 @@ EOF
         -exportOptionsPlist "$PLIST" \
         -exportPath "$OUT/export" \
         -allowProvisioningUpdates
+      python3 "$ROOT/tools/release/check_bundled_notices.py" "$OUT/export/Vezuna.ipa"
+      python3 "$ROOT/tools/release/sync_privacy_policy.py" --check --artifact "$OUT/export/Vezuna.ipa"
       echo "IOS_EXPORT_PASSED $OUT/export"
     fi
     ;;

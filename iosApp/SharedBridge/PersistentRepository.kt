@@ -1,18 +1,18 @@
-package com.bloodf.vitahearth.ios
+package app.vezuna.ios
 
-import com.bloodf.vitahearth.data.VitaHearthRepository
-import com.bloodf.vitahearth.domain.ChatMessage
-import com.bloodf.vitahearth.domain.ClinicalDuplicateDetector
-import com.bloodf.vitahearth.domain.DoseEvent
-import com.bloodf.vitahearth.domain.LabObservation
-import com.bloodf.vitahearth.domain.LabReport
-import com.bloodf.vitahearth.domain.Medication
-import com.bloodf.vitahearth.domain.OcrCandidate
-import com.bloodf.vitahearth.domain.Profile
-import com.bloodf.vitahearth.domain.ProfileData
-import com.bloodf.vitahearth.domain.SourceDocument
-import com.bloodf.vitahearth.security.CipherEnvelope
-import com.bloodf.vitahearth.security.SecureVault
+import app.vezuna.data.VezunaRepository
+import app.vezuna.domain.ChatMessage
+import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.LabObservation
+import app.vezuna.domain.LabReport
+import app.vezuna.domain.Medication
+import app.vezuna.domain.OcrCandidate
+import app.vezuna.domain.Profile
+import app.vezuna.domain.ProfileData
+import app.vezuna.domain.SourceDocument
+import app.vezuna.security.CipherEnvelope
+import app.vezuna.security.SecureVault
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,10 +22,10 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /** A write-through repository. Every successful mutation is encrypted before it becomes visible. */
-class PersistentVitaHearthRepository private constructor(
+class PersistentVezunaRepository private constructor(
     private val vault: SecureVault,
     private val json: Json,
-) : VitaHearthRepository {
+) : VezunaRepository {
     private val mutex = Mutex()
     private val records = mutableMapOf<String, ProfileData>()
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
@@ -179,13 +179,13 @@ class PersistentVitaHearthRepository private constructor(
     }
 
     companion object {
-        suspend fun open(vault: SecureVault, json: Json = Json { encodeDefaults = true }): PersistentVitaHearthRepository =
-            PersistentVitaHearthRepository(vault, json).also { it.load() }
+        suspend fun open(vault: SecureVault, json: Json = Json { encodeDefaults = true }): PersistentVezunaRepository =
+            PersistentVezunaRepository(vault, json).also { it.load() }
 
         private const val INDEX_KEY = "repository-profile-index-v1"
-        private const val INDEX_ASSOCIATED_DATA = "VitaHearth repository index v1"
+        private const val INDEX_ASSOCIATED_DATA = "Vezuna repository index v1"
         private const val SELECTION_KEY = "repository-selected-profile-v1"
         private fun profileKey(profileId: String) = "repository-profile-$profileId-v1"
-        private fun profileAssociatedData(profileId: String) = "VitaHearth repository profile v1:$profileId"
+        private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
     }
 }

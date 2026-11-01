@@ -35,10 +35,15 @@ jobs:
           python3 tools/localization/check_localization.py
           python3 tools/branding/check_brand.py
           python3 tools/lab_importer/test_importer.py
+          python3 tools/release/test_android_native.py
+          python3 tools/release/check_identity.py
+          python3 tools/release/sync_privacy_policy.py --check
       - name: Build Android and run unit tests
         run: bash gradlew :shared:jvmTest :composeApp:testDebugUnitTest :composeApp:assembleDebug :composeApp:assembleDebugAndroidTest
       - name: Verify test results
         run: python3 tools/localization/check_test_results.py
+      - name: Check debug native library ELF alignment
+        run: python3 tools/release/check_android_native.py composeApp/build/outputs/apk/debug/composeApp-debug.apk
   release-tooling:
     runs-on: ubuntu-latest
     steps:

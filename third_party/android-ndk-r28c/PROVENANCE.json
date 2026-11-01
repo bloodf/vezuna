@@ -1,0 +1,37 @@
+{
+  "ndkVersion": "28.2.13676358",
+  "release": "r28c",
+  "officialSource": "https://github.com/android/ndk/releases/tag/r28c",
+  "installCommand": "sdkmanager --install ndk;28.2.13676358",
+  "transformation": "NDK r28c llvm-strip --strip-unneeded -o <copy> <libomp.so>",
+  "matchedPublishedLibraries": [
+    {
+      "abi": "arm64-v8a",
+      "mode": "--strip-unneeded",
+      "sha256": "f30aa5c388ff0cc9d6c06962981d024dc52797fadb26e6ef4cd84f5e4bdc4643",
+      "matchesPublishedAar": true,
+      "source": "toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/lib/linux/aarch64/libomp.so"
+    },
+    {
+      "abi": "x86_64",
+      "mode": "--strip-unneeded",
+      "sha256": "fdcc2e435dd3ec6721373629d9061b285a95f910f61d27ca02bf2740cc154b11",
+      "matchesPublishedAar": true,
+      "source": "toolchains/llvm/prebuilt/darwin-x86_64/lib/clang/19/lib/linux/x86_64/libomp.so"
+    }
+  ],
+  "unmodifiedNoticeFiles": [
+    {
+      "file": "NOTICE",
+      "sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e"
+    },
+    {
+      "file": "NOTICE.toolchain",
+      "sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a"
+    },
+    {
+      "file": "source.properties",
+      "sha256": "c00aa236fdb205e9be9edd9e2169763e48aca52735efff4e16f34205d49783b5"
+    }
+  ]
+}

@@ -1,8 +1,8 @@
-package com.bloodf.vitahearth.ios
+package app.vezuna.ios
 
-import com.bloodf.vitahearth.llm.InstalledModel
-import com.bloodf.vitahearth.llm.ModelFileStore
-import com.bloodf.vitahearth.platform.toHex
+import app.vezuna.llm.InstalledModel
+import app.vezuna.llm.ModelFileStore
+import app.vezuna.platform.toHex
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf

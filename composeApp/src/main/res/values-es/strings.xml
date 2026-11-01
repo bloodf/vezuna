@@ -64,4 +64,8 @@
     <string name="source_import_active">Ya hay otra importación de fuente en curso.</string>
     <string name="destination_open_failed">No se pudo abrir el destino.</string>
     <string name="share_chooser">Compartir %1$s</string>
+    <string name="third_party_notices">Avisos de terceros</string>
+    <string name="third_party_notices_unavailable">No se pudieron abrir los avisos. Solicita una copia en heitor.ramon@gmail.com.</string>
+    <string name="privacy_policy">Política de privacidad</string>
+    <string name="privacy_policy_unavailable">No se pudo cargar la política de privacidad.</string>
 </resources>

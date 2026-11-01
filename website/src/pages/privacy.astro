@@ -1,51 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { issuesUrl, securityUrl } from '../lib/i18n';
+import policy from '../data/privacy-policy.html?raw';
 ---
-<BaseLayout locale="en" title="Privacy and local data" description="Source-backed privacy disclosures for the Vezuna app and the separately hosted marketing website." path="/privacy" alternates={{ en: '/privacy' }}>
+<BaseLayout locale="en" title="Vezuna privacy policy" description="How Vezuna handles your records, health permissions, exports, and support requests." path="/privacy" alternates={{ en: '/privacy' }}>
   <main class="simple-main" id="main-content">
-    <article class="legal-page">
-      <p class="eyebrow">Implementation disclosure</p>
-      <h1>Privacy and local data</h1>
-      <p>This page separates what the current Vezuna source does from what the website host does. It is a technical disclosure, not a final publisher legal privacy policy.</p>
-      <div class="status-note">
-        <strong>Publisher facts are not yet established.</strong> The repository does not provide a publisher legal identity, public privacy contact, or publisher retention commitments. This page therefore makes no commitments on their behalf. A publisher must supply and verify a final policy against the exact app and hosting configuration it ships.
-      </div>
-
-      <h2 id="app-records">App records stay in a local vault</h2>
-      <p>Profiles, laboratory results, OCR candidates, medications, dose events, and local chat messages are stored in an encrypted, profile-isolated vault on the device. Camera captures, selected images, and PDFs are processed on-device for text extraction and OCR.</p>
-      <ul>
-        <li><strong>Android:</strong> AES-256-GCM with a non-exportable key in Android Keystore. Cloud backup and device transfer are disabled for app data.</li>
-        <li><strong>iOS:</strong> AES-GCM through CryptoKit and <code>NSFileProtectionComplete</code>. The master key is a protected file, not a Keychain item.</li>
-      </ul>
-      <p>No independent security audit or certification is claimed. These statements describe source behavior, not absolute privacy or security.</p>
-
-      <h2 id="permissions">Optional health access</h2>
-      <p>With permission, Vezuna reads heart rate, steps, and weight from Health Connect on Android or HealthKit on iPhone. Access is read-only and health data is read only when an import is requested. Denying health permission does not block manual records.</p>
-      <p>Camera and selected-image access support imports. Notification permission supports local reminders. Android also includes reboot handling for reminder rescheduling and Play licensing. Store declarations must reflect the merged release manifest, including SDK-added permissions.</p>
-
-      <h2 id="network">Network and third-party boundaries</h2>
-      <p>App-owned code contains no account system, application server, advertising SDK, analytics, telemetry, or health-data HTTP client. Android removes the <code>INTERNET</code> permission from the merged application manifest. The iOS build has no equivalent manifest guarantee and has not received a network audit.</p>
-      <p>Google Play and the App Store may handle purchase verification and planned model delivery. ML Kit, Health Connect, HealthKit, and the system share sheet have their own terms. App code does not provide health records to store services. This is not a final “no data collected” declaration: SDK behavior and the exact release build still require review.</p>
-
-      <h2 id="sharing">Sharing changes the protection boundary</h2>
-      <p>PDF and CSV exports are plaintext. When you share an export or encrypted backup, its destination and protection are outside Vezuna’s vault. Vezuna cannot delete or manage copies stored by other apps or services.</p>
-
-      <h2 id="backups">Backup and deletion limitations</h2>
-      <p>In-app backups are encrypted for restoration with the <strong>same device key</strong>. They do not provide user-passphrase, cross-device, or cross-app recovery. Changing <code>app.vezuna</code> or another application ID creates a separate installation and does not transfer an earlier sandbox or Android Keystore keys.</p>
-      <p>Removing the app deletes its sandbox, including the vault and downloaded models. It does not delete exports or backups already stored elsewhere.</p>
-
-      <h2 id="local-models">Local models</h2>
-      <p>Local model code exists, but the production model catalog is empty. When configured, inference runs locally through Llamatik/llama.cpp. Generated answers can be wrong and are not medical advice. Records, backups, and exports do not depend on model installation or AI licensing.</p>
-
-      <h2 id="website">This website</h2>
-      <p>The marketing and documentation site has no account, upload form, newsletter, advertising, analytics, or medical-record service. Documentation search runs in your browser against the static Pagefind index; it does not send search terms to a Vezuna server.</p>
-      <p>The site is hosted and delivered by Vercel. Vercel’s current privacy notice says it may receive end-user IP addresses, location derived from IP, system configuration, traffic, and request information while providing its services. Those practices and retention periods are governed by <a href="https://vercel.com/legal/privacy-policy" rel="external">Vercel’s privacy notice</a>, not by the Vezuna app’s local-storage design.</p>
-      <p>External links to GitHub, Vercel, and other documentation take you to services with their own privacy terms. No medical information should be included in ordinary website requests.</p>
-
-      <h2 id="contact">Questions and security reports</h2>
-      <p>Use <a href={issuesUrl} rel="external">GitHub issues</a> for privacy questions. Use the repository’s <a href={securityUrl} rel="external">Security tab</a> and private vulnerability reporting for security issues. No public privacy email address is currently provided.</p>
-      <p><strong>Never attach real medical documents, screenshots of personal records, vault files, or backups.</strong> Use synthetic examples only.</p>
-    </article>
+    <article class="legal-page" set:html={policy} />
   </main>
 </BaseLayout>

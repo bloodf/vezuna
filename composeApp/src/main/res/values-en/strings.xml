@@ -64,4 +64,8 @@
     <string name="source_import_active">Another source import is already active.</string>
     <string name="destination_open_failed">Could not open the destination.</string>
     <string name="share_chooser">Share %1$s</string>
+    <string name="third_party_notices">Third-party notices</string>
+    <string name="third_party_notices_unavailable">Notices could not be opened. Contact heitor.ramon@gmail.com for a copy.</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="privacy_policy_unavailable">The privacy policy could not be loaded.</string>
 </resources>

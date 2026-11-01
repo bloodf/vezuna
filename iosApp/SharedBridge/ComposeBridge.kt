@@ -1,36 +1,36 @@
-package com.bloodf.vitahearth.ios
+package app.vezuna.ios
 
 import androidx.compose.ui.window.ComposeUIViewController
-import com.bloodf.vitahearth.domain.ConfirmationStatus
-import com.bloodf.vitahearth.domain.DoseEvent
-import com.bloodf.vitahearth.domain.DoseEventStatus
-import com.bloodf.vitahearth.domain.LabReport
-import com.bloodf.vitahearth.domain.Medication
-import com.bloodf.vitahearth.domain.OcrCandidate
-import com.bloodf.vitahearth.domain.ReferenceRange
-import com.bloodf.vitahearth.domain.SourceDocument
-import com.bloodf.vitahearth.export.CsvDoctorExporter
-import com.bloodf.vitahearth.export.DoctorExportContent
-import com.bloodf.vitahearth.export.DoctorPdfDocument
-import com.bloodf.vitahearth.export.ExportedPdf
-import com.bloodf.vitahearth.export.NativePdfExporter
-import com.bloodf.vitahearth.llm.InstalledModelManager
-import com.bloodf.vitahearth.llm.LocalHealthChat
-import com.bloodf.vitahearth.llm.LocalLlm
-import com.bloodf.vitahearth.llm.ModelCatalog
-import com.bloodf.vitahearth.llm.ModelPack
-import com.bloodf.vitahearth.llm.llamatikLocalLlm
-import com.bloodf.vitahearth.platform.currentInstant
-import com.bloodf.vitahearth.platform.randomId
-import com.bloodf.vitahearth.platform.sha256
-import com.bloodf.vitahearth.platform.toHex
-import com.bloodf.vitahearth.security.BackupService
-import com.bloodf.vitahearth.security.CipherEnvelope
-import com.bloodf.vitahearth.security.SecureVault
-import com.bloodf.vitahearth.security.createPlatformVault
-import com.bloodf.vitahearth.ui.AppController
-import com.bloodf.vitahearth.ui.PickedSource
-import com.bloodf.vitahearth.ui.VitaHearthApp
+import app.vezuna.domain.ConfirmationStatus
+import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEventStatus
+import app.vezuna.domain.LabReport
+import app.vezuna.domain.Medication
+import app.vezuna.domain.OcrCandidate
+import app.vezuna.domain.ReferenceRange
+import app.vezuna.domain.SourceDocument
+import app.vezuna.export.CsvDoctorExporter
+import app.vezuna.export.DoctorExportContent
+import app.vezuna.export.DoctorPdfDocument
+import app.vezuna.export.ExportedPdf
+import app.vezuna.export.NativePdfExporter
+import app.vezuna.llm.InstalledModelManager
+import app.vezuna.llm.LocalHealthChat
+import app.vezuna.llm.LocalLlm
+import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.ModelPack
+import app.vezuna.llm.llamatikLocalLlm
+import app.vezuna.platform.currentInstant
+import app.vezuna.platform.randomId
+import app.vezuna.platform.sha256
+import app.vezuna.platform.toHex
+import app.vezuna.security.BackupService
+import app.vezuna.security.CipherEnvelope
+import app.vezuna.security.SecureVault
+import app.vezuna.security.createPlatformVault
+import app.vezuna.ui.AppController
+import app.vezuna.ui.PickedSource
+import app.vezuna.ui.VezunaApp
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -84,7 +84,7 @@ object IosRuntime {
     private val json = Json { encodeDefaults = true }
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var vault: SecureVault
-    private lateinit var repository: PersistentVitaHearthRepository
+    private lateinit var repository: PersistentVezunaRepository
     internal lateinit var controller: AppController
     private lateinit var llm: LocalLlm
     private var initialized = false
@@ -104,7 +104,7 @@ object IosRuntime {
         scope.launch {
             try {
                 vault = createPlatformVault(vaultPath)
-                repository = PersistentVitaHearthRepository.open(vault, json)
+                repository = PersistentVezunaRepository.open(vault, json)
                 repository.changeObserver = { repositoryObserver?.repositoryDidChange() }
                 llm = llamatikLocalLlm()
                 val catalog = loadCatalog()
@@ -227,8 +227,8 @@ object IosRuntime {
                         rawValue = candidate.rawValue.trim(),
                         rawUnit = candidate.rawUnit.trim(),
                         referenceRange = ReferenceRange(
-                            com.bloodf.vitahearth.localization.parseDecimalInput(candidate.referenceLower),
-                            com.bloodf.vitahearth.localization.parseDecimalInput(candidate.referenceUpper),
+                            app.vezuna.localization.parseDecimalInput(candidate.referenceLower),
+                            app.vezuna.localization.parseDecimalInput(candidate.referenceUpper),
                             unit = candidate.rawUnit.trim(),
                         ),
                         collectedAt = Instant.fromEpochSeconds(collectedEpochSeconds),
@@ -236,7 +236,7 @@ object IosRuntime {
                         status = ConfirmationStatus.UNREVIEWED,
                     )
                 }
-                val sourceEnvelope = vault.encrypt(sourceBytes, "VitaHearth source v1:$profileId:$documentId".encodeToByteArray())
+                val sourceEnvelope = vault.encrypt(sourceBytes, "Vezuna source v1:$profileId:$documentId".encodeToByteArray())
                 vault.write(sourceKey, json.encodeToString(CipherEnvelope.serializer(), sourceEnvelope).encodeToByteArray())
                 try {
                     repository.addImport(document, report, importedCandidates)
@@ -253,7 +253,7 @@ object IosRuntime {
         }
     }
 
-    private fun <T> withProfile(completion: (T?, NativeMessage?) -> Unit, block: suspend (com.bloodf.vitahearth.domain.ProfileData) -> T) {
+    private fun <T> withProfile(completion: (T?, NativeMessage?) -> Unit, block: suspend (app.vezuna.domain.ProfileData) -> T) {
         if (!initialized) {
             completion(null, nativeMessage("bridge_storage_not_ready"))
             return
@@ -294,7 +294,7 @@ object IosRuntime {
 fun makeComposeViewController(): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
-    VitaHearthApp(
+    VezunaApp(
         controller = IosRuntime.controllerForCompose(),
         scope = IosRuntime.composeScope(),
         sourcePicker = if (picker == null) null else {

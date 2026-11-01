@@ -4,20 +4,22 @@ Vezuna is a native Kotlin Multiplatform app. It is not React Native or a web vie
 
 ```
 shared/      Kotlin Multiplatform: domain, Compose UI, vault contract, models, exporters
-composeApp/  Android application (applicationId com.bloodf.vitahearth)
-iosApp/      Xcode project (bundle ID com.bloodf.vitahearth), SwiftUI shell + Kotlin bridge
+composeApp/  Android application (applicationId app.vezuna)
+iosApp/      Xcode project (bundle ID app.vezuna), SwiftUI shell + Kotlin bridge
 tools/       Python checks: lab importer, localization, branding
 fixtures/    Synthetic importer fixtures
 brand/       Supplied brand kit (separate licensing, see THIRD_PARTY_NOTICES.md)
 ```
 
-The ID `com.bloodf.vitahearth` and package `com.bloodf.vitahearth` predate the Vezuna name and are kept on purpose so stored data and store identity do not change.
+The Android application ID, Kotlin package root, and iOS bundle ID are `app.vezuna`. The shared Apple framework is `VezunaShared`; the app group is `group.app.vezuna`.
+
+The pre-release identity changed on 2026-10-31. Builds using this ID install separately from builds using an earlier ID. Renaming source does not transfer another app's sandbox or Android Keystore keys. Existing installations are not uninstalled, and their data is not moved or deleted. The same-device encrypted backup format does not provide cross-app recovery.
 
 ## shared/
 
-Targets: Android library, JVM (tests and inspection fallback), `iosArm64`, `iosSimulatorArm64` (static framework `VitaHearthShared`, iOS 18.5 minimum).
+Targets: Android library, JVM (tests and inspection fallback), `iosArm64`, `iosSimulatorArm64` (static framework `VezunaShared`, iOS 18.5 minimum).
 
-| Package (`shared/src/commonMain/kotlin/com/bloodf/vitahearth/`) | Role |
+| Package (`shared/src/commonMain/kotlin/app/vezuna/`) | Role |
 |---|---|
 | `ui/` | Compose screens, theme and tokens, `AppController` (import, review, confirm flow) |
 | `domain/` | Profiles, lab observations, units, reference assessment, duplicate fingerprints, trends |

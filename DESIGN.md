@@ -322,7 +322,7 @@ Use the exact light/dark lockup assets and native app-icon collections. Preserve
 
 ### Do:
 - **Do** use semantic tokens, exact supplied lockups and native icons, and local Noto Sans 400/700.
-- **Do** preserve `com.bloodf.vitahearth`, routes, storage keys, controller APIs, records, alerts, calculations, privacy behavior, and export formats.
+- **Do** preserve `app.vezuna`, routes, storage keys, controller APIs, records, alerts, calculations, privacy behavior, and export formats.
 - **Do** keep five top-level destinations and the separate central Import action.
 - **Do** support EN/PT/ES with English fallback, large text, long translations, and real RTL without mirroring the logo, numbers, or charts.
 - **Do** preserve 48dp Android and 44pt iOS touch targets, native focus behavior, localized accessible descriptions, and textual chart alternatives.

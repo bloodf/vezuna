@@ -7,12 +7,15 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "$GOOGLE_SERVICE_ACCOUNT_KEY_PATH",
-        "applicationId": "com.bloodf.vitahearth",
+        "applicationId": "app.vezuna",
         "track": "internal",
         "releaseStatus": "draft"
       },
       "ios": {
-        "bundleIdentifier": "com.bloodf.vitahearth",
+        "bundleIdentifier": "app.vezuna",
+        "ascAppId": "6829336593",
+        "appleTeamId": "AAMZ7ZVM62",
+        "language": "pt-BR",
         "ascApiKeyPath": "$ASC_API_KEY_PATH",
         "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",
         "ascApiKeyId": "$ASC_API_KEY_ID"

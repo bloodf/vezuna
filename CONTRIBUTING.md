@@ -23,13 +23,13 @@ The product does not diagnose, recommend treatment, change doses, or invent refe
 - Do not add analytics, telemetry, ads, or any network client for health data. Android must keep `INTERNET` removed from the merged manifest.
 - Do not add claims like "secure", "private", "clinically validated", or "HIPAA/GDPR compliant" to UI, docs, or store text unless the code and review support them. Prefer exact statements, for example "AES-256-GCM key in Android Keystore".
 - Localization never changes stored clinical values, units, or reference ranges.
-- Do not change `applicationId`/bundle ID `com.bloodf.vitahearth`, storage keys, or file formats without a migration and discussion first.
+- Do not change `applicationId`/bundle ID `app.vezuna`, storage keys, or file formats without a migration and discussion first.
 
 ## Workflow
 
 1. Open an issue for non-trivial changes before large work.
 2. Keep one change per PR. Match existing patterns: shared logic in `shared/commonMain`, platform code behind `expect`/`actual` or the existing bridge classes.
-3. All user-visible strings go in the string catalogs for English, Portuguese, and Spanish (`shared/.../composeResources/values*/strings.xml`, `composeApp/src/main/res/values*/strings.xml`, `iosApp/VitaHearth/*.lproj`). `tools/localization/check_localization.py` checks parity.
+3. All user-visible strings go in the string catalogs for English, Portuguese, and Spanish (`shared/.../composeResources/values*/strings.xml`, `composeApp/src/main/res/values*/strings.xml`, `iosApp/Vezuna/*.lproj`). `tools/localization/check_localization.py` checks parity.
 4. Add or update tests with behavior changes (`shared/src/commonTest`, `composeApp/src/test`, `composeApp/src/androidTest`, `tools/lab_importer/test_importer.py`).
 5. Update `CHANGELOG.md` under "Unreleased" for user-visible changes.
 6. Run the checks listed in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#checks) and say which ones you ran. Say what you could not run (for example iOS runtime or a physical device).

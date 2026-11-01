@@ -1,0 +1,1305 @@
+{
+  "schemaVersion": 1,
+  "inventories": {
+    "android": {
+      "path": "third_party/android-runtime-inventory.json",
+      "sha256": "108f80c5950bff9d5c2f9cd77214a952ee432960bcff746857badb12ef865e7d"
+    },
+    "ios": {
+      "path": "third_party/ios-runtime-inventory.json",
+      "sha256": "52ab281690c02b0d4fd13797f408a84074b2e9e00af420640d2cf3ce90ffe180"
+    }
+  },
+  "inputs": [
+    {
+      "path": "LICENSE",
+      "component": "Vezuna source and original artwork",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "97ffad7a274a37a8643fd9b6885fc599a1ae875856019b2f5bd514bb0f208ebe"
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/files/NOTO-LICENSE.txt",
+      "component": "Noto Sans fonts",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "075f91382875da1c4b491f1facf2586f55448705133264d98ce15cab6211b125"
+    },
+    {
+      "path": "composeApp/third_party/play-licensing-LICENSE.txt",
+      "component": "Apache License 2.0, including Play Licensing and dependencies declaring Apache-2.0",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/llamatik-LICENSE.txt",
+      "component": "llamatik source release",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "2d403c77e2c6f39e9e0385a23bb61b878b5aed8ca6393016243e018656b9567e"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/llama.cpp-LICENSE.txt",
+      "component": "llama.cpp source release",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/whisper.cpp-LICENSE.txt",
+      "component": "whisper.cpp source release",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/stable-diffusion.cpp-LICENSE.txt",
+      "component": "stable-diffusion.cpp source release",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "b53fa08f515cb5a6fff7b9fd8fcd0961a4b80df29d74372d25e1f9171aa042ee"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/licenses_LICENSE-jsonhpp",
+      "component": "ggml-org/llama.cpp: licenses/LICENSE-jsonhpp",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_cpp-httplib_LICENSE",
+      "component": "ggml-org/llama.cpp: vendor/cpp-httplib/LICENSE",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "4b45cbe16d7b71b89ae6127e26e0d90a029198ca5e958ad8e3d0b8bbed364d8b"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_hash_sha256_LICENSE",
+      "component": "ggml-org/llama.cpp: vendor/hash/sha256/LICENSE",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "b81d0022ca6367918c67b57e9647d3513ee58809fd4b0ef0b3492f1356bced25"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_hash_xxhash_LICENSE",
+      "component": "ggml-org/llama.cpp: vendor/hash/xxhash/LICENSE",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "6ffedbc0f7878612d2b23589f1ff2ab15633e1df7963a5d9fc750ec5500c7e7a"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_hash_rotate-bits_LICENSE.md",
+      "component": "ggml-org/llama.cpp: vendor/hash/rotate-bits/LICENSE.md",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "ca0b44aec101afb6b46f4c39b23369fa06a64fb9c0add37c2689d702156fee55"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_oniguruma_COPYING",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/oniguruma/COPYING",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "0dff717fb611b9c9bd9776a5df9c4e029030f8dbc023b77f3678cf495495b933"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_utf8proc_LICENSE.md",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/utf8proc/LICENSE.md",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "767edbcafb23016d7f203aaf2cbdef5690ad58bcede52ee241427dcb816cd644"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_LICENSE.darts_clone.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/LICENSE.darts_clone.txt",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "155f59997298ee336602c49f9c1110f268ac394ca2197eb02647a3555935ad52"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_hash_sha1_sha1.c-notice.txt",
+      "component": "ggml-org/llama.cpp: vendor/hash/sha1/sha1.c",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "46fc0c6d8b1e82892861b8093beb214f1531d5367d6d6ebbee0b16a9ecc37daa"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_sheredom_subprocess.h-notice.txt",
+      "component": "ggml-org/llama.cpp: vendor/sheredom/subprocess.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "1c7b71e03e1be684d51dfeb56d6358cc728097d844cfd72484f28835ff4c091b"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/vendor_stb_stb_image.h-notice.txt",
+      "component": "ggml-org/llama.cpp: vendor/stb/stb_image.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_miniz.h-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/miniz.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "f924f3448e5955f32add8be46194e30cc6de5dafe05442e0afe7850567533484"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_zip.c-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/zip.c",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "a172b8c2f152e58f6f25cc67f053ae6451b81b7ba350a174f9426aa6f2e93f46"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_stb_image.h-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/stb_image.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_stb_image_write.h-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/stb_image_write.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/thirdparty_stb_image_resize.h-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/stb_image_resize.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "9488a3b46dfad6dc2d77ff181fe811b3da47f580d37a3a1aa368d8b32b8adbd7"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/llama.cpp/llamafile-sgemm-notice.txt",
+      "component": "ggml-org/llama.cpp: ggml/src/ggml-cpu/llamafile/sgemm.cpp",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "08b820564baaf70af73099bdbb0f1a0d69b3362a55d4564160b0e3e3b6648116"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/nlohmann-json-3.11.2-LICENSE.MIT",
+      "component": "nlohmann/json: LICENSE.MIT",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "86b998c792894ccb911a1cb7994f7a9652894e7a094c0b5e45be2f553f45cf14"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/zip-LICENSE.txt",
+      "component": "kuba--/zip: LICENSE.txt",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "6c1643ab0353b42030e903654fdb3845570b741da5ffafcaf9d305e8ec79a4a0"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/json-abseil-LICENSE.txt",
+      "component": "abseil/abseil-cpp: LICENSE",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/json-abseil-utility-notice.txt",
+      "component": "abseil/abseil-cpp: absl/utility/utility.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "5cb7e330f4854103db05d6407211f88082f53292c7a2a85007a944b5da1cbe22"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/json-spdx-attributions.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/json.hpp",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "cc2ed188d83cdafcca1267b903c902c36df1bfb1fb5e04b54c901c4d3f0dbf6a"
+    },
+    {
+      "path": "third_party/llamatik-2.1.0/licenses/stable-diffusion.cpp/httplib-copyright-notice.txt",
+      "component": "leejet/stable-diffusion.cpp: thirdparty/httplib.h",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "sha256": "1ff67ea64d6387e68b7d2c7876bceda33e205608dbb88fb69d7bb9cd57c0d41d"
+    },
+    {
+      "path": "third_party/android-ndk-r28c/NOTICE",
+      "component": "OpenMP runtime: official Android NDK r28c notices",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e"
+    },
+    {
+      "path": "third_party/android-ndk-r28c/NOTICE.toolchain",
+      "component": "OpenMP runtime: official Android NDK r28c toolchain notices",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a"
+    },
+    {
+      "path": "third_party/bouncycastle-1.72/LICENSE.txt",
+      "component": "Bouncy Castle 1.72",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "097d8d8cf5aaf2e3168699314f959bcc6f66676af58eef164a5a0301ac3e0ac2"
+    },
+    {
+      "path": "third_party/liberation-fonts-2.1.5/LICENSE",
+      "component": "Liberation Sans 2.1.5",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/dng_sdk/LICENSE",
+      "component": "Skiko / Skia: licenses/dng_sdk/LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "012e875468ac2f9a2070ee25a950588afa2735b4b2d961f491e3d72c8f572306"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/dng_sdk/LICENSE.source_code",
+      "component": "Skiko / Skia: licenses/dng_sdk/LICENSE.source_code",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "0c993758dd78dbb15ce6aae8aee79639b428d8ebeca6d416019939dc90fdc08f"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/dng_sdk/LICENSE.technology",
+      "component": "Skiko / Skia: licenses/dng_sdk/LICENSE.technology",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "4731d85e841e1d8b5dbf7e0ba07e0b524c012f9371db3508551f996cb40c8fe6"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/dng_sdk/NOTICE",
+      "component": "Skiko / Skia: licenses/dng_sdk/NOTICE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "b60660d2a5a3ee1a49366400e7e9b01c1872356d6f08942f095d356a44deb5f6"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/dng_sdk/PATENTS",
+      "component": "Skiko / Skia: licenses/dng_sdk/PATENTS",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "bd958835863f42d8479457503a7ed716424d35b6e76ef76db06b72b109696ec4"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/expat/COPYING",
+      "component": "Skiko / Skia: licenses/expat/COPYING",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "31b15de82aa19a845156169a17a5488bf597e561b2c318d159ed583139b25e87"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/harfbuzz/COPYING",
+      "component": "Skiko / Skia: licenses/harfbuzz/COPYING",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "ba8f810f2455c2f08e2d56bb49b72f37fcf68f1f4fade38977cfd7372050ad64"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/icu/LICENSE",
+      "component": "Skiko / Skia: licenses/icu/LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "17510cf7a58b4879b887ec05a45d72cf1b73544dd9ec7e72f20110ed104229ee"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/icu/license.html",
+      "component": "Skiko / Skia: licenses/icu/license.html",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "c62d7697c03979f5056d28b338fafc7a1152820f7b379adf4a9d88cd37160f96"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/libjpeg-turbo/LICENSE.md",
+      "component": "Skiko / Skia: licenses/libjpeg-turbo/LICENSE.md",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/libpng/LICENSE",
+      "component": "Skiko / Skia: licenses/libpng/LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/libwebp/COPYING",
+      "component": "Skiko / Skia: licenses/libwebp/COPYING",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/libwebp/PATENTS",
+      "component": "Skiko / Skia: licenses/libwebp/PATENTS",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "cc3273e0694ea5896145e0677699b53471b03ea43021ddc50e7923fbb9f5023c"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/piex/LICENSE",
+      "component": "Skiko / Skia: licenses/piex/LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/piex/MODULE_LICENSE_APACHE2",
+      "component": "Skiko / Skia: licenses/piex/MODULE_LICENSE_APACHE2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/piex/NOTICE",
+      "component": "Skiko / Skia: licenses/piex/NOTICE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/zlib/LICENSE",
+      "component": "Skiko / Skia: licenses/zlib/LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "e1cfcc55c325b3f78cf55df9664abaa066e2271dffe8213347d9fccdfbac8f2c"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/Skiko-LICENSE",
+      "component": "Skiko / Skia: licenses/Skiko-LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/Skiko-NOTICE",
+      "component": "Skiko / Skia: licenses/Skiko-NOTICE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "35dd077c24768b53625101cfcc0ad853ae7e2abc08bd2a111a0267760d1406d8"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/Skia-LICENSE",
+      "component": "Skiko / Skia: licenses/Skia-LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/libjpeg-turbo/README.ijg",
+      "component": "Skiko / Skia: licenses/libjpeg-turbo/README.ijg",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/wuffs-LICENSE",
+      "component": "Skiko / Skia: licenses/wuffs-LICENSE",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "third_party/skiko-0.150.2/licenses/skcms-copyright-notice.txt",
+      "component": "Skiko / Skia: licenses/skcms-copyright-notice.txt",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "24361ec7f6be3bd4f4557da2d39afe66527adce005ce75a46efdaf005b8bd1c7"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.activity:activity-compose:1.12.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.activity:activity-ktx:1.12.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.activity:activity:1.12.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.annotation:annotation-jvm:1.9.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.collection:collection-jvm:1.5.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.collection:collection-ktx:1.5.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.animation:animation-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.animation:animation-core-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.foundation:foundation-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.foundation:foundation-layout-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.material3:material3-android:1.4.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.material:material-ripple-android:1.9.3",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-annotation-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-retain-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-saveable-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-geometry-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-graphics-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-text-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-unit-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.ui:ui-util-android:1.12.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.core:core-ktx:1.17.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.core:core-viewtree:1.0.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.core:core:1.17.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.core:core:1.17.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.exifinterface:exifinterface:1.4.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.exifinterface:exifinterface:1.4.1",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/a01b712fbb30f80b86851468b6fa58e80eab68f69f325e88bbc7ddf47cf1b063.txt",
+      "component": "androidx.health.connect:connect-client-external-protobuf:1.1.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "a01b712fbb30f80b86851468b6fa58e80eab68f69f325e88bbc7ddf47cf1b063"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.health.connect:connect-client-proto:1.1.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.health.connect:connect-client:1.1.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-common-java8:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-common-jvm:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-livedata-core-ktx:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-livedata-core:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-livedata:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-livedata:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-process:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-runtime-android:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-runtime-compose-android:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-runtime-ktx-android:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-service:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-android:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-savedstate-android:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel:2.9.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.navigationevent:navigationevent-android:1.0.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.navigationevent:navigationevent-compose-android:1.0.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.profileinstaller:profileinstaller:1.4.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.savedstate:savedstate-android:1.4.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.savedstate:savedstate-compose-android:1.4.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.savedstate:savedstate-ktx:1.4.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.window:window-core-android:1.5.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.window:window:1.5.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/11e6e759b1d57cdf3208e086bb45b6f14106a8836e548942f21b62c931fff872.txt",
+      "component": "com.google.android.play:asset-delivery:2.3.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "11e6e759b1d57cdf3208e086bb45b6f14106a8836e548942f21b62c931fff872"
+    },
+    {
+      "path": "third_party/runtime-notices/138a7af1814b6787d5f072db3e24df7903396b918f1815c8043d4806be14ea07.txt",
+      "component": "com.google.android.play:core-common:2.0.4",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "138a7af1814b6787d5f072db3e24df7903396b918f1815c8043d4806be14ea07"
+    },
+    {
+      "path": "third_party/runtime-notices/e90eaa08dea089df10f2bf7f9dba63a5f6237c01562c4741e2e86773e78582d5.txt",
+      "component": "org.checkerframework:checker-qual:3.12.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "e90eaa08dea089df10f2bf7f9dba63a5f6237c01562c4741e2e86773e78582d5"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.animation:animation-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.animation:animation-core-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.foundation:foundation-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.foundation:foundation-layout-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.runtime:runtime-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.runtime:runtime-saveable-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-backhandler-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-geometry-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-graphics-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-text-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-unit-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-util-android:1.12.2",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.annotation:annotation-iosarm64:1.9.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.collection:collection-iosarm64:1.5.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-annotation-iosarm64:1.12.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-iosarm64:1.12.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-retain-iosarm64:1.12.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.compose.runtime:runtime-saveable-iosarm64:1.12.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-common-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-runtime-compose-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-runtime-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-compose-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.lifecycle:lifecycle-viewmodel-savedstate-iosarm64:2.11.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.navigationevent:navigationevent-compose-iosarm64:1.1.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.navigationevent:navigationevent-iosarm64:1.1.1",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.savedstate:savedstate-compose-iosarm64:1.4.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "androidx.savedstate:savedstate-iosarm64:1.4.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.androidx.navigationevent:navigationevent-compose-iosarm64:1.1.0",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.animation:animation-core-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.animation:animation-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.foundation:foundation-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.foundation:foundation-layout-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.runtime:runtime-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.runtime:runtime-saveable-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-backhandler-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-geometry-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-graphics-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-text-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-unit-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0.txt",
+      "component": "org.jetbrains.compose.ui:ui-util-iosarm64:1.12.2",
+      "platforms": [
+        "ios"
+      ],
+      "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    }
+  ],
+  "outputs": {
+    "android": "composeApp/src/main/assets/ThirdPartyNotices.txt",
+    "ios": "iosApp/Vezuna/ThirdPartyNotices.txt"
+  }
+}

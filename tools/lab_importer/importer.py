@@ -1,4 +1,4 @@
-"""De-identified, text-first reference parser for VitaHearth lab reports.
+"""De-identified, text-first reference parser for Vezuna lab reports.
 
 The module deliberately does not perform OCR.  Native callers can use the
 ``ocr_required`` classification to invoke their image/OCR pipeline.  No source

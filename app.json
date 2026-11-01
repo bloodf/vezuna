@@ -4,10 +4,10 @@
     "slug": "vezuna",
     "owner": "bloodf",
     "android": {
-      "package": "com.bloodf.vitahearth"
+      "package": "app.vezuna"
     },
     "ios": {
-      "bundleIdentifier": "com.bloodf.vitahearth"
+      "bundleIdentifier": "app.vezuna"
     },
     "extra": {
       "eas": {

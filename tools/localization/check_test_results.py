@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     if args.instrumentation:
         totals, classes = summarize(ROOT / "composeApp/build/outputs/androidTest-results/connected")
-        assert "com.bloodf.vitahearth.LocalizationInstrumentedTest" in classes, "Missing locale instrumentation results"
+        assert "app.vezuna.LocalizationInstrumentedTest" in classes, "Missing locale instrumentation results"
         assert totals["tests"] > 0 and totals["failures"] == 0 and totals["errors"] == 0 and totals["skipped"] == 0, totals
         print(f"ANDROID_INSTRUMENTATION_TESTS={totals['tests']}")
         print("ANDROID_INSTRUMENTATION_PASSED")

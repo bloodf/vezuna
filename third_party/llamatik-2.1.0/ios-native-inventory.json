@@ -1,0 +1,23 @@
+[
+  {
+    "klib": "core-iosArm64Cinterop-llamaMain-2.1.0.klib",
+    "klibSha256": "4fa5ce6de9145be9f6241bae0fe52016522ba34e58c4e8e9ded6893cd8657db8",
+    "archive": "default/targets/ios_arm64/included/libllama_merged.a",
+    "archiveSize": 68783208,
+    "archiveSha256": "b5f94a6b8219e1d23987368e25543e509840b0e021c032e8be779a74a21ee517"
+  },
+  {
+    "klib": "core-iosArm64Cinterop-stableDiffusionMain-2.1.0.klib",
+    "klibSha256": "f946e82757d06bf101723530d85e4eedd0561e9e9fe5a19a8dbc82acbc1809ad",
+    "archive": "default/targets/ios_arm64/included/libllama_merged.a",
+    "archiveSize": 68783208,
+    "archiveSha256": "b5f94a6b8219e1d23987368e25543e509840b0e021c032e8be779a74a21ee517"
+  },
+  {
+    "klib": "core-iosArm64Cinterop-multimodalMain-2.1.0.klib",
+    "klibSha256": "7663e95bef7a9f1e04178f22a50c2c48cfebb62ca40c49e4ce33db4f67bbb960",
+    "archive": "default/targets/ios_arm64/included/libllama_merged.a",
+    "archiveSize": 68783208,
+    "archiveSha256": "b5f94a6b8219e1d23987368e25543e509840b0e021c032e8be779a74a21ee517"
+  }
+]

@@ -116,9 +116,9 @@ def main():
     for language, suffix in (("en", ""), ("pt", "-pt"), ("es", "-es")):
         shared[language] = read_xml_catalog(ROOT / f"shared/src/commonMain/composeResources/values{suffix}/strings.xml")
         android[language] = read_xml_catalog(ROOT / f"composeApp/src/main/res/values{suffix}/strings.xml")
-        ios[language] = read_strings(ROOT / f"iosApp/VitaHearth/{language}.lproj/Localizable.strings")
-        ios_plurals[language] = read_stringsdict(ROOT / f"iosApp/VitaHearth/{language}.lproj/Localizable.stringsdict")
-        info = read_strings(ROOT / f"iosApp/VitaHearth/{language}.lproj/InfoPlist.strings")
+        ios[language] = read_strings(ROOT / f"iosApp/Vezuna/{language}.lproj/Localizable.strings")
+        ios_plurals[language] = read_stringsdict(ROOT / f"iosApp/Vezuna/{language}.lproj/Localizable.stringsdict")
+        info = read_strings(ROOT / f"iosApp/Vezuna/{language}.lproj/InfoPlist.strings")
         assert {"CFBundleDisplayName", "NSCameraUsageDescription", "NSHealthShareUsageDescription", "NSPhotoLibraryUsageDescription"} <= info.keys(), f"{language}: missing permission descriptions"
     compare_catalogs({language: value[0] for language, value in shared.items()})
     compare_catalogs({language: value[1] for language, value in shared.items()}, plural=True)
@@ -129,11 +129,11 @@ def main():
 
     android_en, android_en_plurals = read_xml_catalog(ROOT / "composeApp/src/main/res/values-en/strings.xml")
     assert android_en == android["en"][0] and android_en_plurals == android["en"][1], "Android default and values-en fallback differ"
-    assert kotlin_keys(ROOT / "composeApp/src/main/java/com/bloodf/vitahearth/NativeMessage.kt", "NativeKey") == (android["en"][0].keys() | android["en"][1].keys()) - {"app_name"}, "Android NativeKey/catalog drift"
-    assert kotlin_keys(ROOT / "shared/src/commonMain/kotlin/com/bloodf/vitahearth/localization/Localization.kt", "L10nKey") == shared["en"][0].keys() | shared["en"][1].keys(), "Shared L10nKey/catalog drift"
-    mapped = set(re.findall(r"L10nKey\.([A-Z0-9_]+)\s+to\s+Res\.", (ROOT / "shared/src/commonMain/kotlin/com/bloodf/vitahearth/localization/ResourceMappings.kt").read_text()))
+    assert kotlin_keys(ROOT / "composeApp/src/main/java/app/vezuna/NativeMessage.kt", "NativeKey") == (android["en"][0].keys() | android["en"][1].keys()) - {"app_name"}, "Android NativeKey/catalog drift"
+    assert kotlin_keys(ROOT / "shared/src/commonMain/kotlin/app/vezuna/localization/Localization.kt", "L10nKey") == shared["en"][0].keys() | shared["en"][1].keys(), "Shared L10nKey/catalog drift"
+    mapped = set(re.findall(r"L10nKey\.([A-Z0-9_]+)\s+to\s+Res\.", (ROOT / "shared/src/commonMain/kotlin/app/vezuna/localization/ResourceMappings.kt").read_text()))
     assert {key.lower() for key in mapped} == shared["en"][0].keys() | shared["en"][1].keys(), "Shared resource-map drift"
-    assert swift_keys(ROOT / "iosApp/VitaHearth/L10n.swift") == ios["en"].keys(), "iOS NativeString/catalog drift"
+    assert swift_keys(ROOT / "iosApp/Vezuna/L10n.swift") == ios["en"].keys(), "iOS NativeString/catalog drift"
     bridge_keys = set(re.findall(r'nativeMessage\("([a-z0-9_]+)"', (ROOT / "iosApp/SharedBridge/ComposeBridge.kt").read_text()))
     assert bridge_keys <= ios["en"].keys(), f"Unlocalized iOS bridge keys: {sorted(bridge_keys - ios['en'].keys())}"
     locale_config = (ROOT / "composeApp/src/main/res/xml/locales_config.xml").read_text()

@@ -11,7 +11,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.bloodf.vitahearth.shared"
+        namespace = "app.vezuna.shared"
         compileSdk = 37
         minSdk = 26
         compilerOptions {
@@ -21,14 +21,14 @@ kotlin {
     jvm()
     iosArm64 {
         binaries.framework {
-            baseName = "VitaHearthShared"
+            baseName = "VezunaShared"
             isStatic = true
             linkerOpts.add("-mios-version-min=18.5")
         }
     }
     iosSimulatorArm64 {
         binaries.framework {
-            baseName = "VitaHearthShared"
+            baseName = "VezunaShared"
             isStatic = true
             linkerOpts.add("-mios-simulator-version-min=18.5")
         }
@@ -64,6 +64,6 @@ afterEvaluate {
         (property("outputDirectory") as DirectoryProperty).set(layout.buildDirectory.dir("intermediates/assets/androidMain"))
     }
     tasks.named("syncComposeResourcesForIos").configure {
-        (property("outputDir") as DirectoryProperty).set(rootProject.file("iosApp/.ios-build"))
+        (property("outputDir") as DirectoryProperty).set(rootProject.file("iosApp/.ios-build/compose-resources"))
     }
 }

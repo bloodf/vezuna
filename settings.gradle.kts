@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "VitaHearth"
+rootProject.name = "Vezuna"
 include(":shared")
 include(":composeApp")
