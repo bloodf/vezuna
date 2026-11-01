@@ -345,6 +345,7 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                     when {
                         installed == null && modelPackLoader != null -> VitaButton(vitaText(L10nKey.INSTALL_VERIFIED_STORE_PACK), Icons.Rounded.Download, {
                             scope.launch {
+                                if (!controller.modelManager.checkFit(pack)) return@launch
                                 val source = modelPackLoader(pack)
                                 if (source == null) controller.navigate(AppScreen.Models) else try {
                                     controller.installModel(pack, source.path)

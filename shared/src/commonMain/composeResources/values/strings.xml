@@ -387,4 +387,6 @@ iOS: %2$s</string>
     <string name="model_catalog_unreadable">The model catalog bundled with the app could not be read. AI models are unavailable.</string>
     <string name="generated_text_disclaimer">Generated text, may be wrong</string>
     <string name="stop_generating">Stop</string>
+    <string name="model_insufficient_ram">This model needs at least %1$s MB of RAM; this device has %2$s MB.</string>
+    <string name="model_insufficient_storage">Not enough free storage: %1$s MB needed, %2$s MB available.</string>
 </resources>

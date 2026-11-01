@@ -6,6 +6,7 @@ import app.vezuna.license.PlayLvlLicenseGate
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.AndroidDeviceCapacity
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.llm.loadBundledModelCatalog
@@ -23,7 +24,7 @@ class AndroidSessionViewModel(
 ) : ViewModel() {
     private val llm = llamatikLocalLlm()
     private val licenseGate = PlayLvlLicenseGate(app)
-    private val modelManager = InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm)
+    private val modelManager = InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm, AndroidDeviceCapacity(app))
 
     val modelLoader = PlayAssetPackLoader(app, licenseGate)
     val controller = AppController(

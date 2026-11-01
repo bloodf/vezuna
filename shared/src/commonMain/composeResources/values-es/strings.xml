@@ -387,4 +387,6 @@ iOS: %2$s</string>
     <string name="model_catalog_unreadable">No se pudo leer el catálogo de modelos incluido en la app. Los modelos de IA no están disponibles.</string>
     <string name="generated_text_disclaimer">Texto generado, puede ser incorrecto</string>
     <string name="stop_generating">Detener</string>
+    <string name="model_insufficient_ram">Este modelo necesita al menos %1$s MB de RAM; este dispositivo tiene %2$s MB.</string>
+    <string name="model_insufficient_storage">Almacenamiento libre insuficiente: se necesitan %1$s MB, hay %2$s MB disponibles.</string>
 </resources>

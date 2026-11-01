@@ -367,6 +367,8 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.MODEL_CATALOG_UNREADABLE to Res.string.model_catalog_unreadable,
     L10nKey.GENERATED_TEXT_DISCLAIMER to Res.string.generated_text_disclaimer,
     L10nKey.STOP_GENERATING to Res.string.stop_generating,
+    L10nKey.MODEL_INSUFFICIENT_RAM to Res.string.model_insufficient_ram,
+    L10nKey.MODEL_INSUFFICIENT_STORAGE to Res.string.model_insufficient_storage,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

@@ -299,7 +299,7 @@ object IosRuntime {
             llm = llamatikLocalLlm()
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
-            val manager = InstalledModelManager(catalog, files, llm)
+            val manager = InstalledModelManager(catalog, files, llm, IosDeviceCapacity())
             controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault, json))
             initialized = true
             controller.initialize()
