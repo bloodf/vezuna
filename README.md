@@ -102,7 +102,7 @@ Private source PDFs stay under the ignored `samples/` directory and are never bu
 
 ## Model-pack setup
 
-`ModelCatalog.unconfigured()` is intentionally empty until real store assets are configured. The project does not invent model URLs, asset IDs, sizes, or hashes. Every `ModelPack` requires a stable ID and GGUF filename, separate Android/iOS asset-pack IDs, exact size, minimum RAM, context limit, and lowercase SHA-256.
+The single catalog source is `shared/src/commonMain/composeResources/files/model-packs.json`, packaged into both the Android and iOS apps by Compose resources (no copies to keep in sync). It is `[]` until real store assets are configured; with an empty catalog the AI screens say the model is not available yet. To configure, replace `[]` with a JSON array of `ModelPack` objects (fields below) and run `:shared:jvmTest`, which parses the file. The project does not invent model URLs, asset IDs, sizes, or hashes. Every `ModelPack` requires a stable ID and GGUF filename, separate Android/iOS asset-pack IDs, exact size, minimum RAM, context limit, and lowercase SHA-256.
 
 Play Asset Delivery and Apple-hosted asset packs/ODR require your developer accounts, signed catalog metadata, uploaded model packs, and store testing. Model selection verifies integrity with streaming SHA-256 on both platforms. AI/model activation may use store licensing; records, backup, and export never do.
 

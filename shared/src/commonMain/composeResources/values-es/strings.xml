@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">Ningún perfil</string>
     <string name="no_profile_selected">Ningún perfil seleccionado</string>
     <string name="no_settings">No hay ajustes</string>
-    <string name="no_store_model_packs">No hay paquetes de modelos de la tienda configurados</string>
-    <string name="no_store_model_packs_explanation">El shell nativo proporciona metadatos firmados del catálogo y bytes GGUF alojados en la tienda. No se presupone ninguna URL de descarga.</string>
+    <string name="no_store_model_packs">Modelo de IA aún no disponible</string>
+    <string name="no_store_model_packs_explanation">Todavía no se incluye ningún modelo de IA en el dispositivo en esta versión. Tus registros, importaciones y exportaciones funcionan por completo sin él.</string>
     <string name="no_trends">No hay tendencias</string>
     <string name="no_upcoming_doses">No hay dosis próximas</string>
     <string name="no_upcoming_doses_explanation">Añade un medicamento y su horario prescrito para ver el próximo recordatorio.</string>
@@ -361,4 +361,9 @@ iOS: %2$s</string>
     <string name="lock_screen_body">Tus registros de salud permanecen ocultos hasta que desbloquees.</string>
     <string name="unlock">Desbloquear</string>
     <string name="backup_restored_without_vitals">Copia restaurada, pero no se pudieron restaurar los datos de salud del dispositivo</string>
+    <!-- Export language -->
+    <string name="export_language">Idioma de la exportación</string>
+    <string name="export_language_device">Idioma de la app</string>
+    <string name="export_language_explanation">Elige el idioma de los títulos, estados y números de la exportación. Los valores clínicos y las unidades nunca cambian.</string>
+    <string name="model_catalog_unreadable">No se pudo leer el catálogo de modelos incluido en la app. Los modelos de IA no están disponibles.</string>
 </resources>

@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import app.vezuna.domain.RangeAssessment
+import app.vezuna.localization.ContentLanguage
 import java.io.ByteArrayOutputStream
 import kotlin.math.max
 import kotlin.math.min
@@ -24,7 +25,9 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
     private lateinit var page: PdfDocument.Page
     private var pageNumber = 0
     private var y = 0f
-    private var sectionName = "Clinical report"
+    private var sectionName = ""
+    private var language = ContentLanguage.EN
+    private var t = ExportText.of(language)
     private val body = paint(9f, INK)
     private val small = paint(7.5f, MUTED)
     private val title = paint(18f, NAVY, bold = true)
@@ -36,6 +39,9 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
     fun render(document: DoctorPdfDocument) {
+        language = document.language
+        t = ExportText.of(language)
+        sectionName = t.clinicalReport
         newPage()
         text("Vezuna", MARGIN, y, title)
         y += 26f
@@ -43,11 +49,11 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
             text(document.profileDisplayName, MARGIN, y, examTitle)
             y += 17f
         }
-        text("Generated ${DoctorReportFormat.dateTime(document.generatedAt)}", MARGIN, y, small)
+        text("${t.generated} ${DoctorReportFormat.dateTime(document.generatedAt, language)}", MARGIN, y, small)
         y += 13f
-        text("Collection / report period: ${DoctorReportFormat.period(document.resultRows)}", MARGIN, y, small)
+        text("${t.reportPeriod}: ${DoctorReportFormat.period(document.resultRows, language)}", MARGIN, y, small)
         y += 13f
-        y += wrapped("Private health record for clinical discussion. OCR-derived values are included only after user confirmation.", small, MARGIN, y, CONTENT_WIDTH)
+        y += wrapped(t.disclaimer, small, MARGIN, y, CONTENT_WIDTH)
         y += 8f
         line(MARGIN, y, RIGHT, y, navyLine)
         y += 12f
@@ -56,7 +62,7 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
         exams.forEach { exam(it) }
         medications(document.medicationRows)
         if (!document.hasStructuredContent && document.lines.isNotEmpty()) {
-            sectionHeading("Report notes")
+            sectionHeading(t.reportNotes)
             document.lines.forEach {
                 ensureSpace(18f)
                 y += wrapped(it, body, MARGIN, y, CONTENT_WIDTH) + 5f
@@ -68,10 +74,10 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
 
     private fun legend() {
         val entries = listOf(
-            RangeAssessment.WITHIN to "Within reference",
-            RangeAssessment.BELOW to "Below reference",
-            RangeAssessment.ABOVE to "Above reference",
-            RangeAssessment.UNKNOWN to "Not assessed",
+            RangeAssessment.WITHIN to t.withinReference,
+            RangeAssessment.BELOW to t.belowReference,
+            RangeAssessment.ABOVE to t.aboveReference,
+            RangeAssessment.UNKNOWN to t.legendNotAssessed,
         )
         val width = CONTENT_WIDTH / entries.size
         entries.forEachIndexed { index, entry ->
@@ -105,25 +111,25 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
     }
 
     private fun latestResultHeight(row: DoctorResultRow): Float {
-        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange), body, 190f)
-        val normalized = DoctorReportFormat.normalizedValue(row)
+        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange, language), body, 190f)
+        val normalized = DoctorReportFormat.normalizedValue(row, language)
         val contentHeight = maxOf(48f, referenceLines.size * 13f + 16f, if (normalized == null) 48f else 61f)
         return 19f + contentHeight + 12f
     }
 
     private fun latestResult(row: DoctorResultRow) {
         rect(MARGIN, y, CONTENT_WIDTH, 19f, PALE_NAVY)
-        text("RESULT", MARGIN + 7f, y + 5f, small)
-        right("REFERENCE RANGE", RIGHT - 7f, y + 5f, small)
+        text(t.result.uppercase(), MARGIN + 7f, y + 5f, small)
+        right(t.referenceRange.uppercase(), RIGHT - 7f, y + 5f, small)
         y += 19f
-        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange), body, 190f)
-        val normalized = DoctorReportFormat.normalizedValue(row)
+        val referenceLines = wrap(DoctorExportContent.rangeText(row.referenceRange, language), body, 190f)
+        val normalized = DoctorReportFormat.normalizedValue(row, language)
         val height = maxOf(48f, referenceLines.size * 13f + 16f, if (normalized == null) 48f else 61f)
         rect(MARGIN, y, CONTENT_WIDTH, height, statusContainer(row.assessment))
         rect(MARGIN, y, 4f, height, statusColor(row.assessment))
-        text(DoctorReportFormat.originalValue(row), MARGIN + 13f, y + 8f, result)
+        text(DoctorReportFormat.originalValue(row, language), MARGIN + 13f, y + 8f, result)
         normalized?.let { text(it, MARGIN + 13f, y + 29f, small) }
-        text(DoctorReportFormat.assessment(row.assessment), MARGIN + 13f, y + height - 14f, small)
+        text(DoctorReportFormat.assessment(row.assessment, language), MARGIN + 13f, y + height - 14f, small)
         referenceLines.forEachIndexed { index, value -> right(value, RIGHT - 8f, y + 9f + index * 13f, body) }
         outline(MARGIN, y, CONTENT_WIDTH, height)
         y += height + 12f
@@ -133,11 +139,11 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
         if (section.history.isEmpty()) return
         val chunks = section.history.chunked(4)
         ensureSpace(15f + historyChunkHeight(chunks.first()))
-        text("History", MARGIN, y, body)
+        text(t.history, MARGIN, y, body)
         y += 15f
         chunks.forEachIndexed { index, chunk ->
             if (index == chunks.lastIndex && section.trend?.points?.size?.let { it >= 2 } == true) {
-                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} · history and trend")
+                ensureSectionSpace(historyChunkHeight(chunk) + CHART_HEIGHT, "${section.testName} · ${t.historyAndTrend}")
             }
             historyChunk(section.testName, chunk)
         }
@@ -145,7 +151,7 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
 
     private fun historyChunkHeight(rows: List<DoctorResultRow>): Float {
         val valueWidth = (CONTENT_WIDTH - 82f) / rows.size
-        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange), small, valueWidth - 8f) }
+        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange, language), small, valueWidth - 8f) }
         val referenceHeight = maxOf(28f, referenceLines.maxOf { it.size } * 11f + 12f)
         return 29f + 38f + referenceHeight + 12f
     }
@@ -153,33 +159,33 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
     private fun historyChunk(testName: String, rows: List<DoctorResultRow>) {
         val labelWidth = 82f
         val valueWidth = (CONTENT_WIDTH - labelWidth) / rows.size
-        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange), small, valueWidth - 8f) }
+        val referenceLines = rows.map { wrap(DoctorExportContent.rangeText(it.referenceRange, language), small, valueWidth - 8f) }
         val referenceHeight = maxOf(28f, referenceLines.maxOf { it.size } * 11f + 12f)
         val totalHeight = 29f + 38f + referenceHeight
         if (y + totalHeight > BOTTOM) {
-            sectionName = "$testName · history continued"
+            sectionName = "$testName · ${t.historyContinued}"
             newPage()
             sectionHeading(sectionName, compact = true)
         }
         rect(MARGIN, y, CONTENT_WIDTH, 29f, PALE_NAVY)
-        text("Date", MARGIN + 6f, y + 9f, small)
+        text(t.date, MARGIN + 6f, y + 9f, small)
         rows.forEachIndexed { index, row ->
             val x = MARGIN + labelWidth + index * valueWidth
-            center(DoctorReportFormat.shortDate(row.collectedAt), x, y + 5f, valueWidth, small)
+            center(DoctorReportFormat.shortDate(row.collectedAt, language), x, y + 5f, valueWidth, small)
             center(row.collectedAt.toString().take(4), x, y + 16f, valueWidth, small)
         }
         y += 29f
-        text("Result", MARGIN + 6f, y + 13f, small)
+        text(t.result, MARGIN + 6f, y + 13f, small)
         rows.forEachIndexed { index, row ->
             val x = MARGIN + labelWidth + index * valueWidth
             rect(x, y, valueWidth, 38f, statusContainer(row.assessment))
             rect(x, y, 2.5f, 38f, statusColor(row.assessment))
-            center(DoctorReportFormat.originalValue(row), x + 3f, y + 7f, valueWidth - 6f, body)
-            DoctorReportFormat.normalizedValue(row)?.let { center(it, x + 3f, y + 22f, valueWidth - 6f, small) }
+            center(DoctorReportFormat.originalValue(row, language), x + 3f, y + 7f, valueWidth - 6f, body)
+            DoctorReportFormat.normalizedValue(row, language)?.let { center(it, x + 3f, y + 22f, valueWidth - 6f, small) }
         }
         outline(MARGIN, y, CONTENT_WIDTH, 38f)
         y += 38f
-        text("Reference", MARGIN + 6f, y + 12f, small)
+        text(t.reference, MARGIN + 6f, y + 12f, small)
         rows.forEachIndexed { index, _ ->
             val x = MARGIN + labelWidth + index * valueWidth
             if (index % 2 == 1) rect(x, y, valueWidth, referenceHeight, HISTORY_ALT)
@@ -192,8 +198,8 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
     }
 
     private fun chart(series: DoctorTrendSeries) {
-        ensureSectionSpace(CHART_HEIGHT, "${series.testName} · trend")
-        text("History chart · ${series.unit}", MARGIN, y, small)
+        ensureSectionSpace(CHART_HEIGHT, "${series.testName} · ${t.trend}")
+        text("${t.historyChart} · ${series.unit}", MARGIN, y, small)
         y += 15f
         val geometry = DoctorChartGeometryFactory.create(series)
         val left = MARGIN + 34f
@@ -218,20 +224,20 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
             }
             fill.color = NAVY
             page.canvas.drawCircle(x, valueY, 2.6f, fill)
-            if (index == points.lastIndex) right(DoctorReportFormat.value(point.point.value), min(x + 16f, left + width), max(top, valueY - 12f), small)
+            if (index == points.lastIndex) right(DoctorReportFormat.value(point.point.value, language), min(x + 16f, left + width), max(top, valueY - 12f), small)
         }
-        text(DoctorReportFormat.date(series.points.first().timestamp), left, bottom + 12f, small)
-        right(DoctorReportFormat.date(series.points.last().timestamp), left + width, bottom + 12f, small)
+        text(DoctorReportFormat.date(series.points.first().timestamp, language), left, bottom + 12f, small)
+        right(DoctorReportFormat.date(series.points.last().timestamp, language), left + width, bottom + 12f, small)
         y = bottom + 30f
     }
 
     private fun medications(rows: List<DoctorMedicationRow>) {
         if (rows.isEmpty()) return
-        ensureSectionSpace(30f + rows.sumOf { medicationHeight(it).toDouble() }.toFloat(), "Medications")
-        sectionHeading("Medications")
+        ensureSectionSpace(30f + rows.sumOf { medicationHeight(it).toDouble() }.toFloat(), t.medications)
+        sectionHeading(t.medications)
         rows.forEach { row ->
             val height = medicationHeight(row)
-            ensureSectionSpace(height, "Medications")
+            ensureSectionSpace(height, t.medications)
             val detail = listOfNotNull(row.strength, row.instructions).joinToString(" · ")
             val nameLines = wrap(row.displayName, body, 175f)
             val detailLines = if (detail.isEmpty()) emptyList() else wrap(detail, small, CONTENT_WIDTH - 196f)
@@ -283,8 +289,8 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
 
     private fun footer() {
         line(MARGIN, PAGE_HEIGHT - 29f, RIGHT, PAGE_HEIGHT - 29f, line)
-        text("Vezuna · Private health record", MARGIN, PAGE_HEIGHT - 22f, small)
-        right("Page $pageNumber", RIGHT, PAGE_HEIGHT - 22f, small)
+        text("Vezuna · ${t.footer}", MARGIN, PAGE_HEIGHT - 22f, small)
+        right("${t.page} $pageNumber", RIGHT, PAGE_HEIGHT - 22f, small)
         pdf.finishPage(page)
     }
 

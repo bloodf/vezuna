@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 data class ModelPack(
@@ -32,7 +33,7 @@ data class ModelPack(
         if (!SHA256.matches(sha256)) failMessage(L10nKey.MODEL_SHA_REQUIRED)
     }
 
-    private companion object { val SHA256 = Regex("[0-9a-f]{64}") }
+    companion object { private val SHA256 = Regex("[0-9a-f]{64}") }
 }
 
 @Serializable
@@ -56,6 +57,11 @@ class ModelCatalog(packs: List<ModelPack>) {
     companion object {
         // Store shells provide signed pack metadata after configuring their own asset packs.
         fun unconfigured(): ModelCatalog = ModelCatalog(emptyList())
+
+        private val json = Json { ignoreUnknownKeys = false }
+
+        /** Parses `composeResources/files/model-packs.json`, the one catalog source for Android and iOS. Throws on invalid content. */
+        fun fromJson(text: String): ModelCatalog = ModelCatalog(json.decodeFromString<List<ModelPack>>(text))
     }
 }
 
@@ -84,16 +90,38 @@ data class ModelManagerState(
     val loadedModelId: String? = null,
     val busy: Boolean = false,
     val error: UserText? = null,
+    val catalog: ModelCatalog = ModelCatalog.unconfigured(),
+    /** Set when the bundled catalog could not be read; distinct from the intentional empty catalog. */
+    val catalogError: UserText? = null,
 )
 
 class InstalledModelManager(
-    val catalog: ModelCatalog,
+    initialCatalog: ModelCatalog,
     private val files: ModelFileStore,
     private val llm: LocalLlm,
 ) {
     private val mutex = Mutex()
-    private val mutableState = MutableStateFlow(ModelManagerState())
+    var catalog: ModelCatalog = initialCatalog
+        private set
+    private val mutableState = MutableStateFlow(ModelManagerState(catalog = initialCatalog))
     val state: StateFlow<ModelManagerState> = mutableState.asStateFlow()
+
+    /** Loads the bundled catalog; a failure leaves it empty and sets [ModelManagerState.catalogError]. Call [refresh] afterwards. */
+    suspend fun configureCatalog(load: suspend () -> ModelCatalog) {
+        var error: UserText? = null
+        val loaded = try {
+            load()
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            throw cancellation
+        } catch (failure: Throwable) {
+            error = message(L10nKey.MODEL_CATALOG_UNREADABLE)
+            ModelCatalog.unconfigured()
+        }
+        mutex.withLock {
+            catalog = loaded
+            mutableState.value = mutableState.value.copy(catalog = loaded, catalogError = error)
+        }
+    }
 
     suspend fun refresh() = mutex.withLock {
         val previous = mutableState.value
@@ -119,7 +147,7 @@ class InstalledModelManager(
                     loadError = message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected)
                 }
             }
-            mutableState.value = ModelManagerState(installed, selected, loaded, false, loadError)
+            mutableState.value = previous.copy(installed = installed, selectedModelId = selected, loadedModelId = loaded, busy = false, error = loadError)
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
             throw cancellation
         } catch (error: Throwable) {

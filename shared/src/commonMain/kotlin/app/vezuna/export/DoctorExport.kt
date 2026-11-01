@@ -8,6 +8,7 @@ import app.vezuna.domain.RangeAssessment
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.platform.currentInstant
 import kotlinx.datetime.Instant
 
@@ -19,6 +20,8 @@ data class DoctorPdfDocument(
     val profileDisplayName: String = "",
     val resultRows: List<DoctorResultRow> = emptyList(),
     val medicationRows: List<DoctorMedicationRow> = emptyList(),
+    /** Language of every heading, status, disclaimer and number in the rendered PDF. */
+    val language: ContentLanguage = ContentLanguage.EN,
 ) {
     val hasStructuredContent: Boolean get() = profileDisplayName.isNotEmpty() || resultRows.isNotEmpty() || medicationRows.isNotEmpty()
 }
@@ -63,13 +66,17 @@ expect class NativePdfExporter() {
 }
 
 object DoctorExportContent {
-    fun document(data: ProfileData, title: String = "Health summary"): DoctorPdfDocument {
+    fun document(
+        data: ProfileData,
+        title: String = ExportText.of(ContentLanguage.EN).title,
+        language: ContentLanguage = ContentLanguage.EN,
+    ): DoctorPdfDocument {
         val confirmed = data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedWith(compareBy({ it.collectedAt }, { it.observationId }))
         return DoctorPdfDocument(
             title = title,
-            lines = lines(data),
+            lines = lines(data, language),
             trends = trends(data),
             profileDisplayName = data.profile.displayName,
             resultRows = confirmed.map { observation ->
@@ -90,6 +97,7 @@ object DoctorExportContent {
                 .filter { it.profileId == data.profile.profileId }
                 .sortedBy { it.displayName }
                 .map { DoctorMedicationRow(it.displayName, it.strength, it.instructions) },
+            language = language,
         )
     }
 
@@ -131,42 +139,45 @@ object DoctorExportContent {
         )
     }
 
-    fun lines(data: ProfileData): List<String> = buildList {
-        add("Profile: ${data.profile.displayName}")
-        add("Confirmed laboratory results")
+    fun lines(data: ProfileData, language: ContentLanguage = ContentLanguage.EN): List<String> = buildList {
+        val text = ExportText.of(language)
+        fun num(value: Double) = DoctorReportFormat.localizeDecimal(value.toString(), language)
+        add("${text.profile}: ${data.profile.displayName}")
+        add(text.confirmedResults)
         data.observations.filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedBy { it.collectedAt }
             .forEach {
                 if (it.isQualitative) {
-                    add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | result ${it.qualitativeValue} | reference ${rangeText(it.referenceRange)}")
+                    add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.result.lowercase()} ${it.qualitativeValue} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
                     return@forEach
                 }
-                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | original ${it.originalValue} ${it.originalUnit} | normalized ${it.normalizedValue} ${it.normalizedUnit} | reference ${rangeText(it.referenceRange)}")
+                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.original} ${num(it.originalValue)} ${it.originalUnit} | ${text.normalized} ${num(it.normalizedValue)} ${it.normalizedUnit} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
             }
-        add("Medications (recorded, not recommendations)")
+        add(text.medicationsRecorded)
         data.medications.filter { it.profileId == data.profile.profileId }.forEach { medication: Medication ->
             add("${medication.displayName} | ${medication.strength.orEmpty()} | ${medication.instructions.orEmpty()}")
         }
     }
 
-    fun rangeText(range: app.vezuna.domain.ReferenceRange): String = when {
-        range.text != null -> range.text
-        range.lower == null && range.upper == null -> "Not provided"
-        range.lower == null -> "≤ ${DoctorReportFormat.value(range.upper!!)} ${range.unit.orEmpty()}".trim()
-        range.upper == null -> "≥ ${DoctorReportFormat.value(range.lower)} ${range.unit.orEmpty()}".trim()
-        else -> "${DoctorReportFormat.value(range.lower)}–${DoctorReportFormat.value(range.upper)} ${range.unit.orEmpty()}".trim()
+    fun rangeText(range: app.vezuna.domain.ReferenceRange, language: ContentLanguage = ContentLanguage.EN): String {
+        fun v(value: Double) = DoctorReportFormat.value(value, language)
+        return when {
+            range.text != null -> range.text
+            range.lower == null && range.upper == null -> ExportText.of(language).notProvided
+            range.lower == null -> "≤ ${v(range.upper!!)} ${range.unit.orEmpty()}".trim()
+            range.upper == null -> "≥ ${v(range.lower)} ${range.unit.orEmpty()}".trim()
+            else -> "${v(range.lower)}–${v(range.upper)} ${range.unit.orEmpty()}".trim()
+        }
     }
 }
 
-internal fun formatDoctorChartValue(value: Double): String {
-    if (value == value.toLong().toDouble()) return value.toLong().toString()
-    val rounded = kotlin.math.round(value * 1_000_000.0) / 1_000_000.0
-    return rounded.toString()
-}
-
+/**
+ * Headers follow the export language. Numeric columns, units and timestamps stay machine-readable
+ * (canonical decimal point, ISO-8601) in every language, so a spreadsheet or script can read any export.
+ */
 class CsvDoctorExporter {
-    fun export(data: ProfileData): String = buildString {
-        appendLine("profile_id,collected_at,test_code,test_name,original_value,original_unit,normalized_value,normalized_unit,reference_lower,reference_upper,reference_unit,reference_text,qualitative_value")
+    fun export(data: ProfileData, language: ContentLanguage = ContentLanguage.EN): String = buildString {
+        appendLine(ExportText.of(language).csvHeader)
         data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedBy { it.collectedAt }

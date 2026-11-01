@@ -20,11 +20,14 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.loadBundledModelCatalog
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.llamatikLocalLlm
@@ -371,13 +374,18 @@ object IosRuntime {
         }
     }
 
-    fun exportCsv(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        CsvDoctorExporter().export(data)
+    /** [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language. */
+    fun exportCsv(languageTag: String, completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        CsvDoctorExporter().export(data, exportLanguage(languageTag))
     }
 
-    fun exportPdf(completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        NativePdfExporter().export(DoctorExportContent.document(data))
+    fun exportPdf(languageTag: String, completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        val language = exportLanguage(languageTag)
+        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language))
     }
+
+    private fun exportLanguage(languageTag: String): ContentLanguage =
+        if (languageTag.isEmpty()) ContentLanguage.device() else ContentLanguage.fromTag(languageTag)
 
     fun listMedications(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })
@@ -520,18 +528,13 @@ object IosRuntime {
         }
     }
 
-    @OptIn(ExperimentalForeignApi::class)
-    private fun loadCatalog(): ModelCatalog {
+    /** Same bundled catalog file as Android (shared compose resources). */
+    private suspend fun loadCatalog(): ModelCatalog {
         catalogError = null
-        val path = NSBundle.mainBundle.pathForResource("ModelPacks", "json") ?: return ModelCatalog.unconfigured()
         return try {
-            val bytes = NSData.dataWithContentsOfFile(path)
-            if (bytes == null) {
-                catalogError = nativeMessage("model_catalog_read_failed")
-                return ModelCatalog.unconfigured()
-            }
-            val text = bytes.toByteArrayCompat().decodeToString()
-            ModelCatalog(json.decodeFromString(ListSerializer(serializer<ModelPack>()), text))
+            loadBundledModelCatalog()
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Throwable) {
             catalogError = nativeMessage("model_catalog_invalid")
             ModelCatalog.unconfigured()
@@ -610,12 +613,3 @@ fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, on
 // These accessors keep Compose construction in this module while the runtime fields remain encapsulated.
 private fun IosRuntime.controllerForCompose(): AppController = IosRuntime.controller
 private fun IosRuntime.composeScope(): CoroutineScope = IosRuntime.scope
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toByteArrayCompat(): ByteArray = ByteArray(length.toInt()).apply {
-    if (isNotEmpty()) {
-        usePinned { pinned ->
-            platform.posix.memcpy(pinned.addressOf(0), bytes, length)
-        }
-    }
-}

@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">No profile</string>
     <string name="no_profile_selected">No profile selected</string>
     <string name="no_settings">No settings</string>
-    <string name="no_store_model_packs">No store model packs configured</string>
-    <string name="no_store_model_packs_explanation">The native shell supplies signed catalog metadata and store-hosted GGUF bytes. No download URL is assumed.</string>
+    <string name="no_store_model_packs">AI model not available yet</string>
+    <string name="no_store_model_packs_explanation">No on-device AI model is included in this version yet. Your records, imports and exports work fully without it.</string>
     <string name="no_trends">No trends</string>
     <string name="no_upcoming_doses">No upcoming doses</string>
     <string name="no_upcoming_doses_explanation">Add a medication and its prescribed schedule to see the next reminder.</string>
@@ -361,4 +361,9 @@ iOS: %2$s</string>
     <string name="lock_screen_body">Your health records stay hidden until you unlock.</string>
     <string name="unlock">Unlock</string>
     <string name="backup_restored_without_vitals">Backup restored, but the device health data could not be restored</string>
+    <!-- Export language -->
+    <string name="export_language">Export language</string>
+    <string name="export_language_device">App language</string>
+    <string name="export_language_explanation">Choose the language of headings, statuses and numbers in the export. Clinical values and units never change.</string>
+    <string name="model_catalog_unreadable">The model catalog bundled with the app could not be read. AI models are unavailable.</string>
 </resources>
