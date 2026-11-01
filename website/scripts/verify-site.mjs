@@ -19,12 +19,12 @@ const fileForUrl = (url) => {
   return join(dist, path.replace(/\/$/, ''), 'index.html');
 };
 const requiredText = {
-  '/': ['Your health, in one place.', 'Only confirmed results', 'same device key'],
-  '/pt-br': ['Sua saúde, em um só lugar.', 'resultados confirmados', 'mesmo dispositivo'],
-  '/es': ['Tu salud, en un solo lugar.', 'resultados confirmados', 'mismo dispositivo'],
+  '/': ['Your health, in one place.', 'Only confirmed results', 'same device key', 'See how records connect.', 'Follow development on GitHub.', 'data-health-scene'],
+  '/pt-br': ['Sua saúde, em um só lugar.', 'resultados confirmados', 'mesmo dispositivo', 'Veja como os registros se conectam.', 'Acompanhe o desenvolvimento no GitHub.', 'data-health-scene'],
+  '/es': ['Tu salud, en un solo lugar.', 'resultados confirmados', 'mismo dispositivo', 'Descubre cómo se conectan los registros.', 'Sigue el desarrollo en GitHub.', 'data-health-scene'],
   '/docs/developers': ['JDK 17', 'Android SDK API 37', 'iOS 26 SDK', 'EAS Submit', 'app.vezuna'],
   '/docs/privacy-and-data': ['same device key', 'Denying health permissions', 'Vercel'],
-  '/privacy': ['not a final publisher legal privacy policy', 'Vercel’s privacy notice'],
+  '/privacy': ['Vezuna privacy policy', 'Publisher and contact', 'Vercel hosts the website'],
   '/support': ['GitHub private vulnerability reporting', 'Never attach real medical documents'],
 };
 

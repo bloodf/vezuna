@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import TechExperience from './TechExperience.astro';
 import { marketingCopy } from '../data/marketing';
 import { localizedPath, marketingAlternates, repositoryUrl, type Locale } from '../lib/i18n';
 
@@ -30,9 +31,10 @@ const descriptions = {
           <p class="hero-note">{copy.hero.note}</p>
         </div>
       </div>
+      <TechExperience tech={copy.tech} availability={copy.availability} />
       <div class="screenshot-gallery" role="group" aria-label={copy.hero.galleryLabel}>
         {copy.hero.screenshots.map((screen, index) => (
-          <figure class="screenshot">
+          <figure class="screenshot" data-tilt>
             <div class="screenshot-frame">
               <img src={screen.src} width="1080" height="2340" alt={screen.alt} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} data-screenshot />
             </div>
