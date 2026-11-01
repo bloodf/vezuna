@@ -25,10 +25,12 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.ModelPack
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.failMessage
@@ -491,16 +493,18 @@ class AppController(
         return mutableState.value.error == null
     }
 
-    suspend fun exportCsv() = operation {
+    /** [language] is the per-export override; null follows the app/device language. */
+    suspend fun exportCsv(language: ContentLanguage? = null) = operation {
         mutableState.value = mutableState.value.copy(
-            csvExport = CsvDoctorExporter().export(requireData()),
+            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device()),
             notice = message(L10nKey.CSV_EXPORT_PREPARED),
         )
     }
 
-    suspend fun exportPdf() = operation {
+    suspend fun exportPdf(language: ContentLanguage? = null) = operation {
         val data = requireData()
-        val document = DoctorExportContent.document(data)
+        val chosen = language ?: ContentLanguage.device()
+        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen)
         mutableState.value = mutableState.value.copy(
             pdfExport = pdfExporter.export(document),
             notice = message(L10nKey.PDF_EXPORT_PREPARED),

@@ -20,9 +20,11 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelPack
@@ -325,13 +327,18 @@ object IosRuntime {
         }
     }
 
-    fun exportCsv(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        CsvDoctorExporter().export(data)
+    /** [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language. */
+    fun exportCsv(languageTag: String, completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        CsvDoctorExporter().export(data, exportLanguage(languageTag))
     }
 
-    fun exportPdf(completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        NativePdfExporter().export(DoctorExportContent.document(data))
+    fun exportPdf(languageTag: String, completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        val language = exportLanguage(languageTag)
+        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language))
     }
+
+    private fun exportLanguage(languageTag: String): ContentLanguage =
+        if (languageTag.isEmpty()) ContentLanguage.device() else ContentLanguage.fromTag(languageTag)
 
     fun listMedications(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })

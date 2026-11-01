@@ -352,4 +352,8 @@ iOS: %2$s</string>
         <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s</item>
     </plurals>
     <string name="backup_restored_without_vitals">Copia restaurada, pero no se pudieron restaurar los datos de salud del dispositivo</string>
+    <!-- Export language -->
+    <string name="export_language">Idioma de la exportación</string>
+    <string name="export_language_device">Idioma de la app</string>
+    <string name="export_language_explanation">Elige el idioma de los títulos, estados y números de la exportación. Los valores clínicos y las unidades nunca cambian.</string>
 </resources>

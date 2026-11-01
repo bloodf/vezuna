@@ -89,3 +89,5 @@
 "ocr_read_token" = "OCR leyó: %1$@";
 "ambiguous_number_warning" = "Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)";
 "choose_date_button" = "Elegir fecha";
+"export_language" = "Idioma de la exportación";
+"export_language_device" = "Idioma de la app";

@@ -38,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +67,7 @@ import app.vezuna.domain.Medication as MedicationRecord
 import app.vezuna.domain.Recurrence
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
+import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.resolve
@@ -370,9 +372,18 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         }
         SectionHeading(vitaText(L10nKey.SECTION_DOCTOR_EXPORT))
         Text(vitaText(L10nKey.DOCTOR_EXPORT_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        var exportLanguage by remember { mutableStateOf<ContentLanguage?>(null) }
+        Text(vitaText(L10nKey.EXPORT_LANGUAGE), style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = exportLanguage == null, onClick = { exportLanguage = null }, label = { Text(vitaText(L10nKey.EXPORT_LANGUAGE_DEVICE)) })
+            ContentLanguage.entries.forEach { language ->
+                FilterChip(selected = exportLanguage == language, onClick = { exportLanguage = language }, label = { Text(language.nativeName) })
+            }
+        }
+        Text(vitaText(L10nKey.EXPORT_LANGUAGE_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv() } }, Modifier.weight(1f))
-            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf() } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv(exportLanguage) } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf(exportLanguage) } }, Modifier.weight(1f))
         }
         state.csvExport?.let { csv ->
             Card {
