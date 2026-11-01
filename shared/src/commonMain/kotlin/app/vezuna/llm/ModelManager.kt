@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 data class ModelPack(
@@ -32,7 +33,7 @@ data class ModelPack(
         if (!SHA256.matches(sha256)) failMessage(L10nKey.MODEL_SHA_REQUIRED)
     }
 
-    private companion object { val SHA256 = Regex("[0-9a-f]{64}") }
+    companion object { private val SHA256 = Regex("[0-9a-f]{64}") }
 }
 
 @Serializable
@@ -56,6 +57,11 @@ class ModelCatalog(packs: List<ModelPack>) {
     companion object {
         // Store shells provide signed pack metadata after configuring their own asset packs.
         fun unconfigured(): ModelCatalog = ModelCatalog(emptyList())
+
+        private val json = Json { ignoreUnknownKeys = false }
+
+        /** Parses `composeResources/files/model-packs.json`, the one catalog source for Android and iOS. Throws on invalid content. */
+        fun fromJson(text: String): ModelCatalog = ModelCatalog(json.decodeFromString<List<ModelPack>>(text))
     }
 }
 

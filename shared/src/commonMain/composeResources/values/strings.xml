@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">No profile</string>
     <string name="no_profile_selected">No profile selected</string>
     <string name="no_settings">No settings</string>
-    <string name="no_store_model_packs">No store model packs configured</string>
-    <string name="no_store_model_packs_explanation">The native shell supplies signed catalog metadata and store-hosted GGUF bytes. No download URL is assumed.</string>
+    <string name="no_store_model_packs">AI model not available yet</string>
+    <string name="no_store_model_packs_explanation">No on-device AI model is included in this version yet. Your records, imports and exports work fully without it.</string>
     <string name="no_trends">No trends</string>
     <string name="no_upcoming_doses">No upcoming doses</string>
     <string name="no_upcoming_doses_explanation">Add a medication and its prescribed schedule to see the next reminder.</string>

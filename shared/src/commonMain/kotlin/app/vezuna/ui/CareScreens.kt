@@ -242,6 +242,10 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
                 TextButton(onClick = { controller.navigate(AppScreen.Models) }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.MANAGE_LOCAL_MODELS), color = MaterialTheme.vita.accentOnInk) }
             }
         }
+        if (controller.modelManager.catalog.packs.isEmpty()) {
+            EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
+            return@ScreenColumn
+        }
         SectionHeading(vitaText(L10nKey.RECORDS_IN_CONTEXT), vitaText(L10nKey.RECORDS_SELECTED, state.selectedObservationIds.size))
         if (confirmed.isEmpty()) {
             InlineNotice(vitaText(L10nKey.NO_CONFIRMED_RECORDS_CONTEXT), Icons.Rounded.Science)

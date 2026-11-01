@@ -113,8 +113,8 @@ iOS: %2$s</string>
     <string name="no_profile">Nenhum perfil</string>
     <string name="no_profile_selected">Nenhum perfil selecionado</string>
     <string name="no_settings">Nenhum ajuste</string>
-    <string name="no_store_model_packs">Nenhum pacote de modelo da loja configurado</string>
-    <string name="no_store_model_packs_explanation">O shell nativo fornece metadados assinados do catálogo e bytes GGUF hospedados na loja. Nenhuma URL de download é presumida.</string>
+    <string name="no_store_model_packs">Modelo de IA ainda não disponível</string>
+    <string name="no_store_model_packs_explanation">Nenhum modelo de IA no dispositivo está incluído nesta versão ainda. Seus registros, importações e exportações funcionam normalmente sem ele.</string>
     <string name="no_trends">Nenhuma tendência</string>
     <string name="no_upcoming_doses">Nenhuma dose futura</string>
     <string name="no_upcoming_doses_explanation">Adicione um medicamento e seu horário prescrito para ver o próximo lembrete.</string>
