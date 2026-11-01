@@ -4,6 +4,8 @@ import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -11,6 +13,20 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.withChatMessage
+import app.vezuna.domain.withDocument
+import app.vezuna.domain.withMedication
+import app.vezuna.domain.withObservation
+import app.vezuna.domain.withProfile
+import app.vezuna.domain.withReport
+import app.vezuna.domain.withSchedule
+import app.vezuna.domain.withoutChatMessage
+import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutMedication
+import app.vezuna.domain.withoutObservation
+import app.vezuna.domain.withoutReport
+import app.vezuna.domain.withoutSchedule
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
@@ -50,11 +66,19 @@ class PersistentVezunaRepository private constructor(
     private suspend fun loadLocked() {
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         val index = readEncrypted<List<Profile>>(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer())).orEmpty()
+        var indexStale = false
         index.forEach { profile ->
             val data = readEncrypted(profileKey(profile.profileId), profileAssociatedData(profile.profileId), ProfileData.serializer())
                 ?: error("Encrypted profile records are missing")
-            require(data.profile == profile) { "Encrypted profile index does not match its records" }
-            records[profile.profileId] = data
+            // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
+            if (data.profile != profile) indexStale = true
+            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents))
+        }
+        if (indexStale) {
+            writeEncrypted(
+                INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()),
+                records.values.map { it.profile }.sortedBy { it.displayName },
+            )
         }
         publishProfiles()
     }
@@ -140,16 +164,71 @@ class PersistentVezunaRepository private constructor(
         require(data.medications.any { medication ->
             medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId }
         })
-        require(data.doseEvents.none { it.eventId == event.eventId })
-        data.copy(doseEvents = data.doseEvents + event)
+        data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
     }
 
     override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->
         data.copy(chat = data.chat + message)
     }
 
+    override suspend fun updateProfile(profile: Profile) = mutex.withLock {
+        val updated = records.getValue(profile.profileId).withProfile(profile)
+        val newIndex = (records.values.map { it.profile }.filter { it.profileId != profile.profileId } + profile).sortedBy { it.displayName }
+        persist(updated)
+        writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
+        records[profile.profileId] = updated
+        publishProfiles()
+        changeObserver?.invoke()
+        Unit
+    }
+
+    override suspend fun deleteProfile(profileId: String) = mutex.withLock {
+        val removed = records[profileId] ?: throw IllegalArgumentException("Profile not found")
+        val newIndex = records.values.map { it.profile }.filter { it.profileId != profileId }.sortedBy { it.displayName }
+        // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
+        writeEncrypted(INDEX_KEY, INDEX_ASSOCIATED_DATA, ListSerializer(Profile.serializer()), newIndex)
+        records.remove(profileId)
+        if (selectedProfileId == profileId) {
+            vault.delete(SELECTION_KEY)
+            selectedProfileId = null
+        }
+        vault.delete(profileKey(profileId))
+        removed.vaultKeys().forEach { vault.delete(it) }
+        publishProfiles()
+        changeObserver?.invoke()
+        Unit
+    }
+
+    override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
+
+    override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
+
+    override suspend fun deleteReport(profileId: String, reportId: String) = mutate(profileId) { it.withoutReport(reportId) }
+
+    override suspend fun updateObservation(observation: LabObservation) = mutate(observation.profileId) { it.withObservation(observation) }
+
+    override suspend fun deleteObservation(profileId: String, observationId: String) = mutate(profileId) { it.withoutObservation(observationId) }
+
+    override suspend fun updateMedication(medication: Medication) = mutate(medication.profileId) { it.withMedication(medication) }
+
+    override suspend fun deleteMedication(profileId: String, medicationId: String) = mutate(profileId) { it.withoutMedication(medicationId) }
+
+    override suspend fun updateSchedule(schedule: DoseSchedule) = mutate(schedule.profileId) { it.withSchedule(schedule) }
+
+    override suspend fun deleteSchedule(profileId: String, scheduleId: String) = mutate(profileId) { it.withoutSchedule(scheduleId) }
+
+    override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
+
+    override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
-        commit(transform(records.getValue(profileId)))
+        val current = records.getValue(profileId)
+        val updated = transform(current)
+        commit(updated)
+        // Source files orphaned by a cascading delete are removed only after the new records are durable.
+        (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
     }
 
     private suspend fun commit(data: ProfileData) {

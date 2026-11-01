@@ -38,6 +38,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         for response in responses { await handle(response) }
         do {
             let medications = try await loadMedications()
+            let activeMedicationIds = Set(try await loadMedications(all: true).map(\.medicationId))
+            await removeDeliveredReminders(notIn: activeMedicationIds)
             guard !medications.isEmpty else {
                 let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.dose.") }
                 center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier))
@@ -60,7 +62,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             for reminder in reminders where !existing.contains(reminder.identifier) {
                 try await center.add(request(for: reminder))
             }
-            await reconcileDeliveredMissedDoses()
+            await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -135,22 +137,35 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
-    private func reconcileDeliveredMissedDoses() async {
+    /// Delivered reminders for paused, stopped or deleted medications (or deleted profiles) must not linger.
+    private func removeDeliveredReminders(notIn activeMedicationIds: Set<String>) async {
+        let stale = await center.deliveredNotifications().filter { notification in
+            guard notification.request.identifier.hasPrefix("vezuna.dose."),
+                  let reminder = reminder(from: notification.request.content.userInfo) else { return false }
+            return !activeMedicationIds.contains(reminder.medicationId)
+        }
+        center.removeDeliveredNotifications(withIdentifiers: stale.map { $0.request.identifier })
+    }
+
+    private func reconcileDeliveredMissedDoses(activeMedicationIds: Set<String>) async {
         let delivered = await center.deliveredNotifications()
         let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
         for notification in delivered {
-            guard let reminder = reminder(from: notification.request.content.userInfo), reminder.scheduledAt < cutoff else { continue }
+            guard let reminder = reminder(from: notification.request.content.userInfo), reminder.scheduledAt < cutoff,
+                  activeMedicationIds.contains(reminder.medicationId) else { continue }
             await record(reminder, status: "MISSED")
             center.removeDeliveredNotifications(withIdentifiers: [notification.request.identifier])
         }
     }
 
-    private func loadMedications() async throws -> [NativeMedication] {
+    private func loadMedications(all: Bool = false) async throws -> [NativeMedication] {
         let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-            IosRuntime.shared.listMedications { json, error in
+            let completion: (String?, NativeMessage?) -> Void = { json, error in
                 if let json { continuation.resume(returning: json) }
                 else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "medication_schedules_unavailable", args: []))) }
             }
+            if all { IosRuntime.shared.listAllActiveMedications(completion: completion) }
+            else { IosRuntime.shared.listMedications(completion: completion) }
         }
         return try JSONDecoder().decode([NativeMedication].self, from: Data(json.utf8))
     }

@@ -17,6 +17,7 @@ import app.vezuna.platform.currentInstant
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,8 +38,9 @@ class DashboardControllerTest {
         controller.takeDose(next)
         controller.skipDose(next)
         val afterTaken = repository.readProfile("p").doseEvents
-        assertEquals(1, afterTaken.count { it.status == DoseEventStatus.TAKEN })
-        assertEquals(0, afterTaken.count { it.status == DoseEventStatus.SKIPPED })
+        // The latest user action wins, so the final skip corrects the earlier taken.
+        assertEquals(0, afterTaken.count { it.status == DoseEventStatus.TAKEN })
+        assertEquals(1, afterTaken.count { it.status == DoseEventStatus.SKIPPED })
         val beforeSnooze = currentInstant()
         controller.snoozeDose(next)
         val afterSnooze = currentInstant()
@@ -75,6 +77,26 @@ class DashboardControllerTest {
         controller.refreshDashboard()
 
         assertTrue(requireNotNull(controller.state.value.dashboard?.nextDose).scheduledFor > next.scheduledFor)
+    }
+
+    @Test
+    fun newMedicationStartsOnLocalDateAtTenPmInSaoPaulo() = runTest {
+        val repository = InMemoryVezunaRepository()
+        repository.createProfile(Profile("p", "Current", createdAt = currentInstant()))
+        // 22:00 on 2026-11-01 in UTC-3 is already 2026-11-02 in UTC.
+        val controller = AppController(
+            repository,
+            InstalledModelManager(ModelCatalog.unconfigured(), EmptyModels, FakeLlm),
+            LocalHealthChat(repository, FakeLlm),
+            clock = { Instant.parse("2026-11-02T01:00:00Z") },
+            timeZone = { TimeZone.of("America/Sao_Paulo") },
+        )
+        controller.initialize()
+        controller.addMedication("Evening", "", "", "22:30")
+
+        val start = repository.readProfile("p").medications.single().schedules.single().startDate
+        assertEquals(LocalDate(2026, 11, 1), start)
+        assertEquals(Instant.parse("2026-11-02T01:30:00Z"), controller.state.value.dashboard?.nextDose?.scheduledFor)
     }
 
     private fun medication(profileId: String) = Medication(

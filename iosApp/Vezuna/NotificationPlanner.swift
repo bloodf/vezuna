@@ -28,7 +28,14 @@ struct DoseReminder: Equatable {
     let scheduleId: String
     let scheduledAt: Date
 
-    var identifier: String { "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970))" }
+    /// The name is part of the identifier so renaming a medication replaces its already scheduled requests.
+    var identifier: String {
+        "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970)).\(String(UInt32(truncatingIfNeeded: stableHash(medicationName)), radix: 16))"
+    }
+
+    private func stableHash(_ text: String) -> UInt64 {
+        text.utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+    }
 }
 
 struct NotificationPlanner {

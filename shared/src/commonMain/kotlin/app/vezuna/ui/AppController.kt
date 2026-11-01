@@ -7,6 +7,7 @@ import app.vezuna.domain.DashboardDose
 import app.vezuna.domain.DashboardSnapshot
 import app.vezuna.domain.DashboardSnapshotFactory
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
@@ -44,6 +45,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 sealed interface AppScreen {
@@ -85,6 +87,8 @@ class AppController(
     val modelManager: InstalledModelManager,
     private val chat: LocalHealthChat,
     private val pdfExporter: NativePdfExporter = NativePdfExporter(),
+    private val clock: () -> kotlinx.datetime.Instant = { currentInstant() },
+    private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
@@ -120,6 +124,35 @@ class AppController(
         repository.createProfile(profile)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
         switchProfile(profile.profileId)
+    }
+
+    suspend fun renameProfile(profileId: String, displayName: String) = operation {
+        if (displayName.isBlank()) failMessage(L10nKey.PROFILE_NAME_REQUIRED)
+        val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        repository.updateProfile(profile.copy(displayName = displayName.trim()))
+        reloadCurrentProfile()
+    }
+
+    /** The caller must type the exact profile name; the last remaining profile can never be deleted. */
+    suspend fun deleteProfile(profileId: String, typedName: String) = operation {
+        val profiles = repository.profiles.value
+        val profile = profiles.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        if (profiles.size <= 1) failMessage(L10nKey.LAST_PROFILE_CANNOT_BE_DELETED)
+        if (typedName.trim() != profile.displayName.trim()) failMessage(L10nKey.PROFILE_NAME_MISMATCH)
+        repository.deleteProfile(profileId)
+        val remaining = repository.profiles.value
+        val currentId = mutableState.value.data?.profile?.profileId
+        if (currentId == null || currentId == profileId) {
+            mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+            loadProfile(remaining.first().profileId)
+        } else {
+            loadProfile(currentId)
+        }
+    }
+
+    private suspend fun reloadCurrentProfile() {
+        val profileId = mutableState.value.data?.profile?.profileId ?: return
+        loadProfile(profileId)
     }
 
     suspend fun importCandidate(
@@ -300,12 +333,67 @@ class AppController(
             scheduleId = randomId(),
             medicationId = medicationId,
             recurrence = Recurrence.DAILY,
-            startDate = currentInstant().toLocalDateTime(kotlinx.datetime.TimeZone.UTC).date,
+            startDate = clock().toLocalDateTime(timeZone()).date,
             timesLocal = listOf(canonicalTime),
         )
         repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, listOf(schedule)))
         loadProfile(data.profile.profileId)
     }
+
+    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, time: String) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
+        val canonicalTime = time.trim()
+        if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
+        // The editor exposes one reminder time; it replaces the first time of the first schedule.
+        val schedules = medication.schedules.mapIndexed { index, schedule ->
+            if (index == 0) schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1)) else schedule
+        }
+        repository.updateMedication(
+            medication.copy(
+                displayName = name.trim(),
+                strength = strength.trim().ifBlank { null },
+                instructions = instructions.trim().ifBlank { null },
+                schedules = schedules,
+            ),
+        )
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Pausing keeps history; resuming also clears an end date that has already passed (a stopped medication). */
+    suspend fun setMedicationActive(medicationId: String, active: Boolean) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        val today = clock().toLocalDateTime(timeZone()).date
+        val schedules = if (active) {
+            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+        } else {
+            medication.schedules
+        }
+        repository.updateMedication(medication.copy(active = active, schedules = schedules))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Stopping ends the schedules today (never before they start) and deactivates reminders immediately. */
+    suspend fun stopMedication(medicationId: String) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        val today = clock().toLocalDateTime(timeZone()).date
+        val schedules = medication.schedules.map { it.copy(endDate = maxOf(today, it.startDate)) }
+        repository.updateMedication(medication.copy(active = false, schedules = schedules))
+        loadProfile(data.profile.profileId)
+    }
+
+    suspend fun deleteMedication(medicationId: String) = operation {
+        val data = requireData()
+        findMedication(data, medicationId)
+        repository.deleteMedication(data.profile.profileId, medicationId)
+        loadProfile(data.profile.profileId)
+    }
+
+    private fun findMedication(data: ProfileData, medicationId: String): Medication =
+        data.medications.firstOrNull { it.medicationId == medicationId } ?: failMessage(L10nKey.MEDICATION_NOT_FOUND)
 
     suspend fun takeDose(dose: DashboardDose) = recordTerminalDose(dose, DoseEventStatus.TAKEN)
 
@@ -318,7 +406,7 @@ class AppController(
         val snoozedAt = kotlinx.datetime.Instant.fromEpochSeconds(now.epochSeconds + 600)
         val event = DoseEvent(
             profileId = data.profile.profileId,
-            eventId = doseEventId(data.profile.profileId, dose.scheduleId, snoozedAt, DoseEventStatus.SCHEDULED),
+            eventId = DoseEvents.snoozeIdFor(dose.scheduleId, snoozedAt),
             medicationId = dose.medicationId,
             scheduleId = dose.scheduleId,
             scheduledFor = snoozedAt,
@@ -333,15 +421,10 @@ class AppController(
     private suspend fun recordTerminalDose(dose: DashboardDose, status: DoseEventStatus) = operation {
         val data = requireData()
         require(dose.profileId == data.profile.profileId)
-        val duplicate = data.doseEvents.any {
-            it.scheduleId == dose.scheduleId && it.scheduledFor == dose.scheduledFor &&
-                (it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED)
-        }
-        if (duplicate) return@operation
         repository.addDoseEvent(
             DoseEvent(
                 profileId = data.profile.profileId,
-                eventId = doseEventId(data.profile.profileId, dose.scheduleId, dose.scheduledFor, status),
+                eventId = DoseEvents.idFor(dose.scheduleId, dose.scheduledFor),
                 medicationId = dose.medicationId,
                 scheduleId = dose.scheduleId,
                 scheduledFor = dose.scheduledFor,
@@ -351,9 +434,6 @@ class AppController(
         )
         loadProfile(data.profile.profileId)
     }
-
-    private fun doseEventId(profileId: String, scheduleId: String, at: kotlinx.datetime.Instant, status: DoseEventStatus): String =
-        "dose-$profileId-$scheduleId-${at.epochSeconds}-${status.name.lowercase()}"
 
     fun toggleObservation(observationId: String) {
         val data = mutableState.value.data ?: return
@@ -398,7 +478,7 @@ class AppController(
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
-            dashboard = DashboardSnapshotFactory.create(data, currentInstant(), kotlinx.datetime.TimeZone.currentSystemDefault()),
+            dashboard = DashboardSnapshotFactory.create(data, clock(), timeZone()),
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
             ),

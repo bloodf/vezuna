@@ -27,6 +27,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.FactCheck
@@ -46,6 +48,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
+import app.vezuna.domain.Profile
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.TrendSeries
 import app.vezuna.export.DoctorExportContent
@@ -85,6 +89,8 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_PROFILE_SELECTED), vitaText(L10nKey.NO_UPCOMING_DOSES_EXPLANATION))
     var newProfile by remember { mutableStateOf("") }
     var manageProfiles by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<Profile?>(null) }
+    var deleteTarget by remember { mutableStateOf<Profile?>(null) }
     val motionEnabled = LocalVitaAnimationsEnabled.current
     val reviewCount = data.ocrCandidates.count { it.status == ConfirmationStatus.UNREVIEWED }
     Column(
@@ -116,12 +122,20 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 state.profiles.forEach { profile ->
-                    OutlinedButton(
-                        onClick = { scope.launch { controller.switchProfile(profile.profileId) } },
-                        enabled = profile.profileId != data.profile.profileId && !state.loading,
-                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
-                    ) {
-                        Text(if (profile.profileId == data.profile.profileId) vitaText(L10nKey.CURRENT_PROFILE) + " — ${profile.displayName}" else vitaText(L10nKey.SWITCH_TO_PROFILE, profile.displayName))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(
+                            onClick = { scope.launch { controller.switchProfile(profile.profileId) } },
+                            enabled = profile.profileId != data.profile.profileId && !state.loading,
+                            modifier = Modifier.weight(1f).defaultMinSize(minHeight = 48.dp),
+                        ) {
+                            Text(if (profile.profileId == data.profile.profileId) vitaText(L10nKey.CURRENT_PROFILE) + " — ${profile.displayName}" else vitaText(L10nKey.SWITCH_TO_PROFILE, profile.displayName))
+                        }
+                        IconButton(onClick = { renameTarget = profile }, enabled = !state.loading, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Rounded.Edit, vitaText(L10nKey.RENAME_PROFILE) + " — ${profile.displayName}")
+                        }
+                        IconButton(onClick = { deleteTarget = profile }, enabled = !state.loading && state.profiles.size > 1, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Rounded.Delete, vitaText(L10nKey.DELETE_PROFILE) + " — ${profile.displayName}")
+                        }
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -144,6 +158,26 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
                     }
                 }
             }
+        }
+        renameTarget?.let { profile ->
+            TextInputDialog(
+                title = vitaText(L10nKey.RENAME_PROFILE),
+                label = vitaText(L10nKey.NEW_PROFILE_NAME),
+                initial = profile.displayName,
+                onConfirm = { name -> renameTarget = null; scope.launch { controller.renameProfile(profile.profileId, name) } },
+                onDismiss = { renameTarget = null },
+            )
+        }
+        deleteTarget?.let { profile ->
+            TypeToConfirmDialog(
+                title = vitaText(L10nKey.DELETE_PROFILE),
+                message = vitaText(L10nKey.DELETE_PROFILE_WARNING, profile.displayName),
+                label = vitaText(L10nKey.PROFILE_NAME_CONFIRMATION),
+                expected = profile.displayName.trim(),
+                confirmLabel = vitaText(L10nKey.DELETE),
+                onConfirm = { typed -> deleteTarget = null; scope.launch { controller.deleteProfile(profile.profileId, typed) } },
+                onDismiss = { deleteTarget = null },
+            )
         }
         Text(vitaText(L10nKey.HOME_HERO), style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
         PrivacyAura()

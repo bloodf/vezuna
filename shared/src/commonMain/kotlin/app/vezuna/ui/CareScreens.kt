@@ -18,6 +18,10 @@ import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Medication
@@ -29,12 +33,14 @@ import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -74,6 +80,9 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
     var strength by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
     var time by remember { mutableStateOf("08:00") }
+    var editTarget by remember { mutableStateOf<MedicationRecord?>(null) }
+    var stopTarget by remember { mutableStateOf<MedicationRecord?>(null) }
+    var deleteTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     val nextTime = data.medications.filter { it.active }.flatMap { it.schedules }.flatMap { it.timesLocal }.minOrNull()
     ScreenColumn(vitaText(L10nKey.MEDICATIONS), vitaText(L10nKey.MEDICATIONS_SUBTITLE)) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
@@ -89,7 +98,41 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
         if (data.medications.isEmpty()) {
             EmptyState(vitaText(L10nKey.NO_MEDICATIONS_RECORDED), vitaText(L10nKey.NO_MEDICATIONS_RECORDED_EXPLANATION), Icons.Rounded.Medication)
         }
-        data.medications.forEach { medication -> MedicationCard(medication) }
+        data.medications.forEach { medication ->
+            MedicationCard(
+                medication,
+                busy = state.loading,
+                onEdit = { editTarget = medication },
+                onTogglePause = { scope.launch { controller.setMedicationActive(medication.medicationId, !medication.active) } },
+                onStop = { stopTarget = medication },
+                onDelete = { deleteTarget = medication },
+            )
+        }
+        editTarget?.let { medication ->
+            EditMedicationDialog(
+                medication,
+                onSave = { n, st, ins, t -> editTarget = null; scope.launch { controller.updateMedication(medication.medicationId, n, st, ins, t) } },
+                onDismiss = { editTarget = null },
+            )
+        }
+        stopTarget?.let { medication ->
+            ConfirmDialog(
+                title = vitaText(L10nKey.STOP_MEDICATION),
+                message = vitaText(L10nKey.STOP_MEDICATION_WARNING, medication.displayName),
+                confirmLabel = vitaText(L10nKey.STOP_MEDICATION),
+                onConfirm = { stopTarget = null; scope.launch { controller.stopMedication(medication.medicationId) } },
+                onDismiss = { stopTarget = null },
+            )
+        }
+        deleteTarget?.let { medication ->
+            ConfirmDialog(
+                title = vitaText(L10nKey.DELETE_MEDICATION),
+                message = vitaText(L10nKey.DELETE_MEDICATION_WARNING, medication.displayName),
+                confirmLabel = vitaText(L10nKey.DELETE),
+                onConfirm = { deleteTarget = null; scope.launch { controller.deleteMedication(medication.medicationId) } },
+                onDismiss = { deleteTarget = null },
+            )
+        }
         SectionHeading(vitaText(L10nKey.SECTION_ADD_MEDICATION), vitaText(L10nKey.SECTION_ADD_MEDICATION_SUBTITLE))
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.MEDICATION_NAME)) }, leadingIcon = { Icon(Icons.Rounded.Medication, null) }, singleLine = true)
         OutlinedTextField(strength, { strength = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED)) }, singleLine = true)
@@ -102,7 +145,14 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
 }
 
 @Composable
-private fun MedicationCard(medication: MedicationRecord) {
+private fun MedicationCard(
+    medication: MedicationRecord,
+    busy: Boolean,
+    onEdit: () -> Unit,
+    onTogglePause: () -> Unit,
+    onStop: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Card(Modifier.fillMaxWidth().vitaAnimateContentSize()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -115,6 +165,10 @@ private fun MedicationCard(medication: MedicationRecord) {
                     Text(listOfNotNull(medication.strength, medication.instructions).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (medication.active) StatusPill(vitaText(L10nKey.STATUS_ACTIVE), Icons.Rounded.CheckCircle, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
+                else StatusPill(
+                    vitaText(if (medication.schedules.any { it.endDate != null }) L10nKey.STATUS_STOPPED else L10nKey.STATUS_PAUSED),
+                    Icons.Rounded.Pause, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             medication.schedules.forEach { schedule ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,8 +177,39 @@ private fun MedicationCard(medication: MedicationRecord) {
                     Text("${recurrenceLabel(schedule.recurrence, schedule.intervalDays)} · ${schedule.timesLocal.joinToString()}", style = MaterialTheme.typography.bodyMedium)
                 }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onEdit, enabled = !busy, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Edit, vitaText(L10nKey.EDIT_MEDICATION) + " — ${medication.displayName}") }
+                IconButton(onTogglePause, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                    val label = vitaText(if (medication.active) L10nKey.PAUSE else L10nKey.RESUME)
+                    Icon(if (medication.active) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "$label — ${medication.displayName}")
+                }
+                IconButton(onStop, enabled = !busy && medication.active, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Stop, vitaText(L10nKey.STOP_MEDICATION) + " — ${medication.displayName}") }
+                IconButton(onDelete, enabled = !busy, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.Delete, vitaText(L10nKey.DELETE_MEDICATION) + " — ${medication.displayName}") }
+            }
         }
     }
+}
+
+@Composable
+private fun EditMedicationDialog(medication: MedicationRecord, onSave: (String, String, String, String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(medication.displayName) }
+    var strength by remember { mutableStateOf(medication.strength.orEmpty()) }
+    var instructions by remember { mutableStateOf(medication.instructions.orEmpty()) }
+    var time by remember { mutableStateOf(medication.schedules.firstOrNull()?.timesLocal?.firstOrNull().orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(vitaText(L10nKey.EDIT_MEDICATION)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.MEDICATION_NAME)) }, singleLine = true)
+                OutlinedTextField(strength, { strength = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED)) }, singleLine = true)
+                OutlinedTextField(instructions, { instructions = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.PRESCRIBER_INSTRUCTIONS)) })
+                OutlinedTextField(time, { time = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.DAILY_REMINDER_TIME)) }, singleLine = true)
+            }
+        },
+        confirmButton = { TextButton({ onSave(name, strength, instructions, time) }, enabled = name.isNotBlank()) { Text(vitaText(L10nKey.SAVE)) } },
+        dismissButton = { TextButton(onDismiss) { Text(vitaText(L10nKey.CANCEL)) } },
+    )
 }
 
 @Composable

@@ -3,6 +3,7 @@ package app.vezuna.ios
 import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -46,6 +47,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.datetime.Instant
@@ -131,6 +136,7 @@ object IosRuntime {
     }
 
     private var opening = false
+    private var stateObserverJob: Job? = null
 
     private fun open(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
         // Double taps and overlapping configure/recover calls: the first call's completion reports the outcome.
@@ -175,6 +181,12 @@ object IosRuntime {
             controller = AppController(repository, manager, LocalHealthChat(repository, llm))
             initialized = true
             controller.initialize()
+            // Edits and deletes made in Compose reload the controller after the repository commit; notify native
+            // reminder reconciliation once the controller's view of the active profile is consistent again.
+            stateObserverJob?.cancel()
+            stateObserverJob = scope.launch {
+                controller.state.map { it.data }.distinctUntilChanged().drop(1).collect { repositoryObserver?.repositoryDidChange() }
+            }
             completion(null)
         } catch (error: CancellationException) {
             throw error
@@ -215,6 +227,22 @@ object IosRuntime {
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })
     }
 
+    /** Active medications of every profile, used to clear delivered reminders and skip MISSED for stopped or deleted ones. */
+    fun listAllActiveMedications(completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val active = repository.profiles.value.flatMap { repository.peekProfile(it.profileId).medications.filter { m -> m.active } }
+                completion(json.encodeToString(ListSerializer(Medication.serializer()), active), null)
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
     fun recordDoseEvent(
         profileId: String,
         medicationId: String,
@@ -239,10 +267,10 @@ object IosRuntime {
                     completion(nativeMessage("medication_schedule_missing"))
                     return@launch
                 }
-                val eventId = "dose-$profileId-$scheduleId-${scheduled.epochSeconds}-$status"
-                if (data.doseEvents.none { it.eventId == eventId }) {
-                    repository.addDoseEvent(DoseEvent(profileId, eventId, medicationId, scheduleId, scheduled, doseStatus, currentInstant()))
-                }
+                // The repository enforces one terminal status per dose; a repeat or lower-priority write is a no-op.
+                repository.addDoseEvent(
+                    DoseEvent(profileId, DoseEvents.idFor(scheduleId, scheduled), medicationId, scheduleId, scheduled, doseStatus, currentInstant()),
+                )
                 repositoryObserver?.repositoryDidChange()
                 completion(null)
             } catch (error: Throwable) {
