@@ -370,6 +370,14 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.CONVERTED_VALUE to Res.string.converted_value,
     L10nKey.LABS_EMPTY_EXPLANATION to Res.string.labs_empty_explanation,
     L10nKey.TRENDS_EMPTY_EXPLANATION to Res.string.trends_empty_explanation,
+    L10nKey.LABS_SEARCH_HINT to Res.string.labs_search_hint,
+    L10nKey.LABS_FILTER_OUT_OF_RANGE to Res.string.labs_filter_out_of_range,
+    L10nKey.LABS_FILTER_FROM to Res.string.labs_filter_from,
+    L10nKey.LABS_FILTER_TO to Res.string.labs_filter_to,
+    L10nKey.LABS_FILTER_ANY_DATE to Res.string.labs_filter_any_date,
+    L10nKey.LABS_GROUP_BY_REPORT to Res.string.labs_group_by_report,
+    L10nKey.LABS_CLEAR_FILTERS to Res.string.labs_clear_filters,
+    L10nKey.LABS_NO_MATCHES to Res.string.labs_no_matches,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
@@ -379,6 +387,7 @@ private val pluralResources = mapOf<L10nKey, PluralStringResource>(
     L10nKey.TREND_CHART_ACCESSIBILITY to Res.plurals.trend_chart_accessibility,
     L10nKey.UNREVIEWED_CANDIDATES_ADDED to Res.plurals.unreviewed_candidates_added,
     L10nKey.VITALS_CHART_ACCESSIBILITY to Res.plurals.vitals_chart_accessibility,
+    L10nKey.LABS_RESULT_COUNT to Res.plurals.labs_result_count,
 )
 
 @Composable

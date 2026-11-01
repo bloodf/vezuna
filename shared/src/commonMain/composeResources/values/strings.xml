@@ -390,4 +390,16 @@ iOS: %2$s</string>
     <string name="converted_value">≈ %1$s (published factor %2$s)</string>
     <string name="labs_empty_explanation">Import a report or add a result by hand. It appears here after you confirm it.</string>
     <string name="trends_empty_explanation">Trends need at least one confirmed numeric result. Import a report or add a result by hand.</string>
+    <string name="labs_search_hint">Search by name or code</string>
+    <string name="labs_filter_out_of_range">Out of range only</string>
+    <string name="labs_filter_from">From: %1$s</string>
+    <string name="labs_filter_to">To: %1$s</string>
+    <string name="labs_filter_any_date">any date</string>
+    <string name="labs_group_by_report">Group by report</string>
+    <string name="labs_clear_filters">Clear filters</string>
+    <string name="labs_no_matches">No results match these filters</string>
+    <plurals name="labs_result_count">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
 </resources>

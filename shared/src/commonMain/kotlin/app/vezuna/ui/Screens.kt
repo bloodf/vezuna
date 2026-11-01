@@ -305,28 +305,7 @@ private fun DashboardToday(snapshot: app.vezuna.domain.DashboardSnapshot?, contr
 }
 
 @Composable
-fun LabsScreen(state: AppUiState, controller: AppController) {
-    val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_LABS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
-    val observations = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.sortedByDescending { it.collectedAt }
-    ScreenColumn(vitaText(L10nKey.LAB_RECORDS), vitaText(L10nKey.LAB_RECORDS_SUBTITLE)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            VitaButton(vitaText(L10nKey.IMPORT_REVIEW), Icons.Rounded.UploadFile, { controller.navigate(AppScreen.ImportReview) }, Modifier.weight(1f))
-            VitaButton(vitaText(L10nKey.TRENDS), Icons.Rounded.Insights, { controller.navigate(AppScreen.Trends) }, Modifier.weight(0.7f), outlined = true)
-        }
-        if (observations.isEmpty()) {
-            EmptyState(
-                vitaText(L10nKey.NO_CONFIRMED_RESULTS), vitaText(L10nKey.LABS_EMPTY_EXPLANATION), Icons.Rounded.Science,
-                vitaText(L10nKey.IMPORT_REVIEW), { controller.navigate(AppScreen.ImportReview) },
-            )
-        } else observations.forEach { observation ->
-            ResultRow(observation) { controller.navigate(AppScreen.ResultDetail(observation.observationId)) }
-        }
-        ReportList(data, controller)
-    }
-}
-
-@Composable
-private fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
+internal fun ResultRow(observation: LabObservation, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().vitaAnimateContentSize(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

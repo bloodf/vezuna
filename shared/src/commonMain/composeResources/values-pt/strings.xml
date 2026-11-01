@@ -390,4 +390,16 @@ iOS: %2$s</string>
     <string name="converted_value">≈ %1$s (fator publicado %2$s)</string>
     <string name="labs_empty_explanation">Importe um laudo ou adicione um resultado manualmente. Ele aparece aqui depois que você confirmar.</string>
     <string name="trends_empty_explanation">As tendências precisam de pelo menos um resultado numérico confirmado. Importe um laudo ou adicione um resultado manualmente.</string>
+    <string name="labs_search_hint">Buscar por nome ou código</string>
+    <string name="labs_filter_out_of_range">Somente fora da referência</string>
+    <string name="labs_filter_from">De: %1$s</string>
+    <string name="labs_filter_to">Até: %1$s</string>
+    <string name="labs_filter_any_date">qualquer data</string>
+    <string name="labs_group_by_report">Agrupar por laudo</string>
+    <string name="labs_clear_filters">Limpar filtros</string>
+    <string name="labs_no_matches">Nenhum resultado corresponde aos filtros</string>
+    <plurals name="labs_result_count">
+        <item quantity="one">%1$d resultado</item>
+        <item quantity="other">%1$d resultados</item>
+    </plurals>
 </resources>

@@ -36,8 +36,7 @@ internal fun ReportList(data: ProfileData, controller: AppController) {
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<LabReport?>(null) }
     val manualName = vitaText(L10nKey.MANUAL_ENTRY_REPORT)
-    fun nameOf(report: LabReport): String =
-        data.documents.firstOrNull { it.documentId == report.sourceDocumentId }?.displayName ?: manualName
+    fun nameOf(report: LabReport): String = reportDisplayName(report, data, manualName)
     SectionHeading(vitaText(L10nKey.IMPORTED_REPORTS), vitaText(L10nKey.IMPORTED_REPORTS_SUBTITLE))
     data.reports.sortedByDescending { it.importedAt }.forEach { report ->
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
