@@ -1,4 +1,5 @@
 import XCTest
+import VezunaShared
 @testable import Vezuna
 
 final class VezunaTests: XCTestCase {
@@ -26,6 +27,30 @@ final class VezunaTests: XCTestCase {
 
         let wrongAAD = AESGCMValue(nonce: encrypted.nonce, ciphertextAndTag: encrypted.ciphertextAndTag, associatedData: Data("other-profile".utf8))
         XCTAssertThrowsError(try CryptoKitAESGCM.decrypt(key: key, value: wrongAAD))
+    }
+
+    // Golden backup made by Python hashlib + cryptography: opens only if the real iOS PBKDF2 (CommonCrypto),
+    // NFC normalization and AES-GCM (CryptoKit bridge) match the other platforms byte for byte.
+    private static let goldenBackup = "VlpCSwEBAAknwBAAAQIDBAUGBwgJCgsMDQ4PDKChoqOkpaanqKmqqwjkjnhrpA8RLx9TKTMNw8PQY7w+8Ldn5Qd8la/2CrEk3O4sdjDpOKpUCmJe8G9x12dKuOY4RshQ2uOa6AR7yhZmNnrKqgDxo6e8dUn2SjMwxtCOAnziTp3CGXPuEmnMiTP7pdYwaWMR6jkYX5jJqcZoXCX7wPiCtmhLrI41V/F1gP69lkMMssxc26MboTDb4diQE6jrNiNqJw6wNrnCC+PuUhtOyMPloIubISU4w/C20UlRzSBGJVun2COqzDF53F2I4mC0EzzbsndQOOfbpwA="
+
+    private func chars(_ value: String) -> KotlinCharArray {
+        let units = Array(value.utf16)
+        let array = KotlinCharArray(size: Int32(units.count))
+        for (index, unit) in units.enumerated() { array.set(index: Int32(index), value: unit) }
+        return array
+    }
+
+    func testGoldenBackupOpensThroughTheIosActuals() throws {
+        IosAesGcmBridge.shared.install(implementation: CryptoKitAesGcm())
+        let file = Data(base64Encoded: Self.goldenBackup)!.kotlinBytes
+        let nfc = "p\u{00E4}ssw\u{00F6}rd correct horse"
+        let nfd = "pa\u{0308}sswo\u{0308}rd correct horse"
+        XCTAssertNotEqual(Array(nfc.unicodeScalars), Array(nfd.unicodeScalars))
+        for passphrase in [nfc, nfd] {
+            let plain = try PassphraseBackupCodec.shared.open(file: file, passphrase: chars(passphrase)).toData()
+            XCTAssertTrue(String(decoding: plain, as: UTF8.self).contains("golden-profile"))
+        }
+        XCTAssertThrowsError(try PassphraseBackupCodec.shared.open(file: file, passphrase: chars("not the passphrase")))
     }
 
     func testSyntheticLabTextParsing() {

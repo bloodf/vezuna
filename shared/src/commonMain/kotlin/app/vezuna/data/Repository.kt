@@ -16,6 +16,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
 import app.vezuna.domain.withMedication
@@ -69,6 +70,12 @@ interface VezunaRepository {
     suspend fun updateChatMessage(message: ChatMessage)
     suspend fun deleteChatMessage(profileId: String, messageId: String)
 
+    /**
+     * Creates the profile or atomically replaces every record of the existing one with [data] (no stale records
+     * survive). Source files of the replaced profile that [data] no longer references are removed.
+     * Vitals are stored separately by persistent implementations: use [restoreWithVitals] to restore both.
+     */
+    suspend fun restoreProfile(data: ProfileData)
     // --- Device vitals (Health Connect / HealthKit) ---
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
@@ -79,6 +86,23 @@ interface VezunaRepository {
     suspend fun replaceVitals(profileId: String, vitals: ProfileVitals)
 }
 
+
+/**
+ * Restores a backup including its device vitals; the vitals replace whatever the profile had. `lastSync` is cleared so
+ * the next device sync reads its full first window. Returns false when the profile was restored but the vitals could not
+ * be written (the profile and its records are kept).
+ */
+suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean {
+    restoreProfile(data.copy(vitals = ProfileVitals()))
+    return try {
+        replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null))
+        true
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        false
+    }
+}
 
 /** Volatile implementation used by tests and previews. */
 class InMemoryVezunaRepository : VezunaRepository {
@@ -173,6 +197,11 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        publish(records + (data.profile.profileId to data))
+    }
 
     override suspend fun linkedHealthProfileId(): String? = mutex.withLock { HealthLink.resolve(healthLink, records.values.map { it.profile }) }
 

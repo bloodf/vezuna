@@ -36,10 +36,14 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
+import app.vezuna.data.restoreWithVitals
+import app.vezuna.domain.keepingOnlyAvailableSourceFiles
+import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.security.BackupService
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +51,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
 
 sealed interface AppScreen {
     data object Dashboard : AppScreen
@@ -91,6 +97,8 @@ class AppController(
     private val pdfExporter: NativePdfExporter = NativePdfExporter(),
     private val clock: () -> kotlinx.datetime.Instant = { currentInstant() },
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
+    /** Null when the platform offers no backup file access (previews, tests). */
+    val backup: BackupService? = null,
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
@@ -108,6 +116,10 @@ class AppController(
     suspend fun refreshDashboard() {
         val profileId = mutableState.value.data?.profile?.profileId ?: return
         loadProfile(profileId)
+    }
+
+    fun announce(notice: UserText) {
+        mutableState.value = mutableState.value.copy(notice = notice, error = null)
     }
 
     fun navigate(screen: AppScreen) {
@@ -508,6 +520,23 @@ class AppController(
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
             ),
+        )
+    }
+
+    /** Backup restore. A profile that already exists is either replaced or the backup is stored under fresh IDs. */
+    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = operation {
+        val exists = repository.profiles.value.any { it.profileId == data.profile.profileId }
+        val toStore = when {
+            !exists -> data.keepingOnlyAvailableSourceFiles(null)
+            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
+            else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
+        }
+        val vitalsRestored = repository.restoreWithVitals(toStore)
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        switchProfile(toStore.profile.profileId)
+        DashboardRefreshSignal.notifyRepositoryChanged()
+        mutableState.value = mutableState.value.copy(
+            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
         )
     }
 

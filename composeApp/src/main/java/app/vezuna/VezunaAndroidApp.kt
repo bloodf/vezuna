@@ -32,6 +32,7 @@ import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.llm.ModelPackLoadState
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.ui.AppController
+import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.VezunaApp
 import kotlinx.coroutines.flow.StateFlow
 
@@ -46,7 +47,7 @@ fun VezunaAndroidApp(
     busyFlow: StateFlow<Boolean>,
     onHealthConnect: () -> Unit,
     onReminders: () -> Unit,
-    onBackup: () -> Unit,
+    backupFiles: BackupFileAccess,
     onPresentExport: (NativeExport) -> Unit,
     onDismissExport: () -> Unit,
     onShareExport: (NativeExport) -> Unit,
@@ -82,6 +83,7 @@ fun VezunaAndroidApp(
                     modelPackLoader = modelLoader::load,
                     onDevice = { deviceMenu = true },
                     animationsEnabled = animationsEnabled,
+                    backupFiles = backupFiles,
                 )
                 DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
                     DropdownMenuItem(text = { Text(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_MENU).resolve(context)) }, onClick = { deviceMenu = false; onHealthConnect() }, enabled = !nativeBusy)
@@ -93,7 +95,6 @@ fun VezunaAndroidApp(
                         },
                     )
                     DropdownMenuItem(text = { Text(nativeMessage(NativeKey.MEDICATION_REMINDERS_MENU).resolve(context)) }, onClick = { deviceMenu = false; onReminders() })
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.ENCRYPTED_PROFILE_BACKUP_MENU).resolve(context)) }, onClick = { deviceMenu = false; onBackup() }, enabled = !nativeBusy)
                     DropdownMenuItem(
                         text = { Text(nativeMessage(NativeKey.THIRD_PARTY_NOTICES).resolve(context)) },
                         onClick = {

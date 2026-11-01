@@ -16,6 +16,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
@@ -178,6 +179,16 @@ class PersistentVezunaRepository(
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        ensureInitialized()
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        val previous = snapshot.records[data.profile.profileId]
+        // Vitals live in their own file; callers write them through replaceVitals (see restoreWithVitals).
+        commit(snapshot.with(data.copy(vitals = ProfileVitals())))
+        // Files orphaned by the replacement go only after the restored snapshot is durable.
+        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
+    }
 
     override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
         ensureInitialized()

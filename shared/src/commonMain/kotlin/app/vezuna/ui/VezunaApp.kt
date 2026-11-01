@@ -118,6 +118,7 @@ fun VezunaApp(
     modelPackLoader: (suspend (ModelPack) -> ModelPackSource?)? = null,
     onDevice: (() -> Unit)? = null,
     animationsEnabled: Boolean = true,
+    backupFiles: BackupFileAccess? = null,
 ) {
     val state by controller.state.collectAsState()
     val modelState by controller.modelManager.state.collectAsState()
@@ -164,7 +165,7 @@ fun VezunaApp(
                         AppScreen.Medications -> MedicationsScreen(state, controller, scope)
                         AppScreen.AiChat -> AiChatScreen(state, modelState.loadedModelId, modelState.selectedModelId, controller, scope)
                         AppScreen.Models -> ModelsScreen(state, controller, scope, modelPackLoader)
-                        AppScreen.Settings -> SettingsScreen(state, controller, scope)
+                        AppScreen.Settings -> SettingsScreen(state, controller, scope, backupFiles)
                         AppScreen.Vitals -> VitalsScreen(state, controller, scope)
                     }
                 }

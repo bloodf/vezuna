@@ -1,6 +1,7 @@
 package app.vezuna.ios
 
 import androidx.compose.ui.window.ComposeUIViewController
+import app.vezuna.data.restoreWithVitals
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
@@ -39,6 +40,8 @@ import app.vezuna.security.VaultState
 import app.vezuna.security.VaultUnreadableException
 import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
+import app.vezuna.ui.BackupFileAccess
+import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.PickedSource
 import app.vezuna.ui.VaultGate
 import app.vezuna.ui.VezunaApp
@@ -80,6 +83,14 @@ data class NativeMessage(val key: String, val args: List<String> = emptyList())
 
 fun nativeMessage(key: String, vararg args: Any?): NativeMessage =
     NativeMessage(key, args.map { it?.toString().orEmpty() })
+
+interface NativeBackupFiles {
+    /** Completion receives the chosen file's bytes, or null when cancelled or unreadable. */
+    fun pickBackup(completion: (ByteArray?) -> Unit)
+
+    /** Completion receives true when the file was saved or shared, false when cancelled. */
+    fun saveBackup(fileName: String, bytes: ByteArray, completion: (Boolean) -> Unit)
+}
 
 interface NativeModelPackLoader {
     /** Completion receives the absolute path of the pack file; the store streams it, so no full copy is made. */
@@ -137,6 +148,7 @@ object IosRuntime {
     private var initialized = false
 
     var sourcePicker: NativeSourcePicker? = null
+    var backupFiles: NativeBackupFiles? = null
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
@@ -144,6 +156,9 @@ object IosRuntime {
         private set
 
     internal val vaultState = MutableStateFlow<VaultState>(VaultState.Loading)
+
+    /** Backup chosen on the recovery screen; stored into the fresh vault by the reset that follows. */
+    internal var pendingRestore: app.vezuna.domain.ProfileData? = null
 
     fun isVaultRecoveryNeeded(): Boolean = vaultState.value is VaultState.Recovery
 
@@ -182,6 +197,10 @@ object IosRuntime {
 
     private suspend fun openNow(vaultPath: String, modelPath: String, reset: Boolean, completion: (NativeMessage?) -> Unit) {
         vaultState.value = VaultState.Loading
+        // Taken first so a failed restore can never replay on a later reset.
+        val restore = pendingRestore
+        pendingRestore = null
+        var restoreStarted = false
         try {
             vault = createPlatformVault(vaultPath)
             if (reset) {
@@ -189,14 +208,18 @@ object IosRuntime {
                 vault.discardUnusableKey()
             }
             repository = PersistentVezunaRepository.open(vault, json)
+            if (reset && restore != null) {
+                restoreStarted = true
+                repository.restoreWithVitals(restore)
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: VaultUnreadableException) {
-            vaultState.value = VaultState.Recovery(error.failure)
+            vaultState.value = VaultState.Recovery(error.failure, restoreStarted)
             completion(nativeMessage("storage_open_failed"))
             return
         } catch (error: Exception) {
-            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE)
+            vaultState.value = VaultState.Recovery(VaultFailure.UNAVAILABLE, restoreStarted)
             completion(nativeMessage("storage_open_failed"))
             return
         }
@@ -207,7 +230,7 @@ object IosRuntime {
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
             val manager = InstalledModelManager(catalog, files, llm)
-            controller = AppController(repository, manager, LocalHealthChat(repository, llm))
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault))
             initialized = true
             controller.initialize()
             // Edits and deletes made in Compose reload the controller after the repository commit; notify native
@@ -308,11 +331,6 @@ object IosRuntime {
 
     fun exportPdf(completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
         NativePdfExporter().export(DoctorExportContent.document(data))
-    }
-
-    fun exportBackup(completion: (ByteArray?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        val envelope = BackupService(vault, json).create(data)
-        json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray()
     }
 
     fun listMedications(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
@@ -478,7 +496,9 @@ object IosRuntime {
 fun makeComposeViewController(): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
+    val backupPicker = IosRuntime.backupFiles
     VezunaApp(
+        backupFiles = backupPicker?.let(::composeBackupFiles),
         controller = IosRuntime.controllerForCompose(),
         scope = IosRuntime.composeScope(),
         sourcePicker = if (picker == null) null else {
@@ -511,9 +531,24 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
     )
 }
 
-fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit): UIViewController = ComposeUIViewController {
+private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(
+    pick = { suspendCancellableCoroutine { continuation -> native.pickBackup { bytes -> if (continuation.isActive) continuation.resume(bytes) } } },
+    save = { fileName, bytes ->
+        suspendCancellableCoroutine { continuation -> native.saveBackup(fileName, bytes) { saved -> if (continuation.isActive) continuation.resume(saved) } }
+    },
+)
+
+/** [onRestore] runs after the chosen backup is parked in [IosRuntime.pendingRestore]; the shell then resets the vault. */
+fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, onRestore: () -> Unit): UIViewController = ComposeUIViewController {
     val state by IosRuntime.vaultState.collectAsState()
-    VaultGate(state, onRetry, onReset) {}
+    val files = IosRuntime.backupFiles?.let(::composeBackupFiles)
+    val recovery = files?.let {
+        BackupRecovery(BackupService(), it) { data ->
+            IosRuntime.pendingRestore = data
+            onRestore()
+        }
+    }
+    VaultGate(state, onRetry, onReset, recovery) {}
 }
 
 // These accessors keep Compose construction in this module while the runtime fields remain encapsulated.

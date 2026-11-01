@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import VezunaShared
 
 struct ActivityItem: Identifiable {
@@ -24,12 +25,6 @@ struct NativeExportView: View {
                 Section(L10n.text(.doctor_export)) {
                     Button { exportCSV() } label: { Label(L10n.text(.share_save_csv), systemImage: "tablecells") }
                     Button { exportPDF() } label: { Label(L10n.text(.share_save_pdf), systemImage: "doc.richtext") }
-                }
-                Section(L10n.text(.profile_backup)) {
-                    Button { exportBackup() } label: { Label(L10n.text(.share_save_encrypted_backup), systemImage: "lock.doc") }
-                    Text(L10n.text(.backup_profile_description))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(Color.vezunaDanger) }
@@ -58,14 +53,6 @@ struct NativeExportView: View {
         IosRuntime.shared.exportPdf { pdf, error in
             guard let pdf else { self.fail(error); return }
             self.present(data: pdf.bytes.toData(), fileName: pdf.fileName)
-        }
-    }
-
-    private func exportBackup() {
-        begin()
-        IosRuntime.shared.exportBackup { bytes, error in
-            guard let bytes else { self.fail(error); return }
-            self.present(data: bytes.toData(), fileName: "vezuna-profile-backup.vezunabackup")
         }
     }
 
@@ -102,4 +89,63 @@ struct ActivityViewController: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// Native file access for portable backups, called from the shared Compose settings and recovery screens.
+final class ComposeBackupFiles: NSObject, NativeBackupFiles {
+    private var pickCompletion: ((KotlinByteArray?) -> Void)?
+
+    func pickBackup(completion: @escaping (KotlinByteArray?) -> Void) {
+        DispatchQueue.main.async {
+            guard self.pickCompletion == nil, let presenter = Self.presenter else { completion(nil); return }
+            self.pickCompletion = completion
+            // Backups carry no registered type, so any file can be chosen; the shared code validates the content.
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data], asCopy: true)
+            picker.delegate = self
+            picker.allowsMultipleSelection = false
+            presenter.present(picker, animated: true)
+        }
+    }
+
+    func saveBackup(fileName: String, bytes: KotlinByteArray, completion: @escaping (KotlinBoolean) -> Void) {
+        DispatchQueue.main.async {
+            guard let presenter = Self.presenter,
+                  let url = try? AppFileStorage.temporaryExportURL(fileName: fileName, data: bytes.toData()) else {
+                completion(KotlinBoolean(bool: false))
+                return
+            }
+            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            sheet.completionWithItemsHandler = { _, completed, _, _ in
+                try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+                completion(KotlinBoolean(bool: completed))
+            }
+            sheet.popoverPresentationController?.sourceView = presenter.view
+            presenter.present(sheet, animated: true)
+        }
+    }
+
+    private static var presenter: UIViewController? {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController?.topMost
+    }
+}
+
+extension ComposeBackupFiles: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        defer {
+            // asCopy: the picker leaves a temporary copy of the (possibly private) backup behind.
+            urls.forEach { try? FileManager.default.removeItem(at: $0) }
+            pickCompletion = nil
+        }
+        guard let url = urls.first else { pickCompletion?(nil); return }
+        let limit = 64 * 1024 * 1024
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? Int.max
+        // An empty array tells the shared flow the file is unreadable or too large, before it is read into memory.
+        guard size <= limit, let data = try? Data(contentsOf: url) else { pickCompletion?(KotlinByteArray(size: 0)); return }
+        pickCompletion?(data.kotlinBytes)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        pickCompletion?(nil)
+        pickCompletion = nil
+    }
 }

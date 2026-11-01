@@ -2,11 +2,13 @@ package app.vezuna
 
 import android.app.Application
 import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.restoreWithVitals
 import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.domain.ProfileData
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.platform.currentInstant
 import app.vezuna.security.AndroidSecureVault
@@ -72,11 +74,24 @@ class VezunaApplication : Application() {
     /** Explicit user reset from the recovery screen; the unreadable files are quarantined, not deleted. */
     fun resetVault() = loadVault { repository.resetAfterFailure() }
 
+    /**
+     * Restore from the recovery screen: the unreadable vault is quarantined (never deleted), then the backup is
+     * stored into the fresh vault. Both steps run in one load so the app never sees a half-restored state.
+     */
+    fun restoreVaultFromBackup(data: ProfileData) {
+        var restoreStarted = false
+        loadVault(restoreFailed = { restoreStarted }) {
+            repository.resetAfterFailure()
+            restoreStarted = true
+            repository.restoreWithVitals(data)
+        }
+    }
+
     /** True once the repository is usable; false when the vault needs recovery. Safe from receivers. */
     suspend fun awaitRepository(): Boolean =
         withTimeoutOrNull(RECEIVER_WAIT_MS) { vaultState.first { it !is VaultState.Loading } } is VaultState.Ready
 
-    private fun loadVault(action: suspend () -> Unit) {
+    private fun loadVault(restoreFailed: () -> Boolean = { false }, action: suspend () -> Unit) {
         mutableVaultState.value = VaultState.Loading
         applicationScope.launch {
             mutableVaultState.value = try {
@@ -85,9 +100,9 @@ class VezunaApplication : Application() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: VaultUnreadableException) {
-                VaultState.Recovery(error.failure)
+                VaultState.Recovery(error.failure, restoreFailed())
             } catch (error: Exception) {
-                VaultState.Recovery(VaultFailure.UNAVAILABLE)
+                VaultState.Recovery(VaultFailure.UNAVAILABLE, restoreFailed())
             }
         }
     }
