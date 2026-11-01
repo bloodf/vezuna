@@ -44,7 +44,7 @@ Local gates (all verification runs locally; there is no GitHub CI for these):
 ```bash
 bash scripts/check-all.sh            # localization, brand, lab importer, Gradle (incl. lint + release), iOS; fails fast, prints CHECK_ALL_PASSED
 bash scripts/check-ios.sh            # iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
-bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a device/emulator, else skips with a message
+bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a device/emulator, else prints `ANDROID_DEVICE_CHECK_SKIPPED` and exits 2 (not a pass; 0 = passed, 1 = failed; set `ANDROID_SERIAL` when several devices are attached)
 ```
 
 `check-all.sh` builds the release variant with a throwaway keystore, because release signing is required by design. Never use a real key there.
