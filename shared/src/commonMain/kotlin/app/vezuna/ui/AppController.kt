@@ -37,6 +37,8 @@ import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.failMessage
+import app.vezuna.localization.formatLabValue
+import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
@@ -316,7 +318,7 @@ class AppController(
         val code = (testCode ?: candidate.testCode).trim()
         val name = (displayName ?: candidate.displayName).trim()
         if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
-        val result = resolveResultValue(asText ?: candidate.looksQualitative, correctedValue, correctedUnit)
+        val result = resolveResultValue(asText ?: candidate.looksQualitative, correctedValue, correctedUnit, listOf(candidate.rawValue.trim(), localizeDecimalText(candidate.rawValue)))
         val qualitativeValue = result.qualitativeValue
         val value = result.value
         val unit = result.unit
@@ -423,7 +425,7 @@ class AppController(
         val current = data.observations.firstOrNull { it.observationId == observationId && it.confirmation == ConfirmationStatus.CONFIRMED }
             ?: failMessage(L10nKey.RESULT_UNAVAILABLE)
         val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
-        val result = resolveResultValue(current.isQualitative, correctedValue, correctedUnit)
+        val result = resolveResultValue(current.isQualitative, correctedValue, correctedUnit, listOf(formatLabValue(current.originalValue, current.valueDecimals)))
         val range = reviewedRange(current.referenceRange, referenceText, referenceLower, referenceUpper, result.unit, current.isQualitative)
         val edited = current.copy(
             originalValue = result.value,

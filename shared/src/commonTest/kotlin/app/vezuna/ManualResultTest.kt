@@ -98,4 +98,32 @@ class ManualResultTest {
         controller.editObservation(id, "7,350", "/µL", "", "", null, day)
         assertEquals(7.35, repository.readProfile(repository.profiles.value.single().profileId).observations.single().originalValue)
     }
+
+    @Test
+    fun untouchedPrefilledThreeDecimalValuesAreNotRejected() = runTest {
+        val (repository, controller) = start()
+        // 1,250 typed in PT is stored as 1.25 with 3 decimals; an EN device prefills "1.250".
+        controller.addManualResult("TSH", "TSH", "1,250", "mIU/L", "", "", null, day)
+        val profileId = repository.profiles.value.single().profileId
+        val observation = repository.readProfile(profileId).observations.single()
+        assertEquals(3, observation.valueDecimals)
+        val prefill = app.vezuna.localization.formatLabValue(observation.originalValue, observation.valueDecimals, "en-US")
+        assertEquals("1.250", prefill)
+        controller.editObservation(observation.observationId, prefill, "mIU/L", "", "", null, Instant.parse("2026-03-11T12:00:00Z"))
+        assertNull(controller.state.value.error)
+        assertEquals(1.25, repository.readProfile(profileId).observations.single().originalValue)
+    }
+
+    @Test
+    fun confirmingAParsedCanonicalThreeDecimalValueSucceeds() = runTest {
+        val (repository, controller) = start()
+        controller.importSource(app.vezuna.ui.PickedSource("a.pdf", "application/pdf", "a".encodeToByteArray(), listOf(
+            app.vezuna.ui.ExtractedCandidate("TSH", "TSH", "1.250", "mIU/L", collectedAt = day),
+        )))
+        val profileId = repository.profiles.value.single().profileId
+        val candidate = repository.readProfile(profileId).ocrCandidates.single()
+        controller.confirmCandidate(candidate.candidateId, "1.250", "mIU/L", "", "")
+        assertNull(controller.state.value.error)
+        assertEquals(1.25, repository.readProfile(profileId).observations.single().originalValue)
+    }
 }

@@ -255,7 +255,7 @@ iOS: %2$s</string>
     <string name="ocr_read_token">OCR read: %1$s</string>
     <string name="ambiguous_number_warning">Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)</string>
     <string name="reference_text_optional">Reference text (optional)</string>
-    <string name="number_ambiguous_input">Ambiguous number: type thousands without a separator (250000) and decimals with the decimal separator (5,7 or 5.7)</string>
+    <string name="number_ambiguous_input">Ambiguous number: write thousands without a separator (250000) and decimals with a comma or point that is not followed by exactly three digits (type 1,020 or 1.02 for one point zero two)</string>
     <string name="report_manual_summary">Typed by hand on %1$s</string>
     <string name="manual_entry_hint">No file needed: type a result from a paper report and choose its collection date.</string>
     <string name="save_manual_result">Save manual result</string>
