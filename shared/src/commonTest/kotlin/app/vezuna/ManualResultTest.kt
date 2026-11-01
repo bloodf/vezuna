@@ -81,4 +81,21 @@ class ManualResultTest {
         val data = repository.readProfile(profileId)
         assertTrue(data.reports.isEmpty() && data.observations.isEmpty())
     }
+
+    @Test
+    fun ambiguousThousandsInputIsRejectedForEntryAndEdit() = runTest {
+        val (repository, controller) = start()
+        controller.addManualResult("PLT", "Platelets", "250.000", "/µL", "", "", null, day)
+        assertEquals(L10nKey.NUMBER_AMBIGUOUS_INPUT, (controller.state.value.error as UserText.Key).key)
+        assertTrue(repository.readProfile(repository.profiles.value.single().profileId).reports.isEmpty())
+
+        controller.addManualResult("PLT", "Platelets", "250000", "/µL", "", "", null, day)
+        val id = repository.readProfile(repository.profiles.value.single().profileId).observations.single().observationId
+        controller.editObservation(id, "7.350", "/µL", "", "", null, day)
+        assertEquals(L10nKey.NUMBER_AMBIGUOUS_INPUT, (controller.state.value.error as UserText.Key).key)
+        assertEquals(250000.0, repository.readProfile(repository.profiles.value.single().profileId).observations.single().originalValue)
+
+        controller.editObservation(id, "7,350", "/µL", "", "", null, day)
+        assertEquals(7.35, repository.readProfile(repository.profiles.value.single().profileId).observations.single().originalValue)
+    }
 }

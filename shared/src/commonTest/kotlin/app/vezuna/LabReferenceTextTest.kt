@@ -88,4 +88,44 @@ class LabReferenceTextTest {
         assertEquals(5.0, rows[2].referenceRange.upper)
         assertEquals("≤ 5,0 mg/L", rows[2].referenceRange.text)
     }
+
+    @Test
+    fun multipleRangesInTypedTextGiveTextOnly() = runTest {
+        val range = confirm(ReferenceRange(), "", "", "Homens 13-17 g/dL; Mulheres 12-16 g/dL")
+        assertEquals("Homens 13-17 g/dL; Mulheres 12-16 g/dL", range.text)
+        assertNull(range.lower)
+        assertNull(range.upper)
+    }
+
+    @Test
+    fun singleTypedRangeFillsBothBounds() = runTest {
+        val range = confirm(ReferenceRange(), "", "", "12 a 16 g/dL")
+        assertEquals(12.0, range.lower)
+        assertEquals(16.0, range.upper)
+    }
+
+    @Test
+    fun editedBoundWithUnchangedTextClearsTheStaleText() = runTest {
+        val range = confirm(ReferenceRange(12.0, 16.0, "12 a 16 g/dL", "g/dL"), "11", "16", null)
+        assertEquals(11.0, range.lower)
+        assertNull(range.text)
+    }
+
+    @Test
+    fun untouchedBoundsKeepTheirText() = runTest {
+        val range = confirm(ReferenceRange(12.0, 16.0, "12 a 16 g/dL", "g/dL"), "12", "16", null)
+        assertEquals("12 a 16 g/dL", range.text)
+    }
+
+    @Test
+    fun editedTextWithUntouchedBoundsRecomputesOrClearsBounds() = runTest {
+        val old = ReferenceRange(12.0, 16.0, "12 a 16 g/dL", "g/dL")
+        val recomputed = confirm(old, "12", "16", "13 a 17 g/dL")
+        assertEquals(13.0, recomputed.lower)
+        assertEquals(17.0, recomputed.upper)
+        val cleared = confirm(old, "12", "16", "ver tabela do laboratório")
+        assertNull(cleared.lower)
+        assertNull(cleared.upper)
+        assertEquals("ver tabela do laboratório", cleared.text)
+    }
 }

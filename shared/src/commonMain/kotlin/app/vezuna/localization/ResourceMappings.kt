@@ -279,6 +279,8 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.OCR_READ_TOKEN to Res.string.ocr_read_token,
     L10nKey.AMBIGUOUS_NUMBER_WARNING to Res.string.ambiguous_number_warning,
     L10nKey.REFERENCE_TEXT_OPTIONAL to Res.string.reference_text_optional,
+    L10nKey.NUMBER_AMBIGUOUS_INPUT to Res.string.number_ambiguous_input,
+    L10nKey.REPORT_MANUAL_SUMMARY to Res.string.report_manual_summary,
     L10nKey.MANUAL_ENTRY_HINT to Res.string.manual_entry_hint,
     L10nKey.SAVE_MANUAL_RESULT to Res.string.save_manual_result,
     L10nKey.MANUAL_RESULT_SAVED to Res.string.manual_result_saved,

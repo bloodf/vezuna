@@ -1,0 +1,10 @@
+LAUDO SINTETICO HEMOGRAMA
+Plaquetas 245.000 /mm3 150.000 a 450.000 /mm3
+Leucócitos 5.600 /mm³ 4.000 a 10.000 /mm³
+Plaquetas 245 10^3/µL 150 a 450 10^3/µL
+Eritrócitos 4,8 10^6/µL 4,0 a 5,2 10^6/µL
+Sódio 140 mEq/L 135 a 145 mEq/L
+TSH 2,1 mIU/L 0,4 a 4,0 mIU/L
+INR 1,1 IU/L 0,8 a 1,2 IU/L
+VHS 12 mm/h 0 a 20 mm/h
+Page 1 of 3

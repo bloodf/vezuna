@@ -255,6 +255,8 @@ iOS: %2$s</string>
     <string name="ocr_read_token">OCR leu: %1$s</string>
     <string name="ambiguous_number_warning">Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)</string>
     <string name="reference_text_optional">Texto de referência (opcional)</string>
+    <string name="number_ambiguous_input">Número ambíguo: digite milhares sem separador (250000) e decimais com o separador decimal (5,7 ou 5.7)</string>
+    <string name="report_manual_summary">Digitado manualmente em %1$s</string>
     <string name="manual_entry_hint">Sem arquivo: digite um resultado de um laudo em papel e escolha a data da coleta.</string>
     <string name="save_manual_result">Salvar resultado manual</string>
     <string name="manual_result_saved">Resultado manual salvo</string>

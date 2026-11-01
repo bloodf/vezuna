@@ -255,6 +255,8 @@ iOS: %2$s</string>
     <string name="ocr_read_token">OCR leyó: %1$s</string>
     <string name="ambiguous_number_warning">Revise este número: el punto puede indicar miles (1.020 = 1020) o decimales (1.020 = 1,02)</string>
     <string name="reference_text_optional">Texto de referencia (opcional)</string>
+    <string name="number_ambiguous_input">Número ambiguo: escriba los miles sin separador (250000) y los decimales con el separador decimal (5,7 o 5.7)</string>
+    <string name="report_manual_summary">Introducido manualmente el %1$s</string>
     <string name="manual_entry_hint">Sin archivo: escriba un resultado de un informe en papel y elija la fecha de recolección.</string>
     <string name="save_manual_result">Guardar resultado manual</string>
     <string name="manual_result_saved">Resultado manual guardado</string>

@@ -52,6 +52,12 @@ class LabImporterGoldenTest {
         assertEquals(reference.number("lower"), got.referenceRange.lower, "$label lower")
         assertEquals(reference.number("upper"), got.referenceRange.upper, "$label upper")
         assertEquals(reference.string("text").takeIf { it.isNotBlank() }, got.referenceRange.text, "$label text")
+        assertEquals(reference.string("unit").takeIf { it.isNotBlank() }, got.referenceRange.unit, "$label reference unit")
+        // Kotlin keeps one-sided bounds, not the operator: the operator must agree with which bound is set.
+        when (reference.string("operator")) {
+            "<", "<=" -> assertTrue(got.referenceRange.upper != null && got.referenceRange.lower == null, "$label operator side")
+            ">", ">=" -> assertTrue(got.referenceRange.lower != null && got.referenceRange.upper == null, "$label operator side")
+        }
     }
 
     private fun JsonObject.string(key: String): String = (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()

@@ -31,6 +31,7 @@ object OcrTextParser {
         "mg/dL", "mg/L", "g/dL", "g/L", "mmol/L", "µmol/L", "μmol/L", "umol/L", "nmol/L",
         "10^12/L", "10^9/L", "10^6/µL", "10^6/μL", "10^3/µL", "10^3/μL",
         "U/L", "UI/L", "/µL", "/μL", "/uL", "/mL", "fL", "%",
+        "/mm3", "/mm³", "10^3/mm3", "10^3/mm³", "10^6/mm3", "10^6/mm³", "10³/µL", "10³/μL", "10³/mm³", "10⁶/µL", "mEq/L", "mIU/mL", "mIU/L", "IU/mL", "IU/L", "mm/h",
     ).sortedByDescending { it.length }
     private val UNIT_PATTERN = UNITS.joinToString("|") { Regex.escape(it) }
     private val UNIT = Regex("\\s*($UNIT_PATTERN)(?=\\s|$|[,.;)\\]])", RegexOption.IGNORE_CASE)
@@ -175,18 +176,34 @@ object OcrTextParser {
 
     private data class FoundReference(val range: ReferenceRange, val start: Int, val unit: String?)
 
-    /** Reference text typed or read as free text: ranges and one-sided `<`, `>`, `≤`, `≥` thresholds only; never invented. */
-    fun referenceFromText(text: String, resultUnit: String): ReferenceRange = parseReference(normalizeText(text), resultUnit)
+    /**
+     * Bounds for reference text a reviewer typed: only when it holds exactly one range or one-sided
+     * `<`, `>`, `≤`, `≥` threshold. Several ranges (by sex or age) or a deferral give no bounds, never a guess.
+     */
+    fun referenceFromText(text: String, resultUnit: String): ReferenceRange {
+        val clean = normalizeText(text).trim()
+        if (deferredReference(clean)) return ReferenceRange(text = clean)
+        val single = findReferences(clean).singleOrNull() ?: return ReferenceRange(text = clean.ifBlank { null })
+        return single.range
+    }
+
+    private fun deferredReference(text: String): Boolean {
+        val flat = folded(text)
+        return text.isNotEmpty() && (
+            Regex("vide.*intervalo|confira\\s+na\\s+tabela|tabela\\s+de\\s+referencia|ver\\s+referencia").containsMatchIn(flat) ||
+                Regex("nao\\s+apresenta.*referencia.*definid|sem\\s+valor\\s+de\\s+referencia\\s+definido").containsMatchIn(flat)
+            )
+    }
 
     private fun parseReference(rest: String, resultUnit: String): ReferenceRange {
         val text = rest.trim()
-        val flat = folded(text)
-        if (text.isNotEmpty() && (
-                Regex("vide.*intervalo|confira\\s+na\\s+tabela|tabela\\s+de\\s+referencia|ver\\s+referencia").containsMatchIn(flat) ||
-                    Regex("nao\\s+apresenta.*referencia.*definid|sem\\s+valor\\s+de\\s+referencia\\s+definido").containsMatchIn(flat)
-                )
-        ) return ReferenceRange(text = text)
+        if (deferredReference(text)) return ReferenceRange(text = text)
+        val found = findReferences(text)
+        val selected = found.lastOrNull { it.unit == resultUnit } ?: found.lastOrNull()
+        return selected?.range ?: ReferenceRange(text = text.ifBlank { null })
+    }
 
+    private fun findReferences(text: String): List<FoundReference> {
         val references = mutableListOf<FoundReference>()
         RANGE.findAll(text).forEach { match ->
             val lower = numericValue(match.groupValues[1])
@@ -210,10 +227,7 @@ object OcrTextParser {
             }
             references += FoundReference(range, match.range.first, unit)
         }
-        val selected = references.sortedBy { it.start }.let { found ->
-            found.lastOrNull { it.unit == resultUnit } ?: found.lastOrNull()
-        }
-        return selected?.range ?: ReferenceRange(text = text.ifBlank { null })
+        return references.sortedBy { it.start }
     }
 
     private fun numericValue(raw: String): Double = canonicalNumber(raw).toDouble().also { require(it.isFinite()) }

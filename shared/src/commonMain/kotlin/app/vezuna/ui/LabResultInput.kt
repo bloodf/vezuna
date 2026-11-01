@@ -1,6 +1,7 @@
 package app.vezuna.ui
 
 import app.vezuna.domain.NormalizedQuantity
+import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.domain.UnitNormalizer
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.decimalPlacesOf
@@ -22,6 +23,8 @@ internal fun resolveResultValue(asText: Boolean, rawValue: String, rawUnit: Stri
         val text = rawValue.trim().ifBlank { failMessage(L10nKey.QUALITATIVE_RESULT_REQUIRED) }
         return ResolvedResultValue(0.0, "", NormalizedQuantity(0.0, ""), text, null)
     }
+    // "250.000" could be 250000 or 250.0: never guess what the user meant.
+    if (NumberAmbiguity.isAmbiguousThousands(rawValue)) failMessage(L10nKey.NUMBER_AMBIGUOUS_INPUT)
     val value = parseDecimalInput(rawValue) ?: failMessage(L10nKey.ENTER_NUMERIC_RESULT)
     val unit = rawUnit.trim()
     if (unit.isBlank()) failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)

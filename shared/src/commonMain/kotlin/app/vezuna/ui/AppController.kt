@@ -49,11 +49,13 @@ import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
 import app.vezuna.security.BackupService
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -268,7 +270,7 @@ class AppController(
         try {
             repository.addDocument(document)
         } catch (error: Throwable) {
-            document.vaultKey?.let { sourceStore?.discard(it) }
+            withContext(NonCancellable) { document.vaultKey?.let { sourceStore?.discard(it) } }
             throw error
         }
     }
@@ -319,7 +321,7 @@ class AppController(
         val value = result.value
         val unit = result.unit
         val normalized = result.normalized
-        val range = reviewedRange(candidate.referenceRange.text, referenceText, referenceLower, referenceUpper, unit, qualitativeValue != null)
+        val range = reviewedRange(candidate.referenceRange, referenceText, referenceLower, referenceUpper, unit, qualitativeValue != null)
         val revisions = candidate.revisions + OcrRevision(
             data.profile.profileId,
             randomId(),
@@ -373,7 +375,7 @@ class AppController(
         val name = displayName.trim()
         if (code.isBlank() || name.isBlank()) failMessage(L10nKey.CANDIDATE_REQUIRED_FIELDS)
         val result = resolveResultValue(asText, rawValue, rawUnit)
-        val range = reviewedRange(null, referenceText, referenceLower, referenceUpper, result.unit, result.qualitativeValue != null)
+        val range = reviewedRange(ReferenceRange(), referenceText, referenceLower, referenceUpper, result.unit, result.qualitativeValue != null)
         val report = LabReport(data.profile.profileId, randomId(), importedAt = currentInstant())
         val observation = LabObservation(
             profileId = data.profile.profileId,
@@ -393,7 +395,13 @@ class AppController(
         )
         if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
         repository.addReport(report)
-        repository.addObservation(observation)
+        try {
+            if (!repository.addObservation(observation)) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
+        } catch (error: Throwable) {
+            // No empty manual report may outlive a failed save, even when the save was cancelled.
+            withContext(NonCancellable) { repository.deleteReport(data.profile.profileId, report.reportId) }
+            throw error
+        }
         loadProfile(data.profile.profileId)
         mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
@@ -416,7 +424,7 @@ class AppController(
             ?: failMessage(L10nKey.RESULT_UNAVAILABLE)
         val date = collectedAt ?: failMessage(L10nKey.COLLECTION_DATE_REQUIRED)
         val result = resolveResultValue(current.isQualitative, correctedValue, correctedUnit)
-        val range = reviewedRange(current.referenceRange.text, referenceText, referenceLower, referenceUpper, result.unit, current.isQualitative)
+        val range = reviewedRange(current.referenceRange, referenceText, referenceLower, referenceUpper, result.unit, current.isQualitative)
         val edited = current.copy(
             originalValue = result.value,
             originalUnit = result.unit,
@@ -669,26 +677,33 @@ class AppController(
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
 
     /**
-     * Bounds come from the reviewer's fields. Text the reviewer left alone survives unchanged; text the reviewer
-     * typed fills empty bounds only when it is an explicit range or one-sided `<`, `>`, `≤`, `≥` threshold.
-     * Nothing is inferred from anything else, so a range is never invented.
+     * Bounds come from the reviewer's fields. Reference text and bounds must never disagree:
+     * - edited bounds with unchanged text clear the stale text (the earlier text stays in the revision);
+     * - edited text with untouched bounds recomputes the bounds from it, which only succeeds for exactly one range
+     *   or one-sided `<`, `>`, `≤`, `≥` threshold, and otherwise clears them;
+     * - both edited: the reviewer's bounds and text are kept as typed.
+     * Nothing else is inferred, so a range is never invented.
      */
     private fun reviewedRange(
-        originalText: String?,
+        original: ReferenceRange,
         editedText: String?,
         lowerInput: String,
         upperInput: String,
         unit: String,
         textResult: Boolean,
     ): ReferenceRange {
-        val text = (editedText ?: originalText)?.trim()?.takeIf { it.isNotEmpty() }
+        var text = (editedText ?: original.text)?.trim()?.takeIf { it.isNotEmpty() }
         if (textResult) return ReferenceRange(text = text)
         var lower = optionalDouble(lowerInput)
         var upper = optionalDouble(upperInput)
-        if (lower == null && upper == null && text != null && text != originalText) {
-            val derived = OcrTextParser.referenceFromText(text, unit)
-            lower = derived.lower
-            upper = derived.upper
+        val textChanged = text != original.text
+        val boundsChanged = lower != original.lower || upper != original.upper
+        if (textChanged && !boundsChanged) {
+            val derived = text?.let { OcrTextParser.referenceFromText(it, unit) }
+            lower = derived?.lower
+            upper = derived?.upper
+        } else if (boundsChanged && !textChanged) {
+            text = null
         }
         return ReferenceRange(lower, upper, text, unit)
     }

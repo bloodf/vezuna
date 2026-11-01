@@ -69,8 +69,24 @@ UNITS = (
     "/mL",
     "fL",
     "%",
+    "/mm3",
+    "/mm³",
+    "10^3/mm3",
+    "10^3/mm³",
+    "10^6/mm3",
+    "10^6/mm³",
+    "10³/µL",
+    "10³/μL",
+    "10³/mm³",
+    "10⁶/µL",
+    "mEq/L",
+    "mIU/mL",
+    "mIU/L",
+    "IU/mL",
+    "IU/L",
+    "mm/h",
 )
-UNIT_PATTERN = "(?:" + "|".join(re.escape(unit) for unit in UNITS) + ")"
+UNIT_PATTERN = "(?:" + "|".join(re.escape(unit) for unit in sorted(UNITS, key=len, reverse=True)) + ")"
 QUALITATIVE_VALUES = (
     "Ausente",
     "Presente",

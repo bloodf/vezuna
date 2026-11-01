@@ -44,7 +44,7 @@ internal fun ReportList(data: ProfileData, controller: AppController) {
             Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(nameOf(report), style = MaterialTheme.typography.titleMedium)
-                    Text(vitaText(L10nKey.REPORT_SUMMARY, formatUiDate(report.importedAt)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(vitaText(if (report.isManual) L10nKey.REPORT_MANUAL_SUMMARY else L10nKey.REPORT_SUMMARY, formatUiDate(report.importedAt)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 TextButton({ pendingDelete = report }, Modifier.defaultMinSize(minHeight = 48.dp)) {
                     androidx.compose.material3.Icon(Icons.Rounded.Delete, null)
