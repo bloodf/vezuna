@@ -69,4 +69,6 @@
     <string name="third_party_notices_unavailable">Notices could not be opened. Contact heitor.ramon@gmail.com for a copy.</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_policy_unavailable">The privacy policy could not be loaded.</string>
+    <!-- reminders lane -->
+    <string name="medication_reminder_generic_text">Time to take a medication</string>
 </resources>

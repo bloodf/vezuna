@@ -69,4 +69,6 @@
     <string name="third_party_notices_unavailable">Não foi possível abrir os avisos. Solicite uma cópia em heitor.ramon@gmail.com.</string>
     <string name="privacy_policy">Política de privacidade</string>
     <string name="privacy_policy_unavailable">Não foi possível carregar a política de privacidade.</string>
+    <!-- reminders lane -->
+    <string name="medication_reminder_generic_text">Hora de tomar um medicamento</string>
 </resources>

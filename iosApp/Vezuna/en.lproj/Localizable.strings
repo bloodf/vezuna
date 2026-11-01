@@ -89,3 +89,4 @@
 "ocr_read_token" = "OCR read: %1$@";
 "ambiguous_number_warning" = "Check this number: a dot may mean thousands (1.020 = 1,020) or decimals (1.020 = 1.02)";
 "choose_date_button" = "Choose date";
+"medication_reminder_title" = "Medication reminder";

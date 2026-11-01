@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -70,16 +72,21 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.resolve
 import app.vezuna.localization.vitaText
+import app.vezuna.platform.currentInstant
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
 
 @Composable
-fun MedicationsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope) {
+fun MedicationsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, reminders: ReminderPlatformState? = null) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_MEDICATIONS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
     var name by remember { mutableStateOf("") }
     var strength by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("08:00") }
+    val today = remember { currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+    var drafts by remember { mutableStateOf(listOf(ScheduleDraft(startDate = today))) }
     var editTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     var stopTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     var deleteTarget by remember { mutableStateOf<MedicationRecord?>(null) }
@@ -95,6 +102,7 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
                 }
             }
         }
+        reminders?.let { ReminderStatus(it) }
         if (data.medications.isEmpty()) {
             EmptyState(vitaText(L10nKey.NO_MEDICATIONS_RECORDED), vitaText(L10nKey.NO_MEDICATIONS_RECORDED_EXPLANATION), Icons.Rounded.Medication)
         }
@@ -111,7 +119,8 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
         editTarget?.let { medication ->
             EditMedicationDialog(
                 medication,
-                onSave = { n, st, ins, t -> editTarget = null; scope.launch { controller.updateMedication(medication.medicationId, n, st, ins, t) } },
+                today,
+                onSave = { n, st, ins, schedules -> editTarget = null; scope.launch { controller.updateMedication(medication.medicationId, n, st, ins, schedules) } },
                 onDismiss = { editTarget = null },
             )
         }
@@ -137,10 +146,13 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.MEDICATION_NAME)) }, leadingIcon = { Icon(Icons.Rounded.Medication, null) }, singleLine = true)
         OutlinedTextField(strength, { strength = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED)) }, singleLine = true)
         OutlinedTextField(instructions, { instructions = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.PRESCRIBER_INSTRUCTIONS)) })
-        OutlinedTextField(time, { time = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.DAILY_REMINDER_TIME)) }, leadingIcon = { Icon(Icons.Rounded.Schedule, null) }, singleLine = true)
+        ScheduleListEditor(drafts, today) { drafts = it }
         VitaButton(vitaText(L10nKey.SAVE_MEDICATION), Icons.Rounded.Medication, {
-            scope.launch { controller.addMedication(name, strength, instructions, time); name = ""; strength = ""; instructions = "" }
-        }, enabled = name.isNotBlank())
+            scope.launch {
+                controller.addMedication(name, strength, instructions, drafts)
+                if (controller.state.value.error == null) { name = ""; strength = ""; instructions = ""; drafts = listOf(ScheduleDraft(startDate = today)) }
+            }
+        }, enabled = name.isNotBlank() && drafts.all { it.errors().isEmpty() })
     }
 }
 
@@ -191,29 +203,29 @@ private fun MedicationCard(
 }
 
 @Composable
-private fun EditMedicationDialog(medication: MedicationRecord, onSave: (String, String, String, String) -> Unit, onDismiss: () -> Unit) {
+private fun EditMedicationDialog(medication: MedicationRecord, today: LocalDate, onSave: (String, String, String, List<ScheduleDraft>) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(medication.displayName) }
     var strength by remember { mutableStateOf(medication.strength.orEmpty()) }
     var instructions by remember { mutableStateOf(medication.instructions.orEmpty()) }
-    var time by remember { mutableStateOf(medication.schedules.firstOrNull()?.timesLocal?.firstOrNull().orEmpty()) }
+    var drafts by remember { mutableStateOf(medication.schedules.map(ScheduleDraft::from).ifEmpty { listOf(ScheduleDraft(startDate = today)) }) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(vitaText(L10nKey.EDIT_MEDICATION)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.MEDICATION_NAME)) }, singleLine = true)
                 OutlinedTextField(strength, { strength = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED)) }, singleLine = true)
                 OutlinedTextField(instructions, { instructions = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.PRESCRIBER_INSTRUCTIONS)) })
-                OutlinedTextField(time, { time = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.DAILY_REMINDER_TIME)) }, singleLine = true)
+                ScheduleListEditor(drafts, today) { drafts = it }
             }
         },
-        confirmButton = { TextButton({ onSave(name, strength, instructions, time) }, enabled = name.isNotBlank()) { Text(vitaText(L10nKey.SAVE)) } },
+        confirmButton = { TextButton({ onSave(name, strength, instructions, drafts) }, enabled = name.isNotBlank() && drafts.all { it.errors().isEmpty() }) { Text(vitaText(L10nKey.SAVE)) } },
         dismissButton = { TextButton(onDismiss) { Text(vitaText(L10nKey.CANCEL)) } },
     )
 }
 
 @Composable
-private fun recurrenceLabel(recurrence: Recurrence, intervalDays: Int): String = vitaText(when (recurrence) {
+internal fun recurrenceLabel(recurrence: Recurrence, intervalDays: Int): String = vitaText(when (recurrence) {
     Recurrence.DAILY -> L10nKey.RECURRENCE_DAILY
     Recurrence.WEEKLY -> L10nKey.RECURRENCE_WEEKLY
     Recurrence.EVERY_N_DAYS -> L10nKey.RECURRENCE_EVERY_N_DAYS
@@ -353,7 +365,7 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
 }
 
 @Composable
-fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, backupFiles: BackupFileAccess? = null) {
+fun SettingsScreen(state: AppUiState, controller: AppController, scope: CoroutineScope, backupFiles: BackupFileAccess? = null, reminders: ReminderPlatformState? = null) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_SETTINGS), vitaText(L10nKey.SELECT_PROFILE_FIRST))
     ScreenColumn(vitaText(L10nKey.SETTINGS_EXPORT), vitaText(L10nKey.SETTINGS_SUBTITLE, data.profile.displayName)) {
         SectionHeading(vitaText(L10nKey.SECTION_OFFLINE_BOUNDARY))
@@ -388,6 +400,10 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
         }
         state.pdfExport?.let { pdf ->
             StatusPill(vitaText(L10nKey.PDF_READY_BYTES, pdf.bytes.size), Icons.Rounded.PictureAsPdf, MaterialTheme.vita.successContainer, MaterialTheme.vita.onSuccessContainer)
+        }
+        reminders?.let {
+            SectionHeading(vitaText(L10nKey.SECTION_REMINDERS))
+            ReminderPrivacySetting(it)
         }
         BackupSettingsSection(state, controller, backupFiles)
         DeviceHealthSettings(state, data, controller, scope)
