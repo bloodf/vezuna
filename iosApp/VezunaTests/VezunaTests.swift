@@ -129,7 +129,12 @@ final class VezunaTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "model-a")
         let values = try file.resourceValues(forKeys: [.isExcludedFromBackupKey, .fileProtectionKey])
         XCTAssertEqual(values.isExcludedFromBackup, true)
+        #if targetEnvironment(simulator)
+        // The simulator does not enforce data protection and reports CompleteUntilFirstUserAuthentication; devices must report .complete.
+        XCTAssertNotNil(values.fileProtection)
+        #else
         XCTAssertEqual(values.fileProtection, .complete)
+        #endif
     }
 
     func testOfflineLicenseCacheGraceAndExpiration() throws {

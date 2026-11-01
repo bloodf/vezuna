@@ -39,6 +39,18 @@ bash scripts/build-ios.sh            # Debug; CONFIGURATION=Release for release
 
 The script links the shared framework, syncs Compose resources, and runs `xcodebuild` with code signing disabled. It prints `IOS_BUILD_PASSED` on success.
 
+iOS XCTest suite (run the build first; it produces the shared framework):
+
+```bash
+bash scripts/test-ios.sh             # first available iPhone simulator; SIMULATOR_ID=<udid> to pick one
+```
+
+It runs `xcodebuild test -scheme Vezuna -destination 'platform=iOS Simulator,id=<udid>' -parallel-testing-enabled NO`. Notes on stability (#114):
+
+- Parallel testing is off: simulator clones intermittently failed to launch the host app.
+- The app is only a test host. `VezunaApp` detects `XCTestConfigurationFilePath` and skips booting the real vault and runtime.
+- The simulator does not enforce data protection and reports `CompleteUntilFirstUserAuthentication`; the file-protection test asserts `.complete` only on devices.
+
 ## Private samples
 
 `samples/` is git-ignored and, if present, is private. No build or test in this repository reads it: the Python importer tests and Android instrumentation tests use only synthetic data (`fixtures/lab_importer/`, `synthetic-lab.png`, and a PDF generated at run time in `NativeOcrInstrumentedTest`). Never publish private files or their names in tracked content.

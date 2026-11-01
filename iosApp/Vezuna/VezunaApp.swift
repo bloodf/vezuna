@@ -7,13 +7,18 @@ struct VezunaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .font(.vezunaBody)
-                .tint(Color.vezunaAction)
-                .environmentObject(model)
-                .onChange(of: scenePhase) { phase in
-                    if phase == .active { model.sceneBecameActive() }
-                }
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+                // Unit tests use the app only as a host: do not boot the real vault/runtime.
+                Color.clear
+            } else {
+                ContentView()
+                    .font(.vezunaBody)
+                    .tint(Color.vezunaAction)
+                    .environmentObject(model)
+                    .onChange(of: scenePhase) { phase in
+                        if phase == .active { model.sceneBecameActive() }
+                    }
+            }
         }
     }
 }
