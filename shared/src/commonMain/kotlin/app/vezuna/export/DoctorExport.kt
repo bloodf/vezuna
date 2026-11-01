@@ -171,12 +171,6 @@ object DoctorExportContent {
     }
 }
 
-internal fun formatDoctorChartValue(value: Double): String {
-    if (value == value.toLong().toDouble()) return value.toLong().toString()
-    val rounded = kotlin.math.round(value * 1_000_000.0) / 1_000_000.0
-    return rounded.toString()
-}
-
 /**
  * Headers follow the export language. Numeric columns, units and timestamps stay machine-readable
  * (canonical decimal point, ISO-8601) in every language, so a spreadsheet or script can read any export.

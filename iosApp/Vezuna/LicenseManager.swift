@@ -32,18 +32,22 @@ final class LicenseManager: NSObject, ObservableObject, NativeLicenseProvider {
 
     private let cacheURL: URL?
     private let now: () -> Date
+    /// Store verification; replaced in tests so no StoreKit call happens.
+    private let verify: () async throws -> Void
     private var lastAutoRefreshAt: Date?
 
     override init() {
         self.cacheURL = try? AppFileStorage.applicationSupportDirectory().appendingPathComponent("license-cache-v1.json")
         self.now = Date.init
+        self.verify = LicenseManager.verifyWithStore
         super.init()
         loadCache()
     }
 
-    init(cacheURL: URL, now: @escaping () -> Date) {
+    init(cacheURL: URL, now: @escaping () -> Date, verify: @escaping () async throws -> Void = LicenseManager.verifyWithStore) {
         self.cacheURL = cacheURL
         self.now = now
+        self.verify = verify
         super.init()
         loadCache()
     }
@@ -58,11 +62,12 @@ final class LicenseManager: NSObject, ObservableObject, NativeLicenseProvider {
     }
 
     /// Debounced refresh for launch and foreground. Never gates records or exports.
+    /// Failures stay quiet: without a cache the state remains `.inactive`, with one the offline grace applies.
     @MainActor
     func refreshIfDue() async {
-        guard shouldAutoRefresh() else { return }
+        guard shouldAutoRefresh(), !refreshing else { return }
+        await refresh(manual: false)
         lastAutoRefreshAt = now()
-        await refreshFromStore()
     }
 
     func shouldAutoRefresh() -> Bool {
@@ -71,28 +76,38 @@ final class LicenseManager: NSObject, ObservableObject, NativeLicenseProvider {
         return elapsed < 0 || elapsed >= Self.autoRefreshInterval
     }
 
+    /// Explicit user request (License screen): failures are reported as `.verificationFailed`.
     @MainActor
     func refreshFromStore() async {
         guard !refreshing else { return }
+        await refresh(manual: true)
+    }
+
+    @MainActor
+    private func refresh(manual: Bool) async {
         refreshing = true
         defer { refreshing = false }
         do {
-            let result = try await AppTransaction.shared
-            switch result {
-            case .verified:
-                let verifiedAt = now()
-                try saveCache(CachedLicense(lastVerifiedAt: verifiedAt))
-                state = .activeVerified
-            case .unverified(_, let error):
-                throw error
-            }
+            try await verify()
+            try saveCache(CachedLicense(lastVerifiedAt: now()))
+            state = .activeVerified
         } catch {
             if let cache = readCache(), now().timeIntervalSince(cache.lastVerifiedAt) <= Self.offlineGrace {
                 state = .activeOfflineUntil(cache.lastVerifiedAt.addingTimeInterval(Self.offlineGrace))
-            } else {
+            } else if manual {
                 state = .verificationFailed(error.localizedDescription)
                 IosRuntime.shared.lockPremiumFeatures()
+            } else {
+                state = .inactive
+                IosRuntime.shared.lockPremiumFeatures()
             }
+        }
+    }
+
+    private static func verifyWithStore() async throws {
+        switch try await AppTransaction.shared {
+        case .verified: return
+        case .unverified(_, let error): throw error
         }
     }
 

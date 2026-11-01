@@ -1,15 +1,12 @@
 package app.vezuna
 
 import android.app.Application
-import android.util.Log
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.data.restoreWithVitals
 import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.llm.AndroidModelFileStore
-import app.vezuna.llm.ModelCatalog
-import app.vezuna.llm.loadBundledModelCatalog
 import app.vezuna.domain.ProfileData
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.platform.currentInstant
@@ -26,7 +23,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
@@ -44,16 +40,6 @@ class VezunaApplication : Application() {
         private set
     lateinit var healthSync: DeviceVitalsSync
         private set
-
-    /** Same bundled catalog file as iOS. An unreadable file leaves the catalog empty and is logged; the AI screens then say no model is available. */
-    val modelCatalog: ModelCatalog by lazy {
-        try {
-            runBlocking { loadBundledModelCatalog() }
-        } catch (error: Exception) {
-            Log.e("VezunaApplication", "Model catalog unreadable", error)
-            ModelCatalog.unconfigured()
-        }
-    }
 
     private val mutableVaultState = MutableStateFlow<VaultState>(VaultState.Loading)
     /** Nothing may touch the repository (or create a default profile) until this reaches [VaultState.Ready]. */

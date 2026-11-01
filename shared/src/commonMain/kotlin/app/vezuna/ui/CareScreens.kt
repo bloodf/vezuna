@@ -242,8 +242,12 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
                 TextButton(onClick = { controller.navigate(AppScreen.Models) }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.MANAGE_LOCAL_MODELS), color = MaterialTheme.vita.accentOnInk) }
             }
         }
-        if (controller.modelManager.catalog.packs.isEmpty()) {
-            EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
+        val catalogState by controller.modelManager.state.collectAsState()
+        catalogState.catalogError?.let { InlineNotice(it.resolve(), Icons.Rounded.SmartToy) }
+        if (catalogState.catalog.packs.isEmpty()) {
+            if (catalogState.catalogError == null) {
+                EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
+            }
             return@ScreenColumn
         }
         SectionHeading(vitaText(L10nKey.RECORDS_IN_CONTEXT), vitaText(L10nKey.RECORDS_SELECTED, state.selectedObservationIds.size))
@@ -312,10 +316,11 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                 Text(vitaText(L10nKey.VERIFYING_OR_LOADING_MODEL))
             }
         }
-        if (controller.modelManager.catalog.packs.isEmpty()) {
+        modelState.catalogError?.let { InlineNotice(it.resolve(), Icons.Rounded.SmartToy) }
+        if (modelState.catalog.packs.isEmpty() && modelState.catalogError == null) {
             EmptyState(vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION), Icons.Rounded.SmartToy)
         }
-        controller.modelManager.catalog.packs.forEach { pack ->
+        modelState.catalog.packs.forEach { pack ->
             val installed = modelState.installed.firstOrNull { it.pack.modelId == pack.modelId }
             Card(Modifier.fillMaxWidth().vitaAnimateContentSize()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

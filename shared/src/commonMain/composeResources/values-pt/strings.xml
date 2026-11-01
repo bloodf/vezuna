@@ -356,4 +356,5 @@ iOS: %2$s</string>
     <string name="export_language">Idioma da exportação</string>
     <string name="export_language_device">Idioma do app</string>
     <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
+    <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
 </resources>

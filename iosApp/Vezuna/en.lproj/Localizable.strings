@@ -75,7 +75,6 @@
 "storage_open_failed" = "Could not open encrypted Vezuna storage";
 "action_failed" = "Action failed";
 "select_profile_first" = "Select a profile first";
-"model_catalog_read_failed" = "Model catalog could not be read";
 "model_catalog_invalid" = "Model catalog is invalid";
 
 "third_party_notices" = "Third-party notices";

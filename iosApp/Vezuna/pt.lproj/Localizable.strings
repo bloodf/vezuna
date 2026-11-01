@@ -75,7 +75,6 @@
 "storage_open_failed" = "Não foi possível abrir o armazenamento criptografado do Vezuna";
 "action_failed" = "A ação falhou";
 "select_profile_first" = "Selecione um perfil primeiro";
-"model_catalog_read_failed" = "Não foi possível ler o catálogo de modelos";
 "model_catalog_invalid" = "O catálogo de modelos é inválido";
 
 "third_party_notices" = "Avisos de terceiros";
