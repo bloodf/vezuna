@@ -10,6 +10,7 @@ import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.vezuna.NativeKey
+import app.vezuna.NativeText
 import app.vezuna.R
 import app.vezuna.nativeMessage
 import app.vezuna.resolve
@@ -90,7 +91,8 @@ class MedicationNotificationScheduler(private val context: Context) {
         alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at.toEpochMilli(), pending)
     }
 
-    fun showReminder(intent: Intent) {
+    /** Re-posts the same notification (actions intact) with a note, so an unrecordable action is never silently dropped. */
+    fun showReminder(intent: Intent, note: NativeText? = null) {
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
         val medicationName = intent.getStringExtra(EXTRA_MEDICATION_NAME).orEmpty()
         val content = PendingIntent.getActivity(
@@ -105,6 +107,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setContentText(medicationName)
             .setContentIntent(content)
             .setAutoCancel(true)
+            .setSubText(note?.resolve(context))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, nativeMessage(NativeKey.TAKEN).resolve(context), actionIntent(intent, DoseAction.TAKEN, notificationId + 1))
             .addAction(0, nativeMessage(NativeKey.SKIP).resolve(context), actionIntent(intent, DoseAction.SKIP, notificationId + 2))

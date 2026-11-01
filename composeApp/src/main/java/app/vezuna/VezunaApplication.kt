@@ -8,11 +8,19 @@ import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.security.AndroidSecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultState
+import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 class VezunaApplication : Application() {
@@ -32,21 +40,55 @@ class VezunaApplication : Application() {
 
     val modelCatalog: ModelCatalog = ModelCatalog.unconfigured()
 
+    private val mutableVaultState = MutableStateFlow<VaultState>(VaultState.Loading)
+    /** Nothing may touch the repository (or create a default profile) until this reaches [VaultState.Ready]. */
+    val vaultState: StateFlow<VaultState> = mutableVaultState.asStateFlow()
+
     override fun onCreate() {
         super.onCreate()
         vault = AndroidSecureVault(File(noBackupFilesDir, "vault"))
         repository = PersistentVezunaRepository(vault)
-        // Restore before AppController checks profiles; otherwise a fresh default profile could race restoration.
-        runBlocking { repository.load() }
+        loadVault { repository.load() }
         modelFiles = AndroidModelFileStore(this)
         notifications = MedicationNotificationScheduler(this)
         notifications.createChannel()
         healthConnect = AndroidHealthConnectImporter(this)
         healthSync = HealthConnectSyncCoordinator(healthConnect, vault)
         applicationScope.launch {
+            vaultState.first { it is VaultState.Ready }
             repository.revision.collect {
                 notifications.rescheduleAll(repository)
             }
         }
+    }
+
+    fun retryVault() = loadVault { repository.load() }
+
+    /** Explicit user reset from the recovery screen; the unreadable files are quarantined, not deleted. */
+    fun resetVault() = loadVault { repository.resetAfterFailure() }
+
+    /** True once the repository is usable; false when the vault needs recovery. Safe from receivers. */
+    suspend fun awaitRepository(): Boolean =
+        withTimeoutOrNull(RECEIVER_WAIT_MS) { vaultState.first { it !is VaultState.Loading } } is VaultState.Ready
+
+    private fun loadVault(action: suspend () -> Unit) {
+        mutableVaultState.value = VaultState.Loading
+        applicationScope.launch {
+            mutableVaultState.value = try {
+                action()
+                VaultState.Ready
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: VaultUnreadableException) {
+                VaultState.Recovery(error.failure)
+            } catch (error: Exception) {
+                VaultState.Recovery(VaultFailure.UNAVAILABLE)
+            }
+        }
+    }
+
+    private companion object {
+        /** Receivers run inside goAsync(), which the system cuts off after roughly ten seconds. */
+        const val RECEIVER_WAIT_MS = 8_000L
     }
 }

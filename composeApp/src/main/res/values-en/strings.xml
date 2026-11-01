@@ -7,6 +7,7 @@
     <string name="taken">Taken</string>
     <string name="skip">Skip</string>
     <string name="minutes_snooze">Snooze 10 min</string>
+    <string name="dose_record_unavailable">Could not record this dose. Open Vezuna and try again.</string>
     <string name="reminders_enabled">Medication reminders are enabled for schedules you recorded.</string>
     <string name="notification_permission_denied">Notification permission was not granted. Recorded schedules remain saved; enable notifications to receive reminders.</string>
     <string name="health_connect_permission_denied">Health Connect read permissions were not granted. No health metrics were imported.</string>
