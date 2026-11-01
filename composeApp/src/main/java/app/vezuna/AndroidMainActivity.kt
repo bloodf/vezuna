@@ -11,6 +11,8 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.health.connect.client.HealthConnectClient
@@ -28,9 +30,12 @@ import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.security.BackupService
 import app.vezuna.security.CipherEnvelope
+import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
+import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -82,8 +87,14 @@ class AndroidMainActivity : ComponentActivity() {
             InstalledModelManager(app.modelCatalog, app.modelFiles, llm),
             LocalHealthChat(app.repository, llm),
         )
-        lifecycleScope.launch { controller.initialize() }
+        // Only after the vault is readable: initialize() may create a default profile.
+        lifecycleScope.launch {
+            app.vaultState.first { it is VaultState.Ready }
+            controller.initialize()
+        }
         setContent {
+            val vaultState by app.vaultState.collectAsState()
+            VaultGate(vaultState, onRetry = app::retryVault, onReset = app::resetVault) {
             VezunaAndroidApp(
                 controller = controller,
                 sourcePicker = sourcePicker,
@@ -100,6 +111,7 @@ class AndroidMainActivity : ComponentActivity() {
                 onSaveExport = ::saveExport,
                 onDismissMessage = { mutableMessage.value = null },
             )
+            }
         }
     }
 

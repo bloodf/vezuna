@@ -233,6 +233,17 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.REVIEW_TRACKING to Res.string.review_tracking,
     L10nKey.VERIFYING_OR_LOADING_MODEL to Res.string.verifying_or_loading_model,
     L10nKey.MODEL_SHA_REQUIRED to Res.string.model_sha_required,
+    L10nKey.VAULT_RECOVERY_TITLE to Res.string.vault_recovery_title,
+    L10nKey.VAULT_RECOVERY_BODY_CORRUPT to Res.string.vault_recovery_body_corrupt,
+    L10nKey.VAULT_RECOVERY_BODY_KEY_INVALIDATED to Res.string.vault_recovery_body_key_invalidated,
+    L10nKey.VAULT_RECOVERY_BODY_KEY_UNAVAILABLE to Res.string.vault_recovery_body_key_unavailable,
+    L10nKey.VAULT_RECOVERY_KEPT_NOTE to Res.string.vault_recovery_kept_note,
+    L10nKey.VAULT_RECOVERY_RETRY to Res.string.vault_recovery_retry,
+    L10nKey.VAULT_RECOVERY_RESET to Res.string.vault_recovery_reset,
+    L10nKey.VAULT_RECOVERY_RESET_CONFIRM_TITLE to Res.string.vault_recovery_reset_confirm_title,
+    L10nKey.VAULT_RECOVERY_RESET_CONFIRM_BODY to Res.string.vault_recovery_reset_confirm_body,
+    L10nKey.VAULT_RECOVERY_RESET_CONFIRM to Res.string.vault_recovery_reset_confirm,
+    L10nKey.VAULT_RECOVERY_CANCEL to Res.string.vault_recovery_cancel,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

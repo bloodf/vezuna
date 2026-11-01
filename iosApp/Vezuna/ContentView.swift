@@ -37,6 +37,12 @@ struct ContentView: View {
                             }
                         }
                 }
+            } else if model.needsVaultRecovery {
+                VaultRecoveryHostView(
+                    onRetry: { model.recoverVault(reset: false) },
+                    onReset: { model.recoverVault(reset: true) }
+                )
+                .ignoresSafeArea()
             } else if let error = model.startupError {
                 VStack(spacing: 12) {
                     Image(systemName: "lock.trianglebadge.exclamationmark").font(.largeTitle)
@@ -70,6 +76,17 @@ struct ContentView: View {
 struct ComposeHostView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         ComposeBridgeKt.makeComposeViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
+struct VaultRecoveryHostView: UIViewControllerRepresentable {
+    let onRetry: () -> Void
+    let onReset: () -> Void
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        ComposeBridgeKt.makeVaultRecoveryViewController(onRetry: onRetry, onReset: onReset)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

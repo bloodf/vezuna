@@ -22,8 +22,10 @@ class ReminderReceiver : BroadcastReceiver() {
         app.applicationScope.launch {
             try {
                 app.notifications.showReminder(intent)
-                app.notifications.rescheduleAll(app.repository)
-                DashboardRefreshSignal.notifyRepositoryChanged()
+                if (app.awaitRepository()) {
+                    app.notifications.rescheduleAll(app.repository)
+                    DashboardRefreshSignal.notifyRepositoryChanged()
+                }
             } finally {
                 pending.finish()
             }
@@ -38,13 +40,16 @@ class DoseActionReceiver : BroadcastReceiver() {
         app.applicationScope.launch {
             try {
                 val action = DoseAction.valueOf(intent.action.orEmpty())
+                if (action != DoseAction.SNOOZE && !app.awaitRepository()) return@launch
                 when (action) {
                     DoseAction.SNOOZE -> app.notifications.snooze(intent)
                     DoseAction.TAKEN, DoseAction.SKIP -> recordDose(app, intent, action)
                 }
                 app.notifications.cancel(intent.getIntExtra(MedicationNotificationScheduler.EXTRA_NOTIFICATION_ID, 0))
-                app.notifications.rescheduleAll(app.repository)
-                DashboardRefreshSignal.notifyRepositoryChanged()
+                if (app.awaitRepository()) {
+                    app.notifications.rescheduleAll(app.repository)
+                    DashboardRefreshSignal.notifyRepositoryChanged()
+                }
             } finally {
                 pending.finish()
             }
@@ -86,8 +91,10 @@ class RescheduleReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                app.notifications.rescheduleAll(app.repository)
-                DashboardRefreshSignal.notifyRepositoryChanged()
+                if (app.awaitRepository()) {
+                    app.notifications.rescheduleAll(app.repository)
+                    DashboardRefreshSignal.notifyRepositoryChanged()
+                }
             } catch (error: CancellationException) {
                 throw error
             } finally {

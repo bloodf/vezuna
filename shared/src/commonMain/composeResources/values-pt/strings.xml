@@ -194,6 +194,17 @@ iOS: %2$s</string>
     <string name="trend_incompatible_units">Confirme pelo menos um resultado. Somente unidades normalizadas correspondentes são exibidas juntas no gráfico.</string>
     <string name="trends">Tendências</string>
     <string name="unreviewed_ocr_candidate">Candidato de OCR não revisado</string>
+    <string name="vault_recovery_body_corrupt">O arquivo criptografado que guarda seus registros está danificado ou incompleto, e nenhuma cópia anterior pôde ser lida.</string>
+    <string name="vault_recovery_body_key_invalidated">A chave de segurança do dispositivo que protege seus registros não é mais válida. Isso pode ocorrer após alterar o bloqueio de tela ou a biometria.</string>
+    <string name="vault_recovery_body_key_unavailable">A chave que protege seus registros está ausente ou ilegível neste dispositivo.</string>
+    <string name="vault_recovery_cancel">Cancelar</string>
+    <string name="vault_recovery_kept_note">Nada é apagado automaticamente. Os arquivos ilegíveis permanecem neste dispositivo em uma pasta separada.</string>
+    <string name="vault_recovery_reset">Começar com um cofre vazio</string>
+    <string name="vault_recovery_reset_confirm">Começar vazio</string>
+    <string name="vault_recovery_reset_confirm_body">O Vezuna abrirá sem perfis nem registros. Os arquivos ilegíveis serão mantidos à parte, mas o app não conseguirá lê-los.</string>
+    <string name="vault_recovery_reset_confirm_title">Começar com um cofre vazio?</string>
+    <string name="vault_recovery_retry">Tentar novamente</string>
+    <string name="vault_recovery_title">Não foi possível abrir seus registros</string>
     <string name="vezuna">Vezuna</string>
     <string name="workflow_accessibility">Fluxo de %1$s</string>
     <string name="workflow_import_review">Importar ou revisar um exame</string>
