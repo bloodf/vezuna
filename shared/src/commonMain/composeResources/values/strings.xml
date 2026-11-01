@@ -402,4 +402,5 @@ iOS: %2$s</string>
         <item quantity="one">%1$d result</item>
         <item quantity="other">%1$d results</item>
     </plurals>
+    <string name="source_document_name">Source document: %1$s</string>
 </resources>

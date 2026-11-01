@@ -471,7 +471,7 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         Text(vitaText(L10nKey.PER_RESULT_REFERENCE, uiRangeText(observation.referenceRange)))
         Text(vitaText(L10nKey.RANGE_ASSESSMENT, rangeLabel(LabComparator.assess(observation))))
         Text(vitaText(L10nKey.CHANGE_FROM_PREVIOUS, if (comparison == null) vitaText(L10nKey.NO_PREVIOUS_RESULT) else changeLabel(comparison.direction)))
-        Text(vitaText(L10nKey.SOURCE_REPORT, observation.reportId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SourceReportInfo(observation, data)
         VitaButton(vitaText(L10nKey.EDIT_RESULT), Icons.Rounded.Edit, { editing = true }, outlined = true)
         ResultHistory(observation)
         LinkRow(vitaText(L10nKey.BACK_TO_LAB_RECORDS)) { controller.navigate(AppScreen.Labs) }
