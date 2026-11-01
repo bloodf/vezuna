@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import TechExperience from './TechExperience.astro';
+import ProductWorkspace from './ProductWorkspace.astro';
 import { marketingCopy } from '../data/marketing';
 import { localizedPath, marketingAlternates, repositoryUrl, type Locale } from '../lib/i18n';
 
@@ -9,121 +9,101 @@ const { locale } = Astro.props;
 const copy = marketingCopy[locale];
 const path = localizedPath(locale);
 const descriptions = {
-  en: 'Organize household lab reports, medications, and health records on your device. Check OCR drafts, compare confirmed results, and prepare PDF or CSV exports.',
-  'pt-br': 'Organize exames, medicamentos e registros de saúde da família no seu dispositivo. Revise OCR, compare resultados confirmados e exporte em PDF ou CSV.',
-  es: 'Organiza informes, medicamentos y registros de salud familiares en tu dispositivo. Revisa OCR, compara resultados confirmados y exporta en PDF o CSV.',
+  en: 'Organize household lab reports, medication schedules, weight, heart rate, steps, and health records on your device.',
+  'pt-br': 'Organize exames, horários de medicamentos, peso, frequência cardíaca, passos e registros de saúde da família no seu dispositivo.',
+  es: 'Organiza exámenes, horarios de medicamentos, peso, frecuencia cardíaca, pasos y registros de salud familiares en tu dispositivo.',
 };
 ---
-<BaseLayout locale={locale} title="Vezuna" description={descriptions[locale]} path={path} alternates={marketingAlternates} darkHeader marketing>
+<BaseLayout locale={locale} title="Vezuna" description={descriptions[locale]} path={path} alternates={marketingAlternates} marketing>
   <main id="main-content">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">{copy.hero.eyebrow}</p>
-        <div>
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">{copy.hero.eyebrow}</p>
           <h1 id="hero-title">{copy.hero.title}</h1>
           <p class="hero-intro">{copy.hero.body}</p>
-        </div>
-        <div class="hero-actions">
           <div class="button-row">
-            <a class="button button--aqua" href={localizedPath(locale, 'docs')}>{copy.hero.primary}</a>
-            <a class="button button--outline-light" href={repositoryUrl} rel="external">{copy.hero.secondary}</a>
+            <a class="button button--primary" href="#workspace">{copy.hero.primary}</a>
+            <a class="text-link" href={localizedPath(locale, 'docs')}>{copy.hero.secondary}</a>
           </div>
           <p class="hero-note">{copy.hero.note}</p>
         </div>
+        <div id="workspace">
+          <ProductWorkspace copy={copy} />
+        </div>
       </div>
-      <TechExperience tech={copy.tech} availability={copy.availability} />
-      <div class="screenshot-gallery" role="group" aria-label={copy.hero.galleryLabel}>
-        {copy.hero.screenshots.map((screen, index) => (
-          <figure class="screenshot" data-tilt>
-            <div class="screenshot-frame">
-              <img src={screen.src} width="1080" height="2340" alt={screen.alt} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : 'auto'} data-screenshot />
-            </div>
+      <ul class="fact-strip" aria-label="Product facts">
+        {copy.facts.map((fact) => <li>{fact}</li>)}
+      </ul>
+    </section>
+
+    <section class="journey" id="journey" aria-labelledby="journey-title">
+      <div class="journey-copy">
+        <p class="eyebrow">{copy.journey.eyebrow}</p>
+        <h2 id="journey-title">{copy.journey.title}</h2>
+        <ol class="journey-steps">
+          {copy.journey.steps.map((step) => (
+            <li><h3>{step.title}</h3><p>{step.body}</p></li>
+          ))}
+        </ol>
+      </div>
+      <figure class="journey-screen">
+        <img src="/assets/android-labs.png" width="1080" height="2340" loading="lazy" alt={copy.gallery.screenshots[1].alt} />
+        <figcaption>{copy.gallery.caption}</figcaption>
+      </figure>
+    </section>
+
+    <section class="app-gallery" id="gallery" aria-labelledby="gallery-title">
+      <header class="section-heading">
+        <p class="eyebrow">Vezuna</p>
+        <h2 id="gallery-title">{copy.gallery.title}</h2>
+        <p>{copy.gallery.caption}</p>
+      </header>
+      <div class="gallery-grid">
+        {copy.gallery.screenshots.map((screen) => (
+          <figure class="gallery-item">
+            <img src={screen.src} width="1080" height="2340" loading="lazy" alt={screen.alt} />
             <figcaption>{screen.label}</figcaption>
           </figure>
         ))}
       </div>
-      <div class="hero-provenance"><p>{copy.hero.caption}</p></div>
-    </section>
-
-    <section class="story" id="how-it-works" aria-labelledby="story-title">
-      <div class="story-grid">
-        <div>
-          <header class="story-heading">
-            <p class="eyebrow">{copy.story.eyebrow}</p>
-            <h2 id="story-title">{copy.story.title}</h2>
-            <p>{copy.story.intro}</p>
-          </header>
-          <ol class="story-steps">
-            {copy.story.steps.map((step) => (
-              <li class="story-step"><h3>{step.title}</h3><p>{step.body}</p></li>
-            ))}
-          </ol>
-          <p class="confirmation-note">{copy.story.confirmation}</p>
-        </div>
-        <figure class="story-visual">
-          <img src="/assets/android-labs.png" width="1080" height="2340" loading="lazy" alt={copy.hero.screenshots[1].alt} />
-          <figcaption>{copy.hero.caption}</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section class="routines" id="routines" aria-labelledby="routines-title">
-      <div class="routines-inner">
-        <header class="routines-heading">
-          <p class="eyebrow">{copy.routines.eyebrow}</p>
-          <h2 id="routines-title">{copy.routines.title}</h2>
-          <p class="section-intro">{copy.routines.intro}</p>
-        </header>
-        <div class="routine-layout">
-          <ul class="routine-list">
-            {copy.routines.items.map((item, index) => (
-              <li class="routine-item">
-                <img src={['/assets/medication.svg', '/assets/calendar.svg', '/assets/records.svg'][index]} width="28" height="28" alt="" />
-                <div><h3>{item.title}</h3><p>{item.body}</p></div>
-              </li>
-            ))}
-          </ul>
-          <aside class="day-example" aria-labelledby="example-title">
-            <p class="example-label">{copy.routines.exampleLabel}</p>
-            <h3 id="example-title">{copy.routines.exampleTitle}</h3>
-            <p class="example-note">{copy.routines.exampleNote}</p>
-            <ol class="schedule">
-              {copy.routines.schedule.map((item) => (
-                <li><time>{item.time}</time><h4>{item.title}</h4><p>{item.detail}</p><span>{item.state}</span></li>
-              ))}
-            </ol>
-          </aside>
-        </div>
-      </div>
     </section>
 
     <section class="privacy-section" id="privacy" aria-labelledby="privacy-title">
-      <div class="privacy-inner">
-        <header class="privacy-heading">
-          <p class="eyebrow">{copy.privacy.eyebrow}</p>
-          <h2 id="privacy-title">{copy.privacy.title}</h2>
-          <p>{copy.privacy.intro}</p>
-        </header>
-        <div class="privacy-points">
-          {copy.privacy.items.map((item) => (
-            <article class="privacy-point"><h3>{item.title}</h3><p>{item.body}</p></article>
-          ))}
+      <header class="section-heading">
+        <p class="eyebrow">Privacy</p>
+        <h2 id="privacy-title">{copy.privacy.title}</h2>
+        <p>{copy.privacy.body}</p>
+      </header>
+      <div class="privacy-points">
+        {copy.privacy.points.map((point) => (
+          <article><h3>{point.title}</h3><p>{point.body}</p></article>
+        ))}
+      </div>
+    </section>
+
+    <section class="availability" aria-labelledby="availability-title">
+      <div>
+        <p class="eyebrow">Availability</p>
+        <h2 id="availability-title">{copy.availability.title}</h2>
+        <p>{copy.availability.body}</p>
+      </div>
+      <div class="availability-actions">
+        <a class="button button--primary" href={repositoryUrl} rel="external">{copy.availability.github}</a>
+        <div class="store-states" aria-label={copy.availability.pending}>
+          <span class="store-pending">{copy.availability.appStore}</span>
+          <span class="store-pending">{copy.availability.googlePlay}</span>
         </div>
-        <p class="sharing-boundary">{copy.privacy.boundary}</p>
+        <p class="availability-pending">{copy.availability.pending}</p>
       </div>
     </section>
 
     <section class="faq" id="faq" aria-labelledby="faq-title">
-      <div class="faq-inner">
-        <header class="faq-heading"><p class="eyebrow">{copy.faq.eyebrow}</p><h2 id="faq-title">{copy.faq.title}</h2></header>
-        <div class="faq-list">
-          {copy.faq.items.map((item, index) => (
-            <details open={index === 0}>
-              <summary>{item.question}</summary>
-              <div class="faq-answer"><p>{item.answer}</p></div>
-            </details>
-          ))}
-        </div>
+      <header class="section-heading"><p class="eyebrow">FAQ</p><h2 id="faq-title">{copy.faq.title}</h2></header>
+      <div class="faq-list">
+        {copy.faq.items.map((item) => (
+          <article class="faq-item"><h3>{item.question}</h3><p>{item.answer}</p></article>
+        ))}
       </div>
     </section>
   </main>

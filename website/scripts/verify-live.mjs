@@ -18,7 +18,9 @@ for (const route of routes) {
   assert(html.includes('rel="canonical"'), `${route} missing canonical`);
   assert(html.includes('<main'), `${route} missing main content`);
   if (['/', '/pt-br', '/es'].includes(route)) {
-    assert(html.includes('data-health-scene'), `${route} is missing the 3D health scene`);
+    assert(html.includes('data-workspace'), `${route} is missing the health-record workspace`);
+    assert(html.includes('device-metric-row'), `${route} is missing device health metrics`);
+    assert(!html.includes('data-health-scene'), `${route} still contains the discarded abstract scene`);
     assert(html.includes('store-pending'), `${route} is missing honest store availability states`);
   }
   assert(!/Deployment not found|404: NOT_FOUND|This page could not be found/.test(html), `${route} served an error page`);
