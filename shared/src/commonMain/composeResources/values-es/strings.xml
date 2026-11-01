@@ -304,8 +304,8 @@ iOS: %2$s</string>
         <item quantity="other">%1$d candidatos necesitan tu confirmación antes de incluirse en tendencias o IA.</item>
     </plurals>
     <plurals name="trend_chart_accessibility">
-        <item quantity="one">Gráfico de tendencia con %1$d resultado confirmado, unidad %2$s</item>
-        <item quantity="other">Gráfico de tendencia con %1$d resultados confirmados, unidad %2$s</item>
+        <item quantity="one">Gráfico de tendencia con %1$d resultado confirmado, unidad %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico de tendencia con %1$d resultados confirmados, unidad %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <plurals name="unreviewed_candidates_added">
         <item quantity="one">%1$d candidato sin revisar añadido; confirma cada resultado individualmente</item>
@@ -367,8 +367,8 @@ iOS: %2$s</string>
     <string name="vital_unit_kg">kg</string>
     <string name="vitals_retention_note">Las lecturas se conservan durante un año. La frecuencia cardíaca y los pasos con más de un mes se resumen por día. Son valores registrados, no una evaluación.</string>
     <plurals name="vitals_chart_accessibility">
-        <item quantity="one">Gráfico con %1$d lectura, unidad %2$s</item>
-        <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s</item>
+        <item quantity="one">Gráfico con %1$d lectura, unidad %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico con %1$d lecturas, unidad %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <!-- App lock -->
     <string name="app_lock_title">Bloqueo de la app</string>
