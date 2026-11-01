@@ -96,6 +96,9 @@ class AndroidMainActivity : ComponentActivity() {
             app.vaultState.first { it is VaultState.Ready }
             controller.initialize()
         }
+        val messageFlow = mutableMessage.asStateFlow()
+        val exportFlow = mutableExport.asStateFlow()
+        val busyFlow = mutableBusy.asStateFlow()
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
@@ -110,9 +113,9 @@ class AndroidMainActivity : ComponentActivity() {
                 controller = controller,
                 sourcePicker = sourcePicker,
                 modelLoader = modelLoader,
-                messageFlow = mutableMessage.asStateFlow(),
-                exportFlow = mutableExport.asStateFlow(),
-                busyFlow = mutableBusy.asStateFlow(),
+                messageFlow = messageFlow,
+                exportFlow = exportFlow,
+                busyFlow = busyFlow,
                 onHealthConnect = ::openHealthConnect,
                 onReminders = ::requestReminders,
                 backupFiles = backupFiles.access,
