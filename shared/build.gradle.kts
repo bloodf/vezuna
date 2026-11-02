@@ -80,11 +80,14 @@ kover {
                     "app.vezuna.importer",
                     "app.vezuna.export",
                     "app.vezuna.health",
+                    "app.vezuna.security",
                 )
             }
             excludes {
                 annotatedBy("androidx.compose.runtime.Composable")
-                classes("*.generated.*", "*\$\$serializer", "*ComposableSingletons*", "app.vezuna.export.Android*")
+                classes("*.generated.*", "*\$\$serializer", "*ComposableSingletons*", "app.vezuna.export.Android*",
+                    // Android-only security glue (Keystore vault, generational store); not reachable from jvm tests
+                    "app.vezuna.security.Android*", "app.vezuna.security.GenerationalFileStore*", "app.vezuna.security.BackupCrypto_androidKt")
             }
         }
         verify {
