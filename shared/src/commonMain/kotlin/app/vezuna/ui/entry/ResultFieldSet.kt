@@ -1,9 +1,7 @@
 package app.vezuna.ui.entry
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,35 +9,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.CollectionDateField
 import app.vezuna.ui.VezunaTokens
+import app.vezuna.ui.components.FieldPair
 import app.vezuna.ui.components.LabeledField
 import app.vezuna.ui.components.SegmentedControl
 import kotlinx.datetime.Instant
-
-/** Paired fields side by side while they fit; stacked on narrow windows and large text so labels never truncate. */
-@Composable
-fun FieldPair(first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stack = maxWidth < 360.dp || LocalDensity.current.fontScale >= 1.3f
-        if (stack) {
-            Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd)) {
-                first(Modifier)
-                second(Modifier)
-            }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd)) {
-                first(Modifier.weight(1f))
-                second(Modifier.weight(1f))
-            }
-        }
-    }
-}
 
 @Composable
 fun FieldError.text(): String = vitaText(
@@ -97,12 +75,12 @@ fun ResultFieldSet(
             )
         } else {
             FieldPair(
-                { m -> LabeledField(vitaText(L10nKey.ENTRY_VALUE), draft.value, { onChange(draft.copy(value = it)) }, m.focusRequester(focus[2]), error = errors.value?.text(), keyboardType = KeyboardType.Decimal, enabled = valueEnabled) },
-                { m -> LabeledField(vitaText(L10nKey.ENTRY_UNIT), draft.unit, { onChange(draft.copy(unit = it)) }, m.focusRequester(focus[3]), error = errors.unit?.text()) },
+                first = { m -> LabeledField(vitaText(L10nKey.ENTRY_VALUE), draft.value, { onChange(draft.copy(value = it)) }, m.focusRequester(focus[2]), error = errors.value?.text(), keyboardType = KeyboardType.Decimal, enabled = valueEnabled) },
+                second = { m -> LabeledField(vitaText(L10nKey.ENTRY_UNIT), draft.unit, { onChange(draft.copy(unit = it)) }, m.focusRequester(focus[3]), error = errors.unit?.text()) },
             )
             FieldPair(
-                { m -> LabeledField(vitaText(L10nKey.ENTRY_REFERENCE_LOW), draft.lower, { onChange(draft.copy(lower = it)) }, m.focusRequester(focus[4]), error = errors.lower?.text(), keyboardType = KeyboardType.Decimal) },
-                { m -> LabeledField(vitaText(L10nKey.ENTRY_REFERENCE_HIGH), draft.upper, { onChange(draft.copy(upper = it)) }, m.focusRequester(focus[5]), error = errors.upper?.text(), keyboardType = KeyboardType.Decimal) },
+                first = { m -> LabeledField(vitaText(L10nKey.ENTRY_REFERENCE_LOW), draft.lower, { onChange(draft.copy(lower = it)) }, m.focusRequester(focus[4]), error = errors.lower?.text(), keyboardType = KeyboardType.Decimal) },
+                second = { m -> LabeledField(vitaText(L10nKey.ENTRY_REFERENCE_HIGH), draft.upper, { onChange(draft.copy(upper = it)) }, m.focusRequester(focus[5]), error = errors.upper?.text(), keyboardType = KeyboardType.Decimal) },
             )
         }
         LabeledField(vitaText(L10nKey.REFERENCE_TEXT_OPTIONAL), draft.rangeText, { onChange(draft.copy(rangeText = it)) }, hint = vitaText(L10nKey.ENTRY_REFERENCE_TEXT_HINT))
