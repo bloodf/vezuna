@@ -9,7 +9,7 @@ import app.vezuna.localization.UserText
 import app.vezuna.ui.ExtractedCandidate
 import app.vezuna.ui.PickedSource
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

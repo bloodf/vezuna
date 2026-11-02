@@ -5,7 +5,7 @@ import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.VitalsWindow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 

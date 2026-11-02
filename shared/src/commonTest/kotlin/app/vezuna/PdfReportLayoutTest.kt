@@ -9,7 +9,7 @@ import app.vezuna.export.PdfCanvas
 import app.vezuna.export.PdfColor
 import app.vezuna.export.PdfReportLayout
 import app.vezuna.export.PathOp
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

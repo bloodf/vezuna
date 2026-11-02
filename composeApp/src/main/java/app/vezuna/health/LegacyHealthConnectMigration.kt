@@ -6,7 +6,7 @@ import app.vezuna.domain.WeightReading
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.CancellationException
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.logging.Level

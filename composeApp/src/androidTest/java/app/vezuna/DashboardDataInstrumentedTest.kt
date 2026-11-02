@@ -52,7 +52,7 @@ class DashboardDataInstrumentedTest {
         val profile = Profile(
             "dashboard-profile-$suffix",
             "AAA Dashboard QA $suffix",
-            createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(System.currentTimeMillis()),
+            createdAt = kotlin.time.Instant.fromEpochMilliseconds(System.currentTimeMillis()),
         ).also { repository.createProfile(it) }
         val profileId = profile.profileId
         val medicationId = "dashboard-medication-$suffix"
@@ -60,7 +60,7 @@ class DashboardDataInstrumentedTest {
         val documentId = "dashboard-document-$suffix"
         val reportId = "dashboard-report-$suffix"
         val now = Instant.now()
-        val nowKotlin = kotlinx.datetime.Instant.fromEpochMilliseconds(now.toEpochMilli())
+        val nowKotlin = kotlin.time.Instant.fromEpochMilliseconds(now.toEpochMilli())
         val doseLocal = now.plusSeconds(2 * 60 * 60).atZone(ZoneId.systemDefault())
         val schedule = DoseSchedule(
             profileId = profileId,
@@ -168,7 +168,7 @@ class DashboardDataInstrumentedTest {
                 ZoneId.systemDefault(),
             ).single().toInstant()
             val nextDoseLabel = formatUiDateTime(
-                kotlinx.datetime.Instant.fromEpochMilliseconds(nextDose.toEpochMilli()),
+                kotlin.time.Instant.fromEpochMilliseconds(nextDose.toEpochMilli()),
             )
             assertTrue("Home did not advance to the next dose", scrollTo(device, nextDoseLabel))
             assertTrue(device.wait(Until.hasObject(By.textContains(nextDoseLabel)), 5_000))

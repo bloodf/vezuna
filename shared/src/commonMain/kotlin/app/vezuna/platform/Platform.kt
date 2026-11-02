@@ -1,6 +1,6 @@
 package app.vezuna.platform
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 expect fun currentInstant(): Instant
 expect fun randomId(): String

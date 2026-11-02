@@ -1,6 +1,6 @@
 package app.vezuna.platform
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import java.security.MessageDigest
 import java.util.UUID
 

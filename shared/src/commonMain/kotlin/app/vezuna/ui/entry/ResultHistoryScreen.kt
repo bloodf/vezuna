@@ -28,7 +28,7 @@ import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.nav.RouteContext
 import app.vezuna.ui.tabular
 import app.vezuna.ui.uiRangeText
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ill_file_error
 import vezuna.shared.generated.resources.ill_record_empty

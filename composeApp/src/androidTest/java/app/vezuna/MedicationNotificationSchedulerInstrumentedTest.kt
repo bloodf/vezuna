@@ -129,7 +129,7 @@ class MedicationNotificationSchedulerInstrumentedTest {
             timesLocal = listOf("%02d:%02d".format(doseLocal.hour, doseLocal.minute)),
         )
         val medication = Medication(profileId, medicationId, "Alarm regression", schedules = listOf(schedule))
-        app.repository.createProfile(Profile(profileId, "Alarm regression", createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(now.toEpochMilli())))
+        app.repository.createProfile(Profile(profileId, "Alarm regression", createdAt = kotlin.time.Instant.fromEpochMilliseconds(now.toEpochMilli())))
         app.repository.addMedication(medication)
         val baseAt = NotificationScheduleLogic.nextOccurrences(schedule, now, zone).single().toInstant()
         return Fixture(profileId, medicationId, scheduleId, now, baseAt)
@@ -167,10 +167,10 @@ class MedicationNotificationSchedulerInstrumentedTest {
             eventId = UUID.randomUUID().toString(),
             medicationId = medicationId,
             scheduleId = scheduleId,
-            scheduledFor = kotlinx.datetime.Instant.fromEpochMilliseconds(at.toEpochMilli()),
+            scheduledFor = kotlin.time.Instant.fromEpochMilliseconds(at.toEpochMilli()),
             status = status,
-            recordedAt = kotlinx.datetime.Instant.fromEpochMilliseconds(now.toEpochMilli()),
-            replacesScheduledFor = replaces?.let { kotlinx.datetime.Instant.fromEpochMilliseconds(it.toEpochMilli()) },
+            recordedAt = kotlin.time.Instant.fromEpochMilliseconds(now.toEpochMilli()),
+            replacesScheduledFor = replaces?.let { kotlin.time.Instant.fromEpochMilliseconds(it.toEpochMilli()) },
         )
     }
 }

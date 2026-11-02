@@ -6,7 +6,7 @@ import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

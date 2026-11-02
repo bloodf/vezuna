@@ -24,7 +24,7 @@ import app.vezuna.ui.entry.sameDayResults
 import app.vezuna.ui.entry.toDraft
 import app.vezuna.ui.entry.validate
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

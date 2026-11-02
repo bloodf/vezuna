@@ -9,7 +9,7 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

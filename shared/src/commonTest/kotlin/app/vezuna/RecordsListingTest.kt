@@ -4,7 +4,7 @@ import app.vezuna.domain.LabResultFilter
 import app.vezuna.ui.DesignFixture
 import app.vezuna.ui.records.RecordsListing
 import app.vezuna.ui.records.ReportEntry
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

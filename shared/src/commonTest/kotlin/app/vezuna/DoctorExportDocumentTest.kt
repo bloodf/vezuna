@@ -11,7 +11,7 @@ import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorReportFormat
 import app.vezuna.export.DoctorResultRow
 import app.vezuna.domain.RangeAssessment
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
