@@ -105,12 +105,15 @@ object OcrTextParser {
         return results
     }
 
-    private fun ambiguousToken(token: String): String? = token.trim().takeIf(NumberAmbiguity::isAmbiguousThousands)
+    private fun ambiguousToken(token: String, unit: String): String? = token.trim().takeIf { NumberAmbiguity.isAmbiguousThousands(it, unit) }
 
-    internal fun canonicalNumber(raw: String): String {
+    /** [unit] decides a lone dot group: scaled counts (10^3/µL) read it as a decimal, everything else as thousands. */
+    internal fun canonicalNumber(raw: String, unit: String = ""): String {
         var value = raw.trim().removePrefix("+")
         value = if (',' in value) {
             value.replace(".", "").replace(',', '.')
+        } else if (NumberAmbiguity.isAmbiguousThousands(value) && NumberAmbiguity.isScaledCountUnit(unit)) {
+            value
         } else if (Regex("[+-]?[1-9]\\d{0,2}(?:\\.\\d{3})+").matches(value)) {
             value.replace(".", "")
         } else value
@@ -126,9 +129,9 @@ object OcrTextParser {
         val match = QUALIFIED_NUMERIC.matchEntire(line) ?: return null
         val name = match.groupValues[1].trim(' ', '.', ';', ':', '-')
         if (!validAnalyte(name) || NUMBER_UNIT_AT_END.containsMatchIn(name)) return null
-        val value = canonicalNumber(match.groupValues[3])
         val unit = match.groupValues[4].replace('μ', 'µ')
-        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date, rawToken = ambiguousToken(match.groupValues[3]))
+        val value = canonicalNumber(match.groupValues[3], unit)
+        return ParsedOcrMeasurement(name, value, unit, parseReference(match.groupValues[5], unit), date, rawToken = ambiguousToken(match.groupValues[3], unit))
     }
 
     private data class NumberUnit(
@@ -143,7 +146,8 @@ object OcrTextParser {
         UNIT.findAll(line).forEach { unitMatch ->
             val prefix = line.substring(0, unitMatch.range.first).trimEnd()
             val numberMatch = NUMBER_AT_END.find(prefix) ?: return@forEach
-            candidates += NumberUnit(numberMatch, unitMatch, canonicalNumber(numberMatch.groupValues[1]), unitMatch.groupValues[1].replace('μ', 'µ'))
+            val unit = unitMatch.groupValues[1].replace('μ', 'µ')
+            candidates += NumberUnit(numberMatch, unitMatch, canonicalNumber(numberMatch.groupValues[1], unit), unit)
         }
         if (candidates.isEmpty()) return null
         val first = candidates.first()
@@ -157,7 +161,7 @@ object OcrTextParser {
         }
         val primary = candidates[primaryIndex]
         val rest = line.substring(primary.unitMatch.range.last + 1).trim(' ', ';')
-        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date, rawToken = ambiguousToken(primary.numberMatch.groupValues[1]))
+        return ParsedOcrMeasurement(name, primary.value, primary.unit, parseReference(rest, primary.unit), date, rawToken = ambiguousToken(primary.numberMatch.groupValues[1], primary.unit))
     }
 
     private fun parseQualitative(line: String, date: Instant?): ParsedOcrMeasurement? {
@@ -183,7 +187,7 @@ object OcrTextParser {
     fun referenceFromText(text: String, resultUnit: String): ReferenceRange {
         val clean = normalizeText(text).trim()
         if (deferredReference(clean)) return ReferenceRange(text = clean)
-        val single = findReferences(clean).singleOrNull() ?: return ReferenceRange(text = clean.ifBlank { null })
+        val single = findReferences(clean, resultUnit).singleOrNull() ?: return ReferenceRange(text = clean.ifBlank { null })
         return single.range
     }
 
@@ -198,16 +202,17 @@ object OcrTextParser {
     private fun parseReference(rest: String, resultUnit: String): ReferenceRange {
         val text = rest.trim()
         if (deferredReference(text)) return ReferenceRange(text = text)
-        val found = findReferences(text)
+        val found = findReferences(text, resultUnit)
         val selected = found.lastOrNull { it.unit == resultUnit } ?: found.lastOrNull()
         return selected?.range ?: ReferenceRange(text = text.ifBlank { null })
     }
 
-    private fun findReferences(text: String): List<FoundReference> {
+    private fun findReferences(text: String, resultUnit: String): List<FoundReference> {
         val references = mutableListOf<FoundReference>()
         RANGE.findAll(text).forEach { match ->
-            val lower = numericValue(match.groupValues[1])
-            val upper = numericValue(match.groupValues[2])
+            val rangeUnit = match.groupValues[3].ifBlank { resultUnit }
+            val lower = numericValue(match.groupValues[1], rangeUnit)
+            val upper = numericValue(match.groupValues[2], rangeUnit)
             if (lower <= upper) {
                 val unit = match.groupValues[3].ifBlank { null }?.replace('μ', 'µ')
                 references += FoundReference(ReferenceRange(lower, upper, match.value.trim(), unit), match.range.first, unit)
@@ -216,7 +221,7 @@ object OcrTextParser {
         THRESHOLD.findAll(text).forEach { match ->
             if (references.any { match.range.first >= it.start && match.range.last <= it.start + it.range.text.orEmpty().length - 1 }) return@forEach
             val operator = folded(match.groupValues[1])
-            val value = numericValue(match.groupValues[2])
+            val value = numericValue(match.groupValues[2], match.groupValues[3].ifBlank { resultUnit })
             val unit = match.groupValues[3].ifBlank { null }?.replace('μ', 'µ')
             val upperBound = operator.startsWith("inferior") || operator.startsWith("menor") || operator.startsWith("ate") ||
                 operator.startsWith("no maximo") || operator.startsWith("<") || operator.startsWith("≤")
@@ -230,7 +235,7 @@ object OcrTextParser {
         return references.sortedBy { it.start }
     }
 
-    private fun numericValue(raw: String): Double = canonicalNumber(raw).toDouble().also { require(it.isFinite()) }
+    private fun numericValue(raw: String, unit: String): Double = canonicalNumber(raw, unit).toDouble().also { require(it.isFinite()) }
 
     private fun extractConfidentDate(line: String): Pair<String, Instant?> {
         TRAILING_DATE.find(line)?.let { match ->
@@ -242,7 +247,7 @@ object OcrTextParser {
         return line to null
     }
 
-    private fun parseDate(raw: String): Instant? = try {
+    internal fun parseDate(raw: String): Instant? = try {
         val parts = raw.split('/').map(String::toInt)
         val date = LocalDate(parts[2], parts[1], parts[0])
         if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC).plus(12, DateTimeUnit.HOUR) else null

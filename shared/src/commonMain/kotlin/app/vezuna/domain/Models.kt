@@ -22,6 +22,8 @@ data class SourceDocument(
     val sha256: String,
     val importedAt: Instant,
     val vaultKey: String? = null,
+    /** Vault keys of pages 2..n when one report was captured as several photos; [vaultKey] holds page 1. */
+    val pageVaultKeys: List<String> = emptyList(),
 )
 
 @Serializable
