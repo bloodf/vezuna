@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.VezunaTokens
+import app.vezuna.ui.vezuna
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
@@ -141,8 +143,10 @@ fun VezunaSheet(title: String, onDismiss: () -> Unit, content: @Composable Colum
 }
 
 /**
- * Detail and form screens: a back button and optional title, no bottom navigation. The back button is
- * always visible (iOS has no system back key); Android system back does the same through the shell.
+ * Detail and form screens: a pine band with a back button and optional title, no bottom navigation. The band
+ * reaches under the status bar like RootHeader. The back button is always visible (iOS has no system back
+ * key); Android system back does the same through the shell. Screen-reader focus starts at the title, or at
+ * the back button when there is no title.
  */
 @Composable
 fun FocusedTaskScaffold(
@@ -152,15 +156,20 @@ fun FocusedTaskScaffold(
     content: @Composable () -> Unit,
 ) {
     Column(modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
-                Icon(painterResource(Res.drawable.ic_back), contentDescription = vitaText(L10nKey.NAVIGATE_BACK))
-            }
-            title?.let {
-                Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
+        Surface(color = MaterialTheme.vezuna.header, contentColor = MaterialTheme.vezuna.onHeader) {
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(VezunaTokens.TouchTarget).then(if (title == null) Modifier.routeFocus(focusable = false) else Modifier),
+                ) {
+                    Icon(painterResource(Res.drawable.ic_back), contentDescription = vitaText(L10nKey.NAVIGATE_BACK))
+                }
+                title?.let {
+                    Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).routeFocus().semantics { heading() })
+                }
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }

@@ -55,6 +55,19 @@ import app.vezuna.localization.resolve
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.components.FeedbackHost
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.text.font.FontWeight
+import app.vezuna.ui.nav.LocalRouteFocus
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.NativeActions
 import app.vezuna.ui.nav.Route
@@ -171,6 +184,15 @@ fun VezunaApp(
         val motionEnabled = LocalVitaAnimationsEnabled.current
         val loadingDescription = vitaText(L10nKey.LOADING_DATA)
         val savedState = rememberSaveableStateHolder()
+        val profileId = state.data?.profile?.profileId
+        // Drop saved UI state (drafts, scroll) of every entry that left the back stacks, so re-pushing a screen
+        // never brings back an old draft. Keys are per profile, root, depth and screen.
+        var liveKeys by remember { mutableStateOf(emptySet<String>()) }
+        LaunchedEffect(nav, profileId) {
+            val now = nav.stacks.flatMap { (root, stack) -> stack.mapIndexed { index, screen -> entryKey(profileId, root, index + 1, screen) } }.toSet()
+            (liveKeys - now).forEach(savedState::removeState)
+            liveKeys = now
+        }
         val context = RouteContext(
             state = state,
             controller = controller,
@@ -190,6 +212,9 @@ fun VezunaApp(
                 Scaffold(
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.background,
+                    // The top inset is consumed by RootHeader and FocusedTaskScaffold, whose pine band reaches
+                    // under the status bar.
+                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                     bottomBar = { if (!wide && nav.isRoot) VezunaNavigationBar(nav.root, controller::selectRoot) },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
@@ -206,11 +231,17 @@ fun VezunaApp(
                         ) { (root, depth, screen) ->
                             // Saved UI state (scroll, filters, drafts) is per profile and per stack entry, so a
                             // profile switch drops it and returning to a tab restores it.
-                            savedState.SaveableStateProvider("${state.data?.profile?.profileId}/$root/$depth/$screen") {
-                                Route(screen, context)
+                            savedState.SaveableStateProvider(entryKey(profileId, root, depth, screen)) {
+                                // Each route change moves screen-reader focus to the new title (or back button).
+                                val titleFocus = remember { FocusRequester() }
+                                CompositionLocalProvider(LocalRouteFocus provides titleFocus) { Route(screen, context) }
+                                LaunchedEffect(Unit) {
+                                    withFrameNanos { }
+                                    runCatching { titleFocus.requestFocus() }
+                                }
                             }
                         }
-                        LoadingIndicator(state.loading, motionEnabled, loadingDescription, Modifier.align(Alignment.TopCenter))
+                        LoadingIndicator(state.loading, motionEnabled, loadingDescription, Modifier.align(Alignment.TopCenter).statusBarsPadding())
                         FeedbackHost(
                             notice = state.notice?.resolve(),
                             error = state.error?.resolve(),
@@ -224,6 +255,8 @@ fun VezunaApp(
     }
 }
 
+private fun entryKey(profileId: String?, root: Destination, depth: Int, screen: AppScreen) = "$profileId/$root/$depth/$screen"
+
 @Composable
 private fun LoadingIndicator(visible: Boolean, motionEnabled: Boolean, description: String, modifier: Modifier) {
     AnimatedVisibility(
@@ -232,7 +265,13 @@ private fun LoadingIndicator(visible: Boolean, motionEnabled: Boolean, descripti
         enter = if (motionEnabled) fadeIn() else androidx.compose.animation.EnterTransition.None,
         exit = if (motionEnabled) fadeOut() else androidx.compose.animation.ExitTransition.None,
     ) {
-        CircularProgressIndicator(Modifier.padding(8.dp).semantics { contentDescription = description }, strokeWidth = 3.dp)
+        CircularProgressIndicator(
+            Modifier.padding(8.dp).semantics {
+                contentDescription = description
+                liveRegion = LiveRegionMode.Polite
+            },
+            strokeWidth = 3.dp,
+        )
     }
 }
 
@@ -244,13 +283,24 @@ private fun VezunaNavigationBar(current: Destination, onSelect: (Destination) ->
                 selected = destination == current,
                 onClick = { onSelect(destination) },
                 icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                // Labels never truncate: at large text they wrap to a second line instead.
-                label = { Text(vitaText(destination.label()), maxLines = 2, textAlign = TextAlign.Center) },
+                // Labels never truncate: at large text they wrap to a second line instead. The Material bar size
+                // (12sp) keeps "Records"/"Registros" on one line on narrow phones (about 290pt wide).
+                label = {
+                    Text(
+                        vitaText(destination.label()),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2,
+                        textAlign = TextAlign.Center,
+                        fontWeight = if (destination == current) FontWeight.Bold else FontWeight.Normal,
+                    )
+                },
                 alwaysShowLabel = true,
+                // Selected tab: a filled indicator at 3:1 or more on the bar (pine on light, mint on dark) and a
+                // bold label, so the state never rests on a faint tint.
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = VezunaTokens.OnCategory,
+                    selectedIconColor = MaterialTheme.vezuna.onNavIndicator,
                     selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = VezunaTokens.Mint,
+                    indicatorColor = MaterialTheme.vezuna.navIndicator,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),

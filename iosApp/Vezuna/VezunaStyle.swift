@@ -12,10 +12,8 @@ private func adaptive(light: UInt32, dark: UInt32) -> Color {
 
 extension Color {
     static let vezunaNavy = Color(hex(0x123B46))
-    static let vezunaPine = Color(hex(0x123B46))
     static let vezunaTeal = Color(hex(0x087F8C))
     static let vezunaAqua = Color(hex(0x71E2CC))
-    static let vezunaMint = Color(hex(0x71E2CC))
     static let vezunaCoral = Color(hex(0xFF8A65))
     static let vezunaLavender = Color(hex(0xB8ABFF))
     static let vezunaCitron = Color(hex(0xDDF27C))
@@ -54,20 +52,8 @@ extension Color {
     static let vezunaSeriesCare = adaptive(light: 0xC0552F, dark: 0xFF8A65)
     static let vezunaSeriesTrends = adaptive(light: 0x6F5FD6, dark: 0xB8ABFF)
     static let vezunaSeriesActivity = adaptive(light: 0x5E7A00, dark: 0xDDF27C)
-}
-
-enum VezunaMetrics {
-    static let spaceXs: CGFloat = 4
-    static let spaceSm: CGFloat = 8
-    static let spaceSmd: CGFloat = 12
-    static let spaceMd: CGFloat = 16
-    static let spaceLg: CGFloat = 24
-    static let spaceXl: CGFloat = 32
-    static let spaceXxl: CGFloat = 48
-    static let controlRadius: CGFloat = 12
-    static let cardRadius: CGFloat = 20
-    static let sheetRadius: CGFloat = 28
-    static let touchTarget: CGFloat = 44
+    static let vezunaNavIndicator = adaptive(light: 0x123B46, dark: 0x71E2CC)
+    static let vezunaOnNavIndicator = adaptive(light: 0xFFFFFF, dark: 0x0C2027)
 }
 
 extension Font {

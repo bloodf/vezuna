@@ -19,6 +19,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
@@ -63,8 +64,9 @@ class AndroidMainActivity : FragmentActivity() {
     internal val controller: AppController get() = designFixture ?: session.controller
 
     /**
-     * Debug only: `--ez fixture true` shows the synthetic DATA_AND_COPY household from an in-memory repository
-     * (the vault is never read or written), and `--es route <Name>` opens a route, for the screenshot harness.
+     * Debug only: `--ez fixture true` shows the synthetic DATA_AND_COPY household from an in-memory repository,
+     * and `--es route <Name>` opens a route, for the screenshot harness. Fixture screens skip the vault gate and
+     * never read or write records or model files; the app process may still open the vault in the background.
      */
     private val designFixture: AppController? by lazy {
         if (!BuildConfig.DEBUG || !intent.getBooleanExtra("fixture", false)) return@lazy null
@@ -72,7 +74,7 @@ class AndroidMainActivity : FragmentActivity() {
         val llm = llamatikLocalLlm()
         AppController(
             repository,
-            InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm),
+            InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm),
             LocalHealthChat(repository, llm),
         ).also { fixture ->
             lifecycleScope.launch {
@@ -145,34 +147,41 @@ class AndroidMainActivity : FragmentActivity() {
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
-            AppLockHost(app.appLock) {
-            VaultGate(
-                vaultState,
-                onRetry = app::retryVault,
-                onReset = app::resetVault,
-                backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
-            ) {
-            PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
-            VezunaAndroidApp(
-                controller = controller,
-                scope = session.viewModelScope,
-                sourcePicker = sourcePicker,
-                modelLoader = modelLoader,
-                messageFlow = messageFlow,
-                exportFlow = exportFlow,
-                busyFlow = busyFlow,
-                onHealthConnect = ::openHealthConnect,
-                onReminders = ::requestReminders,
-                backupFiles = backupFiles.access,
-                reminders = reminders,
-                onPresentExport = { mutableExport.value = it },
-                onDismissExport = { mutableExport.value = null },
-                onShareExport = ::shareExport,
-                onSaveExport = ::saveExport,
-                onDismissMessage = { mutableMessage.value = null },
-                startRoute = debugStartRoute,
-            )
+            val shell: @Composable () -> Unit = {
+                VezunaAndroidApp(
+                    controller = controller,
+                    scope = session.viewModelScope,
+                    sourcePicker = sourcePicker,
+                    modelLoader = modelLoader,
+                    messageFlow = messageFlow,
+                    exportFlow = exportFlow,
+                    busyFlow = busyFlow,
+                    onHealthConnect = ::openHealthConnect,
+                    onReminders = ::requestReminders,
+                    backupFiles = backupFiles.access,
+                    reminders = reminders,
+                    onPresentExport = { mutableExport.value = it },
+                    onDismissExport = { mutableExport.value = null },
+                    onShareExport = ::shareExport,
+                    onSaveExport = ::saveExport,
+                    onDismissMessage = { mutableMessage.value = null },
+                    startRoute = debugStartRoute,
+                )
             }
+            if (designFixture != null) {
+                shell()
+            } else {
+                AppLockHost(app.appLock) {
+                    VaultGate(
+                        vaultState,
+                        onRetry = app::retryVault,
+                        onReset = app::resetVault,
+                        backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
+                    ) {
+                        PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
+                        shell()
+                    }
+                }
             }
         }
     }

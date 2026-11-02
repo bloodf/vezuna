@@ -11,7 +11,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -81,7 +85,16 @@ fun VezunaAndroidApp(
             context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
             awaitDispose { context.contentResolver.unregisterContentObserver(observer) }
         }
-        // The shared shell owns the window insets: its header and background reach under the status bar.
+        // The shared shell owns the window insets: its pine header bands reach under the status bar, so the
+        // status bar icons are light while the shell shows, and follow the theme again when it leaves (lock).
+        val view = LocalView.current
+        val darkTheme = isSystemInDarkTheme()
+        DisposableEffect(view, darkTheme) {
+            val window = (view.context as? android.app.Activity)?.window
+            val insets = window?.let { WindowCompat.getInsetsController(it, view) }
+            insets?.isAppearanceLightStatusBars = false
+            onDispose { insets?.isAppearanceLightStatusBars = !darkTheme }
+        }
         VezunaApp(
             controller = controller,
             scope = scope,
@@ -91,10 +104,12 @@ fun VezunaAndroidApp(
             backupFiles = backupFiles,
             reminders = reminders,
             nativeActions = NativeActions(
-                available = setOf(NativeAction.HEALTH, NativeAction.REMINDERS, NativeAction.PRIVACY, NativeAction.NOTICES),
+                available = androidNativeActions,
+                // Health stays listed but disabled while a device import runs, as the old menu item was.
+                enabled = if (nativeBusy) androidNativeActions - NativeAction.HEALTH else androidNativeActions,
             ) { action ->
                 when (action) {
-                    NativeAction.HEALTH -> if (!nativeBusy) onHealthConnect()
+                    NativeAction.HEALTH -> onHealthConnect()
                     NativeAction.REMINDERS -> onReminders()
                     NativeAction.PRIVACY -> context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
                     NativeAction.NOTICES -> context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))
@@ -170,3 +185,5 @@ fun VezunaAndroidApp(
 
 private fun animationScale(context: android.content.Context): Float =
     Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+
+private val androidNativeActions = setOf(NativeAction.HEALTH, NativeAction.REMINDERS, NativeAction.PRIVACY, NativeAction.NOTICES)
