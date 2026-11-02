@@ -20,7 +20,7 @@ Compare confirmed laboratory results over time. Record medications and schedules
 
 With your permission, Vezuna can import heart rate, steps, and weight from Health Connect on Android or HealthKit on iPhone. App-owned code stores records in an encrypted local vault. Exports shared with other apps leave that vault's protection.
 
-Vezuna organizes information you provide. It does not diagnose conditions, recommend treatment, or change medication doses. Check imported values against the original report. Backup restoration currently works only with the same device key. iPhone requires iOS 18.5 or later.
+Vezuna organizes information you provide. It does not diagnose conditions, recommend treatment, or change medication doses. Check imported values against the original report. Backups are passphrase-protected files that restore on another device; a lost passphrase cannot be recovered. iPhone requires iOS 18.5 or later.
 
 Do not add an AI or downloadable-model promise until a production model catalog, store delivery, licensing, and inference pass real device tests. The current catalogs are empty.
 
