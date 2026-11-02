@@ -604,17 +604,29 @@ class AppController(
 
     /** Returns true when the answer was stored; on failure (or cancellation of the calling job) the caller keeps the user's question. */
     suspend fun ask(question: String): Boolean {
-        operation {
-            val data = requireData()
-            mutableState.value = mutableState.value.copy(streamingAnswer = "")
-            try {
-                chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
-                    mutableState.value = mutableState.value.copy(streamingAnswer = partial)
+        var persisted = false
+        try {
+            operation {
+                val data = requireData()
+                val before = data.chat.size
+                mutableState.value = mutableState.value.copy(streamingAnswer = "")
+                try {
+                    chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
+                        mutableState.value = mutableState.value.copy(streamingAnswer = partial)
+                    }
+                } finally {
+                    mutableState.value = mutableState.value.copy(streamingAnswer = null)
+                    // Stop may arrive after the exchange was saved: reload so the screen shows what was stored.
+                    withContext(NonCancellable) {
+                        loadProfile(data.profile.profileId)
+                        persisted = (mutableState.value.data?.chat?.size ?: before) > before
+                    }
                 }
-                loadProfile(data.profile.profileId)
-            } finally {
-                mutableState.value = mutableState.value.copy(streamingAnswer = null)
             }
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            // The answer is already stored, so the caller should clear the input as for a normal success.
+            if (persisted) return true
+            throw cancellation
         }
         return mutableState.value.error == null
     }

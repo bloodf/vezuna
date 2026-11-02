@@ -81,6 +81,25 @@ class PlayAssetPackLoaderTest {
     }
 
     @Test
+    fun repeatedConfirmationStatusWhileUnboundAfterShowingDoesNotFailTheDelivery() = runTest {
+        val recorder = Recorder()
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.REQUIRES_USER_CONFIRMATION)) }, allowAll, inactivityTimeoutMs = 1_000_000)
+        loader.bindActivity(Activity())
+        val result = async(start = CoroutineStart.UNDISPATCHED) { loader.load(pack) }
+        runCurrent()
+        assertEquals(1, recorder.confirmations.get())
+
+        loader.bindActivity(null)
+        recorder.listener!!.onStateUpdate(FakeState(AssetPackStatus.REQUIRES_USER_CONFIRMATION))
+        advanceTimeBy(120_000)
+        runCurrent()
+        assertTrue(result.isActive, "a confirmed delivery must not be failed by the bind timeout")
+
+        recorder.listener!!.onStateUpdate(FakeState(AssetPackStatus.FAILED))
+        result.await()
+    }
+
+    @Test
     fun unboundConfirmationFailsWithGuidanceAndCancelsThePack() = runTest {
         val recorder = Recorder()
         val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.REQUIRES_USER_CONFIRMATION)) }, allowAll, inactivityTimeoutMs = 1_000_000)

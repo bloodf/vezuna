@@ -50,6 +50,8 @@ internal class AssetPackFetchSession(
     fun retryPendingConfirmation() { pending?.let(::confirm) }
 
     private fun confirm(action: AssetPackAction) {
+        // A dialog already answered or on screen covers any later confirmation status; nothing is waiting for an activity.
+        if (shown.get()) { pending = null; return }
         val host = activity()
         if (host == null) {
             if (pending == null) {

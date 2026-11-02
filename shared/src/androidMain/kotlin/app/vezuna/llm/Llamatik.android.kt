@@ -51,11 +51,14 @@ class LlamatikLocalLlm : LocalLlm {
             if (!isActive) return@launch
             run.started = true
             try {
-                LlamaBridge.generateStream(prompt, callbacks)
-                // The native call returns only after generation ended, even if no completion callback fired.
-                if (!run.finished) { run.finished = true; close() }
+                try {
+                    LlamaBridge.generateStream(prompt, callbacks)
+                } finally {
+                    // Cleared as soon as the native call returns so a late collector cancel cannot hit the next generation.
+                    run.finished = true
+                }
+                close()
             } catch (error: Throwable) {
-                run.finished = true
                 close(error)
             }
         }
