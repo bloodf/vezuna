@@ -709,8 +709,11 @@ class AppController(
     /** Permanently deletes every chat message of the current profile through the repository. Records are untouched. */
     suspend fun clearChatHistory() = operation {
         val data = requireData()
-        data.chat.forEach { repository.deleteChatMessage(data.profile.profileId, it.messageId) }
-        loadProfile(data.profile.profileId)
+        try {
+            data.chat.forEach { repository.deleteChatMessage(data.profile.profileId, it.messageId) }
+        } finally {
+            withContext(NonCancellable) { loadProfile(data.profile.profileId) }
+        }
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.CHAT_HISTORY_CLEARED))
     }
     // endregion L8 assistant

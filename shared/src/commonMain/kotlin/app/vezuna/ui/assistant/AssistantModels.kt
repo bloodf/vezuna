@@ -59,10 +59,11 @@ internal fun AssistantModels(ctx: RouteContext) {
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
+            Text(vitaText(L10nKey.MODELS_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
             Text(vitaText(L10nKey.MODEL_SECURITY_NOTICE), style = MaterialTheme.typography.bodyLarge)
             modelState.error?.let { ListRow(vitaText(L10nKey.MODEL_ACTION_FAILED), supporting = it.resolve(), leadingIcon = Res.drawable.ic_info) }
             modelState.catalogError?.let { ListRow(it.resolve(), leadingIcon = Res.drawable.ic_info) }
-            if (modelState.busy || installingId != null) ProgressState(vitaText(L10nKey.MODEL_INSTALLING))
+            if (modelState.busy || installingId != null) ProgressState(vitaText(if (installingId != null) L10nKey.MODEL_INSTALLING else L10nKey.VERIFYING_OR_LOADING_MODEL))
             if (modelState.catalog.packs.isEmpty() && modelState.catalogError == null) {
                 EmptyState(Res.drawable.ill_model_download, vitaText(L10nKey.NO_STORE_MODEL_PACKS), vitaText(L10nKey.NO_STORE_MODEL_PACKS_EXPLANATION))
             }
@@ -89,6 +90,7 @@ internal fun AssistantModels(ctx: RouteContext) {
                                 installJob = ctx.scope.launch {
                                     try {
                                         if (!ctx.controller.modelManager.checkFit(pack)) return@launch
+                                        // Store dialog dismissed or pack unavailable: nothing was installed, the button simply returns.
                                         val source = ctx.modelPackLoader.invoke(pack) ?: return@launch
                                         try {
                                             ctx.controller.installModel(pack, source.path)

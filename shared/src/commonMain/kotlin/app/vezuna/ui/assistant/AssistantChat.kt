@@ -26,7 +26,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.ConfirmationStatus
@@ -85,6 +88,7 @@ internal fun AssistantChat(ctx: RouteContext) {
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
             ) {
+                Text(vitaText(L10nKey.ON_DEVICE_AI_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
                 catalogState.catalogError?.let { ListRow(it.resolve(), leadingIcon = Res.drawable.ic_chip) }
                 if (unavailable) {
                     if (catalogState.catalogError == null) {
@@ -131,10 +135,10 @@ internal fun AssistantChat(ctx: RouteContext) {
                 if (data.chat.isEmpty() && !unavailable) {
                     EmptyState(Res.drawable.ill_assistant, vitaText(L10nKey.START_PRIVATE_CONVERSATION), vitaText(L10nKey.START_PRIVATE_CONVERSATION_EXPLANATION))
                 }
-                data.chat.forEach { ChatBubble(it) }
+                data.chat.forEachIndexed { index, message -> ChatBubble(message, live = index == data.chat.lastIndex && message.role == ChatMessage.Role.ASSISTANT) }
                 state.streamingAnswer?.let { partial ->
                     if (partial.isEmpty()) ProgressState(vitaText(L10nKey.ON_DEVICE_AI))
-                    else ChatBubble(ChatMessage(data.profile.profileId, "streaming", ChatMessage.Role.ASSISTANT, partial, currentInstant()))
+                    else ChatBubble(ChatMessage(data.profile.profileId, "streaming", ChatMessage.Role.ASSISTANT, partial, currentInstant()), live = true)
                     SecondaryButton(vitaText(L10nKey.STOP_GENERATING), { askJob?.cancel() }, icon = Res.drawable.ic_close)
                 }
                 if (data.chat.isNotEmpty()) {
@@ -173,11 +177,11 @@ internal fun AssistantChat(ctx: RouteContext) {
 }
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(message: ChatMessage, live: Boolean = false) {
     val user = message.role == ChatMessage.Role.USER
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (user) Arrangement.End else Arrangement.Start) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.88f),
+            modifier = Modifier.fillMaxWidth(0.88f).then(if (live) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
             shape = MaterialTheme.shapes.large,
             color = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
             contentColor = if (user) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
