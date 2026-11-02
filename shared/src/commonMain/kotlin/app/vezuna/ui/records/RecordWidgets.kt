@@ -49,7 +49,7 @@ import app.vezuna.ui.observationValueText
 import app.vezuna.ui.pickedDateToInstant
 import app.vezuna.ui.reportDisplayName
 import app.vezuna.ui.tabular
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_chevron_right

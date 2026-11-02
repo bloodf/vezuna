@@ -9,7 +9,7 @@ import app.vezuna.domain.ProfileData
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.vitaText
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** What a reader calls a report: the laboratory when known, else the source file name, else "manual entry". */
 internal fun reportDisplayName(report: LabReport?, data: ProfileData, manualName: String): String {

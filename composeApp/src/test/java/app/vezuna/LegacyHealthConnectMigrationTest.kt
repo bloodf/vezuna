@@ -5,7 +5,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.security.CipherEnvelope
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import kotlin.test.assertEquals

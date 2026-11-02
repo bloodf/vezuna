@@ -28,7 +28,7 @@ import app.vezuna.ui.ExtractedCandidate
 import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals

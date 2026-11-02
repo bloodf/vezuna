@@ -1,7 +1,7 @@
 package app.vezuna.domain
 
 import app.vezuna.importer.foldedText
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** Search text matches display name or test code, ignoring case and accents; dates are inclusive calendar bounds. */
 data class LabResultFilter(

@@ -82,8 +82,8 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     /** Same rule as iOS: shared [MissedDoses] decides which past doses become MISSED; the repository keeps user actions on top. */
     private suspend fun recordMissedDoses(repository: VaultBackedRepository, data: ProfileData, now: Instant, zone: ZoneId) {
-        MissedDoses.stampLegacy(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond)).forEach { repository.updateSchedule(it) }
-        MissedDoses.pending(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond), kotlinx.datetime.TimeZone.of(zone.id))
+        MissedDoses.stampLegacy(data, kotlin.time.Instant.fromEpochSeconds(now.epochSecond)).forEach { repository.updateSchedule(it) }
+        MissedDoses.pending(data, kotlin.time.Instant.fromEpochSeconds(now.epochSecond), kotlinx.datetime.TimeZone.of(zone.id))
             .let { repository.addDoseEvents(data.profile.profileId, it) }
     }
 

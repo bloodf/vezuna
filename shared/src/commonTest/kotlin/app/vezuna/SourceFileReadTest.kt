@@ -7,7 +7,7 @@ import app.vezuna.ui.PickedSource
 import app.vezuna.ui.SourceFileRead
 import app.vezuna.ui.SourceFileStore
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

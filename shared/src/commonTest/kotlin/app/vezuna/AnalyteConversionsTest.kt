@@ -6,7 +6,7 @@ import app.vezuna.domain.LabObservation
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.UnitNormalizer
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals

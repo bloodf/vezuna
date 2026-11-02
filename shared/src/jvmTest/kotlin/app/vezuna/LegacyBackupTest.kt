@@ -8,7 +8,7 @@ import app.vezuna.security.BackupService
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.JvmSecureVault
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import kotlin.test.Test

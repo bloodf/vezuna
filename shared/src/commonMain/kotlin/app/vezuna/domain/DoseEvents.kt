@@ -1,6 +1,6 @@
 package app.vezuna.domain
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Single source of truth for dose event identity and the terminal-status rule.

@@ -13,7 +13,7 @@ import app.vezuna.security.BackupService
 import app.vezuna.ui.RestoreMode
 import app.vezuna.ui.SourceFileStore
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

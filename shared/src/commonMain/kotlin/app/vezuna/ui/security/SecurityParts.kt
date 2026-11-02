@@ -54,7 +54,7 @@ import app.vezuna.security.PassphraseStrengthLevel
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.StatusKind
 import app.vezuna.ui.vita
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res

@@ -24,7 +24,7 @@ import app.vezuna.ui.formatTime
 import app.vezuna.ui.nav.RouteContext
 import app.vezuna.ui.vita
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.DrawableResource

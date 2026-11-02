@@ -14,7 +14,7 @@ import app.vezuna.domain.withoutReport
 import app.vezuna.importer.foldedText
 import app.vezuna.ui.reportDate
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime

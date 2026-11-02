@@ -2,7 +2,7 @@ package app.vezuna.ui.security
 
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.security.BackupMember
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
 
 /**

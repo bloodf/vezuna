@@ -7,7 +7,7 @@ import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.TrendPreparation
 import app.vezuna.domain.referenceBand
 import app.vezuna.ui.ChartScale
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

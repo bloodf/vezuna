@@ -17,7 +17,7 @@ import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.FieldPair
 import app.vezuna.ui.components.LabeledField
 import app.vezuna.ui.components.SegmentedControl
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 @Composable
 fun FieldError.text(): String = vitaText(

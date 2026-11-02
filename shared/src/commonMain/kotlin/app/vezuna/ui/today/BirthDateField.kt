@@ -42,7 +42,7 @@ import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.TertiaryButton
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn

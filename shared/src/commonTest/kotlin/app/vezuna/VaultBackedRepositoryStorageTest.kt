@@ -14,7 +14,7 @@ import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultUnreadableException
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

@@ -93,7 +93,7 @@ data class ExtractedCandidate(
     val rawValue: String,
     val rawUnit: String = "",
     val referenceRange: app.vezuna.domain.ReferenceRange = app.vezuna.domain.ReferenceRange(),
-    val collectedAt: kotlinx.datetime.Instant? = null,
+    val collectedAt: kotlin.time.Instant? = null,
     val confidence: Float? = null,
     val valueKind: ExtractedValueKind = ExtractedValueKind.NUMERIC,
     val rawToken: String? = null,
@@ -106,7 +106,7 @@ data class PickedSource(
     val candidates: List<ExtractedCandidate> = emptyList(),
     /** Read from the page text; drafts for the reviewer, never confirmed facts. */
     val laboratoryName: String? = null,
-    val orderedAt: kotlinx.datetime.Instant? = null,
+    val orderedAt: kotlin.time.Instant? = null,
     /** Further photos of the same report. [bytes] is the first page; the hash covers every page so a re-import dedupes. */
     val additionalPages: List<ByteArray> = emptyList(),
 )

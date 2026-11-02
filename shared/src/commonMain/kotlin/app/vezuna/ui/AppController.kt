@@ -69,7 +69,7 @@ class AppController(
     val modelManager: InstalledModelManager,
     private val chat: LocalHealthChat,
     private val pdfExporter: NativePdfExporter = NativePdfExporter(),
-    private val clock: () -> kotlinx.datetime.Instant = { currentInstant() },
+    private val clock: () -> kotlin.time.Instant = { currentInstant() },
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
     /** Null when the platform offers no backup file access (previews, tests). */
     val backup: BackupService? = null,
@@ -312,7 +312,7 @@ class AppController(
         correctedUnit: String,
         referenceLower: String,
         referenceUpper: String,
-        collectedAt: kotlinx.datetime.Instant? = null,
+        collectedAt: kotlin.time.Instant? = null,
         testCode: String? = null,
         displayName: String? = null,
         asText: Boolean? = null,
@@ -378,7 +378,7 @@ class AppController(
         referenceLower: String,
         referenceUpper: String,
         referenceText: String?,
-        collectedAt: kotlinx.datetime.Instant?,
+        collectedAt: kotlin.time.Instant?,
         asText: Boolean = false,
     ) = operation {
         val data = requireData()
@@ -430,7 +430,7 @@ class AppController(
         referenceLower: String,
         referenceUpper: String,
         referenceText: String?,
-        collectedAt: kotlinx.datetime.Instant?,
+        collectedAt: kotlin.time.Instant?,
     ) = operation {
         val data = requireData()
         val current = data.observations.firstOrNull { it.observationId == observationId && it.confirmation == ConfirmationStatus.CONFIRMED }
@@ -489,7 +489,7 @@ class AppController(
     }
 
     /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
-    suspend fun updateReportDetails(reportId: String, laboratoryName: String, orderedAt: kotlinx.datetime.Instant?) = operation {
+    suspend fun updateReportDetails(reportId: String, laboratoryName: String, orderedAt: kotlin.time.Instant?) = operation {
         val data = requireData()
         val report = data.reports.firstOrNull { it.reportId == reportId } ?: failMessage(L10nKey.REPORT_NOT_FOUND)
         repository.updateReport(report.copy(laboratoryName = laboratoryName.trim().takeIf { it.isNotEmpty() }, orderedAt = orderedAt))
@@ -615,7 +615,7 @@ class AppController(
         val data = requireData()
         require(dose.profileId == data.profile.profileId)
         val now = currentInstant()
-        val snoozedAt = kotlinx.datetime.Instant.fromEpochSeconds(now.epochSeconds + 600)
+        val snoozedAt = kotlin.time.Instant.fromEpochSeconds(now.epochSeconds + 600)
         val event = DoseEvent(
             profileId = data.profile.profileId,
             eventId = DoseEvents.snoozeIdFor(dose.scheduleId, snoozedAt),

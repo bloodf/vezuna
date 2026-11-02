@@ -7,7 +7,7 @@ import app.vezuna.ui.security.BackupContents
 import app.vezuna.ui.security.BackupHistory
 import app.vezuna.ui.security.withoutChat
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -56,7 +56,7 @@ import app.vezuna.ui.components.VezunaSheet
 import app.vezuna.ui.nav.RootScaffold
 import app.vezuna.ui.nav.RouteContext
 import app.vezuna.ui.reportDisplayName
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_chevron_right

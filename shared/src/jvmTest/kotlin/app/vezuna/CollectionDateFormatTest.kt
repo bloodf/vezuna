@@ -1,7 +1,7 @@
 package app.vezuna
 
 import app.vezuna.localization.formatUiDate
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import java.util.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertTrue

@@ -12,7 +12,7 @@ import app.vezuna.domain.SourceDocument
 import app.vezuna.ui.today.isTodayEmpty
 import app.vezuna.ui.today.recentConfirmedReports
 import app.vezuna.ui.today.reviewSourceName
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

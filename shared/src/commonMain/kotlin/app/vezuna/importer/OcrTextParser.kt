@@ -3,7 +3,7 @@ package app.vezuna.importer
 import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.ui.ExtractedValueKind
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.DateTimeUnit
