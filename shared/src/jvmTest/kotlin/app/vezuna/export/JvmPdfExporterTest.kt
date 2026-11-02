@@ -87,7 +87,7 @@ class JvmPdfExporterSourceTest {
         )
         val document = DoctorPdfDocument("Report", emptyList(), profileDisplayName = "Ana", resultRows = listOf(row))
         val pdf = String(NativePdfExporter().export(document).bytes, Charsets.ISO_8859_1)
-        assertTrue(pdf.contains("Laboratories: Lab Central (ordered"), "lab name missing from PDF")
+        assertTrue(pdf.contains("Laboratories: Lab Central") && pdf.contains("ordered 01 Mar 2026"), "lab name missing from PDF")
         assertEquals("Laboratories: Lab Central (ordered 01 Mar 2026)", app.vezuna.export.DoctorReportFormat.sources(listOf(row)))
         assertEquals(null, app.vezuna.export.DoctorReportFormat.sources(listOf(row.copy(laboratoryName = null, orderedAt = null))))
     }
