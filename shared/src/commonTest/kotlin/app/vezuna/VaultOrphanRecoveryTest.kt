@@ -165,6 +165,101 @@ class VaultOrphanRecoveryTest {
     }
 
     @Test
+    fun emptyIndexFileOpensFromThePreviousGenerationAndKeepsTheNewestProfileWithItsVitals() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("p", "Pia", createdAt = created))
+        val vitals = sampleProfileData("V").vitals
+        repository.replaceVitals("p", vitals)
+        vault.current[INDEX_KEY] = ByteArray(0)
+
+        val reopened = open()
+
+        assertTrue(reopened.openedFromPreviousGeneration.value)
+        assertEquals(listOf("a", "p"), ids(reopened))
+        assertEquals(vitals.steps, reopened.readProfile("p").vitals.steps)
+        assertTrue(vault.quarantined.containsKey(INDEX_KEY), "the empty file is kept as evidence")
+    }
+
+    @Test
+    fun corruptDeletedRecordDoesNotRaiseThePreviousGenerationFlag() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("b", "Bia", createdAt = created))
+        repository.deleteProfile("b")
+        vault.current["repository-deleted-profiles-v1"] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertTrue(!reopened.openedFromPreviousGeneration.value)
+        assertEquals(listOf("a"), ids(reopened))
+    }
+
+    @Test
+    fun corruptDeletedRecordMeansNothingIsRecoveredFromRecordFiles() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("b", "Bia", createdAt = created))
+        repository.deleteProfile("b")
+        repository.createProfile(Profile("c", "Cy", createdAt = created))
+        vault.current["repository-deleted-profiles-v1"] = "garbage".encodeToByteArray()
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertEquals(listOf("a"), ids(reopened))
+        assertNotNull(vault.read(recordKey("c")), "the unlisted record is left alone")
+    }
+
+    @Test
+    fun deletedRecordServedFromThePreviousGenerationRecoversNothing() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("x", "Xu", createdAt = created))
+        repository.createProfile(Profile("y", "Yu", createdAt = created))
+        val recordY = vault.current.getValue(recordKey("y")).copyOf()
+        repository.deleteProfile("x")
+        repository.deleteProfile("y")
+        // y's record outlived its delete; the newest deleted-profile record (naming y) is corrupt, the older one names only x.
+        vault.current[recordKey("y")] = recordY
+        repository.createProfile(Profile("z", "Zed", createdAt = created))
+        vault.current["repository-deleted-profiles-v1"] = "garbage".encodeToByteArray()
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertTrue(reopened.openedFromPreviousGeneration.value)
+        assertEquals(emptyList(), ids(reopened))
+        assertContentEquals(recordY, vault.current.getValue(recordKey("y")))
+    }
+
+    @Test
+    fun vitalsOfAnUnreadableUnlistedRecordSurviveEveryLaterLaunch() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("p", "Pia", createdAt = created))
+        repository.replaceVitals("p", sampleProfileData("V").vitals)
+        vault.current[recordKey("p")] = "garbage".encodeToByteArray()
+        vault.previous.remove(recordKey("p"))
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        repeat(3) { open() }
+
+        assertNotNull(vault.read("repository-vitals-p-v1"))
+    }
+
+    @Test
+    fun recoveryFindsRecordsThroughStoredAssociatedDataWhenFileNamesHideKeys() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("p", "Pia", createdAt = created))
+        vault.listing = false
+        vault.scanAssociatedData = true
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        assertEquals(listOf("a", "p"), ids(open()))
+    }
+
+    @Test
     fun envelopeWithAnotherAssociatedDataIsRejectedBeforeDecrypting() = runTest {
         val envelope = vault.encrypt("secret".encodeToByteArray(), "profile:1".encodeToByteArray())
 

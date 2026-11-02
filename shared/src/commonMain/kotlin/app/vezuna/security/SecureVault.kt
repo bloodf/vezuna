@@ -33,6 +33,12 @@ interface SecureVault {
      */
     suspend fun listKeys(): List<String>? = null
 
+    /**
+     * Associated data of every stored envelope, for vaults whose file names hide the key (iOS hashes them).
+     * Null when unsupported. Callers must re-verify anything they derive from it by reading the key normally.
+     */
+    suspend fun storedAssociatedData(): List<ByteArray>? = null
+
     /** The generation written before the current one, or null when the vault keeps none. */
     suspend fun readPrevious(key: String): ByteArray? = null
 

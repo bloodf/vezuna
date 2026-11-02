@@ -46,15 +46,9 @@ class GenerationalFileStore(private val directory: File) {
         return true
     }
 
-    /**
-     * Current generation; a missing file (crash between the renames) lets the previous one stand in. A zero-length
-     * file is a truncated write: the previous generation wins, and without one the empty bytes are returned so the
-     * caller sees corruption instead of "nothing stored".
-     */
-    fun read(name: String): ByteArray? {
-        val current = File(directory, name).takeIf { it.isFile }?.readBytes()
-        return if (current != null && current.isNotEmpty()) current else readPrevious(name) ?: current
-    }
+    /** Current generation; if a crash hit between the two renames, the previous one stands in. A zero-length file is returned as is so the caller sees corruption. */
+    fun read(name: String): ByteArray? =
+        File(directory, name).takeIf { it.isFile }?.readBytes() ?: readPrevious(name)
 
     fun readPrevious(name: String): ByteArray? = File(directory, "$name$PREVIOUS").takeIf { it.isFile }?.readBytes()
 

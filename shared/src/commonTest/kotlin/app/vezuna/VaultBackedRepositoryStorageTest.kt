@@ -54,6 +54,9 @@ internal class GenerationalMemoryVault : SecureVault {
     override suspend fun read(key: String): ByteArray? = current[key]?.copyOf() ?: previous[key]?.copyOf()
     override suspend fun readPrevious(key: String): ByteArray? = previous[key]?.copyOf()
     var listing = true
+    var scanAssociatedData = false
+    override suspend fun storedAssociatedData(): List<ByteArray>? =
+        if (scanAssociatedData) current.values.mapNotNull { runCatching { CipherEnvelopeCodec.decode(it).associatedData }.getOrNull() } else null
     override suspend fun listKeys(): List<String>? = if (listing) (current.keys + previous.keys).toList() else null
     override suspend fun delete(key: String) { current.remove(key); previous.remove(key) }
     override suspend fun quarantineCurrent(key: String): Boolean {

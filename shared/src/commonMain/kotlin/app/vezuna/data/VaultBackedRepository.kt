@@ -471,8 +471,12 @@ class VaultBackedRepository(
             records[id] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
         }
         if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
-        // Vitals of skipped profiles stay until the user deletes the profile or its record reappears.
-        vitalsStore.sweep(records.keys + skipped.keys + unreadableUnlisted)
+        // A listed, readable profile that is still marked deleted (crash between the tombstone and the index write) is live again.
+        deletedProfileIds?.let { deleted -> (records.keys intersect deleted).takeIf { it.isNotEmpty() }?.let { writeDeleted(deleted - it) } }
+        // Vitals stay while their profile record file exists, readable or not, unless the user deleted it; this holds on every launch.
+        val deleted = deletedProfileIds.orEmpty()
+        val keep = vitalsStore.ids().filter { it !in deleted && vault.read(profileKey(it)) != null }
+        vitalsStore.sweep(records.keys + skipped.keys + unreadableUnlisted + keep)
         if (legacyPresent) {
             try {
                 vault.delete(LEGACY_KEY)
@@ -495,7 +499,10 @@ class VaultBackedRepository(
         val deleted = deletedProfileIds
         val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted.orEmpty() && vault.read(profileKey(it)) != null }
         if (deleted == null) return withVitals
-        val stored = vault.listKeys().orEmpty().mapNotNull(::profileIdOf).filter { it !in listed && it !in deleted }
+        val byKey = vault.listKeys().orEmpty().mapNotNull(::profileIdOf)
+        val byAssociatedData = vault.storedAssociatedData().orEmpty().mapNotNull { profileIdFromAssociatedData(it) }
+        // Candidates only: each one is read through its own key, so a planted or renamed file cannot inject a record.
+        val stored = (byKey + byAssociatedData).filter { it !in listed && it !in deleted && vault.read(profileKey(it)) != null }
         return (withVitals + stored).distinct()
     }
 
@@ -510,14 +517,28 @@ class VaultBackedRepository(
         null
     }
 
-    private suspend fun readDeleted(): Set<String>? = try {
-        readDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, ::parseDeleted)?.toSet() ?: emptySet()
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: VaultUnreadableException) {
-        if (error.failure == VaultFailure.SCHEMA_NEWER) throw error
-        warn("Could not read the deleted-profile record; unlisted profiles will not be recovered", error)
-        null
+    /**
+     * Null (recover nothing) when the tombstones cannot be read from their current file. One served from the previous
+     * generation is a write behind and misses the newest delete, so it counts as unreadable; it never sets the
+     * index's "opened from previous generation" flag either.
+     */
+    private suspend fun readDeleted(): Set<String>? {
+        val flagBefore = mutableOpenedFromPrevious.value
+        val result = try {
+            readDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, ::parseDeleted)?.toSet() ?: emptySet()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: VaultUnreadableException) {
+            if (error.failure == VaultFailure.SCHEMA_NEWER) throw error
+            warn("Could not read the deleted-profile record; unlisted profiles will not be recovered", error)
+            null
+        }
+        if (mutableOpenedFromPrevious.value != flagBefore) {
+            mutableOpenedFromPrevious.value = flagBefore
+            warn("Deleted-profile record came from the previous generation; unlisted profiles will not be recovered", null)
+            return null
+        }
+        return result
     }
 
     private fun parseDeleted(element: JsonElement): List<String> =
@@ -541,6 +562,9 @@ class VaultBackedRepository(
         val known = deletedProfileIds ?: return
         if (profileId in known) writeDeleted(known - profileId)
     }
+
+    private fun profileIdFromAssociatedData(bytes: ByteArray): String? =
+        bytes.decodeToString().takeIf { it.startsWith(PROFILE_AAD_PREFIX) }?.removePrefix(PROFILE_AAD_PREFIX)?.takeIf { it.isNotBlank() }
 
     private fun profileIdOf(key: String): String? =
         key.takeIf { it != INDEX_KEY && it.startsWith(PROFILE_PREFIX) && it.endsWith(PROFILE_SUFFIX) }
@@ -662,6 +686,7 @@ class VaultBackedRepository(
         private const val PROFILE_PREFIX = "repository-profile-"
         private const val PROFILE_SUFFIX = "-v1"
         private fun profileKey(profileId: String) = "$PROFILE_PREFIX$profileId$PROFILE_SUFFIX"
-        private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
+        private const val PROFILE_AAD_PREFIX = "Vezuna repository profile v1:"
+        private fun profileAssociatedData(profileId: String) = "$PROFILE_AAD_PREFIX$profileId"
     }
 }

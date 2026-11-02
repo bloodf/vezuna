@@ -16,22 +16,14 @@ class GenerationalFileStoreHardeningTest {
     private fun b(s: String) = s.encodeToByteArray()
 
     @Test
-    fun zeroLengthCurrentFileFallsBackToThePreviousGeneration() {
+    fun zeroLengthCurrentFileIsReturnedEmptySoTheCallerSeesCorruption() {
         val store = GenerationalFileStore(dir)
         store.write("a", b("one"))
         store.write("a", b("two"))
         File(dir, "a").writeBytes(ByteArray(0))
 
-        assertContentEquals(b("one"), store.read("a"))
-    }
-
-    @Test
-    fun zeroLengthFileWithoutAPreviousGenerationIsReturnedEmptyNotMissing() {
-        val store = GenerationalFileStore(dir)
-        store.write("a", b("one"))
-        File(dir, "a").writeBytes(ByteArray(0))
-
         assertEquals(0, assertNotNull(store.read("a")).size)
+        assertContentEquals(b("one"), store.readPrevious("a"))
     }
 
     @Test

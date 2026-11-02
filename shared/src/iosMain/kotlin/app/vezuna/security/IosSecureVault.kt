@@ -1,9 +1,6 @@
 package app.vezuna.security
 
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.serialization.builtins.SetSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.Json
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.cinterop.addressOf
@@ -72,8 +69,6 @@ class IosSecureVault(private val directory: String) : SecureVault {
 
     override suspend fun write(key: String, ciphertext: ByteArray) = lock.withLock {
         prepareDirectory()
-        // Registered first: a crash between the two writes leaves a listed key without a file, never a file nobody can list.
-        register(key)
         writeProtected(fileFor(key), ciphertext)
     }
 
@@ -82,49 +77,17 @@ class IosSecureVault(private val directory: String) : SecureVault {
         core.readData(fileFor(key))
     }
 
-    override suspend fun delete(key: String) = lock.withLock {
-        manager.removeItemAtPath(fileFor(key), null)
-        unregister(key)
-    }
+    override suspend fun delete(key: String) { manager.removeItemAtPath(fileFor(key), null) }
 
-    /** File names are hashes, so the keys are kept in a sealed registry; keys written before it existed are not listed. */
-    override suspend fun listKeys(): List<String>? = lock.withLock {
+    /** File names are hashes, so recovery learns what a file holds from the cleartext associated data of its envelope. */
+    override suspend fun storedAssociatedData(): List<ByteArray>? = lock.withLock {
         relaxExistingProtection()
-        if (!manager.fileExistsAtPath(registryPath)) return@withLock emptyList()
-        loadRegistry()?.toList()
+        IosFileOps().dataFiles().mapNotNull { path ->
+            // A locked or unreadable file throws instead of silently shortening the list.
+            val bytes = core.readData(path) ?: return@mapNotNull null
+            runCatching { CipherEnvelopeCodec.decode(bytes).associatedData }.getOrNull()
+        }
     }
-
-    private var registryCache: Set<String>? = null
-
-    private fun loadRegistry(): Set<String>? {
-        registryCache?.let { return it }
-        val bytes = core.readData(registryPath) ?: return emptySet<String>().also { registryCache = it }
-        val keys = runCatching {
-            val envelope = CipherEnvelopeCodec.decode(bytes)
-            require(envelope.associatedData.contentEquals(REGISTRY_AAD))
-            Json.decodeFromString(SetSerializer(String.serializer()), core.decrypt(envelope).decodeToString())
-        }.getOrNull()
-        return keys?.also { registryCache = it }
-    }
-
-    private fun storeRegistry(keys: Set<String>) {
-        val plain = Json.encodeToString(SetSerializer(String.serializer()), keys).encodeToByteArray()
-        writeProtected(registryPath, CipherEnvelopeCodec.encode(core.encrypt(plain, REGISTRY_AAD)))
-        registryCache = keys
-    }
-
-    private fun register(key: String) {
-        // An unreadable registry only costs the recovery listing, never user data, so it is rebuilt from here.
-        val known = loadRegistry().orEmpty()
-        if (key !in known) storeRegistry(known + key)
-    }
-
-    private fun unregister(key: String) {
-        val known = loadRegistry() ?: return
-        if (key in known) storeRegistry(known - key)
-    }
-
-    private val registryPath: String get() = fileFor("key-registry")
 
     /** All-or-nothing: the Keychain key is archived first, files are moved only then, the key is deleted last. */
     override suspend fun quarantineAll(): Boolean = lock.withLock {
@@ -138,7 +101,6 @@ class IosSecureVault(private val directory: String) : SecureVault {
             if (!manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null)) return@withLock false
             if (!names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }) return@withLock false
         }
-        registryCache = null
         core.deleteKey()
     }
 
@@ -202,7 +164,6 @@ class IosSecureVault(private val directory: String) : SecureVault {
         if (length == 0uL) ByteArray(0) else ByteArray(length.toInt()).apply { usePinned { platform.posix.memcpy(it.addressOf(0), bytes, length) } }
 
     private companion object {
-        val REGISTRY_AAD = "Vezuna key registry v1".encodeToByteArray()
         const val QUARANTINE = "unreadable-"
         const val KEY_ID = "ios-protected-key-v1"
         const val ALGORITHM = "AES-256-GCM-IOS-FILE-PROTECTION"
