@@ -52,7 +52,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         var failed = false
         repository.profiles.value.forEach { profile ->
             try {
-                val data = repository.readProfile(profile.profileId)
+                val data = repository.peekProfile(profile.profileId)
                 loaded[profile.profileId] = data
                 try {
                     recordMissedDoses(repository, data, now, zone)

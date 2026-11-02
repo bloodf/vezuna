@@ -56,7 +56,7 @@ class AppController(
     private val care = CareController(core)
     private val assistant = AssistantController(core, repository, chat)
     private val exports = ExportController(core, pdfExporter)
-    private val backups = BackupController(core, profiles::switchProfile)
+    private val backups = BackupController(core, profiles::switchProfile, profiles::discardUntouchedDefaultAfterRestore)
 
     /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */
     val importSession get() = imports.importSession
@@ -111,6 +111,9 @@ class AppController(
     /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
     suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) = profiles.completeOnboarding(displayName, birthDate)
     fun skipOnboarding() = profiles.skipOnboarding()
+
+    /** Welcome screen's Restore: like [skipOnboarding], and marks the next successful restore as the first-time one. */
+    fun startFirstRunRestore() = profiles.startFirstRunRestore()
     suspend fun renameProfile(profileId: String, displayName: String) = profiles.renameProfile(profileId, displayName)
 
     /** The caller must type the exact profile name; the last remaining profile can never be deleted. */

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class BackupController(
     private val core: ControllerCore,
     private val switchProfile: suspend (String) -> Unit,
+    private val afterRestore: suspend (List<String>) -> Unit = {},
 ) {
     private val mutableRestoreResult = MutableStateFlow<RestoreResult?>(null)
 
@@ -42,6 +43,7 @@ internal class BackupController(
         val outcome = core.repository.restoreMembers(members, mode, core.sourceStore, ::randomId)
         core.mutableState.value = core.mutableState.value.copy(profiles = core.repository.profiles.value)
         switchProfile(outcome.profileIds.first())
+        afterRestore(outcome.profileIds)
         DashboardRefreshSignal.notifyRepositoryChanged()
         core.mutableState.value = core.mutableState.value.copy(
             notice = message(if (outcome.allVitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),

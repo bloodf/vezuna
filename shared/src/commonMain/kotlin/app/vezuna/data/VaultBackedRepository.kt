@@ -58,8 +58,9 @@ import kotlinx.serialization.json.JsonObject
  * Layout in the vault: one encrypted file per profile plus an encrypted profile index that is written last, so a commit
  * rewrites only the profile it touched. Vitals live in their own files ([VitalsStore]). Plaintext never touches disk.
  *
- * Call [load] once before use. [persistSelection] keeps the last opened profile first in [profiles] (iOS); otherwise
- * profiles are sorted by name.
+ * Call [load] once before use. [persistSelection] keeps the last opened profile first in [profiles] (Android and iOS; [open] turns it on);
+ * otherwise profiles are sorted by name. Only [readProfile] (a profile opened in the UI) moves the selection: background
+ * readers must use [peekProfile].
  */
 class VaultBackedRepository(
     private val vault: SecureVault,
@@ -140,9 +141,16 @@ class VaultBackedRepository(
         ensureInitialized()
         val data = records.getValue(profileId).withVitals()
         if (persistSelection && selectedProfileId != profileId) {
-            vault.write(SELECTION_KEY, profileId.encodeToByteArray())
-            selectedProfileId = profileId
-            publishProfiles()
+            // A preference write must never block opening a profile.
+            try {
+                vault.write(SELECTION_KEY, profileId.encodeToByteArray())
+                selectedProfileId = profileId
+                publishProfiles()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                warn("Could not remember the selected profile", error)
+            }
         }
         data
     }
@@ -317,6 +325,11 @@ class VaultBackedRepository(
     override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
         ensureInitialized()
         HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+    }
+
+    override suspend fun explicitHealthLinkId(): String? = mutex.withLock {
+        ensureInitialized()
+        healthLinkId
     }
 
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {

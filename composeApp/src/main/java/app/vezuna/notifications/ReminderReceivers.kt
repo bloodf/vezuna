@@ -64,7 +64,7 @@ private suspend fun isCurrent(app: VezunaApplication, intent: Intent): Boolean {
     val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return false
     val scheduleId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_SCHEDULE_ID) ?: return false
     val data = try {
-        app.repository.readProfile(profileId)
+        app.repository.peekProfile(profileId)
     } catch (missing: NoSuchElementException) {
         null
     }
@@ -160,7 +160,7 @@ class SupplyReceiver : BroadcastReceiver() {
             val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return@guarded
             val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return@guarded
             val data = try {
-                app.repository.readProfile(profileId)
+                app.repository.peekProfile(profileId)
             } catch (missing: NoSuchElementException) {
                 return@guarded
             }

@@ -73,7 +73,7 @@ class VezunaApplication : Application() {
         super.onCreate()
         AndroidPdfFonts.assets = assets
         vault = AndroidSecureVault(File(noBackupFilesDir, "vault"))
-        repository = VaultBackedRepository(vault, warn = { message, error -> Log.w(TAG, message, error) })
+        repository = VaultBackedRepository(vault, persistSelection = true, warn = { message, error -> Log.w(TAG, message, error) })
         loadVault { repository.load() }
         modelFiles = AndroidModelFileStore(this)
         notifications = MedicationNotificationScheduler(this)

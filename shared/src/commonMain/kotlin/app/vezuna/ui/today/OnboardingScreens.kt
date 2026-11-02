@@ -98,7 +98,7 @@ internal fun WelcomeScreen(ctx: RouteContext, onStart: () -> Unit) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd)) {
                 PrimaryButton(vitaText(L10nKey.ONBOARDING_DONE), onStart, Modifier.fillMaxWidth(), container = roles.headerAction, content = roles.onHeaderAction)
                 OutlinedButton(
-                    onClick = { ctx.controller.skipOnboarding(); ctx.navigate(AppScreen.Backups) },
+                    onClick = { ctx.controller.startFirstRunRestore(); ctx.navigate(AppScreen.Backups) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = VezunaTokens.RowHeight),
                     shape = RoundedCornerShape(VezunaTokens.ControlRadius),
                     border = BorderStroke(1.dp, roles.headerAction),

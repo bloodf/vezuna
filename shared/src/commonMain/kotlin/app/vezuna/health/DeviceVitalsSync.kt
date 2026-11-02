@@ -35,7 +35,7 @@ class DeviceVitalsSync(
         beforeSync()
         val profileId = repository.linkedHealthProfileId() ?: throw IllegalStateException("No profile to link")
         val now = clock()
-        val lastSync = repository.readProfile(profileId).vitals.lastSync
+        val lastSync = repository.peekProfile(profileId).vitals.lastSync
         val tz = zone()
         val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
         repository.ingestDeviceVitals(batch, now)
