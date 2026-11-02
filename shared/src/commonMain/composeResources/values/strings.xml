@@ -1207,4 +1207,19 @@ iOS: %2$s</string>
     <string name="export_col_unit">Unit</string>
     <string name="export_pdf_access_note">PDF text stays selectable, but Android and iOS cannot add accessibility tags to it. The CSV is the screen-reader-friendly copy of the same results.</string>
     <string name="export_family_selected">Selected</string>
+    <string name="care_supply_title">Supply</string>
+    <string name="care_supply_units_label">Units on hand (optional)</string>
+    <string name="care_supply_units_hint">One unit per dose, such as a tablet</string>
+    <string name="care_supply_threshold_label">Remind me when this many are left (optional)</string>
+    <string name="care_supply_remaining">Units left: %1$s</string>
+    <string name="care_supply_runs_out">Estimated to run out on %1$s</string>
+    <string name="care_supply_low">Low supply</string>
+    <string name="care_supply_estimate_note">Estimate from the schedule and the doses you record as taken. Skipped and missed doses do not use a unit.</string>
+    <string name="care_record_refill">Record refill</string>
+    <string name="care_refill_units">Units added</string>
+    <string name="care_refill_save">Save refill</string>
+    <string name="care_refill_recorded">Refill recorded for %1$s.</string>
+    <string name="supply_invalid">Enter whole numbers of 0 or more for the supply.</string>
+    <string name="supply_refill_invalid">Enter a whole number of units, 1 or more.</string>
+    <string name="supply_not_tracked">Set the units on hand before recording a refill.</string>
 </resources>
