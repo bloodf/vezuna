@@ -8,9 +8,9 @@ Verification close-out for the Living Color redesign (#121, accessibility #95). 
 
 | Status | Count | Meaning |
 |---|---|---|
-| done | 101 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
+| done | 100 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
 | implemented | 26 | Implemented and tested in code; not reachable from the design fixture (lock, vault, restore, export transient/error states) or not shot |
-| partial | 26 | Real but incomplete; each gap is named in the table |
+| partial | 27 | Real but incomplete; each gap is named in the table |
 | system | 8 | OS-owned UI (permissions, biometric prompt, notification, share/save sheets); the real native interface is invoked |
 | not-started | 1 | pdf-09 source appendix: the section is not built |
 
@@ -265,7 +265,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 138 | preview-dark | L9 | done | none |
 | 139 | portuguese-review | L3 | done | none (Android PT); iOS PT not taken |
 | 140 | spanish-care | L4 | done | none (Android ES) |
-| 141 | large-text | L1 | done | At 320dp + font 2.0 a few long single words in grouped rows still break mid-word (e.g. ES "Exportaciones"); iOS AX5 pass owed (manual) |
+| 141 | large-text | L1 | partial | At 320dp + font 2.0 a few long single words in grouped rows still break mid-word (e.g. ES "Exportaciones"); iOS AX5 pass owed (manual) |
 | 142 | tablet-records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; tablet landscape not captured |
 | 143 | tablet-review | L3 | partial | source/review split pane not built (proposed) |
 | 144 | components | R0 | done | No standalone component catalog screen; components verified in context on every Android shot |

@@ -154,6 +154,8 @@ user-facing text. EN/PT/ES for every string in the shared, Android and iOS catal
 
 ## Accessibility
 
+> Status: the behaviour below is implemented in code; manual TalkBack and VoiceOver passes and iOS visual checks are still owed. See docs/redesign/COVERAGE.md, "Remaining prerequisites".
+
 - Every interactive node has a localized name, role and state; decorative icons have no description.
 - Screen titles and section titles are headings; on navigation, focus starts at the title.
 - Targets 48dp/44pt; 8dp or more between destructive and routine actions.
