@@ -1,5 +1,6 @@
 package app.vezuna.ui.assistant
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -86,7 +87,9 @@ internal fun AssistantChat(ctx: RouteContext) {
 
         Column(Modifier.fillMaxSize()) {
             Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    // The composer clears the edge itself; without it the list does.
+                    .then(if (unavailable) Modifier.clearOfNavigationBar() else Modifier).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
             ) {
                 Text(vitaText(L10nKey.ON_DEVICE_AI_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
@@ -148,7 +151,7 @@ internal fun AssistantChat(ctx: RouteContext) {
             }
             if (!unavailable) {
                 Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = VezunaTokens.SpaceXs) {
-                    Column(Modifier.fillMaxWidth().padding(VezunaTokens.SpaceMd), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+                    Column(Modifier.fillMaxWidth().clearOfNavigationBar().padding(VezunaTokens.SpaceMd), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
                         if (ctx.loadedModelId == null) {
                             Text(vitaText(L10nKey.CHAT_NEEDS_MODEL), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

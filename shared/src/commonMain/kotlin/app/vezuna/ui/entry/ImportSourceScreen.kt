@@ -1,5 +1,6 @@
 package app.vezuna.ui.entry
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -79,7 +80,7 @@ internal fun ImportSourceScreen(ctx: RouteContext) {
     val manual = { session.idle(); ctx.navigate(AppScreen.ManualEntry) }
     FocusedTaskScaffold(title = vitaText(L10nKey.ENTRY_ADD_RECORD), onBack = ctx::back) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
             when (val current = phase) {

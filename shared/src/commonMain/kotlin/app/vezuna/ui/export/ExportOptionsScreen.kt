@@ -1,5 +1,6 @@
 package app.vezuna.ui.export
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -79,10 +80,9 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
     val csv = kind == CSV_KIND
     val options = draft.options(today())
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.EXPORT_OPTIONS), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Text(vitaText(draft.family?.style()?.title ?: L10nKey.EXPORT_CSV_HEADING), style = MaterialTheme.typography.titleLarge)
         GroupedRows(title = vitaText(L10nKey.EXPORT_FIELD_PROFILE)) {
             ListRow(data.profile.displayName, leading = { ProfileAvatar(data.profile.displayName) })
@@ -270,10 +270,9 @@ internal fun ExportSelectionScreen(ctx: RouteContext, kind: String) {
         }
     }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.EXPORT_SELECTION_TITLE), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Text(vitaPlural(L10nKey.EXPORT_SELECTION_COUNT, tests.sumOf { it.count }), style = MaterialTheme.typography.titleMedium)
         GroupedRows {
             tests.forEach { test ->

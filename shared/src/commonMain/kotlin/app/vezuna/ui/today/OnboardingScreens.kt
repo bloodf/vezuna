@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
@@ -120,7 +121,7 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
     var birthDate by remember { mutableStateOf<LocalDate?>(null) }
     val roles = MaterialTheme.vezuna
     val birthError = (state.error as? UserText.Key)?.takeIf { it.key == L10nKey.BIRTH_DATE_INVALID }?.resolve()
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).clearOfNavigationBar()) {
         Surface(
             Modifier.fillMaxWidth(),
             color = roles.header,

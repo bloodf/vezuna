@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import app.vezuna.domain.ProfileData
@@ -41,14 +42,13 @@ import vezuna.shared.generated.resources.ill_privacy_device
 @Composable
 internal fun ConnectionsBody(ctx: RouteContext, data: ProfileData) {
     TrendColumn {
-        Text(vitaText(L10nKey.TR_CONNECTIONS_TITLE), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         if (NativeAction.HEALTH !in ctx.nativeActions) {
             EmptyState(Res.drawable.ill_privacy_device, vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_TITLE), vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_BODY))
             return@TrendColumn
         }
         CategoryPanel(Category.ACTIVITY, illustration = Res.drawable.ill_device_link) {
-            CardHeading(vitaText(L10nKey.TR_LINK_HEADING))
-            Text(vitaText(L10nKey.LINKED_PROFILE_EXPLANATION), style = MaterialTheme.typography.bodyLarge)
+            Text(vitaText(L10nKey.TR_LINK_HEADING), style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearOfArt().semantics { heading() })
+            Text(vitaText(L10nKey.LINKED_PROFILE_EXPLANATION), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearOfArt())
         }
         val linkedId = ctx.state.healthLinkedProfileId
         val linked = ctx.state.profiles.firstOrNull { it.profileId == linkedId }

@@ -35,9 +35,15 @@ captured with `scripts/redesign-shots.sh`. Screenshots are kept outside the repo
 
 Each `android/` screen was compared side by side with its reference image.
 
-**iOS simulator** (`6530252C`, Debug build from check-all): `scripts/redesign-shots.sh ios` launched every root
-route, but the simulator framebuffer is black (the same result the L1 to L8 lanes reported). No iOS visual
-evidence. The iOS build and unit tests pass in check-all.
+**iOS simulator** (closeout lane, 2026-11-02): the earlier black frames came from the lane devices, whose
+runtime is iOS 27.1 and supports only the dual-screen "iPhone Duo" type; `simctl io screenshot` then needs
+`--display=` and the app renders into a mis-sized frame. A fresh "Vezuna Closeout" iPhone 17 on the iOS 27.0
+runtime renders normally. Shots (light and dark, Debug fixture build) were viewed for Dashboard, Labs, Medications,
+Trends, More, ResultDetail, ReportDetail, SourceViewer (missing file), MedicationDetail, MedicationForm, DoseHistory,
+Profiles, ManualEntry, Settings, Backups, ExportHub, AiChat, Models, Vitals, plus large text (accessibility XXXL,
+EN and ES). Screenshots stay outside the repo. Focused screens that drew their own page title (Vitals, Vitals detail, Connections, Add/Edit medication, Dose history, Create export, Export options, Choose results) now pass it to the task header, matching Backups and Profiles. Defect found and fixed: the Compose host stopped at the top safe
+area, leaving a white status-bar strip and a doubled header gap (`ContentView.swift`). Other differences from the
+reference images are shared-UI design gaps already named per row, not iOS-only. VoiceOver and AX5 passes remain manual.
 
 ## Defects found and fixed in lane V
 
@@ -134,18 +140,17 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 - **Manual screen reader passes owed:** TalkBack and VoiceOver passes for headings rotor, live-region
   announcements, focus return after dialogs (code in place, not heard on a device), locked-state tree, and AX5
   Dynamic Type in PT/ES on iOS.
-- **iOS visuals:** simulator framebuffer is black in this environment; every iOS screen still needs a visual check.
+- **iOS visuals:** routes not listed above were not shot; use an iPhone type on the iOS 27.0 runtime (not 27.1).
 - **Device-only states:** lock, unlock failure, vault recovery/reset, notification permission and the reminder
   notification itself need a physical device; Health Connect/HealthKit permission sheets are OS UI.
-- **Large text edge:** at 320dp + font scale 2.0, a few long single words in grouped rows still break mid-word
-  (e.g. ES "Exportaciones").
+- **Large text edge:** fixed and rechecked on Android at 320dp + font scale 2.0 (ES) in the closeout lane.
 - **Store assets:** not part of this pass.
 
 ## Per-image status
 
 | ID | Screen | Lane | Status | Remaining gap |
 |---|---|---|---|---|
-| 001 | today | L1 | done | dose panel uses CARE coral and review uses RECORDS mint (RESEARCH.md category rule wins over raster); device shots blocked: simulator renders black |
+| 001 | today | L1 | done | dose panel uses CARE coral and review uses RECORDS mint (RESEARCH.md category rule wins over raster); iOS shot: not yet shot |
 | 002 | welcome | L1 | done | Open source footer omitted (no offline target); device shots blocked |
 | 003 | first-profile | L1 | done | no person illustration asset, uses ill_foliage; device shots blocked |
 | 004 | today-empty | L1 | done | device shots blocked |
@@ -157,23 +162,23 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 010 | unlock-failed | L6 | implemented | Not reachable from the fixture; manual device check owed |
 | 011 | vault-recovery | L6 | implemented | Not reachable from the fixture; manual device check owed |
 | 012 | vault-reset | L6 | implemented | Not reachable from the fixture; manual device check owed |
-| 013 | recovered-notice | L6 | partial | image shows a Today banner (L1 surface); shell still shows a dialog |
-| 014 | records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 015 | records-empty | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 016 | record-search | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 017 | search-empty | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 018 | record-filters | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 019 | report-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 020 | source-viewer | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; no real-file device test |
-| 021 | source-missing | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 022 | report-delete | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 023 | result-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 024 | qualitative-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 013 | recovered-notice | L6 | partial | image shows a Today banner (L1 surface); shell still shows a dialog. Kept: the dialog guarantees acknowledgement and is not reachable in the fixture, so a Today banner could not be verified |
+| 014 | records | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 015 | records-empty | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 016 | record-search | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 017 | search-empty | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 018 | record-filters | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 019 | report-detail | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 020 | source-viewer | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot; no real-file device test |
+| 021 | source-missing | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot supports rendering only: the SourceViewer fixture route shows the original-file-not-available screen but the missing-source state was not set up deliberately; VoiceOver/AX5 pass owed |
+| 022 | report-delete | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 023 | result-detail | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 024 | qualitative-detail | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 025 | numeric-edit | L3 | done | none |
 | 026 | qualitative-edit | L3 | done | none |
 | 027 | result-validation | L3 | done | none |
 | 028 | revision-history | L3 | done | none |
-| 029 | result-unavailable | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 029 | result-unavailable | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 030 | add-record | L3 | done | none |
 | 031 | camera | L3 | done | system UI, not redrawn |
 | 032 | photo-picker | L3 | done | system UI, not redrawn |
@@ -199,23 +204,23 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 052 | text-trend | L5 | done | reference assessment line not shown (domain TextEvent has no reference) |
 | 053 | trends-empty | L5 | implemented | none |
 | 054 | incompatible-units | L5 | implemented | none |
-| 055 | care | L4 | done | Header follows O1 (profile chip, no gear/lockup); iOS screenshots pending: simulator framebuffer returns black |
-| 056 | care-empty | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 057 | medication-detail | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 058 | medication-add | L4 | done | Form keeps multi-schedule/recurrence editor from fix/reminders (tested by ScheduleDraftTest); iOS screenshots pending: simulator framebuffer returns black |
-| 059 | medication-edit | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 060 | medication-validation | L4 | done | Save stays enabled so submit can focus the first invalid field (a11y checklist 9); iOS screenshots pending: simulator framebuffer returns black |
-| 061 | medication-paused | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 062 | medication-stop | L4 | done | Dialog, not a sheet; iOS screenshots pending: simulator framebuffer returns black |
-| 063 | medication-delete | L4 | done | Dialog, not a sheet; iOS screenshots pending: simulator framebuffer returns black |
-| 064 | dose-actions | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 065 | dose-snooze | L4 | partial | 15/30/60 options not built: invariant keeps one 10-minute snooze in-app and from the notification; iOS screenshots pending: simulator framebuffer returns black |
-| 066 | dose-recorded | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 067 | dose-history | L4 | partial | Per-day dot strip not built; rows and counts carry the same information; iOS screenshots pending: simulator framebuffer returns black |
-| 068 | reminder-setup | L4 | done | iOS asks automatically on first reconcile, so the intro panel is Android-only; iOS screenshots pending: simulator framebuffer returns black |
-| 069 | notification-permission | L4 | system | Physical-device manual check; iOS screenshots pending: simulator framebuffer returns black |
-| 070 | reminders-denied | L4 | done | iOS screenshots pending: simulator framebuffer returns black |
-| 071 | reminder-notification | L4 | system | Physical-device manual check; iOS screenshots pending: simulator framebuffer returns black |
+| 055 | care | L4 | done | Header follows O1 (profile chip, no gear/lockup); iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 056 | care-empty | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 057 | medication-detail | L4 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 058 | medication-add | L4 | done | Form keeps multi-schedule/recurrence editor from fix/reminders (tested by ScheduleDraftTest); iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 059 | medication-edit | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 060 | medication-validation | L4 | done | Save stays enabled so submit can focus the first invalid field (a11y checklist 9); iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 061 | medication-paused | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 062 | medication-stop | L4 | done | Dialog, not a sheet; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 063 | medication-delete | L4 | done | Dialog, not a sheet; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 064 | dose-actions | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 065 | dose-snooze | L4 | partial | 15/30/60 options not built: invariant keeps one 10-minute snooze in-app and from the notification; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 066 | dose-recorded | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 067 | dose-history | L4 | partial | Per-day dot strip not built; rows and counts carry the same information; iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 068 | reminder-setup | L4 | done | iOS asks automatically on first reconcile, so the intro panel is Android-only; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 069 | notification-permission | L4 | system | Physical-device manual check; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 070 | reminders-denied | L4 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 071 | reminder-notification | L4 | system | Physical-device manual check; iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 072 | vitals | L5 | done | steps drawn as dots/line, not bars |
 | 073 | vital-detail | L5 | done | none |
 | 074 | vitals-empty | L5 | implemented | none |
@@ -223,9 +228,9 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 076 | health-profile-mismatch | L5 | implemented | none |
 | 077 | healthkit-permission | L5 | system | none |
 | 078 | health-connect-permission | L5 | system | none |
-| 079 | health-importing | L5 | partial | no full-screen importing page; native progress/feedback only |
+| 079 | health-importing | L5 | partial | no full-screen importing page for health sync; the reading-progress screen (035) covers lab file import only, health sync keeps native progress/feedback |
 | 080 | health-unavailable | L5 | implemented | state shown as native message, not a full-screen page |
-| 081 | health-denied | L5 | partial | no Open settings button |
+| 081 | health-denied | L5 | partial | no Open settings button: HealthKit hides read denial and has no Health-access deep link; Android needs an action slot in FeedbackHost (not built) |
 | 082 | more | L7 | done | Hub uses category panels per image; V lane to shoot |
 | 083 | privacy-storage | L6 | done | no Encryption detail screen; row is static |
 | 084 | backups | L6 | done | Today nudge not added (L1) |
@@ -277,24 +282,24 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 130 | notices | L7 | partial | Screen explains and opens the existing native offline reader; no shared in-app reader |
 | 131 | help | L7 | done | Static help with in-app links and GitHub links; no offline guides content exists so none is shown |
 | 132 | today-dark | L1 | done | none (Android); iOS dark screenshots not taken |
-| 133 | records-dark | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 134 | result-dark | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 133 | records-dark | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 134 | result-dark | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
 | 135 | form-dark | L3 | done | none (Android); iOS dark not taken |
 | 136 | assistant-dark | L8 | partial | Conditional: the default model catalog is empty, so this state is unreachable in any build today; code compiles and clear-history is unit-tested; needs a rea... |
 | 137 | more-dark | L7 | done | none (Android) |
 | 138 | preview-dark | L9 | done | none |
 | 139 | portuguese-review | L3 | done | none (Android PT); iOS PT not taken |
 | 140 | spanish-care | L4 | done | none (Android ES) |
-| 141 | large-text | L1 | partial | At 320dp + font 2.0 a few long single words in grouped rows still break mid-word (e.g. ES "Exportaciones"); iOS AX5 pass owed (manual) |
-| 142 | tablet-records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; tablet landscape not captured |
+| 141 | large-text | L1 | partial | fixed: icon tiles hide at font scale >=1.5 (ListRow, More PanelRow) so long names reflow; verified Android 320dp, font 2.0, ES (Exportaciones whole, focused-screen titles wrap in the header) and iOS ES at AX XXXL; TalkBack/VoiceOver pass owed |
+| 142 | tablet-records | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot; tablet landscape not captured |
 | 143 | tablet-review | L3 | partial | source/review split pane not built (proposed) |
 | 144 | components | R0 | done | No standalone component catalog screen; components verified in context on every Android shot |
 | 145 | biometric-prompt | L6 | system | none |
-| 146 | daily-schedule | L4 | done | Recurrence chips stay (built and tested in fix/reminders); iOS screenshots pending: simulator framebuffer returns black |
+| 146 | daily-schedule | L4 | done | Recurrence chips stay (built and tested in fix/reminders); iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 147 | last-profile | L1 | done | none (fixture has one profile, so ProfileEdit shows the last-profile state) |
 | 148 | review-unavailable | L3 | done | none |
 | 149 | extraction-details | L3 | done | none |
-| 150 | global-feedback | R0 | partial | FeedbackHost live region in the shell (polite/assertive); banner sits at the bottom, image shows it under the header; TalkBack/VoiceOver announcement pass ow... |
+| 150 | global-feedback | R0 | partial | FeedbackHost live region in the shell (polite/assertive); banner sits at the bottom, image shows it under the header; not moved: header height differs per screen so a top banner would cover titles/back; TalkBack/VoiceOver announcement pass owed (manual) |
 | pdf-01 | health-summary | L9 | done | Two A4 pages instead of one: graphs, graph key and the full latest-results table paginate rather than shrink (spec allows 'continued'); a graph that drops la... |
 | pdf-02 | lab-history-first | L9 | done | none |
 | pdf-03 | lab-history-continuation | L9 | done | none |

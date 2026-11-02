@@ -1,5 +1,6 @@
 package app.vezuna.ui.entry
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -68,7 +69,7 @@ internal fun ResultHistoryScreen(ctx: RouteContext, observationId: String) {
         }
         val corrections = observation.corrections()
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
             Text(observation.displayName, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })

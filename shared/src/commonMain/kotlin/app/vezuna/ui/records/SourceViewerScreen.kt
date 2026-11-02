@@ -1,5 +1,6 @@
 package app.vezuna.ui.records
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -90,7 +91,7 @@ internal fun SourceViewerScreen(ctx: RouteContext, documentId: String) =
 @Composable
 private fun SourceUnavailable(ctx: RouteContext, body: String, offerReimport: Boolean) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
     ) {
         EmptyState(Res.drawable.ill_file_error, vitaText(L10nKey.SOURCE_MISSING_TITLE), body)
@@ -139,7 +140,7 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
             EmptyState(Res.drawable.ill_file_error, vitaText(L10nKey.SOURCE_UNSUPPORTED_TITLE), vitaText(L10nKey.SOURCE_UNSUPPORTED_BODY), Modifier.padding(VezunaTokens.Gutter))
             return@BoxWithConstraints
         }
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().clearOfNavigationBar()) {
             Text(
                 vitaText(L10nKey.SOURCE_PAGE_OF, pageIndex + 1, pageCount),
                 style = MaterialTheme.typography.titleMedium,

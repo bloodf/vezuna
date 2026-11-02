@@ -1,5 +1,6 @@
 package app.vezuna.ui.records
 
+import app.vezuna.ui.components.contentBottomInset
 import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -155,7 +156,7 @@ private fun RecordsList(
 
     LazyColumn(
         modifier,
-        contentPadding = PaddingValues(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+        contentPadding = PaddingValues(start = VezunaTokens.Gutter, end = VezunaTokens.Gutter, top = VezunaTokens.SpaceMd, bottom = VezunaTokens.SpaceMd + contentBottomInset()),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         if (pendingTotal > 0) item { ReviewBanner(pendingTotal) { ctx.navigate(AppScreen.ImportReview) } }

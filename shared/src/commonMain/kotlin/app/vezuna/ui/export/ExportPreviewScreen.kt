@@ -1,5 +1,6 @@
 package app.vezuna.ui.export
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -134,7 +135,7 @@ internal fun ExportPreviewScreen(ctx: RouteContext, kind: String) {
 @Composable
 private fun ScreenColumn(content: @Composable () -> Unit) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         content()

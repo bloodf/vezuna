@@ -1,5 +1,6 @@
 package app.vezuna.ui.entry
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -159,7 +160,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
     FocusedTaskScaffold(title = vitaText(L10nKey.ENTRY_REVIEW_POSITION, position.coerceAtLeast(1), sameSource.size.coerceAtLeast(1)), onBack = back) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
-                Modifier.widthIn(max = 680.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+                Modifier.widthIn(max = 680.dp).fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
             ) {
                 SourceLine(ctx, data, candidate)

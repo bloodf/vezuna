@@ -1,5 +1,6 @@
 package app.vezuna.ui.more
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import app.vezuna.ui.components.decorativeArtShown
 import app.vezuna.ui.components.CategoryPanel
 import vezuna.shared.generated.resources.ic_chevron_right
 import androidx.compose.foundation.layout.Column
@@ -69,7 +71,7 @@ import vezuna.shared.generated.resources.ic_users
 private fun PushedPage(ctx: RouteContext, title: String, content: @Composable () -> Unit) =
     FocusedTaskScaffold(title = title, onBack = ctx::back) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceLg),
         ) {
             Spacer(Modifier.height(VezunaTokens.SpaceSm))
@@ -220,7 +222,8 @@ private fun PanelRow(title: String, supporting: String, icon: DrawableResource, 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
     ) {
-        Box(Modifier.size(40.dp).background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(VezunaTokens.ControlRadius)), contentAlignment = Alignment.Center) {
+        // At very large text the icon tile gives its width back so a long name ("Exportaciones") never breaks mid-word.
+        if (decorativeArtShown()) Box(Modifier.size(40.dp).background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(VezunaTokens.ControlRadius)), contentAlignment = Alignment.Center) {
             Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f)) {

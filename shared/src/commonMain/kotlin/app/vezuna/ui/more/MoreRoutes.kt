@@ -1,5 +1,6 @@
 package app.vezuna.ui.more
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +25,7 @@ object MoreRoutes {
     @Composable
     fun More(ctx: RouteContext) = RootScaffold(ctx, vitaText(L10nKey.NAV_MORE), vitaText(L10nKey.MORE_SUBTITLE)) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
             Spacer(Modifier.height(VezunaTokens.SpaceSm))

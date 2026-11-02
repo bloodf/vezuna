@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,7 +58,14 @@ import app.vezuna.localization.resolve
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.components.FeedbackHost
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import app.vezuna.ui.components.LocalContentBottomInset
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.ScaffoldDefaults
@@ -214,10 +223,15 @@ fun VezunaApp(
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.background,
                     // The top inset is consumed by RootHeader and FocusedTaskScaffold, whose pine band reaches
-                    // under the status bar.
-                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                    // under the status bar. The bottom edge is left to the pages: they draw under the home
+                    // indicator and end their scroll with clearOfNavigationBar().
+                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal),
                     bottomBar = { if (!wide && nav.isRoot && !state.onboarding) VezunaNavigationBar(nav.root, controller::selectRoot) },
                 ) { padding ->
+                    // The tab bar clears the bottom edge itself; without it, pages keep clear of the navigation bar.
+                    val tabBarShown = !wide && nav.isRoot && !state.onboarding
+                    val navigationBarHeight = WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
+                    CompositionLocalProvider(LocalContentBottomInset provides if (tabBarShown) 0.dp else navigationBarHeight) {
                     Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
                         AnimatedContent(
                             targetState = Triple(nav.root, nav.stack.size, nav.current),
@@ -247,8 +261,9 @@ fun VezunaApp(
                             notice = state.notice?.resolve(),
                             error = state.error?.resolve(),
                             onDismiss = controller::clearMessages,
-                            modifier = Modifier.align(Alignment.BottomCenter),
+                            modifier = Modifier.align(Alignment.BottomCenter).clearOfNavigationBar(),
                         )
+                    }
                     }
                 }
             }
@@ -323,7 +338,8 @@ private fun VezunaRail(current: Destination, onSelect: (Destination) -> Unit) {
             )
         },
     ) {
-        Column(Modifier.padding(top = 8.dp)) {
+        // Scrolls so a short (landscape) window never stacks the items on top of each other.
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
             Destination.entries.forEach { destination ->
                 NavigationRailItem(
                     selected = destination == current,
