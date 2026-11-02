@@ -599,6 +599,7 @@ object IosRuntime {
 
 /** [route] is a debug deep link (launch argument `-VezunaRoute <Name>`); Swift passes it only in debug builds. */
 fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewController {
+    installMorePlatformIos()
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
@@ -654,6 +655,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
         controller.initialize()
     }
     return ComposeUIViewController {
+        installMorePlatformIos()
         VezunaApp(
             controller = controller,
             scope = IosRuntime.scope,
@@ -662,6 +664,42 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
             startRoute = route?.let(::routeFromName),
         )
     }
+}
+
+private var morePlatformInstalled = false
+
+/** Fills the shared More hooks: saved theme (also applied to native sheets), app version, Settings app and browser. */
+private fun installMorePlatformIos() {
+    if (morePlatformInstalled) return
+    morePlatformInstalled = true
+    val defaults = platform.Foundation.NSUserDefaults.standardUserDefaults
+    fun applyToWindows(mode: app.vezuna.ui.more.ThemeMode) {
+        val style = when (mode) {
+            app.vezuna.ui.more.ThemeMode.SYSTEM -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified
+            app.vezuna.ui.more.ThemeMode.LIGHT -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleLight
+            app.vezuna.ui.more.ThemeMode.DARK -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleDark
+        }
+        platform.UIKit.UIApplication.sharedApplication.windows.forEach { (it as? platform.UIKit.UIWindow)?.overrideUserInterfaceStyle = style }
+    }
+    val saved = defaults.stringForKey("vezuna-theme-mode")
+        ?.let { name -> app.vezuna.ui.more.ThemeMode.entries.firstOrNull { it.name == name } }
+        ?: app.vezuna.ui.more.ThemeMode.SYSTEM
+    app.vezuna.ui.more.MorePlatform.restoreTheme(saved)
+    app.vezuna.ui.more.MorePlatform.persistTheme = {
+        defaults.setObject(it.name, forKey = "vezuna-theme-mode")
+        applyToWindows(it)
+    }
+    platform.darwin.dispatch_async(platform.darwin.dispatch_get_main_queue()) { applyToWindows(saved) }
+    val bundle = platform.Foundation.NSBundle.mainBundle
+    app.vezuna.ui.more.MorePlatform.versionName = bundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
+    app.vezuna.ui.more.MorePlatform.buildNumber = bundle.objectForInfoDictionaryKey("CFBundleVersion") as? String
+    fun open(url: String) {
+        platform.Foundation.NSURL.URLWithString(url)?.let {
+            platform.UIKit.UIApplication.sharedApplication.openURL(it, emptyMap<Any?, Any?>(), null)
+        }
+    }
+    app.vezuna.ui.more.MorePlatform.openUrl = ::open
+    app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
 }
 
 private object NoModelFiles : app.vezuna.llm.ModelFileStore {
