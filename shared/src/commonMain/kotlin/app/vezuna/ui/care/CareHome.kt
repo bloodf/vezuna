@@ -6,6 +6,7 @@ import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -226,8 +227,9 @@ private fun ReminderAccessPanel(ctx: RouteContext, reminders: ReminderPlatformSt
 @Composable
 private fun MedicationList(ctx: RouteContext, data: ProfileData) {
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
-            SectionHeading(vitaText(L10nKey.MEDICATIONS), Modifier.weight(1f))
+        // A long translated heading wraps the button to the next line instead of breaking mid-word.
+        FlowRow(Modifier.fillMaxWidth(), itemVerticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+            SectionHeading(vitaText(L10nKey.MEDICATIONS))
             SecondaryButton(vitaText(L10nKey.ADD_MEDICATION), { ctx.navigate(AppScreen.MedicationForm()) }, icon = Res.drawable.ic_plus)
         }
         GroupedRows {
