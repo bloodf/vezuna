@@ -1,5 +1,6 @@
 package app.vezuna.llm
 
+import android.app.Activity
 import android.content.Context
 import app.vezuna.NativeKey
 import app.vezuna.NativeMessageException
@@ -20,12 +21,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.job
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import java.lang.ref.WeakReference
 
 sealed interface ModelPackLoadState {
     data object Idle : ModelPackLoadState
@@ -37,14 +41,19 @@ sealed interface ModelPackLoadState {
     data class Failed(val message: NativeText) : ModelPackLoadState
 }
 
-class PlayAssetPackLoader(
-    context: Context,
+class PlayAssetPackLoader internal constructor(
+    managerProvider: () -> AssetPackManager,
     private val premiumGate: PremiumLicenseGate,
+    private val inactivityTimeoutMs: Long = AssetPackStatusPolicy.INACTIVITY_TIMEOUT_MS,
 ) {
-    private val appContext = context.applicationContext
-    private val manager: AssetPackManager by lazy { AssetPackManagerFactory.getInstance(appContext) }
+    constructor(context: Context, premiumGate: PremiumLicenseGate) :
+        this({ AssetPackManagerFactory.getInstance(context.applicationContext) }, premiumGate, AssetPackStatusPolicy.INACTIVITY_TIMEOUT_MS)
+
+    private val manager: AssetPackManager by lazy(managerProvider)
     private val mutableState = MutableStateFlow<ModelPackLoadState>(ModelPackLoadState.Idle)
     val state: StateFlow<ModelPackLoadState> = mutableState.asStateFlow()
+    @Volatile private var activityRef: WeakReference<Activity>? = null
+    @Volatile private var session: AssetPackFetchSession? = null
 
     /** Returns the pack file location (used in place, no release needed) of the pack file; the model store streams it into private storage. */
     suspend fun load(pack: ModelPack): ModelPackSource? {
@@ -72,38 +81,41 @@ class PlayAssetPackLoader(
 
     fun clearState() { mutableState.value = ModelPackLoadState.Idle }
 
-    private suspend fun fetch(packId: String): AssetPackLocation? {
-        val initial = manager.fetch(listOf(packId)).await()
-        updateFrom(initial.packStates()[packId])
-        val terminal = initial.packStates()[packId]?.takeIf { it.status() in TERMINAL_STATUSES }
-        if (terminal != null && terminal.status() != AssetPackStatus.COMPLETED) {
-            failNative(NativeKey.ASSET_PACK_UNAVAILABLE, packId, terminal.status(), terminal.errorCode())
-        }
-        if (terminal == null) awaitCompletion(packId)
-        return manager.getPackLocation(packId)
+    /** Activity used to show Play confirmation dialogs; held weakly so the loader can outlive recreation. */
+    fun bindActivity(activity: Activity?) {
+        activityRef = activity?.let(::WeakReference)
+        if (activity != null) session?.retryPendingConfirmation()
     }
 
-    private suspend fun awaitCompletion(packId: String) = suspendCancellableCoroutine<Unit> { continuation ->
-        lateinit var listener: AssetPackStateUpdateListener
-        listener = AssetPackStateUpdateListener { state ->
-            if (state.name() != packId) return@AssetPackStateUpdateListener
-            updateFrom(state)
-            when (state.status()) {
-                AssetPackStatus.COMPLETED -> {
-                    manager.unregisterListener(listener)
-                    if (continuation.isActive) continuation.resume(Unit)
-                }
-                AssetPackStatus.FAILED,
-                AssetPackStatus.CANCELED,
-                AssetPackStatus.NOT_INSTALLED,
-                -> {
-                    manager.unregisterListener(listener)
-                    if (continuation.isActive) continuation.resumeWithException(NativeMessageException(nativeMessage(NativeKey.ASSET_PACK_UNAVAILABLE, packId, state.status(), state.errorCode())))
-                }
-            }
-        }
+    private suspend fun fetch(packId: String): AssetPackLocation? = coroutineScope {
+        val current = AssetPackFetchSession(packId, manager, this, { activityRef?.get() }, ::updateFrom)
+        session = current
+        val listener = AssetPackStateUpdateListener { state -> if (state.name() == packId) current.handle(state) }
         manager.registerListener(listener)
-        continuation.invokeOnCancellation { manager.unregisterListener(listener) }
+        var succeeded = false
+        try {
+            // Listener is registered before fetch; states are re-read afterwards to catch updates emitted in between.
+            manager.fetch(listOf(packId)).await().packStates()[packId]?.let(current::handle)
+            manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let(current::handle)
+            awaitWithInactivityTimeout(current)
+            succeeded = true
+        } finally {
+            session = null
+            manager.unregisterListener(listener)
+            coroutineContext.job.cancelChildren()
+            // Stops a half-finished download when the caller gave up or the delivery failed.
+            if (!succeeded) runCatching { manager.cancel(listOf(packId)) }
+        }
+        manager.getPackLocation(packId)
+    }
+
+    private suspend fun awaitWithInactivityTimeout(current: AssetPackFetchSession) {
+        while (true) {
+            val before = current.progressMarker()
+            val finished = withTimeoutOrNull(inactivityTimeoutMs) { current.done.await() }
+            if (finished != null) return
+            if (current.progressMarker() == before) failNative(NativeKey.MODEL_DELIVERY_FAILED)
+        }
     }
 
     private fun updateFrom(state: AssetPackState?) {
@@ -128,9 +140,5 @@ class PlayAssetPackLoader(
         val file = File(root, pack.fileName).canonicalFile
         if (file.parentFile != root || !file.isFile) failNative(NativeKey.GGUF_MISSING)
         file.path
-    }
-
-    private companion object {
-        val TERMINAL_STATUSES = setOf(AssetPackStatus.COMPLETED, AssetPackStatus.FAILED, AssetPackStatus.CANCELED, AssetPackStatus.NOT_INSTALLED)
     }
 }

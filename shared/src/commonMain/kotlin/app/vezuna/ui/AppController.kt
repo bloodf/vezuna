@@ -28,6 +28,7 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportOptions
 import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
@@ -97,6 +98,8 @@ data class AppUiState(
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
     val healthLinkedProfileId: String? = null,
+    /** Assistant text received so far while an answer is being generated; null when idle. */
+    val streamingAnswer: String? = null,
 )
 
 object DashboardRefreshSignal {
@@ -215,12 +218,19 @@ class AppController(
                 failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
             }
         }
-        val sourceHash = sha256(source.bytes).toHex()
+        val sourceHash = sourceIdentity(source)
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
         val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
         if (existingDocument == null) addDocumentKeepingFile(document)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
-            repository.addReport(LabReport(data.profile.profileId, randomId(), document.documentId, importedAt = currentInstant()))
+            repository.addReport(
+                LabReport(
+                    data.profile.profileId, randomId(), document.documentId,
+                    laboratoryName = source.laboratoryName?.trim()?.takeIf { it.isNotEmpty() },
+                    orderedAt = source.orderedAt,
+                    importedAt = currentInstant(),
+                ),
+            )
         }
         val existingFingerprints = data.ocrCandidates.filter { it.sourceDocumentId == document.documentId }
             .mapTo(mutableSetOf()) { candidateFingerprint(it.testCode, it.displayName, it.rawValue, it.rawUnit, it.referenceRange, it.collectedAt) }
@@ -261,10 +271,28 @@ class AppController(
         return inserted
     }
 
+    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
+    private fun sourceIdentity(source: PickedSource): String {
+        val first = sha256(source.bytes).toHex()
+        if (source.additionalPages.isEmpty()) return first
+        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
+    }
+
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
-        val vaultKey = sourceStore?.save(profileId, documentId, source.bytes)
-        return SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(), vaultKey)
+        val store = sourceStore
+        val saved = mutableListOf<String>()
+        try {
+            store?.let { saved += it.save(profileId, documentId, source.bytes) }
+            store?.let { s -> source.additionalPages.forEachIndexed { index, page -> saved += s.save(profileId, "$documentId-page-${index + 2}", page) } }
+        } catch (error: Throwable) {
+            withContext(NonCancellable) { saved.forEach { store?.discard(it) } }
+            throw error
+        }
+        return SourceDocument(
+            profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(),
+            saved.firstOrNull(), saved.drop(1),
+        )
     }
 
     /** A stored file must never outlive a document that was not recorded. */
@@ -272,7 +300,7 @@ class AppController(
         try {
             repository.addDocument(document)
         } catch (error: Throwable) {
-            withContext(NonCancellable) { document.vaultKey?.let { sourceStore?.discard(it) } }
+            withContext(NonCancellable) { (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEach { sourceStore?.discard(it) } }
             throw error
         }
     }
@@ -477,6 +505,24 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
+    /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
+    suspend fun updateReportDetails(reportId: String, laboratoryName: String, orderedAt: kotlinx.datetime.Instant?) = operation {
+        val data = requireData()
+        val report = data.reports.firstOrNull { it.reportId == reportId } ?: failMessage(L10nKey.REPORT_NOT_FOUND)
+        repository.updateReport(report.copy(laboratoryName = laboratoryName.trim().takeIf { it.isNotEmpty() }, orderedAt = orderedAt))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Returns a rejected candidate to review. Only a rejected candidate can be restored; a confirmed one never. */
+    suspend fun restoreCandidate(candidateId: String) = operation {
+        val data = requireData()
+        val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
+            ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
+        if (candidate.status != ConfirmationStatus.REJECTED) failMessage(L10nKey.CANDIDATE_ALREADY_REVIEWED)
+        repository.updateCandidate(candidate.copy(status = ConfirmationStatus.UNREVIEWED))
+        loadProfile(data.profile.profileId)
+    }
+
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) =
         addMedication(name, strength, instructions, listOf(ScheduleDraft(times = listOf(time), startDate = clock().toLocalDateTime(timeZone()).date)))
 
@@ -615,28 +661,47 @@ class AppController(
         )
     }
 
-    /** Returns true when the answer was stored; on failure the caller keeps the user's question. */
+    /** Returns true when the answer was stored; on failure (or cancellation of the calling job) the caller keeps the user's question. */
     suspend fun ask(question: String): Boolean {
-        operation {
-            val data = requireData()
-            chat.ask(data, mutableState.value.selectedObservationIds, question)
-            loadProfile(data.profile.profileId)
+        var persisted = false
+        try {
+            operation {
+                val data = requireData()
+                val before = data.chat.size
+                mutableState.value = mutableState.value.copy(streamingAnswer = "")
+                try {
+                    chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
+                        mutableState.value = mutableState.value.copy(streamingAnswer = partial)
+                    }
+                } finally {
+                    mutableState.value = mutableState.value.copy(streamingAnswer = null)
+                    // Stop may arrive after the exchange was saved: reload so the screen shows what was stored.
+                    withContext(NonCancellable) {
+                        loadProfile(data.profile.profileId)
+                        persisted = (mutableState.value.data?.chat?.size ?: before) > before
+                    }
+                }
+            }
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            // The answer is already stored, so the caller should clear the input as for a normal success.
+            if (persisted) return true
+            throw cancellation
         }
         return mutableState.value.error == null
     }
 
     /** [language] is the per-export override; null follows the app/device language. */
-    suspend fun exportCsv(language: ContentLanguage? = null) = operation {
+    suspend fun exportCsv(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         mutableState.value = mutableState.value.copy(
-            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device()),
+            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device(), options),
             notice = message(L10nKey.CSV_EXPORT_PREPARED),
         )
     }
 
-    suspend fun exportPdf(language: ContentLanguage? = null) = operation {
+    suspend fun exportPdf(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         val data = requireData()
         val chosen = language ?: ContentLanguage.device()
-        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen)
+        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen, options)
         mutableState.value = mutableState.value.copy(
             pdfExport = pdfExporter.export(document),
             notice = message(L10nKey.PDF_EXPORT_PREPARED),
