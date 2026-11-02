@@ -512,6 +512,47 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Enter a valid date as YYYY-MM-DD.</string>
     <string name="export_date_range_reversed">The start date must not be after the end date.</string>
     <string name="export_no_matching_results">No confirmed results match these options; the export would have no results.</string>
+    <!-- region L1 Today, onboarding, profiles -->
+    <string name="today_scheduled_for">Scheduled for %1$s</string>
+    <string name="today_mark_taken">Mark as taken</string>
+    <string name="today_dose_taken">%1$s marked as taken</string>
+    <string name="today_dose_skipped">%1$s skipped</string>
+    <string name="today_dose_snoozed">%1$s snoozed for 10 minutes</string>
+    <string name="today_no_upcoming_dose">No dose scheduled ahead</string>
+    <plurals name="today_values_to_review">
+        <item quantity="one">%1$d value to review</item>
+        <item quantity="other">%1$d values to review</item>
+    </plurals>
+    <string name="today_recent_records">Recent records</string>
+    <string name="today_report_confirmed">%1$s · Confirmed</string>
+    <string name="today_add_record">Add record</string>
+    <string name="today_saved_on_device">Saved on this device</string>
+    <string name="today_empty_title">Start with one record</string>
+    <string name="today_empty_body">Keep your household health information in one place, offline.</string>
+    <string name="today_import_report">Import a report</string>
+    <string name="welcome_title">Your health, in one place.</string>
+    <string name="welcome_body">Records, routines and family profiles, kept on your device.</string>
+    <string name="welcome_restore">Restore a backup</string>
+    <string name="first_profile_title">Create your first profile</string>
+    <string name="first_profile_subtitle">Keep your household\'s health organized, offline and in one place.</string>
+    <string name="first_profile_question">Who are these records for?</string>
+    <string name="first_profile_hint">Separate records for each person.</string>
+    <string name="first_profile_create">Create profile</string>
+    <string name="birth_date_optional">Birth date (optional)</string>
+    <string name="birth_date_select">Select date</string>
+    <string name="profiles_title">Profiles</string>
+    <string name="profiles_subtitle">Add and manage profiles for everyone in your household.</string>
+    <string name="profile_current">Current</string>
+    <string name="profile_edit_title">Edit profile</string>
+    <string name="profile_save">Save changes</string>
+    <string name="profile_saved">Profile saved</string>
+    <string name="profile_created">%1$s added</string>
+    <string name="profile_deleted">%1$s deleted</string>
+    <string name="profile_delete_title">Delete %1$s\'s profile?</string>
+    <string name="profile_delete_type_name">Type %1$s to confirm</string>
+    <string name="profile_last_title">Keep at least one profile.</string>
+    <string name="profile_last_body">Add another profile before deleting this one.</string>
+    <!-- endregion L1 -->
     <!-- region L2 records -->
     <string name="records_search_hint">Search records</string>
     <string name="records_filters">Filters</string>

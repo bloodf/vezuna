@@ -1,10 +1,5 @@
 package app.vezuna.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -22,8 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.DeviceHub
-import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
@@ -36,23 +29,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.vezuna.localization.L10nKey
-import app.vezuna.localization.vitaText
-import vezuna.shared.generated.resources.*
 
 @Composable
 fun ScreenColumn(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
@@ -77,26 +61,6 @@ fun SectionHeading(title: String, supporting: String? = null) {
 }
 
 @Composable
-fun WorkflowTile(label: String, icon: ImageVector, container: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 100.dp).vitaAnimateContentSize(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = container),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Row {
-                Icon(icon, vitaText(L10nKey.WORKFLOW_ACCESSIBILITY, label), Modifier.size(28.dp), tint = MaterialTheme.vita.onAura)
-                Spacer(Modifier.weight(1f))
-                Icon(Icons.Rounded.ArrowForward, null, Modifier.size(20.dp), tint = MaterialTheme.vita.onAura)
-            }
-            Text(label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.vita.onAura)
-        }
-    }
-}
-
-@Composable
 fun VitaButton(text: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, outlined: Boolean = false) {
     val content: @Composable () -> Unit = {
         Icon(icon, null, Modifier.size(20.dp))
@@ -117,26 +81,6 @@ fun StatusPill(text: String, icon: ImageVector = Icons.Rounded.CheckCircle, cont
             Icon(icon, null, Modifier.size(16.dp), tint = content)
             Spacer(Modifier.size(5.dp))
             Text(text, color = content, style = MaterialTheme.typography.labelMedium)
-        }
-    }
-}
-
-@Composable
-fun PrivacyStatus() {
-    var confirmed by remember { mutableStateOf(false) }
-    val motionEnabled = LocalVitaAnimationsEnabled.current
-    LaunchedEffect(Unit) { confirmed = true }
-    val targetScale by animateFloatAsState(if (confirmed) 1f else 0.88f, if (motionEnabled) tween(VezunaTokens.MotionNormalMs) else androidx.compose.animation.core.snap(), label = "privacy-check")
-    val tint by animateColorAsState(MaterialTheme.vita.success, if (motionEnabled) tween(VezunaTokens.MotionNormalMs) else androidx.compose.animation.core.snap(), label = "privacy-color")
-    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.vita.successContainer) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.HealthAndSafety, vitaText(L10nKey.RECORDS_PROTECTED), Modifier.size(26.dp).scale(targetScale), tint = tint)
-            Spacer(Modifier.size(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(vitaText(L10nKey.ON_DEVICE), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.vita.onSuccessContainer)
-                Text(vitaText(L10nKey.PRIVATE_BY_DESIGN), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.vita.onSuccessContainer)
-            }
-            Icon(Icons.Rounded.CheckCircle, vitaText(L10nKey.LOCAL_PRIVACY_ACTIVE), tint = tint)
         }
     }
 }
