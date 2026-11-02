@@ -10,6 +10,14 @@
 	<true/>
 	<key>BAUsesAppleHosting</key>
 	<true/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>app.vezuna.reminders.refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Vezuna uses Face ID to unlock the app lock you turn on in Settings.</string>
 	<key>UIAppFonts</key>
