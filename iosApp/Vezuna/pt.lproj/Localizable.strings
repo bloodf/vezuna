@@ -93,6 +93,7 @@
 "ocr_read_token" = "OCR leu: %1$@";
 "ambiguous_number_warning" = "Confira este número: o ponto pode indicar milhar (1.020 = 1020) ou decimal (1.020 = 1,02)";
 "choose_date_button" = "Escolher data";
+"medication_reminder_title" = "Lembrete de medicamento";
 "reference_text" = "Texto de referência (opcional)";
 "app_lock_reason" = "Confirme que é você para abrir seus registros de saúde";
 "export_language" = "Idioma da exportação";

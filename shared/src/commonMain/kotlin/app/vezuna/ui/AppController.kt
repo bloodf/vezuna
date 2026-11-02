@@ -502,21 +502,37 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
-    suspend fun addMedication(name: String, strength: String, instructions: String, time: String) = operation {
+    suspend fun addMedication(name: String, strength: String, instructions: String, time: String) =
+        addMedication(name, strength, instructions, listOf(ScheduleDraft(times = listOf(time), startDate = clock().toLocalDateTime(timeZone()).date)))
+
+    suspend fun addMedication(name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
         val data = requireData()
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
-        val canonicalTime = time.trim()
-        if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
         val medicationId = randomId()
-        val schedule = DoseSchedule(
-            profileId = data.profile.profileId,
-            scheduleId = randomId(),
-            medicationId = medicationId,
-            recurrence = Recurrence.DAILY,
-            startDate = clock().toLocalDateTime(timeZone()).date,
-            timesLocal = listOf(canonicalTime),
+        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
+        repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, schedules))
+        loadProfile(data.profile.profileId)
+    }
+
+    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>): List<DoseSchedule> {
+        if (drafts.isEmpty()) failMessage(L10nKey.SCHEDULE_TIMES_REQUIRED)
+        drafts.firstNotNullOfOrNull { it.errors().firstOrNull() }?.let { failMessage(it) }
+        return drafts.map { it.toSchedule(profileId, medicationId, ::randomId) }
+    }
+
+    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
+        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
+        repository.updateMedication(
+            medication.copy(
+                displayName = name.trim(),
+                strength = strength.trim().ifBlank { null },
+                instructions = instructions.trim().ifBlank { null },
+                schedules = schedules,
+            ),
         )
-        repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, listOf(schedule)))
         loadProfile(data.profile.profileId)
     }
 

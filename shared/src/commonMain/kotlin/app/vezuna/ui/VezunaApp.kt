@@ -124,6 +124,7 @@ fun VezunaApp(
     onDevice: (() -> Unit)? = null,
     animationsEnabled: Boolean = true,
     backupFiles: BackupFileAccess? = null,
+    reminders: ReminderPlatformState? = null,
 ) {
     val state by controller.state.collectAsState()
     val modelState by controller.modelManager.state.collectAsState()
@@ -167,10 +168,10 @@ fun VezunaApp(
                         AppScreen.ImportReview -> ImportReviewScreen(state, controller, scope, sourcePicker)
                         is AppScreen.ResultDetail -> ResultDetailScreen(state, screen.observationId, controller)
                         AppScreen.Trends -> TrendsScreen(state, controller)
-                        AppScreen.Medications -> MedicationsScreen(state, controller, scope)
+                        AppScreen.Medications -> MedicationsScreen(state, controller, scope, reminders)
                         AppScreen.AiChat -> AiChatScreen(state, modelState.loadedModelId, modelState.selectedModelId, controller, scope)
                         AppScreen.Models -> ModelsScreen(state, controller, scope, modelPackLoader)
-                        AppScreen.Settings -> SettingsScreen(state, controller, scope, backupFiles)
+                        AppScreen.Settings -> SettingsScreen(state, controller, scope, backupFiles, reminders)
                         AppScreen.Vitals -> VitalsScreen(state, controller, scope)
                     }
                 }

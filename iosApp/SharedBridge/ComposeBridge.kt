@@ -48,6 +48,7 @@ import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.ExtractedCandidate
 import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
+import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
@@ -226,6 +227,19 @@ object IosRuntime {
         private set
 
     internal val vaultState = MutableStateFlow<VaultState>(VaultState.Loading)
+
+    private const val HIDE_NAMES_KEY = "vezuna.hideMedicationNames"
+
+    /** Lock-screen preference lives in UserDefaults (not the vault) so the notification coordinator can read it before the vault opens. */
+    internal val reminderState = ReminderPlatformState(
+        hideMedicationNames = NSUserDefaults.standardUserDefaults.boolForKey(HIDE_NAMES_KEY),
+        persistHideMedicationNames = { NSUserDefaults.standardUserDefaults.setBool(it, HIDE_NAMES_KEY) },
+    )
+
+    /** Called by the notification coordinator after planning; a negative value clears the "scheduled until" line. */
+    fun setReminderCoverage(untilEpochSeconds: Long) {
+        reminderState.setCoverageUntil(if (untilEpochSeconds < 0) null else kotlinx.datetime.Instant.fromEpochSeconds(untilEpochSeconds))
+    }
 
     /** Backup chosen on the recovery screen; stored into the fresh vault by the reset that follows. */
     internal var pendingRestore: app.vezuna.domain.ProfileData? = null
@@ -573,6 +587,7 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
             }
         },
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+        reminders = IosRuntime.reminderState,
     )
     }
 }
