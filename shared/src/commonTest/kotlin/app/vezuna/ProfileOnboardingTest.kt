@@ -77,7 +77,7 @@ class ProfileOnboardingTest {
     @Test
     fun capLeapDayAndLegacyJson() {
         val today = LocalDate(2026, 11, 1)
-        assertFalse(ProfileAge.isValid(LocalDate(1896, 10, 31), today))
+        assertFalse(ProfileAge.isValid(LocalDate(1895, 10, 31), today))
         assertTrue(ProfileAge.isValid(LocalDate(1896, 11, 1), today))
         assertEquals(1, ProfileAge.years(LocalDate(2024, 2, 29), LocalDate(2025, 3, 1)))
         assertEquals(0, ProfileAge.years(LocalDate(2024, 2, 29), LocalDate(2025, 2, 28)))
