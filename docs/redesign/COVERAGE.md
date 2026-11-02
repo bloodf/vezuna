@@ -1,4 +1,4 @@
-# Redesign coverage report (lane V, 2026-11-02)
+# Redesign coverage report (lane V, 2026-11-02, updated after the L9 merge)
 
 Verification close-out for the Living Color redesign (#121, accessibility #95). Source of truth per image is
 [ledger.csv](ledger.csv); the table at the end is generated from it. Reference images live in the local pack
@@ -8,11 +8,11 @@ Verification close-out for the Living Color redesign (#121, accessibility #95). 
 
 | Status | Count | Meaning |
 |---|---|---|
-| done | 88 | Implemented and verified (tests and/or Android screenshots compared with the reference) |
-| implemented | 21 | Implemented and tested in code; not reachable from the design fixture (lock, vault, restore and backup dialogs) or not shot |
-| partial | 22 | Real but incomplete; each gap is named in the table |
-| system | 5 | OS-owned UI (permissions, biometric prompt, notification); the real native interface is invoked |
-| not-started | 26 | All lane L9 (export UI + PDF image IDs): `feat/redesign-L9-export` was not merged into main when V closed |
+| done | 101 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
+| implemented | 26 | Implemented and tested in code; not reachable from the design fixture (lock, vault, restore, export transient/error states) or not shot |
+| partial | 26 | Real but incomplete; each gap is named in the table |
+| system | 8 | OS-owned UI (permissions, biometric prompt, notification, share/save sheets); the real native interface is invoked |
+| not-started | 1 | pdf-09 source appendix: the section is not built |
 
 Total: 162 image IDs.
 
@@ -31,6 +31,8 @@ captured with `scripts/redesign-shots.sh`. Screenshots are kept outside the repo
 | `android-pt/`, `android-es/` | PT / ES | CandidateReview, ImportReview, Medications, TrendDetail, Backups, MedicationDetail |
 | `android-tablet/` | 2560x1600 @320dpi (1280dp, rail) | Labs (list/detail), ImportReview, Dashboard, Trends |
 | `android-final/` | after all fixes | Dashboard, Medications, Labs |
+| `android-l9/` | EN, light + dark (after L9 merge) | ExportHub, ExportOptions (lab history, CSV), ExportSelection, ExportPreview (lab history PDF, CSV, medication record) |
+| `android-l9-fixed/` | after the status tag fix | ExportPreview, ExportSelection, ImportReview |
 
 Each `android/` screen was compared side by side with its reference image.
 
@@ -53,6 +55,10 @@ evidence. The iOS build and unit tests pass in check-all.
 | Care dose row squeezing the medication name next to the time | `CareHome` dose row | Time stacks above the name at large text |
 | Focus jumped to the top after closing a dialog/sheet | profile switcher, delete/stop/reject/clear confirmations | `Modifier.returnFocusAfter(open)` |
 | Jargon in user copy (SHA-256, inference, OCR) | models notice, review source label | Plain EN/PT/ES copy |
+| Dark-mode warning tag unreadable on the lavender export panel (light text on lavender) | `StatusTag` | Tag sits on an opaque surface under its tint |
+| "N pages" disappeared after saving; preview with no valid draft exported the whole history; preview not keyed on profile (L9 review LOWs) | `ExportPreviewScreen` | ReadyFile remembered; back to options; keyed on profile |
+| Unreachable legacy export/settings wall, `ExportOptionsPanel`, `NativeAction.EXPORT`, 25 unused iOS export strings | shared UI, iOS catalogs | Deleted; localization check green |
+| Export hooks held the destroyed activity | `AndroidMainActivity` | Cleared in `onDestroy` unless a newer activity replaced them |
 
 Ledger rows lost in the lane merges (56 rows reset to not-started) were restored from each lane branch.
 
@@ -71,13 +77,19 @@ checked with `pdfinfo`/`pdftotext` and rendered page 1 of three samples:
 | vezuna-lab-history-sparse.pdf | 1 | A4 | Sparse period |
 | vezuna-lab-history-one-day.pdf | 1 | A4 | One collection day |
 | vezuna-lab-history-long.pdf | 16 | A4 | 120 readings, paginated with repeated headers |
+| vezuna-health-summary.pdf | 1 | A4 | Design fixture; latest results table + medication (pdf-01 charts not drawn) |
+| vezuna-medication-record.pdf | 1 | A4 | Design fixture; medication + dose history table with Taken/Skipped/Missed counts |
+| vezuna-device-measurements.pdf | 2 | A4 | Design fixture; daily steps and heart-rate tables (pdf-08 graphs not drawn) |
+| vezuna-lab-history.pdf | 3 | A4 | Design fixture, lab history family |
 
-Text is selectable (pdftotext extracts it). "Marker" does not appear. The PDF-image IDs (pdf-01 to pdf-12) stay
-not-started in the ledger because their export UI belongs to L9.
+Text is selectable (pdftotext extracts it). "Marker" does not appear. Compared with `images/pdf/`: lab history
+first/continuation pages, single test, sparse period, Portuguese and Letter grayscale match the reference
+structure; health summary, medication record and device measurements carry the data as tables but not the
+reference charts, schedule strip or day timeline (partial in the ledger); the source appendix (pdf-09) is not built.
 
 ## Test results (check-all, 2026-11-02)
 
-`scripts/check-all.sh` -> `CHECK_ALL_PASSED: localization brand lab-importer gradle ios`
+`scripts/check-all.sh` -> `CHECK_ALL_PASSED: localization brand lab-importer gradle ios` (rerun after the L9 merge, see below)
 
 - Localization catalogs: passed (1002 shared, 75 Android, 87 iOS keys in EN/PT/ES).
 - Brand and contrast check: passed.
@@ -92,8 +104,9 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 
 ## Remaining prerequisites (honest)
 
-- **Exports UI (L9):** not merged at V close-out; the 26 L9 rows are not started on main. When it lands, its
-  screens need the same screenshot pass.
+- **Exports:** merged and screenshot-verified on Android. Gaps: pdf-09 source appendix not built; summary,
+  medication and device PDFs have no charts/strips; CSV numbers are written as 146.0; preview has no zoom or
+  thumbnails; export transient/error states were not screenshotted.
 - **Model catalog:** the default catalog is empty, so assistant/model-ready states (101-112, 136) cannot be
   reached in any build. Play Asset Delivery and store packs were not exercised.
 - **Tagged PDF:** not possible with Android `PdfDocument`/iOS `UIGraphicsPDFRenderer`/PDFBox as used; text stays
@@ -226,19 +239,19 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 112 | model-delete | L8 | partial | Conditional: the default model catalog is empty, so this state is unreachable in any build today; code compiles and clear-history is unit-tested; needs a rea... |
 | 113 | activation | L8 | done | no simulator screenshot |
 | 114 | activation-error | L8 | done | no simulator screenshot |
-| 115 | export-hub | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 116 | export-options | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 117 | export-selection | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 118 | export-preview | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 119 | export-preparing | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 120 | export-ready | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 121 | csv-preview | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 122 | export-empty | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 123 | export-failed | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 124 | share-ios | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 125 | share-android | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 126 | save-file | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| 127 | save-failed | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
+| 115 | export-hub | L9 | done | Profile card is static (switch profile from the root header) |
+| 116 | export-options | L9 | done | Period is chips + custom ISO date fields, not a date picker |
+| 117 | export-selection | L9 | done | Rows list tests (canonical code) rather than per-report groups |
+| 118 | export-preview | L9 | done | No zoom controls; page thumbnails strip not built |
+| 119 | export-preparing | L9 | implemented | transient/error state not reachable by deep link: not screenshotted in V |
+| 120 | export-ready | L9 | done | none |
+| 121 | csv-preview | L9 | done | Preview is a row list, not a 4-column table; CSV writes numbers in Kotlin Double form (146.0 for a report value of 146), so preview and file show the trailin... |
+| 122 | export-empty | L9 | implemented | transient/error state not reachable by deep link: not screenshotted in V |
+| 123 | export-failed | L9 | implemented | transient/error state not reachable by deep link: not screenshotted in V |
+| 124 | share-ios | L9 | system | OS-owned UI; not screenshotted (simulator capture black) |
+| 125 | share-android | L9 | system | OS-owned UI |
+| 126 | save-file | L9 | system | OS-owned UI |
+| 127 | save-failed | L9 | implemented | transient/error state not reachable by deep link: not screenshotted in V |
 | 128 | about | L7 | done | Real version/build from platform; repo, MIT license, contributors open the browser; notices and privacy use native actions; data-deletion explainer (#94) |
 | 129 | privacy-policy | L7 | partial | Screen explains and opens the existing native offline reader; no shared in-app reader |
 | 130 | notices | L7 | partial | Screen explains and opens the existing native offline reader; no shared in-app reader |
@@ -249,7 +262,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 135 | form-dark | L3 | done | none (Android); iOS dark not taken |
 | 136 | assistant-dark | L8 | partial | Conditional: the default model catalog is empty, so this state is unreachable in any build today; code compiles and clear-history is unit-tested; needs a rea... |
 | 137 | more-dark | L7 | done | none (Android) |
-| 138 | preview-dark | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
+| 138 | preview-dark | L9 | done | none |
 | 139 | portuguese-review | L3 | done | none (Android PT); iOS PT not taken |
 | 140 | spanish-care | L4 | done | none (Android ES) |
 | 141 | large-text | L1 | done | At 320dp + font 2.0 a few long single words in grouped rows still break mid-word (e.g. ES "Exportaciones"); iOS AX5 pass owed (manual) |
@@ -262,15 +275,15 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 148 | review-unavailable | L3 | done | none |
 | 149 | extraction-details | L3 | done | none |
 | 150 | global-feedback | R0 | partial | FeedbackHost live region in the shell (polite/assertive); banner sits at the bottom, image shows it under the header; TalkBack/VoiceOver announcement pass ow... |
-| pdf-01 | health-summary | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-02 | lab-history-first | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-03 | lab-history-continuation | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-04 | single-marker | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-05 | mixed-results | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-06 | medication-record | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-07 | dose-history | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-08 | device-measurements | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-09 | source-appendix | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-10 | sparse-period | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-11 | portuguese-history | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
-| pdf-12 | letter-grayscale | L9 | not-started | L9 Exports UI (feat/redesign-L9-export) not merged into main at V close-out; shared PDF engine (pdf-engine) is on main and produces the sample PDFs listed in... |
+| pdf-01 | health-summary | L9 | partial | Latest-results table + medication; the two summary charts are not drawn |
+| pdf-02 | lab-history-first | L9 | done | none |
+| pdf-03 | lab-history-continuation | L9 | done | none |
+| pdf-04 | single-marker | L9 | done | none |
+| pdf-05 | mixed-results | L9 | implemented | No single-point reference plots |
+| pdf-06 | medication-record | L9 | partial | No seven-day schedule strip; end date not exported |
+| pdf-07 | dose-history | L9 | partial | Categorical day timeline not drawn; table only |
+| pdf-08 | device-measurements | L9 | partial | Graphs and first/previous changes not drawn |
+| pdf-09 | source-appendix | L9 | not-started | Source appendix section not built |
+| pdf-10 | sparse-period | L9 | done | none |
+| pdf-11 | portuguese-history | L9 | done | none |
+| pdf-12 | letter-grayscale | L9 | done | none |
