@@ -1,5 +1,6 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.decorativeArtShown
 import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.clickable
@@ -80,7 +81,7 @@ internal fun CareHome(ctx: RouteContext) {
     val data = ctx.state.data ?: return
     var actionFor by remember { mutableStateOf<CareDose?>(null) }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceLg),
     ) {
         Spacer(Modifier.height(VezunaTokens.SpaceSm))

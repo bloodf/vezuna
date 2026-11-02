@@ -1,5 +1,6 @@
 package app.vezuna.ui.export
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,7 +72,7 @@ internal fun ExportHubScreen(ctx: RouteContext) {
     val data = ctx.state.data ?: return
     var family by rememberSaveable { mutableStateOf(ExportFamily.HEALTH_SUMMARY.name) }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         Text(vitaText(L10nKey.EXPORT_HUB_SUBTITLE, data.profile.displayName), style = MaterialTheme.typography.bodyLarge)

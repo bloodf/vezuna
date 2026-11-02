@@ -1,5 +1,6 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.clearOfArt
 import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.BorderStroke
@@ -74,7 +75,7 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
     val name = medication.displayName
     val busy = ctx.state.loading
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         Text(name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })

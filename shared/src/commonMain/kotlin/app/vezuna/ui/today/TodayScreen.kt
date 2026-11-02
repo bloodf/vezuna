@@ -1,5 +1,6 @@
 package app.vezuna.ui.today
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -86,7 +87,7 @@ internal fun TodayScreen(ctx: RouteContext) {
     val snapshot = ctx.state.dashboard
     if (data == null || snapshot == null) return ProgressState(vitaText(L10nKey.PLEASE_WAIT))
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow, vertical = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow, vertical = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         if (isTodayEmpty(data)) {

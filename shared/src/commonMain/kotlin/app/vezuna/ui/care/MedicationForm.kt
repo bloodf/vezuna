@@ -1,5 +1,6 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -80,7 +81,7 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
     }
 
     Column(
-        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         Text(vitaText(L10nKey.CARE_FORM_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

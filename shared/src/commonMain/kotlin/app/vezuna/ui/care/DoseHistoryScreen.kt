@@ -1,5 +1,6 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -56,7 +57,7 @@ internal fun DoseHistoryBody(ctx: RouteContext, medication: Medication?) {
     val all = CareDoses.recorded(data, medication?.medicationId)
     val shown = CareDoses.within(all, range.months, now, zone)
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow).padding(top = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         CategoryPanel(Category.CARE) {

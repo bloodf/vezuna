@@ -1,5 +1,6 @@
 package app.vezuna.ui.today
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -69,7 +70,7 @@ internal fun ProfilesScreen(ctx: RouteContext, focusNewName: Boolean = false) {
     val today = ProfileAge.today(currentInstant(), TimeZone.currentSystemDefault())
     FocusedTaskScaffold(vitaText(L10nKey.PROFILES_TITLE), ctx::back) {
         Column(
-            PageModifier.verticalScroll(rememberScrollState()).padding(VezunaTokens.GutterNarrow),
+            PageModifier.verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(VezunaTokens.GutterNarrow),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
             Text(vitaText(L10nKey.PROFILES_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -133,7 +134,7 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
     val changed = name.trim() != profile.displayName || birthDate != profile.birthDate
     val nameError = if (name.isBlank()) vitaText(L10nKey.PROFILE_NAME_REQUIRED) else null
     Column(
-        PageModifier.verticalScroll(rememberScrollState()).padding(VezunaTokens.GutterNarrow),
+        PageModifier.verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         ProfileAvatar(profile.displayName, Modifier.align(Alignment.CenterHorizontally), size = 96)

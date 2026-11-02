@@ -1,5 +1,6 @@
 package app.vezuna.ui.more
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,7 +71,7 @@ import vezuna.shared.generated.resources.ic_users
 private fun PushedPage(ctx: RouteContext, title: String, content: @Composable () -> Unit) =
     FocusedTaskScaffold(title = title, onBack = ctx::back) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceLg),
         ) {
             Spacer(Modifier.height(VezunaTokens.SpaceSm))

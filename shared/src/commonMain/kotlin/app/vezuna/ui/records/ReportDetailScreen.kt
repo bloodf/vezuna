@@ -1,5 +1,6 @@
 package app.vezuna.ui.records
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import app.vezuna.ui.components.clearOfArt
 import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
@@ -73,7 +74,7 @@ internal fun ReportDetailContent(ctx: RouteContext, reportId: String, onDeleted:
     val name = reportDisplayName(entry.report, data, vitaText(L10nKey.MANUAL_ENTRY_REPORT))
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         CategoryPanel(Category.RECORDS, illustration = Res.drawable.ill_lab_tube) {

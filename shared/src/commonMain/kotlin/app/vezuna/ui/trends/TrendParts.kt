@@ -1,5 +1,6 @@
 package app.vezuna.ui.trends
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,7 +65,7 @@ internal fun periodText(window: DateWindow): String =
 @Composable
 internal fun TrendColumn(content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow, vertical = VezunaTokens.SpaceMd),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow, vertical = VezunaTokens.SpaceMd),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         content = content,
     )

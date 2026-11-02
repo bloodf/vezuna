@@ -1,5 +1,6 @@
 package app.vezuna.ui.assistant
 
+import app.vezuna.ui.components.clearOfNavigationBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,7 +57,7 @@ internal fun AssistantModels(ctx: RouteContext) {
     var deleting by remember { mutableStateOf<ModelPack?>(null) }
     FocusedTaskScaffold(title = vitaText(L10nKey.LOCAL_GGUF_MODELS), onBack = ctx::back) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
             verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
             Text(vitaText(L10nKey.MODELS_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
