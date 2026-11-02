@@ -70,7 +70,7 @@ fun VezunaAndroidApp(
     }
     MaterialTheme {
         val context = LocalContext.current
-        remember(context) { installMorePlatform(context) }
+        remember(context) { installMorePlatform(context); true }
         val animationsEnabled = remember(context) {
             Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
         }
