@@ -249,7 +249,7 @@ internal fun ReadingTable(
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(VezunaTokens.ControlRadius))
                     .background(if (index == selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
-                    .selectable(selected = index == selected, role = Role.Button) { onSelect(index) }
+                    .selectable(selected = index == selected, role = Role.RadioButton) { onSelect(index) }
                     .padding(vertical = VezunaTokens.SpaceSm, horizontal = VezunaTokens.SpaceXs)
                     .semantics(mergeDescendants = true) {},
             ) {
