@@ -168,7 +168,7 @@ internal fun VitalDetailBody(ctx: RouteContext, data: ProfileData, kind: VitalSe
             return@TrendColumn
         }
         SeriesSummary(series, unit, { v, d -> vitalValue(v, d) }, vitaText(L10nKey.TR_LATEST))
-        SeriesChart(series, title, unit, selected, { selected = it }) { v, d -> vitalValue(v, d) }
+        SeriesChart(series, title, unit, selected, { selected = it }, copy.category) { v, d -> vitalValue(v, d) }
         ReadingTable(
             series, vitaText(if (kind == VitalSeriesKind.WEIGHT) L10nKey.TR_READINGS else L10nKey.TR_DAILY_VALUES), unit, selected, { selected = it },
         ) { v, d -> vitalValue(v, d) }

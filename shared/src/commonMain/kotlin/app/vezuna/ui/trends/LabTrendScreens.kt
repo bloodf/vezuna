@@ -143,7 +143,7 @@ internal fun TrendDetailBody(ctx: RouteContext, data: ProfileData, testCode: Str
                 NoReadingInPeriod(if (range != HistoryRange.ALL) ({ range = HistoryRange.ALL }) else null)
             } else {
                 SeriesSummary(series, series.unit, { v, d -> labValue(v, d) }, vitaText(L10nKey.TR_LATEST_RESULT))
-                SeriesChart(series, trend.displayName, series.unit, selected, { selected = it }) { v, d -> labValue(v, d) }
+                SeriesChart(series, trend.displayName, series.unit, selected, { selected = it }, Category.TRENDS) { v, d -> labValue(v, d) }
                 ReadingTable(series, vitaText(L10nKey.TR_RESULTS), series.unit, selected, { selected = it }) { v, d -> labValue(v, d) }
             }
         } else if (trend.textEvents.isEmpty()) {

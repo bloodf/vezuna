@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -42,6 +43,7 @@ import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
+import app.vezuna.ui.Category
 import app.vezuna.ui.LineChart
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.HistoryRange
@@ -158,8 +160,10 @@ internal fun SeriesChart(
     unit: String,
     selected: Int?,
     onSelect: (Int) -> Unit,
+    category: Category,
     formatValue: @Composable (Double, Int?) -> String,
 ) {
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val points = series.points
     if (points.isEmpty()) return
     val window = series.window ?: return
@@ -178,6 +182,7 @@ internal fun SeriesChart(
             unit = unit, band = band, joins = series.lineJoins(),
             startLabel = dateText(window.start), endLabel = dateText(window.end),
             selected = selected, onSelect = onSelect,
+            color = category.series(darkTheme),
         )
         MutedText(vitaPlural(L10nKey.TR_RECORDED_COUNT, points.size))
         if (points.any { it.granularity == Granularity.DAILY_SUMMARY }) MutedText(vitaText(L10nKey.TR_DAILY_SUMMARY_NOTE))

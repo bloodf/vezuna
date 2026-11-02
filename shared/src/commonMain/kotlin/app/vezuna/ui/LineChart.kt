@@ -53,8 +53,9 @@ internal fun LineChart(
     selected: Int? = null,
     onSelect: ((Int) -> Unit)? = null,
     formatValue: (Double) -> String = { formatLabValue(it) },
+    /** Series ink; pass Category.series(darkTheme) so marks reach 3:1 on the surface. */
+    color: Color = MaterialTheme.colorScheme.primary,
 ) {
-    val color = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
     val pointCenter = MaterialTheme.colorScheme.surface
     val labelStyle = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
