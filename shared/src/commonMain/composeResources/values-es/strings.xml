@@ -406,4 +406,9 @@ iOS: %2$s</string>
     <string name="rejected_filter">Rechazados</string>
     <string name="rejected_candidates_none">No hay candidatos rechazados</string>
     <string name="restore_candidate">Restaurar para revisión</string>
+    <string name="edit_report_details">Editar datos del laboratorio</string>
+    <string name="report_laboratory_name">Nombre del laboratorio</string>
+    <string name="report_order_date">Fecha del pedido: %1$s</string>
+    <string name="report_order_date_not_set">sin indicar</string>
+    <string name="clear_date">Borrar fecha</string>
 </resources>

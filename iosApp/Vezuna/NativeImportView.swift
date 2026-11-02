@@ -15,6 +15,13 @@ struct NativeImportView: View {
     @State private var sourceData: Data?
     @State private var sourceName = ""
     @State private var sourceMediaType = ""
+    /// Further camera photos of the same report; the first photo is `sourceData`.
+    @State private var extraPages: [Data] = []
+    @State private var appendingPage = false
+    @State private var laboratoryName = ""
+    @State private var orderedAt: Date?
+    @State private var editingOrderDate = false
+    @State private var draftOrderDate = Date()
     @State private var candidates: [ImportedLabCandidate] = []
     @State private var extractionNote = ""
     @State private var editingDateId: UUID?
@@ -40,6 +47,42 @@ struct NativeImportView: View {
                     Section { Text(extractionNote).font(.footnote).foregroundStyle(.secondary) }
                 }
                 if !candidates.isEmpty {
+                    Section {
+                        TextField(L10n.text(.laboratory_name), text: $laboratoryName)
+                        let orderLabel = orderedAt.map { $0.formatted(date: .abbreviated, time: .omitted) }
+                        Button {
+                            draftOrderDate = orderedAt ?? Date()
+                            editingOrderDate = true
+                        } label: {
+                            Text("\(L10n.text(.order_date)): \(orderLabel ?? "-")")
+                        }
+                        .accessibilityLabel(L10n.text(.order_date))
+                        .accessibilityValue(orderLabel ?? "")
+                        .sheet(isPresented: $editingOrderDate) {
+                            NavigationStack {
+                                DatePicker(L10n.text(.order_date), selection: $draftOrderDate, in: ...Date(), displayedComponents: .date)
+                                    .datePickerStyle(.graphical)
+                                    .padding()
+                                    .navigationTitle(L10n.text(.order_date))
+                                    .toolbar {
+                                        ToolbarItem(placement: .cancellationAction) { Button(L10n.text(.close)) { editingOrderDate = false } }
+                                        ToolbarItem(placement: .confirmationAction) {
+                                            Button(L10n.text(.choose_date_button)) { orderedAt = draftOrderDate; editingOrderDate = false }
+                                        }
+                                    }
+                            }
+                            .presentationDetents([.medium, .large])
+                        }
+                        if orderedAt != nil {
+                            Button(L10n.text(.clear_date)) { orderedAt = nil }
+                        }
+                        if !extraPages.isEmpty {
+                            Text(L10n.text(.pages_in_report, extraPages.count + 1)).font(.footnote).foregroundStyle(.secondary)
+                        }
+                        if sourceMediaType == "image/jpeg", UIImagePickerController.isSourceTypeAvailable(.camera) {
+                            Button { appendingPage = true; showCamera = true } label: { Label(L10n.text(.add_page), systemImage: "camera.badge.ellipsis") }
+                        }
+                    }
                     Section(L10n.text(.review_extracted_results)) {
                         ForEach($candidates) { $candidate in
                             VStack(alignment: .leading, spacing: 8) {
@@ -134,9 +177,12 @@ struct NativeImportView: View {
                     showCamera = false
                     switch result {
                     case .success(let data):
-                        Task { await process(data: data, name: "Camera-\(Date().timeIntervalSince1970).jpg", mediaType: "image/jpeg") }
-                    case .failure(let error): errorMessage = error.localizedDescription
+                        let appending = appendingPage
+                        Task { await process(data: data, name: "Camera-\(Date().timeIntervalSince1970).jpg", mediaType: "image/jpeg", appending: appending) }
+                    case .failure(let error):
+                        if (error as? CocoaError)?.code != .userCancelled { errorMessage = error.localizedDescription }
                     }
+                    appendingPage = false
                 }
                 .ignoresSafeArea()
             }
@@ -144,7 +190,7 @@ struct NativeImportView: View {
     }
 
     @MainActor
-    private func process(data: Data, name: String, mediaType: String) async {
+    private func process(data: Data, name: String, mediaType: String, appending: Bool = false) async {
         busy = true
         errorMessage = nil
         defer { busy = false }
@@ -153,10 +199,21 @@ struct NativeImportView: View {
             let parsed = LabTextBridge.shared.parse(text: extracted.text, ocrConfidence: extracted.ocrConfidence.map { KotlinFloat(float: $0) })
                 .map(ImportedLabCandidate.init(parsed:))
             guard !parsed.isEmpty else { throw ImportError.noStructuredResults }
-            sourceData = data
-            sourceName = name
-            sourceMediaType = mediaType
-            candidates = parsed
+            let header = LabTextBridge.shared.parseHeader(text: extracted.text)
+            if appending, sourceData != nil {
+                extraPages.append(data)
+                candidates += parsed.filter { row in !candidates.contains { $0.testCode == row.testCode && $0.rawValue == row.rawValue && $0.rawUnit == row.rawUnit } }
+            } else {
+                sourceData = data
+                sourceName = name
+                sourceMediaType = mediaType
+                extraPages = []
+                candidates = parsed
+                laboratoryName = ""
+                orderedAt = nil
+            }
+            if laboratoryName.isEmpty, let found = header.laboratoryName { laboratoryName = found }
+            if orderedAt == nil, let seconds = header.orderedEpochSeconds { orderedAt = Date(timeIntervalSince1970: TimeInterval(truncating: seconds)) }
             extractionNote = L10n.plural(extracted.usedOfflineOCR ? .extraction_results_ocr : .extraction_results_embedded, parsed.count)
         } catch {
             errorMessage = error.localizedDescription
@@ -206,7 +263,10 @@ struct NativeImportView: View {
             fileName: sourceName,
             mediaType: sourceMediaType,
             sourceBytes: sourceData.kotlinBytes,
-            candidates: input
+            candidates: input,
+            additionalPages: extraPages.map { $0.kotlinBytes },
+            laboratoryName: laboratoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : laboratoryName,
+            orderedEpochSeconds: orderedAt.map { KotlinLong(value: storedInstant($0)) }
         ) { error in
             DispatchQueue.main.async {
                 saving = false

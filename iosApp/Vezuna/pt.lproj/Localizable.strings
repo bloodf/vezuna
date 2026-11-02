@@ -14,6 +14,11 @@
 "source" = "Fonte";
 "photo_library" = "Fototeca";
 "camera" = "Câmera";
+"add_page" = "Adicionar outra página";
+"pages_in_report" = "Páginas neste laudo: %1$d";
+"laboratory_name" = "Nome do laboratório";
+"order_date" = "Data do pedido";
+"clear_date" = "Limpar data";
 "pdf_or_image" = "Arquivo PDF ou de imagem";
 "extracting_text" = "Extraindo texto neste dispositivo…";
 "review_extracted_results" = "Revisar resultados extraídos";

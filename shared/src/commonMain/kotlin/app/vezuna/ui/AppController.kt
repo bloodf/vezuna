@@ -215,12 +215,19 @@ class AppController(
                 failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
             }
         }
-        val sourceHash = sha256(source.bytes).toHex()
+        val sourceHash = sha256(source.additionalPages.fold(source.bytes) { all, page -> all + page }).toHex()
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
         val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
         if (existingDocument == null) addDocumentKeepingFile(document)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
-            repository.addReport(LabReport(data.profile.profileId, randomId(), document.documentId, importedAt = currentInstant()))
+            repository.addReport(
+                LabReport(
+                    data.profile.profileId, randomId(), document.documentId,
+                    laboratoryName = source.laboratoryName?.trim()?.takeIf { it.isNotEmpty() },
+                    orderedAt = source.orderedAt,
+                    importedAt = currentInstant(),
+                ),
+            )
         }
         val existingFingerprints = data.ocrCandidates.filter { it.sourceDocumentId == document.documentId }
             .mapTo(mutableSetOf()) { candidateFingerprint(it.testCode, it.displayName, it.rawValue, it.rawUnit, it.referenceRange, it.collectedAt) }
@@ -474,6 +481,14 @@ class AppController(
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
             ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
         repository.updateCandidate(candidate.copy(status = ConfirmationStatus.REJECTED))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
+    suspend fun updateReportDetails(reportId: String, laboratoryName: String, orderedAt: kotlinx.datetime.Instant?) = operation {
+        val data = requireData()
+        val report = data.reports.firstOrNull { it.reportId == reportId } ?: failMessage(L10nKey.REPORT_NOT_FOUND)
+        repository.updateReport(report.copy(laboratoryName = laboratoryName.trim().takeIf { it.isNotEmpty() }, orderedAt = orderedAt))
         loadProfile(data.profile.profileId)
     }
 

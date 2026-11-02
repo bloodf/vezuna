@@ -7,7 +7,7 @@ enum NativeString: String {
     case taken, skip, snooze_10_minutes, notification_permission_off, scheduled_medication_reminder
     case medication_schedules_unavailable, native_actions, storage_unavailable, opening_storage
     case import_lab_source, healthkit_import_menu, export_backup_menu, ai_activation_menu
-    case source, photo_library, camera, pdf_or_image, extracting_text, review_extracted_results
+    case source, photo_library, camera, add_page, pages_in_report, laboratory_name, order_date, clear_date, pdf_or_image, extracting_text, review_extracted_results
     case test_code, test_name, value, unit, reference_lower, reference_upper
     case add_unconfirmed_review, offline_import, close, encrypting_saving
     case extraction_results_ocr, extraction_results_embedded

@@ -27,6 +27,8 @@ class AndroidSourcePicker(
 ) {
     private var pending: CompletableDeferred<PickedSource?>? = null
     private var cameraUri: Uri? = null
+    /** Photos of one report, in capture order; cleared whenever a pick ends. */
+    private val photos = mutableListOf<ByteArray>()
     private val mutableLastExtraction = MutableStateFlow<OcrExtractionResult?>(null)
     val lastExtraction: StateFlow<OcrExtractionResult?> = mutableLastExtraction.asStateFlow()
 
@@ -38,7 +40,7 @@ class AndroidSourcePicker(
     }
     private val cameraLauncher = activity.registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val uri = cameraUri
-        if (!success || uri == null) complete(null) else importUri(uri, "image/jpeg")
+        if (!success || uri == null) finishPhotos() else addPhoto(uri)
     }
 
     suspend fun pick(): PickedSource? {
@@ -71,6 +73,7 @@ class AndroidSourcePicker(
     fun close() {
         pending?.cancel()
         pending = null
+        photos.clear()
     }
 
     private fun launchCamera(result: CompletableDeferred<PickedSource?>) = try {
@@ -84,16 +87,79 @@ class AndroidSourcePicker(
         result.completeExceptionally(error)
     }
 
+    private fun addPhoto(uri: Uri) {
+        val result = pending ?: return
+        activity.lifecycleScope.launch {
+            try {
+                photos += withContext(Dispatchers.IO) { readBytes(uri) }
+                askForAnotherPhoto()
+            } catch (error: Throwable) {
+                pending = null
+                photos.clear()
+                result.completeExceptionally(error)
+            }
+        }
+    }
+
+    private fun askForAnotherPhoto() {
+        AlertDialog.Builder(activity)
+            .setTitle(nativeMessage(NativeKey.TAKE_PHOTO).resolve(activity))
+            .setMessage(nativeMessage(NativeKey.PHOTO_ADDED_MESSAGE, photos.size).resolve(activity))
+            .setPositiveButton(nativeMessage(NativeKey.ADD_ANOTHER_PHOTO).resolve(activity)) { dialog, _ ->
+                dialog.dismiss()
+                pending?.let { launchCamera(it) }
+            }
+            .setNegativeButton(nativeMessage(NativeKey.PHOTOS_DONE).resolve(activity)) { dialog, _ ->
+                dialog.dismiss()
+                finishPhotos()
+            }
+            .setOnCancelListener { finishPhotos() }
+            .show()
+    }
+
+    /** One report from every photo taken so far: first page is the document, the rest only widen its identity. */
+    private fun finishPhotos() {
+        val result = pending ?: return
+        val taken = photos.toList()
+        photos.clear()
+        if (taken.isEmpty()) {
+            complete(null)
+            return
+        }
+        activity.lifecycleScope.launch {
+            try {
+                val pages = taken.flatMapIndexed { index, bytes ->
+                    extraction.extractImage(bytes).pages.map { it.copy(pageNumber = index + 1) }
+                }
+                val text = pages.joinToString("\n\n") { it.text }.trim()
+                mutableLastExtraction.value = OcrExtractionResult(text, pages, false)
+                val header = parseReportHeader(text)
+                val name = if (taken.size == 1) "lab-image.jpg" else "lab-photos-${taken.size}.jpg"
+                complete(
+                    PickedSource(
+                        name, "image/jpeg", taken.first(), pages.flatMap { parseExtractedCandidates(it.text) },
+                        header.laboratoryName, header.orderedAt, taken.drop(1),
+                    ),
+                )
+            } catch (error: Throwable) {
+                pending = null
+                result.completeExceptionally(error)
+            }
+        }
+    }
+
+    private fun readBytes(uri: Uri): ByteArray = activity.contentResolver.openInputStream(uri)?.use { input ->
+        val data = input.readBytes()
+        if (data.size > MAX_SOURCE_BYTES) failNative(NativeKey.SOURCE_TOO_LARGE)
+        data
+    } ?: failNative(NativeKey.SOURCE_OPEN_FAILED)
+
     private fun importUri(uri: Uri, requestedType: String) {
         val result = pending ?: return
         activity.lifecycleScope.launch {
             try {
                 val source = withContext(Dispatchers.IO) {
-                    val bytes = activity.contentResolver.openInputStream(uri)?.use { input ->
-                        val data = input.readBytes()
-                        if (data.size > MAX_SOURCE_BYTES) failNative(NativeKey.SOURCE_TOO_LARGE)
-                        data
-                    } ?: failNative(NativeKey.SOURCE_OPEN_FAILED)
+                    val bytes = readBytes(uri)
                     val name = displayName(uri) ?: if (requestedType == "application/pdf") "lab.pdf" else "lab-image.jpg"
                     Triple(name, requestedType, bytes)
                 }
@@ -105,7 +171,8 @@ class AndroidSourcePicker(
                 }
                 mutableLastExtraction.value = extracted
                 val candidates = extracted.pages.flatMap { page -> parseExtractedCandidates(page.text) }
-                complete(PickedSource(name, type, bytes, candidates))
+                val header = parseReportHeader(extracted.text)
+                complete(PickedSource(name, type, bytes, candidates, header.laboratoryName, header.orderedAt))
             } catch (error: Throwable) {
                 pending = null
                 result.completeExceptionally(error)
@@ -117,6 +184,7 @@ class AndroidSourcePicker(
         pending?.complete(source)
         pending = null
         cameraUri = null
+        photos.clear()
     }
 
     private fun displayName(uri: Uri): String? = activity.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->

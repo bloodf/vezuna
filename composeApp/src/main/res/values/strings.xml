@@ -47,6 +47,9 @@
     <string name="import_source_title">Import a lab source</string>
     <string name="import_source_message">Camera, images, and PDF text recognition are processed on this device.</string>
     <string name="take_photo">Take photo</string>
+    <string name="add_another_photo">Add page</string>
+    <string name="photos_done">Use these photos</string>
+    <string name="photo_added_message">Photos in this report: %1$d. Add another page?</string>
     <string name="choose_image">Choose image</string>
     <string name="choose_pdf">Choose PDF</string>
     <string name="source_too_large">Source exceeds the 64 MB import limit.</string>

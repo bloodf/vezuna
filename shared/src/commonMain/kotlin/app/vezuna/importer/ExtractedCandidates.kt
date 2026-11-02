@@ -19,3 +19,6 @@ fun parseExtractedCandidates(text: String, ocrConfidence: Float? = null): List<E
             rawToken = parsed.rawToken,
         )
     }
+
+/** The shared entry point for the laboratory name and order date of a report (Android and iOS). */
+fun parseReportHeader(text: String): ReportHeader = ReportHeaderParser.parse(text)

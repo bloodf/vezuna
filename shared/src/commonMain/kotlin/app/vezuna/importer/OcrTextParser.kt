@@ -247,7 +247,7 @@ object OcrTextParser {
         return line to null
     }
 
-    private fun parseDate(raw: String): Instant? = try {
+    internal fun parseDate(raw: String): Instant? = try {
         val parts = raw.split('/').map(String::toInt)
         val date = LocalDate(parts[2], parts[1], parts[0])
         if (date.year in 1900..2200) date.atStartOfDayIn(TimeZone.UTC).plus(12, DateTimeUnit.HOUR) else null

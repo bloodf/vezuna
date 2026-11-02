@@ -91,10 +91,10 @@ private fun LabFilterBar(filter: LabResultFilter, onFilter: (LabResultFilter) ->
     }
 }
 
-/** A date bound: the picker yields UTC midnight, stored as noon UTC like every calendar day in the app. */
+/** A date button:  the picker yields UTC midnight, stored as noon UTC like every calendar day in the app. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterDateButton(label: String, date: Instant?, onDate: (Instant?) -> Unit) {
+internal fun FilterDateButton(label: String, date: Instant?, onDate: (Instant?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     OutlinedButton({ open = true }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(label) }
     if (open) {
