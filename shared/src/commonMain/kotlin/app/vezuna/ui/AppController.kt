@@ -535,17 +535,24 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
-    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>): List<DoseSchedule> {
+    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>, previous: List<DoseSchedule> = emptyList()): List<DoseSchedule> {
         if (drafts.isEmpty()) failMessage(L10nKey.SCHEDULE_TIMES_REQUIRED)
         drafts.firstNotNullOfOrNull { it.errors().firstOrNull() }?.let { failMessage(it) }
-        return drafts.map { it.toSchedule(profileId, medicationId, ::randomId) }
+        val now = clock()
+        return drafts.map { draft ->
+            val schedule = draft.toSchedule(profileId, medicationId, ::randomId)
+            val old = previous.firstOrNull { it.scheduleId == schedule.scheduleId }
+            // Doses count from the moment the schedule was created or its times/recurrence last changed.
+            val unchanged = old != null && old.copy(trackedSince = null) == schedule
+            schedule.copy(trackedSince = if (unchanged) old?.trackedSince else now)
+        }
     }
 
     suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
         val data = requireData()
         val medication = findMedication(data, medicationId)
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
-        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
+        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts, medication.schedules)
         repository.updateMedication(
             medication.copy(
                 displayName = name.trim(),
@@ -565,7 +572,11 @@ class AppController(
         if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
         // The editor exposes one reminder time; it replaces the first time of the first schedule.
         val schedules = medication.schedules.mapIndexed { index, schedule ->
-            if (index == 0) schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1)) else schedule
+            if (index == 0 && schedule.timesLocal.firstOrNull() != canonicalTime) {
+                schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1), trackedSince = clock())
+            } else {
+                schedule
+            }
         }
         repository.updateMedication(
             medication.copy(
@@ -584,7 +595,8 @@ class AppController(
         val medication = findMedication(data, medicationId)
         val today = clock().toLocalDateTime(timeZone()).date
         val schedules = if (active) {
-            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+            // Paused or stopped days are not due: doses count again only from the moment of resuming.
+            medication.schedules.map { (if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it).copy(trackedSince = clock()) }
         } else {
             medication.schedules
         }
