@@ -27,22 +27,6 @@ class BackupFileAccess(
     val saveHistory: (String) -> Unit = {},
 )
 
-/** Settings entry: opens Backups and shows when the household last saved one. */
-@Composable
-fun BackupSettingsSection(state: AppUiState, controller: AppController, files: BackupFileAccess?) {
-    if (controller.backup == null || files == null) return
-    val history = remember(files) { BackupHistory.decode(files.loadHistory()) }
-    GroupedRows(title = vitaText(L10nKey.BACKUP_SECTION_TITLE)) {
-        ListRow(
-            title = vitaText(L10nKey.BACKUP_SCREEN_TITLE),
-            supporting = lastBackupText(history, currentInstant(), state.data != null),
-            leadingIcon = Res.drawable.ic_archive,
-            category = Category.RECORDS,
-            onClick = { controller.navigate(AppScreen.Backups) },
-        )
-    }
-}
-
 internal fun backupFileName(data: ProfileData): String {
     val safe = data.profile.displayName.map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
     val date = currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date

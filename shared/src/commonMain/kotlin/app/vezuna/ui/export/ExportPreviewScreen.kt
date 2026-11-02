@@ -89,8 +89,14 @@ private class ReadyFile(val fileName: String, val mimeType: String, val bytes: B
 @Composable
 internal fun ExportPreviewScreen(ctx: RouteContext, kind: String) {
     val data = ctx.state.data ?: return
-    val draft = ExportSession.existing(data.profile.profileId, kind) ?: ctx.draft(kind) ?: return
-    val options = draft.options(today()) ?: ExportOptions()
+    val draft = ExportSession.existing(data.profile.profileId, kind) ?: ctx.draft(kind)
+    val options = draft?.options(today())
+    if (draft == null || options == null) {
+        // No valid choices (e.g. route restored after process death): go back to the options instead of
+        // silently exporting the whole history.
+        LaunchedEffect(Unit) { ctx.back() }
+        return
+    }
     val csv = kind == CSV_KIND
     var sparseConfirmed by remember { mutableStateOf(false) }
     if (!sparseConfirmed && !ExportScope.hasContent(data, options, csv, TimeZone.currentSystemDefault())) {
@@ -100,7 +106,7 @@ internal fun ExportPreviewScreen(ctx: RouteContext, kind: String) {
     var attempt by remember { mutableStateOf(0) }
     var failed by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
-    LaunchedEffect(attempt) {
+    LaunchedEffect(attempt, data.profile.profileId) {
         failed = false
         finished = false
         ctx.controller.clearExports()
@@ -109,10 +115,13 @@ internal fun ExportPreviewScreen(ctx: RouteContext, kind: String) {
         failed = if (csv) state.csvExport == null else state.pdfExport == null
         finished = true
     }
-    val ready = when {
-        !finished -> null
-        csv -> ctx.state.csvExport?.let { ReadyFile(DoctorExportContent.csvFileName(data.profile.displayName, currentInstant()), ExportPlatform.CSV, it.encodeToByteArray()) }
-        else -> ctx.state.pdfExport?.let { ReadyFile(it.fileName, ExportPlatform.PDF, it.bytes) }
+    // Remembered so later state changes (e.g. the save announcement) keep the same file and its page count.
+    val ready = remember(finished, ctx.state.csvExport, ctx.state.pdfExport) {
+        when {
+            !finished -> null
+            csv -> ctx.state.csvExport?.let { ReadyFile(DoctorExportContent.csvFileName(data.profile.displayName, currentInstant()), ExportPlatform.CSV, it.encodeToByteArray()) }
+            else -> ctx.state.pdfExport?.let { ReadyFile(it.fileName, ExportPlatform.PDF, it.bytes) }
+        }
     }
     when {
         failed -> ExportFailed(ctx, data, options, csv, ctx.state.error?.resolve(), onRetry = { attempt++ })

@@ -257,6 +257,7 @@ class AndroidMainActivity : FragmentActivity() {
         if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
         sourcePicker.close()
         extraction.close()
+        clearExportPlatform()
         super.onDestroy()
     }
 
@@ -310,13 +311,26 @@ class AndroidMainActivity : FragmentActivity() {
 
     /** The shared export preview hands its exact bytes to the system save (SAF) and share sheets through these hooks. */
     private fun installExportPlatform() {
-        ExportPlatform.save = { fileName, mimeType, bytes ->
+        val save: suspend (String, String, ByteArray) -> SaveOutcome = { fileName, mimeType, bytes ->
             exports.save(NativeExport(fileName, mimeType, bytes)).fold(
                 onSuccess = { SaveOutcome.SAVED },
                 onFailure = { if (it is UserCancelledExport) SaveOutcome.CANCELLED else throw it },
             )
         }
-        ExportPlatform.share = { fileName, mimeType, bytes -> exports.share(NativeExport(fileName, mimeType, bytes)).getOrThrow() }
+        val share: suspend (String, String, ByteArray) -> Unit = { fileName, mimeType, bytes -> exports.share(NativeExport(fileName, mimeType, bytes)).getOrThrow() }
+        exportSave = save
+        exportShare = share
+        ExportPlatform.save = save
+        ExportPlatform.share = share
+    }
+
+    // The hooks capture this activity; onDestroy clears them unless a newer activity already replaced them.
+    private var exportSave: (suspend (String, String, ByteArray) -> SaveOutcome)? = null
+    private var exportShare: (suspend (String, String, ByteArray) -> Unit)? = null
+
+    private fun clearExportPlatform() {
+        if (ExportPlatform.save === exportSave) ExportPlatform.save = null
+        if (ExportPlatform.share === exportShare) ExportPlatform.share = null
     }
 
     private fun String.safeFilePart(): String = map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
