@@ -52,7 +52,7 @@ import vezuna.shared.generated.resources.ill_processing
 import vezuna.shared.generated.resources.ill_success
 
 /** An encrypted file held in memory until the user picks where to save it. [household]: every profile. */
-private class ReadyBackup(val fileName: String, val bytes: ByteArray, val household: Boolean, val coversEverything: Boolean)
+private class ReadyBackup(val fileName: String, val bytes: ByteArray, val household: Boolean, val coversEverything: Boolean, val withoutChat: Boolean)
 
 /**
  * Images 085-088: scope, chat choice and passphrase, then encryption, then the ready file and the native save.
@@ -96,7 +96,7 @@ internal fun CreateBackupFlow(
                 val bytes = if (all) service.createHousehold(chosen, chars) else service.create(chosen.first().data, chars)
                 // A single-profile file still covers the household when there is one profile and nothing else to carry.
                 val coversEverything = all || (profileCount == 1 && household == null)
-                ready = ReadyBackup(if (all) householdBackupFileName() else backupFileName(data), bytes, all, coversEverything)
+                ready = ReadyBackup(if (all) householdBackupFileName() else backupFileName(data), bytes, all, coversEverything, leaveOutChat)
                 passphrase = ""
                 confirmation = ""
             } catch (cancelled: CancellationException) {
@@ -129,6 +129,7 @@ internal fun CreateBackupFlow(
                     ListRow(vitaText(L10nKey.BACKUP_READY_PASSPHRASE), supporting = vitaText(L10nKey.BACKUP_READY_PASSPHRASE_BODY), leadingIcon = Res.drawable.ic_key, category = Category.TRENDS)
                 }
                 SecurityNotice(scopeTitle(current.household, data.profile.displayName), StatusKind.INFO, detail = scopeBoundary(current.household))
+                if (current.withoutChat) SecurityNotice(vitaText(L10nKey.BACKUP_READY_CHAT_LEFT_OUT), StatusKind.INFO)
                 if (notSaved) SecurityNotice(vitaText(L10nKey.BACKUP_NOT_SAVED), StatusKind.WARNING)
                 error?.let { SecurityNotice(it.resolve(), StatusKind.ERROR) }
                 PrimaryButton(vitaText(L10nKey.BACKUP_SAVE_ACTION), loading = saving, modifier = Modifier.fillMaxWidth(), onClick = {
