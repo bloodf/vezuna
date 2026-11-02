@@ -24,9 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
-import app.vezuna.domain.ProfileData
-import app.vezuna.domain.keepingOnlyAvailableSourceFiles
 import app.vezuna.security.BackupService
+import app.vezuna.security.BackupMember
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
 
@@ -34,7 +33,7 @@ import app.vezuna.security.VaultState
 class BackupRecovery(
     val service: BackupService,
     val files: BackupFileAccess,
-    val restore: (ProfileData) -> Unit,
+    val restore: (List<BackupMember>) -> Unit,
 )
 
 /** Single entry point for both platforms: loading, recovery, or the app itself once the vault is ready. */
@@ -98,7 +97,8 @@ fun VaultRecoveryScreen(
                 }
                 Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) { Text(vitaText(L10nKey.VAULT_RECOVERY_RETRY)) }
                 // A transient failure (including a Keychain key that is locked right now) only offers the (quarantine-only, confirmed) reset after repeated failed retries.
-                if ((failure != VaultFailure.UNAVAILABLE && failure != VaultFailure.KEY_UNAVAILABLE) || failedRetries >= RETRIES_BEFORE_RESET) {
+                val transient = failure == VaultFailure.UNAVAILABLE || failure == VaultFailure.KEY_UNAVAILABLE
+                if (failure != VaultFailure.SCHEMA_NEWER && (!transient || failedRetries >= RETRIES_BEFORE_RESET)) {
                     OutlinedButton(onClick = { confirming = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(vitaText(L10nKey.VAULT_RECOVERY_RESET))
                     }
@@ -117,7 +117,7 @@ fun VaultRecoveryScreen(
                 files = backup.files,
                 profileExists = { false },
                 confirmBody = L10nKey.BACKUP_RECOVERY_CONFIRM_BODY,
-                onConfirmed = { opened, _ -> backup.restore(opened.data.keepingOnlyAvailableSourceFiles(null)) },
+                onConfirmed = { opened, _ -> backup.restore(opened.members) },
                 onClose = { restoring = false },
             )
         }
@@ -142,6 +142,7 @@ internal fun VaultFailure.explanation(): L10nKey = when (this) {
     VaultFailure.KEY_INVALIDATED -> L10nKey.VAULT_RECOVERY_BODY_KEY_INVALIDATED
     VaultFailure.KEY_UNAVAILABLE -> L10nKey.VAULT_RECOVERY_BODY_KEY_UNAVAILABLE
     VaultFailure.UNAVAILABLE -> L10nKey.VAULT_RECOVERY_BODY_UNAVAILABLE
+    VaultFailure.SCHEMA_NEWER -> L10nKey.VAULT_RECOVERY_BODY_SCHEMA_NEWER
 }
 
 /** One-time notice shown when the app opened from the previous generation. */

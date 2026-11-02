@@ -1,6 +1,6 @@
 package app.vezuna
 
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseEvents
@@ -18,11 +18,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class PersistentVezunaRepositoryTest {
+class VaultBackedRepositoryTest {
     @Test
     fun profileScopedStateSurvivesRepositoryRecreation() = runTest {
         val vault = FakeSecureVault()
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         val profile = Profile("profile-a", "Me", createdAt = Instant.fromEpochMilliseconds(1))
         repository.createProfile(profile)
@@ -36,7 +36,7 @@ class PersistentVezunaRepositoryTest {
         )
         repository.addMedication(medication)
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
 
         assertEquals(listOf(profile), restored.profiles.value)
@@ -49,7 +49,7 @@ class PersistentVezunaRepositoryTest {
 
     @Test
     fun relatedRecordsCannotCrossProfileBoundary() = runTest {
-        val repository = PersistentVezunaRepository(FakeSecureVault())
+        val repository = VaultBackedRepository(FakeSecureVault())
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
@@ -63,7 +63,7 @@ class PersistentVezunaRepositoryTest {
 
     @Test
     fun notificationActionAndInAppWriteForSameDoseStoreOneTerminalEvent() = runTest {
-        val repository = PersistentVezunaRepository(FakeSecureVault())
+        val repository = VaultBackedRepository(FakeSecureVault())
         repository.load()
         repository.createProfile(Profile("p", "Me", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.addMedication(
@@ -85,12 +85,12 @@ class PersistentVezunaRepositoryTest {
     @Test
     fun manualReportWithoutDocumentPersists() = runTest {
         val vault = FakeSecureVault()
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.addReport(LabReport("a", "manual-report", importedAt = Instant.fromEpochMilliseconds(2)))
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
         val report = restored.readProfile("a").reports.single()
         assertTrue(report.isManual)
@@ -101,7 +101,7 @@ class PersistentVezunaRepositoryTest {
     @Test
     fun deletesPersistAndPurgeStoredSourceFiles() = runTest {
         val vault = FakeSecureVault()
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
@@ -118,7 +118,7 @@ class PersistentVezunaRepositoryTest {
         repository.deleteProfile("b")
         assertEquals(null, vault.read("source-b"))
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
         assertEquals(listOf("a"), restored.profiles.value.map { it.profileId })
         assertTrue(restored.readProfile("a").reports.isEmpty())
@@ -127,7 +127,7 @@ class PersistentVezunaRepositoryTest {
     @Test
     fun vitalsLiveInTheirOwnFileAndSurviveRestartAndRelinkOnDelete() = runTest {
         val vault = FakeSecureVault()
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
@@ -135,12 +135,12 @@ class PersistentVezunaRepositoryTest {
         val steps = app.vezuna.domain.StepsDay(LocalDate(2026, 10, 30), 4000)
         val batch = app.vezuna.domain.VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(steps))
         repository.ingestDeviceVitals(batch, Instant.parse("2026-11-01T00:00:00Z"))
-        val snapshotAfterIngest = vault.read("repository-v1")
+        val snapshotAfterIngest = vault.read("repository-profile-b-v1")
 
         repository.ingestDeviceVitals(batch, Instant.parse("2026-11-02T00:00:00Z"))
-        assertEquals(snapshotAfterIngest?.toList(), vault.read("repository-v1")?.toList(), "a vitals sync must not rewrite the repository snapshot")
+        assertEquals(snapshotAfterIngest?.toList(), vault.read("repository-profile-b-v1")?.toList(), "a vitals sync must not rewrite the profile record")
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
         assertEquals("b", restored.linkedHealthProfileId())
         assertEquals(listOf(steps), restored.readProfile("b").vitals.steps)

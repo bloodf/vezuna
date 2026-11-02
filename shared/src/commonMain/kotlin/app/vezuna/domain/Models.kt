@@ -162,6 +162,8 @@ data class DoseSchedule(
     val startDate: LocalDate,
     val endDate: LocalDate? = null,
     val timesLocal: List<String>,
+    /** When doses of this schedule started to count (creation or last change of times/recurrence). Null for legacy records. */
+    val trackedSince: Instant? = null,
 ) {
     init {
         require(intervalDays > 0)
