@@ -21,7 +21,7 @@ Earlier tester builds used a different application ID (for example `com.bloodf.v
 
 ## Android: signed release
 
-Release builds run R8 (minify) and resource shrinking with the rules in `composeApp/proguard-rules.pro` (kotlinx.serialization, Llamatik JNI, Play LVL/AIDL, PDFBox). After changing dependencies, inspect the build's `composeApp/build/outputs/mapping/release/` output and run the instrumented smoke tests against the release-signed build before uploading.
+Release builds run R8 (minify) and resource shrinking with the rules in `composeApp/proguard-rules.pro` (kotlinx.serialization, Llamatik JNI, Play LVL/AIDL, PDFBox). After changing dependencies, install the release APK on an emulator (uninstall any build signed with another key first) and walk Get started, Create profile and Today. Check `adb logcat` for `FATAL EXCEPTION`; reflective loads (Room, ML Kit registrars, WorkManager) are what R8 breaks first, and the mapping output is in `composeApp/build/outputs/mapping/release/`.
 
 Create a new upload key in your own terminal, or set `VEZUNA_UPLOAD_STORE_FILE` and `VEZUNA_UPLOAD_KEY_ALIAS` to an existing key. Never replace a registered upload key without following Play's key-reset process.
 

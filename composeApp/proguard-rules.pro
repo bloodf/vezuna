@@ -31,3 +31,13 @@
 -dontwarn java.awt.**
 -dontwarn javax.imageio.**
 -dontwarn org.apache.commons.logging.**
+
+# Room (pulled in by WorkManager via ML Kit): generated *_Impl classes are created reflectively through their no-arg constructor.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+-keep class androidx.work.impl.WorkDatabase_Impl { <init>(); }
+
+# ML Kit and Firebase-style component discovery instantiates registrars reflectively by manifest name.
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+-keep class com.google.mlkit.** { <init>(); }
+-keep class * extends androidx.startup.Initializer { <init>(); }
+-keep class androidx.work.** { <init>(); }
