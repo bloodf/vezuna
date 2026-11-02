@@ -1,7 +1,7 @@
 package app.vezuna.health
 
 import app.vezuna.domain.ProfileVitals
-import app.vezuna.security.CipherEnvelope
+import app.vezuna.security.CipherEnvelopeCodec
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.SetSerializer
@@ -21,7 +21,7 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
     /** Null when nothing is stored (or the unreadable file was moved aside). [onUnreadable] receives the cause. */
     suspend fun load(profileId: String, onUnreadable: (Throwable) -> Unit = {}): ProfileVitals? = try {
         vault.read(key(profileId))?.let { bytes ->
-            val envelope = json.decodeFromString(CipherEnvelope.serializer(), bytes.decodeToString())
+            val envelope = CipherEnvelopeCodec.decode(bytes)
             json.decodeFromString(ProfileVitals.serializer(), vault.decrypt(envelope).decodeToString()).migrated()
         }
     } catch (error: CancellationException) {
@@ -38,7 +38,7 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
         writeIndex(readIndex() + profileId)
         val plain = json.encodeToString(ProfileVitals.serializer(), vitals).encodeToByteArray()
         val envelope = vault.encrypt(plain, associatedData(profileId))
-        vault.write(key(profileId), json.encodeToString(CipherEnvelope.serializer(), envelope).encodeToByteArray())
+        vault.write(key(profileId), CipherEnvelopeCodec.encode(envelope))
     }
 
     suspend fun delete(profileId: String) {

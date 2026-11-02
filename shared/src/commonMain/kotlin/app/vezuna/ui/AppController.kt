@@ -43,13 +43,12 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
-import app.vezuna.data.restoreWithVitals
-import app.vezuna.domain.keepingOnlyAvailableSourceFiles
-import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.data.restoreMembers
+import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -70,6 +69,9 @@ interface SourceFileStore {
 
     /** Removes a stored file when the import that owned it could not be recorded. */
     suspend fun discard(key: String)
+
+    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
+    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
 }
 
 sealed interface AppScreen {
@@ -664,20 +666,27 @@ class AppController(
     }
 
     /** Backup restore. A profile that already exists is either replaced or the backup is stored under fresh IDs. */
-    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = operation {
-        val exists = repository.profiles.value.any { it.profileId == data.profile.profileId }
-        val toStore = when {
-            !exists -> data.keepingOnlyAvailableSourceFiles(null)
-            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
-            else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
-        }
-        val vitalsRestored = repository.restoreWithVitals(toStore)
+    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = restoreHousehold(listOf(BackupMember(data)), mode)
+
+    /** Restores every profile of a backup, with the original files it carries. */
+    suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = operation {
+        val outcome = repository.restoreMembers(members, mode, sourceStore, ::randomId)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
-        switchProfile(toStore.profile.profileId)
+        switchProfile(outcome.profileIds.first())
         DashboardRefreshSignal.notifyRepositoryChanged()
         mutableState.value = mutableState.value.copy(
-            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
+            notice = message(if (outcome.allVitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
         )
+    }
+
+    /** Every profile with its vitals and original source files, for a household backup. A missing file is simply left out. */
+    suspend fun householdForBackup(): List<BackupMember> = repository.profiles.value.map { profile ->
+        val data = repository.peekProfile(profile.profileId)
+        val files = data.documents.mapNotNull { document ->
+            val key = document.vaultKey ?: return@mapNotNull null
+            sourceStore?.load(document.profileId, document.documentId, key)?.let { document.documentId to it }
+        }.toMap()
+        BackupMember(data, files)
     }
 
     private suspend fun operation(block: suspend () -> Unit) {

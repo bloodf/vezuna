@@ -1,0 +1,528 @@
+package app.vezuna.data
+
+import app.vezuna.domain.ChatMessage
+import app.vezuna.domain.ClinicalDuplicateDetector
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.DoseSchedule
+import app.vezuna.domain.HealthLink
+import app.vezuna.domain.LabObservation
+import app.vezuna.domain.LabReport
+import app.vezuna.domain.Medication
+import app.vezuna.domain.OcrCandidate
+import app.vezuna.domain.Profile
+import app.vezuna.domain.ProfileData
+import app.vezuna.domain.ProfileVitals
+import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VitalsBatch
+import app.vezuna.domain.isInternallyConsistent
+import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.withChatMessage
+import app.vezuna.domain.withDocument
+import app.vezuna.domain.withMedication
+import app.vezuna.domain.withObservation
+import app.vezuna.domain.withProfile
+import app.vezuna.domain.withReport
+import app.vezuna.domain.withSchedule
+import app.vezuna.domain.withoutChatMessage
+import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutMedication
+import app.vezuna.domain.withoutObservation
+import app.vezuna.domain.withoutReport
+import app.vezuna.domain.withoutSchedule
+import app.vezuna.health.VitalsStore
+import app.vezuna.security.CipherEnvelopeCodec
+import app.vezuna.security.SecureVault
+import app.vezuna.security.VaultFailure
+import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+
+/**
+ * The one write-through repository for Android and iOS. Every successful mutation is encrypted before it becomes visible.
+ *
+ * Layout in the vault: one encrypted file per profile plus an encrypted profile index that is written last, so a commit
+ * rewrites only the profile it touched. Vitals live in their own files ([VitalsStore]). Plaintext never touches disk.
+ *
+ * Call [load] once before use. [persistSelection] keeps the last opened profile first in [profiles] (iOS); otherwise
+ * profiles are sorted by name.
+ */
+class VaultBackedRepository(
+    private val vault: SecureVault,
+    private val json: Json = Json { encodeDefaults = true },
+    private val persistSelection: Boolean = false,
+    private val warn: (String, Throwable?) -> Unit = { _, _ -> },
+) : VezunaRepository {
+    /** The single-blob format older Android builds wrote; read once, migrated to per-profile files, then deleted. */
+    @Serializable
+    private data class LegacySnapshot(
+        val records: Map<String, ProfileData> = emptyMap(),
+        val healthLinkedProfileId: String? = null,
+    )
+
+    private val mutex = Mutex()
+    private val records = mutableMapOf<String, ProfileData>()
+    private val vitalsStore = VitalsStore(vault, json)
+    // Vitals live in their own vault files; `records` always carry empty vitals so profile writes never rewrite them.
+    private val vitals = mutableMapOf<String, ProfileVitals>()
+    // Keys whose corrupt current file was replaced by the previous generation; quarantined before the next write of that key.
+    private val pendingQuarantine = mutableSetOf<String>()
+    private var initialized = false
+    private var selectedProfileId: String? = null
+    private var healthLinkId: String? = null
+    private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
+    private val mutableRevision = MutableStateFlow(0L)
+    private val mutableOpenedFromPrevious = MutableStateFlow(false)
+
+    var changeObserver: (() -> Unit)? = null
+
+    /** True when the last load had to use a previous generation, so recent changes may be missing. */
+    val openedFromPreviousGeneration: StateFlow<Boolean> = mutableOpenedFromPrevious.asStateFlow()
+
+    fun acknowledgePreviousGeneration() { mutableOpenedFromPrevious.value = false }
+
+    override val profiles: StateFlow<List<Profile>> = mutableProfiles.asStateFlow()
+
+    /** Increments after every change to profile records. */
+    val revision: StateFlow<Long> = mutableRevision.asStateFlow()
+
+    /** Called once by the app before any controller can observe profiles. */
+    suspend fun load() = mutex.withLock {
+        if (!initialized) restore()
+    }
+
+    /**
+     * Explicit user reset: keeps the unreadable files in a quarantine folder, drops a dead key, and starts empty.
+     * Never deletes the evidence; refuses when the vault cannot preserve it.
+     */
+    suspend fun resetAfterFailure() = mutex.withLock {
+        check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
+        vault.discardUnusableKey()
+        initialized = false
+        restore()
+    }
+
+    override suspend fun createProfile(profile: Profile) = mutex.withLock {
+        ensureInitialized()
+        require(!records.containsKey(profile.profileId)) { "Profile already exists" }
+        require(profile.displayName.isNotBlank()) { "Profile name is required" }
+        val data = ProfileData(profile = profile)
+        persist(data)
+        writeIndex(indexWith(data.profile))
+        records[profile.profileId] = data
+        changed()
+    }
+
+    override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock {
+        ensureInitialized()
+        val data = records.getValue(profileId).withVitals()
+        if (persistSelection && selectedProfileId != profileId) {
+            vault.write(SELECTION_KEY, profileId.encodeToByteArray())
+            selectedProfileId = profileId
+            publishProfiles()
+        }
+        data
+    }
+
+    override suspend fun peekProfile(profileId: String): ProfileData = mutex.withLock {
+        ensureInitialized()
+        records.getValue(profileId).withVitals()
+    }
+
+    override suspend fun addDocument(document: SourceDocument) = mutate(document.profileId) { data ->
+        require(data.documents.none { it.documentId == document.documentId })
+        data.copy(documents = data.documents + document)
+    }
+
+    override suspend fun addReport(report: LabReport) = mutate(report.profileId) { data ->
+        require(report.sourceDocumentId == null || data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(data.reports.none { it.reportId == report.reportId })
+        data.copy(reports = data.reports + report)
+    }
+
+    override suspend fun addCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) { data ->
+        require(data.documents.any { it.documentId == candidate.sourceDocumentId }) { "Source document must exist in this profile" }
+        require(data.ocrCandidates.none { it.candidateId == candidate.candidateId })
+        data.copy(ocrCandidates = data.ocrCandidates + candidate)
+    }
+
+    override suspend fun updateCandidate(candidate: OcrCandidate) = mutate(candidate.profileId) { data ->
+        require(data.ocrCandidates.any { it.candidateId == candidate.candidateId })
+        data.copy(ocrCandidates = data.ocrCandidates.map { if (it.candidateId == candidate.candidateId) candidate else it })
+    }
+
+    override suspend fun addObservation(observation: LabObservation): Boolean = mutex.withLock {
+        ensureInitialized()
+        val data = records.getValue(observation.profileId)
+        require(data.reports.any { it.reportId == observation.reportId }) { "Report must exist in this profile" }
+        if (data.observations.any { ClinicalDuplicateDetector.areDuplicates(it, observation) }) return@withLock false
+        require(data.observations.none { it.observationId == observation.observationId })
+        commit(data.copy(observations = data.observations + observation))
+        true
+    }
+
+    override suspend fun addMedication(medication: Medication) = mutate(medication.profileId) { data ->
+        require(medication.schedules.all { it.profileId == medication.profileId && it.medicationId == medication.medicationId })
+        require(data.medications.none { it.medicationId == medication.medicationId })
+        data.copy(medications = data.medications + medication)
+    }
+
+    override suspend fun addDoseEvent(event: DoseEvent) = mutate(event.profileId) { data ->
+        require(data.medications.any { medication ->
+            medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId }
+        })
+        data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
+    }
+
+    override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->
+        require(data.chat.none { it.messageId == message.messageId })
+        data.copy(chat = data.chat + message)
+    }
+
+    override suspend fun updateProfile(profile: Profile) = mutex.withLock {
+        ensureInitialized()
+        val updated = records.getValue(profile.profileId).withProfile(profile)
+        persist(updated)
+        writeIndex(indexWith(profile))
+        records[profile.profileId] = updated
+        changed()
+    }
+
+    override suspend fun deleteProfile(profileId: String) = mutex.withLock {
+        ensureInitialized()
+        val removed = records[profileId] ?: throw IllegalArgumentException("Profile not found")
+        // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
+        writeIndex(records.values.map { it.profile }.filter { it.profileId != profileId })
+        records.remove(profileId)
+        vitals.remove(profileId)
+        if (healthLinkId == profileId) {
+            val next = HealthLink.resolve(null, records.values.map { it.profile })
+            if (next == null) vault.delete(HEALTH_LINK_KEY) else vault.write(HEALTH_LINK_KEY, next.encodeToByteArray())
+            healthLinkId = next
+        }
+        if (selectedProfileId == profileId) {
+            vault.delete(SELECTION_KEY)
+            selectedProfileId = null
+        }
+        vault.delete(profileKey(profileId))
+        removed.vaultKeys().forEach { vault.delete(it) }
+        // Last, so a failure above leaves the vitals in place and the next load's sweep retries.
+        vitalsStore.delete(profileId)
+        changed()
+    }
+
+    override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
+
+    override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
+
+    override suspend fun deleteReport(profileId: String, reportId: String) = mutate(profileId) { it.withoutReport(reportId) }
+
+    override suspend fun updateObservation(observation: LabObservation) = mutate(observation.profileId) { it.withObservation(observation) }
+
+    override suspend fun deleteObservation(profileId: String, observationId: String) = mutate(profileId) { it.withoutObservation(observationId) }
+
+    override suspend fun updateMedication(medication: Medication) = mutate(medication.profileId) { it.withMedication(medication) }
+
+    override suspend fun deleteMedication(profileId: String, medicationId: String) = mutate(profileId) { it.withoutMedication(medicationId) }
+
+    override suspend fun updateSchedule(schedule: DoseSchedule) = mutate(schedule.profileId) { it.withSchedule(schedule) }
+
+    override suspend fun deleteSchedule(profileId: String, scheduleId: String) = mutate(profileId) { it.withoutSchedule(scheduleId) }
+
+    override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
+
+    override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+        ensureInitialized()
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        // Vitals live in their own file; callers write them through replaceVitals (see restoreWithVitals).
+        val stored = data.copy(vitals = ProfileVitals())
+        val previous = records[data.profile.profileId]
+        persist(stored)
+        writeIndex(indexWith(data.profile))
+        records[data.profile.profileId] = stored
+        // Files orphaned by the replacement go only after the restored record is durable.
+        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
+        changed()
+    }
+
+    override suspend fun linkedHealthProfileId(): String? = mutex.withLock {
+        ensureInitialized()
+        HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+    }
+
+    override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
+        ensureInitialized()
+        require(records.containsKey(profileId)) { "Profile not found" }
+        persistHealthLink(profileId)
+    }
+
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        ensureInitialized()
+        require(records.containsKey(profileId)) { "Profile not found" }
+        vitalsStore.save(profileId, vitals)
+        this.vitals[profileId] = vitals
+    }
+
+    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        ensureInitialized()
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, TimeZone.currentSystemDefault())
+        // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
+        vitalsStore.save(id, updated)
+        vitals[id] = updated
+        if (healthLinkId != id) persistHealthLink(id)
+        DeviceVitals.storedCount(updated, batch)
+    }
+
+    private fun ProfileData.withVitals() = copy(vitals = this@VaultBackedRepository.vitals[profile.profileId] ?: ProfileVitals())
+
+    private fun ensureInitialized() {
+        if (!initialized) error("Repository must be initialized before use")
+    }
+
+    private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
+        ensureInitialized()
+        val current = records.getValue(profileId)
+        val updated = transform(current)
+        commit(updated)
+        // Source files orphaned by a cascading delete are removed only after the new records are durable.
+        (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
+    }
+
+    private suspend fun commit(data: ProfileData) {
+        persist(data)
+        records[data.profile.profileId] = data
+        changed()
+    }
+
+    private fun changed() {
+        publishProfiles()
+        mutableRevision.value += 1
+        changeObserver?.invoke()
+    }
+
+    private suspend fun persistHealthLink(profileId: String) {
+        vault.write(HEALTH_LINK_KEY, profileId.encodeToByteArray())
+        healthLinkId = profileId
+    }
+
+    private fun publishProfiles() {
+        val all = records.values.map { it.profile }
+        mutableProfiles.value = if (persistSelection) {
+            all.sortedWith(compareByDescending<Profile> { it.profileId == selectedProfileId }.thenBy { it.displayName })
+        } else {
+            all.sortedBy { it.displayName }
+        }
+    }
+
+    private fun indexWith(profile: Profile): List<Profile> =
+        (records.values.map { it.profile }.filter { it.profileId != profile.profileId } + profile).sortedBy { it.displayName }
+
+    // ---- storage ----
+
+    private suspend fun persist(data: ProfileData) {
+        val document = StorageSchema.stamp(json.encodeToJsonElement(ProfileData.serializer(), data) as JsonObject)
+        writeDocument(profileKey(data.profile.profileId), profileAssociatedData(data.profile.profileId), document)
+    }
+
+    private suspend fun writeIndex(profiles: List<Profile>) {
+        val document = StorageSchema.stamp(JsonObject(mapOf(INDEX_PROFILES to json.encodeToJsonElement(ListSerializer(Profile.serializer()), profiles))))
+        writeDocument(INDEX_KEY, INDEX_ASSOCIATED_DATA, document)
+    }
+
+    private suspend fun writeDocument(key: String, associatedData: String, document: JsonElement) {
+        if (key in pendingQuarantine) {
+            // If this throws the write fails, but the corrupt file is never rotated over the good previous copy.
+            vault.quarantineCurrent(key)
+            pendingQuarantine -= key
+        }
+        val plain = json.encodeToString(JsonElement.serializer(), document).encodeToByteArray()
+        val envelope = vault.encrypt(plain, associatedData.encodeToByteArray())
+        vault.write(key, CipherEnvelopeCodec.encode(envelope))
+    }
+
+    private suspend fun restore() {
+        records.clear()
+        vitals.clear()
+        pendingQuarantine.clear()
+        mutableOpenedFromPrevious.value = false
+        selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+        healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+
+        var index = readDocument(INDEX_KEY, INDEX_ASSOCIATED_DATA, ::parseIndex)
+        var legacyPresent = false
+        if (index == null) {
+            val legacy = readDocument(LEGACY_KEY, LEGACY_ASSOCIATED_DATA, ::parseLegacy)
+            if (legacy != null) {
+                legacyPresent = true
+                index = migrateLegacy(legacy)
+            }
+        } else {
+            // Index exists, so it is authoritative; a leftover single blob would only keep deleted data alive.
+            legacyPresent = vault.read(LEGACY_KEY) != null
+        }
+
+        var indexStale = false
+        index.orEmpty().forEach { profile ->
+            val data = readDocument(profileKey(profile.profileId), profileAssociatedData(profile.profileId)) { parseProfile(profile.profileId, it) }
+            if (data == null) {
+                // A crash or partial delete left an index entry without its record; the other profiles must still open.
+                warn("Skipping profile ${profile.profileId}: its record is missing", null)
+                return@forEach
+            }
+            // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
+            if (data.profile != profile) indexStale = true
+            val stored = vitalsStore.load(profile.profileId) { warn("Could not read stored vitals", it) }
+            // Vitals saved inside the profile record by an earlier build move to their own file.
+            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(profile.profileId, it) }
+            if (loaded != null) vitals[profile.profileId] = loaded
+            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
+        }
+        if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
+        vitalsStore.sweep(records.keys)
+        if (legacyPresent) {
+            try {
+                vault.delete(LEGACY_KEY)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                warn("Could not delete the migrated legacy repository file", error)
+            }
+        }
+        publishProfiles()
+        initialized = true
+    }
+
+    /** Writes every profile, the health link, and the index last; only then is the new layout authoritative. */
+    private suspend fun migrateLegacy(legacy: LegacySnapshot): List<Profile> {
+        legacy.records.values.forEach { persist(it) }
+        val profiles = legacy.records.values.map { it.profile }.sortedBy { it.displayName }
+        legacy.healthLinkedProfileId?.takeIf { legacy.records.containsKey(it) }?.let { vault.write(HEALTH_LINK_KEY, it.encodeToByteArray()) }
+        writeIndex(profiles)
+        healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+        return profiles
+    }
+
+    /**
+     * Current generation first; only a corrupt one falls back to the previous generation.
+     * Null when nothing is stored. A newer schema is never read from the previous generation.
+     */
+    private suspend fun <T : Any> readDocument(key: String, associatedData: String, parse: (JsonElement) -> T): T? {
+        val current = vault.read(key) ?: return null
+        return try {
+            decode(current, associatedData, parse)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: StorageSchemaTooNewException) {
+            throw VaultUnreadableException(VaultFailure.SCHEMA_NEWER, error)
+        } catch (error: VaultUnreadableException) {
+            if (error.failure != VaultFailure.CORRUPT) throw error
+            readPrevious(key, associatedData, parse, error)
+        } catch (error: Exception) {
+            readPrevious(key, associatedData, parse, VaultUnreadableException(VaultFailure.CORRUPT, error))
+        }
+    }
+
+    private suspend fun <T : Any> readPrevious(
+        key: String,
+        associatedData: String,
+        parse: (JsonElement) -> T,
+        failure: VaultUnreadableException,
+    ): T {
+        val previous = vault.readPrevious(key) ?: throw failure
+        val restored = try {
+            decode(previous, associatedData, parse)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: StorageSchemaTooNewException) {
+            throw VaultUnreadableException(VaultFailure.SCHEMA_NEWER, error)
+        } catch (error: Exception) {
+            throw failure
+        }
+        // Keep the damaged file as evidence and out of the rotation that would overwrite the good previous copy.
+        try {
+            vault.quarantineCurrent(key)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Still open with the good previous data; the first write of this key retries before anything is rotated.
+            warn("Could not quarantine corrupt vault file", error)
+            pendingQuarantine += key
+        }
+        mutableOpenedFromPrevious.value = true
+        return restored
+    }
+
+    private suspend fun <T> decode(stored: ByteArray, associatedData: String, parse: (JsonElement) -> T): T {
+        val envelope = CipherEnvelopeCodec.decode(stored)
+        val plain = vault.decrypt(envelope)
+        // Associated data is authenticated by the vault envelope. Reject a mismatched payload before decoding.
+        if (envelope.associatedData.decodeToString() != associatedData) error("Vault associated data mismatch")
+        return parse(json.parseToJsonElement(plain.decodeToString()))
+    }
+
+    private fun parseIndex(element: JsonElement): List<Profile> {
+        // Schema 1 (iOS) stored a bare array of profiles.
+        val array = if (element is JsonArray) element else {
+            val document = StorageSchema.migrate(element as JsonObject)
+            document.getValue(INDEX_PROFILES)
+        }
+        return json.decodeFromJsonElement(ListSerializer(Profile.serializer()), array)
+    }
+
+    private fun parseProfile(profileId: String, element: JsonElement): ProfileData {
+        val document = StorageSchema.unstamped(StorageSchema.migrate(element as JsonObject))
+        val data = json.decodeFromJsonElement(ProfileData.serializer(), document)
+        require(data.profile.profileId == profileId && data.hasOnlyProfileRecords(profileId)) { "Corrupt profile scope in repository" }
+        return data
+    }
+
+    private fun parseLegacy(element: JsonElement): LegacySnapshot {
+        val snapshot = json.decodeFromJsonElement(LegacySnapshot.serializer(), element)
+        snapshot.records.forEach { (profileId, data) -> require(data.profile.profileId == profileId && data.hasOnlyProfileRecords(profileId)) { "Corrupt profile scope in repository" } }
+        // Older builds could store several terminal events for one dose; keep one.
+        return snapshot.copy(records = snapshot.records.mapValues { (_, data) -> data.copy(doseEvents = DoseEvents.collapse(data.doseEvents)) })
+    }
+
+    private fun ProfileData.hasOnlyProfileRecords(profileId: String) =
+        documents.all { it.profileId == profileId } &&
+            reports.all { it.profileId == profileId } &&
+            observations.all { it.profileId == profileId } &&
+            ocrCandidates.all { it.profileId == profileId } &&
+            medications.all { it.profileId == profileId } &&
+            doseEvents.all { it.profileId == profileId } &&
+            chat.all { it.profileId == profileId }
+
+    companion object {
+        /** iOS-style entry point. */
+        suspend fun open(vault: SecureVault, json: Json = Json { encodeDefaults = true }, persistSelection: Boolean = true): VaultBackedRepository =
+            VaultBackedRepository(vault, json, persistSelection).also { it.load() }
+
+        private const val LEGACY_KEY = "repository-v1"
+        private const val LEGACY_ASSOCIATED_DATA = "Vezuna repository v1"
+        private const val INDEX_KEY = "repository-profile-index-v1"
+        private const val INDEX_ASSOCIATED_DATA = "Vezuna repository index v1"
+        private const val INDEX_PROFILES = "profiles"
+        private const val SELECTION_KEY = "repository-selected-profile-v1"
+        private const val HEALTH_LINK_KEY = "repository-health-link-v1"
+        private fun profileKey(profileId: String) = "repository-profile-$profileId-v1"
+        private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
+    }
+}

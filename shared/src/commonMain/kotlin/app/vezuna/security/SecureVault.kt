@@ -37,8 +37,11 @@ interface SecureVault {
     suspend fun discardUnusableKey() {}
 }
 
-/** [UNAVAILABLE] is transient (locked device, Keystore or IO hiccup): retry, never offer a reset for it. */
-enum class VaultFailure { CORRUPT, KEY_INVALIDATED, KEY_UNAVAILABLE, UNAVAILABLE }
+/**
+ * [UNAVAILABLE] is transient (locked device, Keystore or IO hiccup): retry, never offer a reset for it.
+ * [SCHEMA_NEWER]: the data was written by a newer build; only updating the app opens it, so no reset is offered.
+ */
+enum class VaultFailure { CORRUPT, KEY_INVALIDATED, KEY_UNAVAILABLE, UNAVAILABLE, SCHEMA_NEWER }
 
 /** The vault cannot be opened. Recoverable: callers show the recovery screen instead of crashing. */
 class VaultUnreadableException(val failure: VaultFailure, cause: Throwable? = null) :

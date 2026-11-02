@@ -42,6 +42,9 @@ interface VezunaRepository {
     val profiles: StateFlow<List<Profile>>
     suspend fun createProfile(profile: Profile)
     suspend fun readProfile(profileId: String): ProfileData
+
+    /** Like [readProfile] but never changes which profile the repository treats as selected. */
+    suspend fun peekProfile(profileId: String): ProfileData = readProfile(profileId)
     suspend fun addDocument(document: SourceDocument)
     suspend fun addReport(report: LabReport)
     suspend fun addCandidate(candidate: OcrCandidate)

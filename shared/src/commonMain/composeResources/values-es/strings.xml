@@ -200,6 +200,7 @@ iOS: %2$s</string>
     <string name="vault_recovery_body_key_invalidated">La clave de seguridad del dispositivo que protege tus registros ya no es válida. Esto puede ocurrir tras cambiar el bloqueo de pantalla o la biometría.</string>
     <string name="vault_recovery_body_key_unavailable">La clave que protege tus registros falta o no se puede leer en este dispositivo.</string>
     <string name="vault_recovery_body_unavailable">Tus registros no están disponibles temporalmente. El dispositivo puede estar bloqueado o su almacenamiento seguro ocupado. Inténtalo de nuevo en un momento.</string>
+    <string name="vault_recovery_body_schema_newer">Tus registros fueron guardados por una versión más nueva de Vezuna. Actualiza la app para abrirlos. No se cambió ni se borró nada.</string>
     <string name="vault_recovery_cancel">Cancelar</string>
     <string name="vault_recovery_kept_note">No se borra nada automáticamente. Los archivos ilegibles permanecen en este dispositivo en una carpeta aparte.</string>
     <string name="vault_recovery_reset">Empezar con un almacén vacío</string>
@@ -330,6 +331,9 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta fuerte</string>
     <string name="backup_create_action">Crear copia</string>
     <string name="backup_saved">Copia guardada. Conserva bien la frase secreta</string>
+    <string name="backup_too_large">Esta copia es demasiado grande (más de 64 MB con los archivos originales). Haz la copia de un perfil a la vez.</string>
+    <string name="backup_include_household">Copiar todos los perfiles con sus archivos originales</string>
+    <string name="backup_household_contents">Copia de %1$d perfiles: %2$s</string>
     <string name="backup_enter_passphrase_title">Introduce la frase secreta de la copia</string>
     <string name="backup_unlock">Abrir copia</string>
     <string name="backup_same_device_label">Copia del mismo dispositivo: solo se restaura en el dispositivo que la creó</string>

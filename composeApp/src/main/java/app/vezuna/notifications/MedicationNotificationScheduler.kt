@@ -16,7 +16,7 @@ import app.vezuna.NativeText
 import app.vezuna.R
 import app.vezuna.nativeMessage
 import app.vezuna.resolve
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
 import app.vezuna.domain.ProfileData
@@ -41,7 +41,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    suspend fun rescheduleAll(repository: PersistentVezunaRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
+    suspend fun rescheduleAll(repository: VaultBackedRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
         val loaded = mutableMapOf<String, ProfileData>()

@@ -11,6 +11,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 @Serializable
 data class BackupPayload(
@@ -19,6 +24,19 @@ data class BackupPayload(
     val exportedAt: Instant,
     val data: ProfileData,
 )
+
+/** One profile of a household backup plus its original source files, keyed by document ID. */
+class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap())
+
+@Serializable
+private data class BackupFileEntry(val documentId: String, val content: String)
+
+@Serializable
+private data class BackupMemberEntry(val data: ProfileData, val files: List<BackupFileEntry> = emptyList())
+
+/** Schema 4: several profiles, each with vitals (inside [ProfileData]) and its original source files. */
+@Serializable
+private data class HouseholdPayload(val schemaVersion: Int, val exportedAt: Instant, val members: List<BackupMemberEntry>)
 
 enum class BackupKind {
     /** Passphrase-encrypted file that opens on any device. */
@@ -30,7 +48,10 @@ enum class BackupKind {
     UNKNOWN,
 }
 
-class OpenedBackup(val kind: BackupKind, val data: ProfileData)
+class OpenedBackup(val kind: BackupKind, val members: List<BackupMember>) {
+    /** The first (for single-profile files, the only) profile. */
+    val data: ProfileData get() = members.first().data
+}
 
 /**
  * Creates and opens `.vhbak` files. The payload holds whatever [ProfileData] serializes, so new record types flow
@@ -49,10 +70,33 @@ class BackupService(
 
     /** Key stretching is deliberately slow, so this runs off the caller's thread. */
     suspend fun create(profileData: ProfileData, passphrase: CharArray): ByteArray = withContext(Dispatchers.Default) {
-        val payload = BackupPayload(SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData)
+        val payload = BackupPayload(SINGLE_SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData)
         val plain = json.encodeToString(BackupPayload.serializer(), payload).encodeToByteArray()
         try {
             PassphraseBackupCodec.seal(plain, passphrase)
+        } finally {
+            plain.fill(0)
+        }
+    }
+
+    /**
+     * Backs up every profile with its vitals and original source files (schema 4). The file must stay under
+     * [MAX_BACKUP_BYTES] (files are Base64 inside the sealed payload); beyond that, [L10nKey.BACKUP_TOO_LARGE] and nothing is written.
+     */
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun createHousehold(members: List<BackupMember>, passphrase: CharArray): ByteArray = withContext(Dispatchers.Default) {
+        require(members.isNotEmpty()) { "Nothing to back up" }
+        val estimate = members.sumOf { member -> member.files.values.sumOf { (it.size + 2L) / 3 * 4 } }
+        if (estimate > MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+        val payload = HouseholdPayload(
+            SCHEMA_VERSION, currentInstant(),
+            members.map { member ->
+                BackupMemberEntry(member.data, member.files.map { (documentId, bytes) -> BackupFileEntry(documentId, Base64.encode(bytes)) })
+            },
+        )
+        val plain = json.encodeToString(HouseholdPayload.serializer(), payload).encodeToByteArray()
+        try {
+            PassphraseBackupCodec.seal(plain, passphrase).also { if (it.size > MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE) }
         } finally {
             plain.fill(0)
         }
@@ -63,7 +107,7 @@ class BackupService(
         when (val kind = kind(file)) {
             BackupKind.PORTABLE -> {
                 if (passphrase == null) failMessage(L10nKey.BACKUP_WRONG_PASSPHRASE)
-                OpenedBackup(kind, decodePayload(PassphraseBackupCodec.open(file, passphrase)).data)
+                OpenedBackup(kind, decodePayload(PassphraseBackupCodec.open(file, passphrase)))
             }
             BackupKind.SAME_DEVICE -> {
                 val localVault = vault ?: failMessage(L10nKey.BACKUP_SAME_DEVICE_UNAVAILABLE)
@@ -75,32 +119,49 @@ class BackupService(
                 } catch (error: Exception) {
                     failMessage(L10nKey.BACKUP_SAME_DEVICE_UNAVAILABLE)
                 }
-                val payload = decodePayload(plain)
+                val members = decodePayload(plain)
                 // The associated data names the profile the old service bound the file to.
-                val expected = "Vezuna backup v1:${payload.profileId}".encodeToByteArray()
+                val expected = "Vezuna backup v1:${members.first().data.profile.profileId}".encodeToByteArray()
                 if (!envelope.associatedData.contentEquals(expected)) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
-                OpenedBackup(kind, payload.data)
+                OpenedBackup(kind, members)
             }
             BackupKind.UNKNOWN -> failMessage(L10nKey.BACKUP_NOT_A_BACKUP)
         }
     }
 
-    private fun decodePayload(plain: ByteArray): BackupPayload {
-        val payload = try {
-            json.decodeFromString(BackupPayload.serializer(), plain.decodeToString())
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun decodePayload(plain: ByteArray): List<BackupMember> {
+        try {
+            val element = json.parseToJsonElement(plain.decodeToString())
+            val version = (element as? JsonObject)?.get("schemaVersion")?.jsonPrimitive?.intOrNull ?: failMessage(L10nKey.BACKUP_INVALID_CONTENT)
+            val members = when (version) {
+                in 1..SINGLE_SCHEMA_VERSION -> {
+                    val payload = json.decodeFromJsonElement(BackupPayload.serializer(), element)
+                    if (payload.profileId != payload.data.profile.profileId) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
+                    listOf(BackupMember(payload.data))
+                }
+                SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
+                    BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) })
+                }
+                else -> failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
+            }
+            val ids = members.map { it.data.profile.profileId }
+            if (members.isEmpty() || ids.toSet().size != ids.size || members.any { !it.isValid() }) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
+            return members
         } catch (error: CancellationException) {
+            throw error
+        } catch (error: app.vezuna.localization.VitaMessageException) {
             throw error
         } catch (error: Exception) {
             failMessage(L10nKey.BACKUP_INVALID_CONTENT)
         } finally {
             plain.fill(0)
         }
-        if (payload.schemaVersion !in ACCEPTED_SCHEMA_VERSIONS) failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
-        if (payload.profileId != payload.data.profile.profileId || !payload.data.isInternallyConsistent()) {
-            failMessage(L10nKey.BACKUP_INVALID_CONTENT)
-        }
-        return payload
     }
+
+    /** Consistent records, and files only for documents that exist. */
+    private fun BackupMember.isValid() =
+        data.isInternallyConsistent() && files.keys.all { id -> data.documents.any { it.documentId == id } }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {
         if (file.firstOrNull()?.toInt() != '{'.code) return false
@@ -113,9 +174,14 @@ class BackupService(
     }
 
     companion object {
-        /** 2 adds the vitals section to the profile data; version 1 payloads (no vitals) are still accepted. */
-        const val SCHEMA_VERSION = 3
-        private val ACCEPTED_SCHEMA_VERSIONS = 1..SCHEMA_VERSION
+        /**
+         * Highest payload version this build reads. 2 added the vitals section; 3 is the last single-profile shape;
+         * 4 is the household payload (several profiles, original source files). Versions 1-4 are all accepted.
+         */
+        const val SCHEMA_VERSION = 4
+
+        /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
+        const val SINGLE_SCHEMA_VERSION = 3
         const val MAX_BACKUP_BYTES = 64 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"
     }

@@ -9,6 +9,7 @@ import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.llm.loadBundledModelCatalog
+import app.vezuna.data.VaultSourceFileStore
 import app.vezuna.security.BackupService
 import app.vezuna.security.VaultState
 import app.vezuna.ui.AppController
@@ -31,6 +32,7 @@ class AndroidSessionViewModel(
         modelManager,
         LocalHealthChat(app.repository, llm),
         backup = BackupService(app.vault),
+        sourceStore = VaultSourceFileStore(app.vault),
     )
 
     init {
