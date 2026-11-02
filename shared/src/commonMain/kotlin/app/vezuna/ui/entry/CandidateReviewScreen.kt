@@ -1,5 +1,6 @@
 package app.vezuna.ui.entry
 
+import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -204,7 +205,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
                     )
                 }
                 PrimaryButton(vitaText(L10nKey.CONFIRM_RESULT), ::confirm, Modifier.fillMaxWidth(), loading = busy, enabled = !busy)
-                SecondaryButton(vitaText(L10nKey.REJECT), { rejecting = true }, Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm), enabled = !busy)
+                SecondaryButton(vitaText(L10nKey.REJECT), { rejecting = true }, Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm).returnFocusAfter(rejecting), enabled = !busy)
             }
         }
     }

@@ -1,5 +1,10 @@
 package app.vezuna.ui.components
 
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -116,6 +121,32 @@ fun ListRow(
  * Substantial colored panel that identifies a kind of content (category color, never a health status).
  * Content uses the category ink; keep clinical values on opaque surfaces inside or below it.
  */
+/** Corner and header art hides from this text scale on, so names and values reflow instead of breaking mid-word. */
+internal const val ART_MAX_FONT_SCALE = 1.5f
+
+/** False at very large text sizes: decorative art then gives its space back to the text (WCAG reflow). */
+@Composable
+fun decorativeArtShown(): Boolean = LocalDensity.current.fontScale < ART_MAX_FONT_SCALE
+
+/** End padding that keeps text clear of a panel's corner art; none when [decorativeArtShown] is false. */
+@Composable
+fun Modifier.clearOfArt(end: Dp = 96.dp): Modifier = if (decorativeArtShown()) padding(end = end) else this
+
+/**
+ * Display-size titles (36sp) stop growing at [max] times their size so a single long word ("Tendencias") fits a
+ * 320dp phone instead of breaking mid-word; they are already far above body size. Body text is never capped.
+ */
+@Composable
+fun TextStyle.cappedScale(max: Float = 1.3f): TextStyle {
+    val scale = LocalDensity.current.fontScale
+    return if (scale > max) copy(fontSize = fontSize * (max / scale), lineHeight = lineHeight * (max / scale)) else this
+}
+
+/** Single-word labels (tabs, segments) shrink to fit one line instead of breaking mid-word at large text sizes. */
+@Composable
+fun singleWordAutoSize(maxFontSize: TextUnit): TextAutoSize =
+    TextAutoSize.StepBased(minFontSize = with(LocalDensity.current) { 10.dp.toSp() }, maxFontSize = maxFontSize)
+
 @Composable
 fun CategoryPanel(
     category: Category,
@@ -127,7 +158,7 @@ fun CategoryPanel(
     val shape = RoundedCornerShape(VezunaTokens.CardRadius)
     val body: @Composable () -> Unit = {
         Box(Modifier.fillMaxWidth()) {
-            illustration?.let {
+            illustration?.takeIf { decorativeArtShown() }?.let {
                 Image(painterResource(it), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(width = 120.dp, height = 90.dp))
             }
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), content = content)

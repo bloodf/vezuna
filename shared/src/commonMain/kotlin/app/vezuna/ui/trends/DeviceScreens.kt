@@ -1,5 +1,6 @@
 package app.vezuna.ui.trends
 
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -126,7 +127,7 @@ private fun VitalCard(kind: VitalSeriesKind, series: HistorySeries, onOpen: () -
     val copy = kind.copy()
     val unit = vitaText(copy.unit)
     CategoryPanel(copy.category, illustration = copy.illustration, onClick = onOpen) {
-        Column(Modifier.fillMaxWidth().padding(end = 96.dp).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
+        Column(Modifier.fillMaxWidth().clearOfArt().semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
             Text(vitaText(copy.title), style = MaterialTheme.typography.titleLarge)
             Text(vitaText(copy.granularity), style = MaterialTheme.typography.bodyMedium)
             val latest = series.comparison.latest

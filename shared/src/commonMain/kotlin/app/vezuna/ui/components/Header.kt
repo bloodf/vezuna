@@ -100,7 +100,7 @@ fun RootHeader(
         shape = RoundedCornerShape(bottomStart = VezunaTokens.SheetRadius, bottomEnd = VezunaTokens.SheetRadius),
     ) {
         Box {
-            if (illustration != null) {
+            if (illustration != null && decorativeArtShown()) {
                 Image(
                     painterResource(illustration),
                     contentDescription = null,
@@ -119,11 +119,11 @@ fun RootHeader(
                 }
                 Text(
                     title,
-                    style = MaterialTheme.typography.displaySmall,
-                    modifier = Modifier.padding(top = VezunaTokens.SpaceSm, end = 120.dp).routeFocus().semantics { heading() },
+                    style = MaterialTheme.typography.displaySmall.cappedScale(),
+                    modifier = Modifier.padding(top = VezunaTokens.SpaceSm).clearOfArt(120.dp).routeFocus().semantics { heading() },
                 )
                 subtitle?.let {
-                    Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 120.dp))
+                    Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearOfArt(120.dp))
                 }
             }
         }
@@ -144,6 +144,7 @@ fun ProfileSwitcher(
     Row(
         modifier
             .clip(RoundedCornerShape(VezunaTokens.PillRadius))
+            .returnFocusAfter(open)
             .clickable(role = Role.Button) { open = true }
             .heightIn(min = VezunaTokens.TouchTarget)
             .padding(end = VezunaTokens.SpaceSm)

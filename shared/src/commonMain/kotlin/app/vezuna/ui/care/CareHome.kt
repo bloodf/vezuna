@@ -1,5 +1,7 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.decorativeArtShown
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +35,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ProfileData
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
@@ -158,12 +161,25 @@ private fun TodayDoseRow(dose: CareDose, onClick: () -> Unit) {
             role = Role.Button
         },
     ) {
-        Row(Modifier.heightIn(min = VezunaTokens.RowHeight).padding(VezunaTokens.SpaceSmd), horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd), verticalAlignment = Alignment.Top) {
-            Text(time, style = MaterialTheme.typography.titleLarge.tabular(), fontWeight = FontWeight.Bold)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
+        val timeText = @Composable { Text(time, style = MaterialTheme.typography.titleLarge.tabular(), fontWeight = FontWeight.Bold) }
+        val details = @Composable { modifier: Modifier ->
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
                 Text(d.medicationName, style = MaterialTheme.typography.titleMedium)
                 if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 DoseStateLabel(dose)
+            }
+        }
+        val padding = Modifier.heightIn(min = VezunaTokens.RowHeight).padding(VezunaTokens.SpaceSmd)
+        // At very large text the time sits above the name so the medication name keeps the full width.
+        if (decorativeArtShown()) {
+            Row(padding, horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd), verticalAlignment = Alignment.Top) {
+                timeText()
+                details(Modifier.weight(1f))
+            }
+        } else {
+            Column(padding, verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
+                timeText()
+                details(Modifier)
             }
         }
     }
@@ -181,16 +197,16 @@ private fun ReminderAccessPanel(ctx: RouteContext, reminders: ReminderPlatformSt
     when (access) {
         NotificationAccess.NOT_REQUESTED -> if (NativeAction.REMINDERS in ctx.nativeActions) {
             CategoryPanel(Category.CARE, illustration = Res.drawable.ill_notification_bell) {
-                Text(vitaText(L10nKey.CARE_REMINDERS_TITLE), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                Text(vitaText(L10nKey.CARE_REMINDERS_INTRO), style = MaterialTheme.typography.bodyLarge)
+                Text(vitaText(L10nKey.CARE_REMINDERS_TITLE), style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearOfArt().semantics { heading() })
+                Text(vitaText(L10nKey.CARE_REMINDERS_INTRO), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearOfArt())
                 Text(vitaText(L10nKey.CARE_REMINDERS_LOCAL), style = MaterialTheme.typography.bodyMedium)
                 PrimaryButton(vitaText(L10nKey.CARE_ENABLE_REMINDERS), { ctx.nativeActions.perform(NativeAction.REMINDERS) }, Modifier.fillMaxWidth(), container = VezunaTokens.Pine, content = Color.White)
                 TertiaryButton(vitaText(L10nKey.CARE_NOT_NOW), { dismissed = true }, Modifier.fillMaxWidth(), color = VezunaTokens.Pine)
             }
         }
         NotificationAccess.DENIED -> CategoryPanel(Category.CARE, illustration = Res.drawable.ill_notification_off) {
-            Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-            Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), style = MaterialTheme.typography.bodyLarge)
+            Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF), style = MaterialTheme.typography.titleLarge, modifier = Modifier.clearOfArt().semantics { heading() })
+            Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearOfArt())
             reminders.openNotificationSettings?.let { open ->
                 PrimaryButton(vitaText(L10nKey.CARE_OPEN_DEVICE_SETTINGS), open, Modifier.fillMaxWidth(), container = VezunaTokens.Pine, content = Color.White)
             }

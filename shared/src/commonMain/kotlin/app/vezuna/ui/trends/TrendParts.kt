@@ -1,7 +1,6 @@
 package app.vezuna.ui.trends
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -96,7 +95,7 @@ internal fun MutedText(text: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun RangeSection(range: HistoryRange, onRange: (HistoryRange) -> Unit, window: DateWindow?, available: DateWindow?) {
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceXs)) {
-        RangeChips(range, onRange, Modifier.horizontalScroll(rememberScrollState()))
+        RangeChips(range, onRange)
         window?.let { Text(periodText(it), style = MaterialTheme.typography.titleSmall) }
         if (available != null && available != window) MutedText(vitaText(L10nKey.TR_AVAILABLE, periodText(available)))
     }

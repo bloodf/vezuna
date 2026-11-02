@@ -1,5 +1,6 @@
 package app.vezuna.ui.components
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -61,7 +63,9 @@ fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) 
                 onClick = { onSelect(index) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 modifier = Modifier.heightIn(min = VezunaTokens.TouchTarget),
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                // Inactive labels follow the surrounding content colour so they stay ink on category fills in dark mode.
+                colors = SegmentedButtonDefaults.colors(inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current),
+                label = { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, autoSize = singleWordAutoSize(MaterialTheme.typography.labelMedium.fontSize)) },
             )
         }
     }
@@ -78,7 +82,8 @@ enum class HistoryRange(val months: Int?, val shortKey: L10nKey, val labelKey: L
 /** 3M / 6M / 1Y / All as one selectable group; screen readers hear the full period name. */
 @Composable
 fun RangeChips(selected: HistoryRange, onSelect: (HistoryRange) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+    // Wraps to a second line at large text sizes instead of pushing "All" off screen.
+    FlowRow(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
         HistoryRange.entries.forEach { range ->
             val isSelected = range == selected
             val label = vitaText(range.labelKey)

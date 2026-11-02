@@ -1,5 +1,6 @@
 package app.vezuna.ui.records
 
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -176,9 +177,9 @@ private fun RecordsList(
                         if (showResults) vitaPlural(L10nKey.LABS_RESULT_COUNT, results.size) else vitaPlural(L10nKey.RECORDS_REPORTS_FOUND, reports.size)
                     } else vitaPlural(L10nKey.RECORDS_REPORTS_COUNT, confirmedReports),
                     style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(end = 96.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier.clearOfArt().semantics { liveRegion = LiveRegionMode.Polite },
                 )
-                Text(vitaText(L10nKey.RECORDS_SAVED_ON_DEVICE), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 96.dp))
+                Text(vitaText(L10nKey.RECORDS_SAVED_ON_DEVICE), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.clearOfArt())
                 SegmentedControl(
                     listOf(vitaText(L10nKey.RECORDS_VIEW_REPORTS), vitaText(L10nKey.RECORDS_VIEW_RESULTS)),
                     if (showResults) 1 else 0,

@@ -1,5 +1,6 @@
 package app.vezuna.ui
 
+import app.vezuna.ui.components.singleWordAutoSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -283,13 +284,14 @@ private fun VezunaNavigationBar(current: Destination, onSelect: (Destination) ->
                 selected = destination == current,
                 onClick = { onSelect(destination) },
                 icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                // Labels never truncate: at large text they wrap to a second line instead. The Material bar size
-                // (12sp) keeps "Records"/"Registros" on one line on narrow phones (about 290pt wide).
+                // Labels are single words: at large text they shrink to fit one line instead of breaking mid-word
+                // ("Recor/ds"). They still scale with the system text size up to the width each tab has.
                 label = {
                     Text(
                         vitaText(destination.label()),
                         style = MaterialTheme.typography.labelSmall,
-                        maxLines = 2,
+                        maxLines = 1,
+                        autoSize = singleWordAutoSize(MaterialTheme.typography.labelSmall.fontSize),
                         textAlign = TextAlign.Center,
                         fontWeight = if (destination == current) FontWeight.Bold else FontWeight.Normal,
                     )
@@ -327,7 +329,7 @@ private fun VezunaRail(current: Destination, onSelect: (Destination) -> Unit) {
                     selected = destination == current,
                     onClick = { onSelect(destination) },
                     icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                    label = { Text(vitaText(destination.label()), maxLines = 2, textAlign = TextAlign.Center) },
+                    label = { Text(vitaText(destination.label()), maxLines = 1, autoSize = singleWordAutoSize(MaterialTheme.typography.labelMedium.fontSize), textAlign = TextAlign.Center) },
                     alwaysShowLabel = true,
                     colors = NavigationRailItemDefaults.colors(
                         selectedIconColor = VezunaTokens.OnCategory,

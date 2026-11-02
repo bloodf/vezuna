@@ -1,5 +1,8 @@
 package app.vezuna.ui.today
 
+import app.vezuna.ui.components.cappedScale
+import app.vezuna.ui.components.decorativeArtShown
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -86,7 +89,7 @@ internal fun WelcomeScreen(ctx: RouteContext, onStart: () -> Unit) {
             Image(painterResource(Res.drawable.vezuna_lockup_white), contentDescription = "Vezuna", modifier = Modifier.width(200.dp))
             Text(
                 vitaText(L10nKey.WELCOME_TITLE),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.displaySmall.cappedScale(),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.routeFocus().semantics { heading() },
             )
@@ -125,15 +128,15 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
             shape = RoundedCornerShape(bottomStart = VezunaTokens.SheetRadius, bottomEnd = VezunaTokens.SheetRadius),
         ) {
             Box {
-                Image(painterResource(Res.drawable.ill_foliage), contentDescription = null, modifier = Modifier.align(Alignment.BottomEnd).width(132.dp).heightIn(max = 104.dp))
+                if (decorativeArtShown()) Image(painterResource(Res.drawable.ill_foliage), contentDescription = null, modifier = Modifier.align(Alignment.BottomEnd).width(132.dp).heightIn(max = 104.dp))
                 Column(Modifier.statusBarsPadding().padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceXs, bottom = VezunaTokens.SpaceLg)) {
                     IconButton(onClick = onBack, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
                         Icon(painterResource(Res.drawable.ic_back), contentDescription = vitaText(L10nKey.NAVIGATE_BACK))
                     }
                     Text(
                         vitaText(L10nKey.FIRST_PROFILE_TITLE),
-                        style = MaterialTheme.typography.displaySmall,
-                        modifier = Modifier.padding(end = 120.dp).routeFocus().semantics { heading() },
+                        style = MaterialTheme.typography.displaySmall.cappedScale(),
+                        modifier = Modifier.clearOfArt(120.dp).routeFocus().semantics { heading() },
                     )
                     Text(vitaText(L10nKey.FIRST_PROFILE_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = roles.onHeaderMuted, modifier = Modifier.padding(end = 120.dp, top = VezunaTokens.SpaceSm))
                 }

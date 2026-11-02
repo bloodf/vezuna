@@ -1,5 +1,12 @@
 package app.vezuna.ui.components
 
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -121,6 +128,22 @@ fun ConfirmDialog(
         },
         dismissButton = { TertiaryButton(vitaText(L10nKey.CANCEL), onDismiss) },
     )
+}
+
+/**
+ * Put on the control that opens a dialog or sheet: when [open] turns false again, focus goes back to that
+ * control instead of the top of the screen (a11y checklist item 11, A11Y_SPIKE section 3).
+ */
+@Composable
+fun Modifier.returnFocusAfter(open: Boolean): Modifier {
+    val requester = remember { FocusRequester() }
+    var wasOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(open) {
+        // The control can be gone (e.g. the item was deleted); then there is nothing to return to.
+        if (wasOpen && !open) runCatching { requester.requestFocus() }
+        wasOpen = open
+    }
+    return focusRequester(requester)
 }
 
 /** Bottom sheet with the Living Color radius and a heading. */
