@@ -6,6 +6,7 @@ import app.vezuna.llm.LlamatikLocalLlm
 import app.vezuna.llm.LlmGenerationSettings
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -15,6 +16,9 @@ class LocalLlmInstrumentedTest {
     @Test
     fun loadsVerifiedGgufAndGeneratesOnDevice() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        // Skipped (not failed) unless tools/release/stage_smoke_model.py staged the smoke model; models/ is never committed.
+        assumeTrue("smoke.gguf not staged; run tools/release/stage_smoke_model.py", assets.list("")?.contains("smoke.gguf") == true)
         val model = File(context.cacheDir, "smoke.gguf")
         model.outputStream().use { output ->
             InstrumentationRegistry.getInstrumentation().context.assets.open("smoke.gguf").use { input -> input.copyTo(output) }

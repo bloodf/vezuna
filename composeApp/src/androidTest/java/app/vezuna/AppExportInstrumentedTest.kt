@@ -21,11 +21,13 @@ class AppExportInstrumentedTest {
             device.findObject(By.desc("Settings")).click()
             assertTrue(device.wait(Until.hasObject(By.text("Settings & export")), 5_000))
 
+            assertTrue("Prepare PDF not reachable", swipeTo(device, "Prepare PDF"))
             device.findObject(By.text("Prepare PDF")).click()
             assertTrue("PDF export dialog did not appear", device.wait(Until.hasObject(By.text("Export ready")), 5_000))
             assertTrue(device.wait(Until.hasObject(By.textContains("vezuna-doctor-export.pdf")), 3_000))
             device.findObject(By.text("Close")).click()
 
+            assertTrue("Prepare CSV not reachable", swipeTo(device, "Prepare CSV"))
             device.findObject(By.text("Prepare CSV")).click()
             assertTrue("CSV export dialog did not appear", device.wait(Until.hasObject(By.text("Export ready")), 5_000))
             assertTrue(device.wait(Until.hasObject(By.textContains("vezuna-doctor-export.csv")), 3_000))
@@ -33,5 +35,15 @@ class AppExportInstrumentedTest {
         } finally {
             scenario.close()
         }
+    }
+
+    /** Export buttons sit below the export options panel; swipe the page until they are on screen. */
+    private fun swipeTo(device: UiDevice, text: String): Boolean {
+        repeat(10) {
+            if (device.hasObject(By.text(text))) return true
+            device.swipe(device.displayWidth / 2, (device.displayHeight * 0.7).toInt(), device.displayWidth / 2, (device.displayHeight * 0.4).toInt(), 100)
+            device.waitForIdle()
+        }
+        return device.hasObject(By.text(text))
     }
 }
