@@ -23,6 +23,7 @@ import app.vezuna.ui.entry.reviewGroups
 import app.vezuna.ui.entry.sameDayResults
 import app.vezuna.ui.entry.toDraft
 import app.vezuna.ui.entry.validate
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import kotlin.test.Test
@@ -114,6 +115,37 @@ class ImportEntryTest {
         assertEquals(ImportPhase.Idle, controller.importSession.phase.value)
         assertNull(controller.state.value.error)
         assertTrue(repository.readProfile(repository.profiles.value.single().profileId).documents.isEmpty())
+    }
+
+    @Test
+    fun stoppingBeforeTheSaveBeginsStoresNothing() = runTest {
+        val (repository, controller) = started()
+        val job = launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            controller.importFrom(SourceKind.FILE) {
+                kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+                source(ExtractedCandidate("GLU", "Fasting glucose", "96", "mg/dL"), ExtractedCandidate("HGB", "Hemoglobin", "13.5", "g/dL"))
+            }
+        }
+        job.join()
+        assertEquals(ImportPhase.Idle, controller.importSession.phase.value)
+        val data = repository.readProfile(repository.profiles.value.single().profileId)
+        assertTrue(data.documents.isEmpty() && data.reports.isEmpty() && data.ocrCandidates.isEmpty())
+    }
+
+    @Test
+    fun onceSavingBeginsStopIsHiddenAndTheSaveIsAllOrNothing() = runTest {
+        val (repository, controller) = started()
+        controller.importFrom(SourceKind.FILE) {
+            source(ExtractedCandidate("GLU", "Fasting glucose", "96", "mg/dL"), ExtractedCandidate("HGB", "Hemoglobin", "13.5", "g/dL"))
+        }
+        val data = repository.readProfile(repository.profiles.value.single().profileId)
+        assertEquals(2, data.ocrCandidates.size)
+        assertEquals(1, data.documents.size)
+        val session = app.vezuna.ui.entry.ImportSession()
+        session.start(SourceKind.FILE)
+        session.reading("a.pdf")
+        session.saving()
+        assertEquals(ImportPhase.Reading("a.pdf", 0, 0, cancellable = false), session.phase.value)
     }
 
     @Test

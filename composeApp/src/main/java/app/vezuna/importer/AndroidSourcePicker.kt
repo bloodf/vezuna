@@ -22,6 +22,7 @@ import app.vezuna.ui.entry.SourceKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -67,8 +68,23 @@ class AndroidSourcePicker(
         } catch (error: Exception) {
             fail(error)
         }
-        return result.await()
+        try {
+            return result.await()
+        } catch (cancelled: CancellationException) {
+            // The person stopped the import: end extraction (it deletes its own temporary copy) and keep nothing.
+            extracting?.cancel()
+            extracting = null
+            if (pending === result) {
+                pending = null
+                this.session = null
+                cameraUri = null
+                photos.clear()
+            }
+            throw cancelled
+        }
     }
+
+    private var extracting: Job? = null
 
     /** Drops an in-flight pick so a retained caller does not wait on a destroyed Activity. */
     fun close() {
@@ -125,46 +141,60 @@ class AndroidSourcePicker(
         val taken = photos.toList()
         photos.clear()
         if (taken.isEmpty()) return complete(null)
-        activity.lifecycleScope.launch { extractPhotos(taken) }
+        val owner = pending
+        val picked = session
+        extracting = activity.lifecycleScope.launch { extractPhotos(taken, owner, picked) }
     }
 
     private fun importPhotos(uris: List<Uri>) {
-        activity.lifecycleScope.launch {
+        val owner = pending
+        val picked = session
+        extracting = activity.lifecycleScope.launch {
             try {
                 val pages = withContext(Dispatchers.IO) { uris.take(MAX_PHOTOS).map { readBytes(it, displayName(it) ?: PHOTO_NAME) } }
-                extractPhotos(pages)
+                extractPhotos(pages, owner, picked)
             } catch (error: Throwable) {
-                fail(error)
+                fail(error, owner = owner)
             }
         }
     }
 
-    private suspend fun extractPhotos(taken: List<ByteArray>) {
+    /** [owner] is the pick this extraction belongs to: a stopped extraction can never complete or fail a later pick. */
+    private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?) {
         val name = if (taken.size == 1) PHOTO_NAME else "lab-photos-${taken.size}.jpg"
         try {
-            session?.reading(name)
+            if (pending === owner) picked?.reading(name)
             val pages = taken.flatMapIndexed { index, bytes ->
+                if (pending === owner) picked?.progress(index + 1, taken.size)
                 extraction.extractImage(bytes).pages.map { it.copy(pageNumber = index + 1) }
             }
-            complete(source(name, "image/jpeg", taken.first(), pages, taken.drop(1)))
+            if (pending !== owner) return
+            complete(source(name, "image/jpeg", taken.first(), pages, taken.drop(1)), owner)
         } catch (error: Throwable) {
-            fail(error, name)
+            fail(error, name, owner)
         }
     }
 
     private fun importFile(uri: Uri) {
-        activity.lifecycleScope.launch {
+        val owner = pending
+        val picked = session
+        extracting = activity.lifecycleScope.launch {
             var name: String? = null
             try {
                 val type = activity.contentResolver.getType(uri)
                 val isPdf = type == "application/pdf"
                 name = displayName(uri) ?: if (isPdf) "lab.pdf" else PHOTO_NAME
                 val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
-                session?.reading(name)
-                val extracted = if (isPdf) extraction.extractPdf(bytes, name) else extraction.extractImage(bytes)
-                complete(source(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, extracted.pages, emptyList()))
+                if (pending === owner) picked?.reading(name)
+                val extracted = if (isPdf) {
+                    extraction.extractPdf(bytes, name) { page, count -> if (pending === owner) picked?.progress(page, count) }
+                } else {
+                    extraction.extractImage(bytes)
+                }
+                if (pending !== owner) return@launch
+                complete(source(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, extracted.pages, emptyList()), owner)
             } catch (error: Throwable) {
-                fail(error, name)
+                fail(error, name, owner)
             }
         }
     }
@@ -191,8 +221,9 @@ class AndroidSourcePicker(
         data
     } ?: throw ImportFailure(ImportFailureReason.UNREADABLE, name)
 
-    private fun fail(error: Throwable, name: String? = null) {
+    private fun fail(error: Throwable, name: String? = null, owner: CompletableDeferred<PickedSource?>? = pending) {
         val result = pending ?: return
+        if (owner !== result) return
         pending = null
         session = null
         cameraUri = null
@@ -204,8 +235,9 @@ class AndroidSourcePicker(
         }
     }
 
-    private fun complete(source: PickedSource?) {
-        pending?.complete(source)
+    private fun complete(source: PickedSource?, owner: CompletableDeferred<PickedSource?>? = pending) {
+        if (owner == null || pending !== owner) return
+        owner.complete(source)
         pending = null
         session = null
         cameraUri = null

@@ -3,13 +3,17 @@ package app.vezuna.ui.entry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlin.time.Instant
 
 /** The OS source the person chose on the Add a record screen. Each one opens the real system UI. */
 enum class SourceKind { CAMERA, PHOTOS, FILE }
 
 /** Explainable reasons a source could not be read; each has its own copy and recovery. */
-enum class ImportFailureReason { TOO_LARGE, UNREADABLE, CAMERA_UNAVAILABLE, CAMERA_DENIED }
+enum class ImportFailureReason { TOO_LARGE, UNREADABLE, CAMERA_UNAVAILABLE, CAMERA_DENIED, TOO_MANY_PAGES }
+
+/** Most PDF pages read in one import; more would exhaust memory and time on a phone. Both platforms enforce it. */
+const val MAX_PDF_PAGES = 30
 
 /** Thrown by a platform picker for a specific failure the person can act on. Anything else counts as unreadable. */
 class ImportFailure(val reason: ImportFailureReason, val fileName: String? = null) : Exception(reason.name)
@@ -22,7 +26,9 @@ data class ExtractionDetails(val fileName: String, val pages: List<ExtractedPage
 /** Where the current import stands. Waiting on the OS picker shows as [Reading] under the system UI. */
 sealed interface ImportPhase {
     data object Idle : ImportPhase
-    data class Reading(val fileName: String?) : ImportPhase
+    /** [page] of [pageCount] is 0 of 0 until the page count is known. */
+    /** [cancellable] is false once extraction is done and the result is being saved: that step always completes. */
+    data class Reading(val fileName: String?, val page: Int = 0, val pageCount: Int = 0, val cancellable: Boolean = true) : ImportPhase
     data class Failed(val reason: ImportFailureReason, val fileName: String?, val kind: SourceKind) : ImportPhase
     data class NoResults(val fileName: String, val kind: SourceKind) : ImportPhase
 }
@@ -62,6 +68,16 @@ class ImportSession {
     /** The platform reports the chosen file's name once the OS picker returns and extraction begins. */
     fun reading(fileName: String) {
         mutablePhase.value = ImportPhase.Reading(fileName)
+    }
+
+    /** Page [page] (1-based) of [pageCount] is being read; ignored once the import is no longer reading. */
+    fun progress(page: Int, pageCount: Int) {
+        mutablePhase.update { current -> if (current is ImportPhase.Reading) current.copy(page = page, pageCount = pageCount) else current }
+    }
+
+    /** Extraction is finished and the source is being stored; Stop is no longer offered. */
+    fun saving() {
+        mutablePhase.update { current -> if (current is ImportPhase.Reading) current.copy(cancellable = false) else current }
     }
 
     fun publish(details: ExtractionDetails) {

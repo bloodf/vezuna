@@ -33,6 +33,7 @@
 "model_asset_size_mismatch" = "El tamaño del recurso de la tienda no coincide con los metadatos firmados del catálogo.";
 "model_asset_unavailable" = "El recurso de tienda %1$@ está configurado, pero su archivo GGUF no está disponible.";
 "import_unreadable_pdf" = "No se pudo abrir el PDF seleccionado.";
+"import_too_many_pages" = "Este PDF tiene más de %d páginas, el máximo que Vezuna lee de una vez en este dispositivo.";
 "import_unreadable_image" = "No se pudo decodificar la imagen seleccionada.";
 "no_text_found" = "No se encontró texto incorporado ni texto de OCR sin conexión en esta fuente.";
 "no_structured_results" = "No se reconoció ningún resultado de laboratorio. Puedes usar la revisión manual en la pantalla Importar compartida.";

@@ -13,10 +13,16 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
     private var completion: ((PickedSource?, String?, String?) -> Void)?
     /// Camera pages of one report, in capture order.
     private var photos: [Data] = []
+    /// The running extraction and any temporary file copy it depends on; both are dropped on cancel.
+    private var extraction: Task<Void, Never>?
+    private var temporaryCopy: URL?
+    /// Identifies the current pick. A stopped extraction may still be unwinding; it must never touch a later pick.
+    private var pickID = UUID()
 
     func pickSource(kind: String, completion: @escaping (PickedSource?, String?, String?) -> Void) {
         guard self.completion == nil else { completion(nil, nil, nil); return }
         self.completion = completion
+        pickID = UUID()
         photos = []
         DispatchQueue.main.async {
             switch kind {
@@ -25,6 +31,21 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
             default: self.presentFiles()
             }
         }
+    }
+
+    /// The person stopped the import: end extraction, delete the temporary copy, report nothing.
+    func cancelPick() {
+        extraction?.cancel()
+        extraction = nil
+        removeTemporaryCopy()
+        pickID = UUID()
+        completion = nil
+        photos = []
+    }
+
+    private func removeTemporaryCopy() {
+        if let url = temporaryCopy { try? FileManager.default.removeItem(at: url) }
+        temporaryCopy = nil
     }
 
     // MARK: Camera
@@ -84,13 +105,15 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
     private func extractPhotos(_ pages: [Data]) {
         guard !pages.isEmpty else { return finish(nil) }
         let name = pages.count == 1 ? "lab-image.jpg" : "lab-photos-\(pages.count).jpg"
-        extract(name: name, mediaType: "image/jpeg", files: pages, texts: { try await Self.texts(pages) })
+        extract(name: name, mediaType: "image/jpeg", files: pages, texts: { progress in try await Self.texts(pages, progress: progress) })
     }
 
-    private static func texts(_ pages: [Data]) async throws -> ExtractedSourceText {
+    private static func texts(_ pages: [Data], progress: @escaping (Int, Int) -> Void) async throws -> ExtractedSourceText {
         var texts: [String] = []
         var confidences: [Float] = []
-        for page in pages {
+        for (index, page) in pages.enumerated() {
+            try Task.checkCancellation()
+            progress(index + 1, pages.count)
             let extracted = try await SourceTextExtractor.extract(data: page, mediaType: "image/jpeg")
             texts += extracted.pages
             if let confidence = extracted.ocrConfidence { confidences.append(confidence) }
@@ -99,11 +122,21 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
         return ExtractedSourceText(pages: texts, ocrConfidence: mean, usedOfflineOCR: true)
     }
 
-    private func extract(name: String, mediaType: String, files: [Data], texts: @escaping () async throws -> ExtractedSourceText) {
+    private func extract(name: String, mediaType: String, files: [Data], texts: @escaping (@escaping (Int, Int) -> Void) async throws -> ExtractedSourceText) {
         IosRuntime.shared.importReading(fileName: name)
-        Task { @MainActor in
+        let id = pickID
+        extraction = Task { @MainActor in
+            defer {
+                if id == pickID { extraction = nil; removeTemporaryCopy() }
+            }
             do {
-                let extracted = try await texts()
+                let extracted = try await texts { page, count in
+                    DispatchQueue.main.async {
+                        if id == self.pickID { IosRuntime.shared.importProgress(page: Int32(page), pageCount: Int32(count)) }
+                    }
+                }
+                try Task.checkCancellation()
+                guard id == pickID else { return }
                 let source = IosRuntime.shared.extractedSource(
                     fileName: name,
                     mediaType: mediaType,
@@ -113,8 +146,12 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
                     ocrConfidence: extracted.ocrConfidence.map { KotlinFloat(float: $0) }
                 )
                 finish(source)
+            } catch is CancellationError {
+                // cancelPick already cleared the completion; nothing is reported or saved.
+            } catch ImportError.tooManyPages {
+                if id == pickID { fail("TOO_MANY_PAGES", name) }
             } catch {
-                fail("UNREADABLE", name)
+                if id == pickID { fail("UNREADABLE", name) }
             }
         }
     }
@@ -125,6 +162,7 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
         let done = completion
         completion = nil
         photos = []
+        removeTemporaryCopy()
         done?(source, nil, nil)
     }
 
@@ -132,6 +170,7 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
         let done = completion
         completion = nil
         photos = []
+        removeTemporaryCopy()
         done?(nil, reason, fileName)
     }
 
@@ -188,6 +227,8 @@ extension ComposeSourcePicker: PHPickerViewControllerDelegate {
 extension ComposeSourcePicker: UIDocumentPickerDelegate {
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         guard let url = urls.first else { return finish(nil) }
+        // asCopy: the picker made a temporary copy; it is deleted as soon as the import ends, however it ends.
+        temporaryCopy = url
         let name = url.lastPathComponent
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= Self.maxBytes else { return fail("TOO_LARGE", name) }
@@ -196,12 +237,12 @@ extension ComposeSourcePicker: UIDocumentPickerDelegate {
         guard data.count <= Self.maxBytes else { return fail("TOO_LARGE", name) }
         let type = UTType(filenameExtension: url.pathExtension)
         if type?.conforms(to: .pdf) == true {
-            extract(name: name, mediaType: "application/pdf", files: [data]) {
-                try await SourceTextExtractor.extract(data: data, mediaType: "application/pdf")
+            extract(name: name, mediaType: "application/pdf", files: [data]) { progress in
+                try await SourceTextExtractor.extract(data: data, mediaType: "application/pdf", progress: progress)
             }
         } else {
             guard let page = Self.jpeg(data) else { return fail("UNREADABLE", name) }
-            extract(name: name, mediaType: "image/jpeg", files: [page]) {
+            extract(name: name, mediaType: "image/jpeg", files: [page]) { _ in
                 try await SourceTextExtractor.extract(data: page, mediaType: "image/jpeg")
             }
         }

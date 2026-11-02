@@ -101,6 +101,9 @@ import kotlin.coroutines.resumeWithException
  */
 interface NativeSourcePicker {
     fun pickSource(kind: String, completion: (PickedSource?, String?, String?) -> Unit)
+
+    /** The person stopped the import: stop extraction, delete temporary copies and never call the completion. */
+    fun cancelPick()
 }
 
 data class NativeMessage(val key: String, val args: List<String> = emptyList())
@@ -653,6 +656,11 @@ object IosRuntime {
         if (initialized) controller.importSession.reading(fileName)
     }
 
+    /** Page [page] (1-based) of [pageCount] is being read. */
+    fun importProgress(page: Int, pageCount: Int) {
+        if (initialized) controller.importSession.progress(page, pageCount)
+    }
+
     /**
      * Turns the pages Swift extracted into one source with review drafts, using the same shared parser as Android,
      * and publishes how each page was read. [pages] are the stored files (a PDF is one file with several texts).
@@ -730,6 +738,7 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
             {
                 val kind = IosRuntime.controllerForCompose().importSession.requestedKind.name
                 suspendCancellableCoroutine { continuation ->
+                    continuation.invokeOnCancellation { picker.cancelPick() }
                     picker.pickSource(kind) { source, failure, fileName ->
                         if (!continuation.isActive) return@pickSource
                         if (failure == null) {
