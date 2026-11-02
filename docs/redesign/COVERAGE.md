@@ -106,6 +106,10 @@ on this device" where the image says "Original available".
 
 `scripts/check-all.sh` -> `CHECK_ALL_PASSED: localization brand lab-importer gradle ios` (rerun after the L9 merge)
 
+PDF gaps lane (feat/pdf-gaps, merged with origin/main): `CHECK_ALL_PASSED: localization brand lab-importer gradle ios`;
+`:shared:jvmTest` 505 tests, 0 failures (11 new in `ExportGapsPdfTest`); koverVerify passed (export package 98% lines);
+localization 1086 shared keys; iOS XCTest 27 tests, 0 failures.
+
 - Localization catalogs: passed (1085 shared, 75 Android, 62 iOS keys in EN/PT/ES).
 - Brand and contrast check: passed.
 - Lab importer tests: passed.
