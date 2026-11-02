@@ -447,12 +447,17 @@ object IosRuntime {
         CsvDoctorExporter().export(data, exportLanguage(languageTag), options)
     }
 
+    /** "A4" or "LETTER" from the device region, for the export paper picker's initial value. */
+    fun defaultExportPaper(): String = app.vezuna.export.PaperSize.forLanguageTag(app.vezuna.localization.deviceLanguageTag()).name
+
     fun exportPdf(
         languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        paper: String, grayscale: Boolean,
         completion: (ExportedPdf?, NativeMessage?) -> Unit,
     ) = withProfile(completion) { data ->
         val language = exportLanguage(languageTag)
-        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
+        val size = app.vezuna.export.PaperSize.entries.firstOrNull { it.name == paper } ?: app.vezuna.export.PaperSize.A4
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv).copy(paper = size, grayscale = grayscale)
         NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language, options))
     }
 
