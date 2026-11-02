@@ -34,7 +34,7 @@ These are documented design limits, not undisclosed vulnerabilities:
 
 - **iOS key storage.** The vault master key is a random 32-byte file in the app's protected directory (`NSFileProtectionComplete`), not a Keychain item. Ciphertext and key sit in the same sandbox. Protection depends on iOS file protection and device lock.
 - **Android key storage.** AES-256-GCM key in Android Keystore (`KeyGenParameterSpec`, not exportable by the app). StrongBox is not requested.
-- **No cross-device recovery.** `BackupService` produces an authenticated envelope that only the same device key can open. There is no user-passphrase backup.
+- **No passphrase recovery.** `BackupService` writes passphrase-sealed portable backups that open on any device. A lost passphrase cannot be recovered. Older same-device envelopes open only with the original device key.
 - **Debug builds.** `DEBUG_PREMIUM_BYPASS` is `true` in the debug build type and enables premium/AI features when no `VEZUNA_LVL_PUBLIC_KEY` is set. It is `false` in release. Do not distribute debug builds.
 - **Release hardening.** `isMinifyEnabled` is `false` for Android release builds.
 - **Vendored Play LVL code.** The Google Play Licensing library is vendored (Apache-2.0) and uses `AESObfuscator` with a fixed IV, as upstream does. Licensing is a deterrent, not strong DRM.

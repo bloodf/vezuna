@@ -53,7 +53,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Phones', value: 'Android 8.0+ and iPhone on iOS 18.5+' },
         { term: 'Languages', value: 'English, Português, Español' },
       ],
-      screen: { src: shots.home, alt: 'Vezuna home screen for a profile named Child, showing “Your health, in one place.”, a 100% on-device indicator, and an empty medication list.', caption: 'Home screen. Android development build, fictional profile.' },
+      screen: { src: shots.home, alt: 'Vezuna Today screen for the profile Ana Silva: a next-dose card for Vitamin D with Mark as taken, Skip and Snooze buttons, 30-day adherence, and the next reminders.', caption: 'Today screen. Android development build, fictional profile Ana Silva.' },
     },
     how: {
       title: 'A lab report becomes a record only after you check it.',
@@ -63,7 +63,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { title: 'Check the draft against the paper', body: 'Vezuna shows the test, value, unit, reference range, and date it read. Fix anything that does not match the original.' },
         { title: 'Confirm, then compare', body: 'Confirmed results join the person’s history. Results are graphed together only when their units match.' },
       ],
-      screen: { src: shots.labs, alt: 'Vezuna Lab records screen with Import review and Trends buttons and the empty state “No confirmed results”.', caption: 'Lab records before the first confirmed result.' },
+      screen: { src: shots.labs, alt: 'Vezuna Records screen for Ana Silva: a banner with 3 values to review, a search field and filters, 6 confirmed reports saved on this device, and a list of October 2026 reports.', caption: 'Records: values to review, confirmed reports and results.' },
     },
     records: {
       title: 'What Vezuna keeps for each person.',
@@ -73,10 +73,10 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Medications', body: 'Schedules and reminders. Mark each dose as taken, skipped, or snoozed.' },
         { term: 'Weight, heart rate, steps', body: 'Type them in, or allow read-only import from Health Connect or Apple Health. Both are optional.' },
         { term: 'Exports', body: 'A PDF or CSV of confirmed results for an appointment, sent through your phone’s share sheet.' },
-        { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose. Restore it on a new phone.' },
+        { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose, for one profile or the whole household, with vitals and original documents (up to 24 MB). Restore it on a new phone.' },
         { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. Screenshots are blocked while it is on.' },
       ],
-      screen: { src: shots.settings, alt: 'Vezuna Settings and export screen stating “No Vezuna app server”, with Prepare CSV and Prepare PDF buttons.', caption: 'Settings and export. Exports never depend on an AI model.' },
+      screen: { src: shots.settings, alt: 'Vezuna More screen with entries for Profiles, Exports, Backups, Privacy and app lock, Device connections, and Assistant and local models, with a bottom bar of Today, Records, Care, Trends and More.', caption: 'More: profiles, exports, backups and privacy controls. Exports never depend on an AI model.' },
     },
     privacy: {
       title: 'Where your records stay, and when they leave.',
@@ -132,7 +132,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Celulares', value: 'Android 8.0+ e iPhone com iOS 18.5+' },
         { term: 'Idiomas', value: 'English, Português, Español' },
       ],
-      screen: { src: shots.home, alt: 'Tela inicial do Vezuna para o perfil Child, com “Your health, in one place.”, indicador 100% on-device e lista de medicamentos vazia.', caption: 'Tela inicial. Build de desenvolvimento para Android, perfil fictício, interface em inglês.' },
+      screen: { src: shots.home, alt: 'Tela Today do Vezuna para o perfil Ana Silva: cartão Next dose de Vitamin D com os botões “Mark as taken”, Skip e “Snooze 10 min”, adesão em 30 dias e próximos lembretes.', caption: 'Tela Today. Build de desenvolvimento para Android, perfil fictício Ana Silva, interface em inglês.' },
     },
     how: {
       title: 'Um exame só vira registro depois que você confere.',
@@ -142,7 +142,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { title: 'Confira o rascunho com o papel', body: 'O Vezuna mostra o exame, o valor, a unidade, o intervalo de referência e a data que leu. Corrija o que estiver diferente do original.' },
         { title: 'Confirme e compare', body: 'Resultados confirmados entram no histórico da pessoa. O gráfico só junta resultados com a mesma unidade.' },
       ],
-      screen: { src: shots.labs, alt: 'Tela Lab records do Vezuna com os botões Import review e Trends e o aviso “No confirmed results”.', caption: 'Exames antes do primeiro resultado confirmado.' },
+      screen: { src: shots.labs, alt: 'Tela Records do Vezuna para Ana Silva: aviso “3 values to review”, busca e filtros, “6 confirmed reports” salvos neste aparelho e lista de relatórios de outubro de 2026.', caption: 'Registros: valores para revisar, relatórios e resultados confirmados.' },
     },
     records: {
       title: 'O que o Vezuna guarda para cada pessoa.',
@@ -152,10 +152,10 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Medicamentos', body: 'Horários e lembretes. Marque cada dose como tomada, pulada ou adiada.' },
         { term: 'Peso, frequência cardíaca, passos', body: 'Digite à mão ou permita importar, só leitura, do Health Connect ou do Apple Saúde. As duas opções são opcionais.' },
         { term: 'Exportações', body: 'Um PDF ou CSV dos resultados confirmados para levar à consulta, enviado pelo compartilhamento do celular.' },
-        { term: 'Backups', body: 'Um arquivo criptografado com uma frase-senha que você escolhe. Restaure num celular novo.' },
+        { term: 'Backups', body: 'Um arquivo criptografado com uma frase-senha que você escolhe, de um perfil ou da família toda, com sinais vitais e documentos originais (até 24 MB). Restaure num celular novo com a frase-senha.' },
         { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
       ],
-      screen: { src: shots.settings, alt: 'Tela Settings and export do Vezuna com o aviso “No Vezuna app server” e os botões Prepare CSV e Prepare PDF.', caption: 'Configurações e exportação. Exportar nunca depende de modelo de IA.' },
+      screen: { src: shots.settings, alt: 'Tela More do Vezuna com entradas Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” e “Assistant and local models”, com barra inferior Today, Records, Care, Trends e More.', caption: 'Mais: perfis, exportações, backups e controles de privacidade. Exportar nunca depende de modelo de IA.' },
     },
     privacy: {
       title: 'Onde seus registros ficam, e quando saem.',
@@ -211,7 +211,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Teléfonos', value: 'Android 8.0+ y iPhone con iOS 18.5+' },
         { term: 'Idiomas', value: 'English, Português, Español' },
       ],
-      screen: { src: shots.home, alt: 'Pantalla de inicio de Vezuna para el perfil Child, con “Your health, in one place.”, un indicador 100% on-device y la lista de medicamentos vacía.', caption: 'Pantalla de inicio. Build de desarrollo para Android, perfil ficticio, interfaz en inglés.' },
+      screen: { src: shots.home, alt: 'Pantalla Today de Vezuna para el perfil Ana Silva: tarjeta Next dose de Vitamin D con los botones “Mark as taken”, Skip y “Snooze 10 min”, adherencia de 30 días y próximos recordatorios.', caption: 'Pantalla Today. Build de desarrollo para Android, perfil ficticio Ana Silva, interfaz en inglés.' },
     },
     how: {
       title: 'Un análisis se vuelve registro solo cuando tú lo revisas.',
@@ -221,7 +221,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { title: 'Compara el borrador con el papel', body: 'Vezuna muestra la prueba, el valor, la unidad, el rango de referencia y la fecha que leyó. Corrige lo que no coincida con el original.' },
         { title: 'Confirma y compara', body: 'Los resultados confirmados entran en el historial de la persona. Solo se grafican juntos los resultados con la misma unidad.' },
       ],
-      screen: { src: shots.labs, alt: 'Pantalla Lab records de Vezuna con los botones Import review y Trends y el aviso “No confirmed results”.', caption: 'Análisis antes del primer resultado confirmado.' },
+      screen: { src: shots.labs, alt: 'Pantalla Records de Vezuna para Ana Silva: aviso “3 values to review”, búsqueda y filtros, “6 confirmed reports” guardados en este dispositivo y lista de informes de octubre de 2026.', caption: 'Registros: valores por revisar, informes y resultados confirmados.' },
     },
     records: {
       title: 'Lo que Vezuna guarda para cada persona.',
@@ -231,10 +231,10 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Medicamentos', body: 'Horarios y recordatorios. Marca cada dosis como tomada, omitida o pospuesta.' },
         { term: 'Peso, frecuencia cardíaca, pasos', body: 'Escríbelos a mano o permite importarlos, solo lectura, desde Health Connect o Apple Salud. Ambas opciones son opcionales.' },
         { term: 'Exportaciones', body: 'Un PDF o CSV de los resultados confirmados para la consulta, enviado con el menú de compartir del teléfono.' },
-        { term: 'Copias de seguridad', body: 'Un archivo cifrado con una frase de contraseña que tú eliges. Restáuralo en un teléfono nuevo.' },
+        { term: 'Copias de seguridad', body: 'Un archivo cifrado con una frase de contraseña que tú eliges, de un perfil o de toda la familia, con signos vitales y documentos originales (hasta 24 MB). Restáuralo en un teléfono nuevo con la frase.' },
         { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. Las capturas de pantalla se bloquean mientras está activo.' },
       ],
-      screen: { src: shots.settings, alt: 'Pantalla Settings and export de Vezuna con el aviso “No Vezuna app server” y los botones Prepare CSV y Prepare PDF.', caption: 'Ajustes y exportación. Exportar nunca depende de un modelo de IA.' },
+      screen: { src: shots.settings, alt: 'Pantalla More de Vezuna con accesos Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” y “Assistant and local models”, con barra inferior Today, Records, Care, Trends y More.', caption: 'Más: perfiles, exportaciones, copias de seguridad y controles de privacidad. Exportar nunca depende de un modelo de IA.' },
     },
     privacy: {
       title: 'Dónde se quedan tus registros, y cuándo salen.',
