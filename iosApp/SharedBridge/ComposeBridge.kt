@@ -757,12 +757,12 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
 
 /**
  * Debug only (`-VezunaFixture`): the synthetic DATA_AND_COPY household in an in-memory repository, for the
- * screenshot harness. The vault is never opened, read or written.
+ * screenshot harness. Swift skips opening the vault in this mode, and model files are never touched.
  */
 fun makeDesignFixtureViewController(route: String?): UIViewController {
     val repository = InMemoryVezunaRepository()
     val llm = llamatikLocalLlm()
-    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModelFiles, llm), LocalHealthChat(repository, llm))
+    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
         DesignFixture.install(repository)
         controller.initialize()
@@ -816,15 +816,6 @@ private fun installMorePlatformIos() {
     }
     app.vezuna.ui.more.MorePlatform.openUrl = ::open
     app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
-}
-
-private object NoModelFiles : app.vezuna.llm.ModelFileStore {
-    override suspend fun installed(): List<app.vezuna.llm.InstalledModel> = emptyList()
-    override suspend fun install(model: app.vezuna.llm.InstalledModel, sourcePath: String) = Unit
-    override suspend fun verifyIntegrity(model: app.vezuna.llm.InstalledModel): Boolean = false
-    override suspend fun delete(model: app.vezuna.llm.InstalledModel) = Unit
-    override suspend fun saveSelection(modelId: String?) = Unit
-    override suspend fun savedSelection(): String? = null
 }
 
 /** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */

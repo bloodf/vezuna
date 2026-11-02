@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import json
 import plistlib
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -50,12 +51,52 @@ def check_vectors():
     print(f"VECTOR_DRAWABLES={len(outputs)}")
 
 
+def kotlin_roles(token_text):
+    """{'light': {role: '#RRGGBB'}, 'dark': {...}, 'category': {...}} parsed by name from VezunaTokens.kt."""
+    primitives = {name: f"#{value.upper()}" for name, value in re.findall(r"val (\w+) = Color\(0xFF([0-9A-Fa-f]{6})\)", token_text)}
+    for name, alias in re.findall(r"val (\w+) = (\w+)\n", token_text):
+        if alias in primitives:
+            primitives[name] = primitives[alias]
+
+    def resolve(expression):
+        literal = re.fullmatch(r"Color\(0xFF([0-9A-Fa-f]{6})\)", expression)
+        return f"#{literal.group(1).upper()}" if literal else primitives[expression.removeprefix("VezunaTokens.")]
+
+    roles = {}
+    for theme, block in re.findall(r"val (Light|Dark) = Roles\((.*?)\n    \)", token_text, re.S):
+        roles[theme.lower()] = {name: resolve(expression) for name, expression in re.findall(r"(\w+) = ([\w.]+(?:\(0xFF[0-9A-Fa-f]{6}\))?),", block)}
+    names = {"RECORDS": "mint", "CARE": "coral", "TRENDS": "lavender", "ACTIVITY": "citron"}
+    roles["category"] = {names[entry]: resolve(fill) for entry, fill in re.findall(r"(RECORDS|CARE|TRENDS|ACTIVITY)\(([\w.]+)", token_text)}
+    roles["category"]["onCategory"] = primitives["OnCategory"]
+    return roles
+
+
+def swift_roles(swift):
+    """Role values from VezunaStyle.swift: `vezunaX = adaptive(light:, dark:)` or a single `Color(hex())`."""
+    rename = {"action": "primary", "onAction": "onPrimary"}
+    roles = {"light": {}, "dark": {}}
+    for name, light, dark in re.findall(r"static let vezuna(\w+) = adaptive\(light: 0x([0-9A-Fa-f]{6}), dark: 0x([0-9A-Fa-f]{6})\)", swift):
+        role = rename.get(name[0].lower() + name[1:], name[0].lower() + name[1:])
+        roles["light"][role], roles["dark"][role] = f"#{light.upper()}", f"#{dark.upper()}"
+    for name, value in re.findall(r"static let vezuna(\w+) = Color\(hex\(0x([0-9A-Fa-f]{6})\)\)", swift):
+        role = name[0].lower() + name[1:]
+        roles["light"].setdefault(role, f"#{value.upper()}")
+        roles["dark"].setdefault(role, f"#{value.upper()}")
+    return roles
+
+
 def check_living_color(living, token_text):
-    swift = (ROOT / "iosApp/Vezuna/VezunaStyle.swift").read_text()
-    for group in ("category", "light", "dark"):
-        for name, value in living[group].items():
-            assert value.removeprefix("#") in token_text, f"Missing livingColor {group}/{name} {value} in VezunaTokens.kt"
-            assert value.removeprefix("#") in swift, f"Missing livingColor {group}/{name} {value} in VezunaStyle.swift"
+    swift = swift_roles((ROOT / "iosApp/Vezuna/VezunaStyle.swift").read_text())
+    kotlin = kotlin_roles(token_text)
+    swift_primitives = {"mint": "aqua", "onCategory": "onCategory", "coral": "coral", "lavender": "lavender", "citron": "citron", "pine": "navy", "teal": "teal", "paper": "paper"}
+    for group in ("light", "dark"):
+        for role, value in living[group].items():
+            assert kotlin[group].get(role, "").upper() == value.upper(), f"VezunaTokens.kt {group}.{role} is {kotlin[group].get(role)}, tokens.json says {value}"
+            assert swift[group].get(role, "").upper() == value.upper(), f"VezunaStyle.swift {group}.{role} is {swift[group].get(role)}, tokens.json says {value}"
+    for name, value in living["category"].items():
+        if name in kotlin["category"]:
+            assert kotlin["category"][name] == value.upper(), f"VezunaTokens.kt category {name} is {kotlin['category'][name]}, tokens.json says {value}"
+        assert swift["light"].get(swift_primitives[name], "") == value.upper(), f"VezunaStyle.swift category {name} drifted from {value}"
     text_pairs = [
         ("text", "background"), ("text", "surface"), ("text", "surfaceSubtle"),
         ("textMuted", "background"), ("textMuted", "surface"), ("textMuted", "surfaceSubtle"),
@@ -64,6 +105,7 @@ def check_living_color(living, token_text):
         ("focus", "background"), ("focus", "surface"), ("focus", "surfaceSubtle"),
         ("danger", "surface"), ("danger", "background"), ("warning", "surface"), ("success", "surface"), ("info", "surface"),
         ("onHeader", "header"), ("onHeaderAction", "headerAction"), ("headerAction", "header"),
+        ("onNavIndicator", "navIndicator"),
     ]
     for theme in ("light", "dark"):
         roles = living[theme]
@@ -71,6 +113,10 @@ def check_living_color(living, token_text):
             measured = ratio(roles[foreground], roles[background])
             print(f"CONTRAST living {theme} {foreground}/{background}={measured:.2f}:1")
             assert measured >= 4.5, f"Insufficient text contrast: living {theme} {foreground}/{background} {measured:.2f}"
+        # Selected tab indicator is a non-text boundary on the bar surface.
+        measured = ratio(roles["navIndicator"], roles["surface"])
+        print(f"CONTRAST living {theme} navIndicator/surface={measured:.2f}:1")
+        assert measured >= 3, f"Selected tab indicator too faint: {theme} {measured:.2f}"
         for control in ("border", "focus"):
             for background in ("surface", "background"):
                 measured = ratio(roles[control], roles[background])

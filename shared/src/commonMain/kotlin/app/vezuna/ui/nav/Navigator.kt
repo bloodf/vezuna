@@ -62,11 +62,15 @@ class Navigator {
         mutableState.value = state.copy(stacks = state.stacks + (state.root to state.stack + screen))
     }
 
-    /** Replaces the top screen, for flows that move forward without leaving a step to return to. */
-    fun replace(screen: AppScreen) {
+    /**
+     * Ends the task on top of the current tab (pops it) and goes to [screen], for flows that finish elsewhere:
+     * saving a manual result closes the import screen and opens Records, and the origin tab does not keep
+     * the finished screen.
+     */
+    fun finishAndGo(screen: AppScreen) {
         val state = mutableState.value
-        if (state.isRoot || Destination.rootOf(screen) != null) return navigate(screen)
-        mutableState.value = state.copy(stacks = state.stacks + (state.root to state.stack.dropLast(1) + screen))
+        if (!state.isRoot) mutableState.value = state.copy(stacks = state.stacks + (state.root to state.stack.dropLast(1)))
+        navigate(screen)
     }
 
     /** Returns false when there is nothing left to go back to, so the platform can handle it (Android exits). */
