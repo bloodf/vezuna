@@ -163,22 +163,22 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 011 | vault-recovery | L6 | implemented | Not reachable from the fixture; manual device check owed |
 | 012 | vault-reset | L6 | implemented | Not reachable from the fixture; manual device check owed |
 | 013 | recovered-notice | L6 | partial | image shows a Today banner (L1 surface); shell still shows a dialog. Kept: the dialog guarantees acknowledgement and is not reachable in the fixture, so a Today banner could not be verified |
-| 014 | records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 015 | records-empty | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 016 | record-search | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 017 | search-empty | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 018 | record-filters | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 019 | report-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 020 | source-viewer | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; no real-file device test |
-| 021 | source-missing | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 022 | report-delete | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 023 | result-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 024 | qualitative-detail | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 014 | records | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 015 | records-empty | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 016 | record-search | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 017 | search-empty | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 018 | record-filters | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 019 | report-detail | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 020 | source-viewer | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot; no real-file device test |
+| 021 | source-missing | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot supports rendering only: the SourceViewer fixture route shows the original-file-not-available screen but the missing-source state was not set up deliberately; VoiceOver/AX5 pass owed |
+| 022 | report-delete | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
+| 023 | result-detail | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 024 | qualitative-detail | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 025 | numeric-edit | L3 | done | none |
 | 026 | qualitative-edit | L3 | done | none |
 | 027 | result-validation | L3 | done | none |
 | 028 | revision-history | L3 | done | none |
-| 029 | result-unavailable | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 029 | result-unavailable | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot |
 | 030 | add-record | L3 | done | none |
 | 031 | camera | L3 | done | system UI, not redrawn |
 | 032 | photo-picker | L3 | done | system UI, not redrawn |
@@ -282,8 +282,8 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 130 | notices | L7 | partial | Screen explains and opens the existing native offline reader; no shared in-app reader |
 | 131 | help | L7 | done | Static help with in-app links and GitHub links; no offline guides content exists so none is shown |
 | 132 | today-dark | L1 | done | none (Android); iOS dark screenshots not taken |
-| 133 | records-dark | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
-| 134 | result-dark | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V |
+| 133 | records-dark | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
+| 134 | result-dark | L2 | done | iOS iPhone 17 sim (iOS 27.0) shot viewed light+dark 2026-11-02, renders correctly; VoiceOver/AX5 pass owed |
 | 135 | form-dark | L3 | done | none (Android); iOS dark not taken |
 | 136 | assistant-dark | L8 | partial | Conditional: the default model catalog is empty, so this state is unreachable in any build today; code compiles and clear-history is unit-tested; needs a rea... |
 | 137 | more-dark | L7 | done | none (Android) |
@@ -291,7 +291,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 139 | portuguese-review | L3 | done | none (Android PT); iOS PT not taken |
 | 140 | spanish-care | L4 | done | none (Android ES) |
 | 141 | large-text | L1 | partial | fixed: icon tiles hide at font scale >=1.5 (ListRow, More PanelRow) so long names reflow; verified Android 320dp, font 2.0, ES (Exportaciones whole, focused-screen titles wrap in the header) and iOS ES at AX XXXL; TalkBack/VoiceOver pass owed |
-| 142 | tablet-records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; tablet landscape not captured |
+| 142 | tablet-records | L2 | done | iOS sim now renders (iPhone 17, iOS 27.0); this route not yet shot; tablet landscape not captured |
 | 143 | tablet-review | L3 | partial | source/review split pane not built (proposed) |
 | 144 | components | R0 | done | No standalone component catalog screen; components verified in context on every Android shot |
 | 145 | biometric-prompt | L6 | system | none |

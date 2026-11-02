@@ -11,21 +11,24 @@ struct ContentView: View {
             if DebugLaunch.fixture {
                 DesignFixtureHostView().ignoresSafeArea(.container)
             } else if model.ready {
-                ComposeHostView()
-                    .ignoresSafeArea(.container)
-                    .safeAreaInset(edge: .top) {
-                        if let error = model.catalogError ?? model.modelLoader.lastError {
-                            Text(error)
-                                .font(.footnote)
-                                .foregroundStyle(Color.vezunaDanger)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(8)
-                                .background(.regularMaterial)
-                                // VoiceOver hears the banner when it appears or changes, without moving focus.
-                                .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
-                                .onChange(of: error) { UIAccessibility.post(notification: .announcement, argument: $0) }
-                        }
+                // The host reaches under the status bar, so a banner is stacked above it instead of inset: the banner
+                // takes the top safe area itself and the host then only extends to the bottom.
+                let error = model.catalogError ?? model.modelLoader.lastError
+                VStack(spacing: 0) {
+                    if let error {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(Color.vezunaDanger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                            .background(.regularMaterial, ignoresSafeAreaEdges: .top)
+                            // VoiceOver hears the banner when it appears or changes, without moving focus.
+                            .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
+                            .onChange(of: error) { UIAccessibility.post(notification: .announcement, argument: $0) }
                     }
+                    ComposeHostView()
+                        .ignoresSafeArea(.container, edges: error == nil ? .all : .bottom)
+                }
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
                     onRetry: { model.recoverVault(reset: false) },
