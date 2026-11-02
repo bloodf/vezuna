@@ -17,6 +17,9 @@ interface SourceFileStore {
 
     /** Removes a stored file when the import that owned it could not be recorded. */
     suspend fun discard(key: String)
+
+    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
+    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
 }
 
 data class AppUiState(

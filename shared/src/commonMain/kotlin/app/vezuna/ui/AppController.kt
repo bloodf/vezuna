@@ -44,14 +44,14 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
-import app.vezuna.data.restoreWithVitals
-import app.vezuna.domain.keepingOnlyAvailableSourceFiles
-import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.data.restoreMembers
+import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
+import app.vezuna.security.backupFileId
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
@@ -245,13 +245,6 @@ class AppController(
         return inserted
     }
 
-    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
-    private fun sourceIdentity(source: PickedSource): String {
-        val first = sha256(source.bytes).toHex()
-        if (source.additionalPages.isEmpty()) return first
-        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
-    }
-
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
         val store = sourceStore
@@ -279,24 +272,6 @@ class AppController(
         }
     }
 
-    private fun candidateFingerprint(
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        range: ReferenceRange,
-        collectedAt: kotlinx.datetime.Instant,
-    ): String = listOf(
-        testCode.trim().uppercase(),
-        displayName.trim().lowercase(),
-        rawValue.trim(),
-        rawUnit.trim(),
-        range.lower?.toString().orEmpty(),
-        range.upper?.toString().orEmpty(),
-        range.text.orEmpty(),
-        range.unit.orEmpty(),
-        collectedAt.toString(),
-    ).joinToString("|")
 
     suspend fun confirmCandidate(
         candidateId: String,
@@ -716,20 +691,45 @@ class AppController(
     }
 
     /** Backup restore. A profile that already exists is either replaced or the backup is stored under fresh IDs. */
-    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = operation {
-        val exists = repository.profiles.value.any { it.profileId == data.profile.profileId }
-        val toStore = when {
-            !exists -> data.keepingOnlyAvailableSourceFiles(null)
-            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
-            else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
-        }
-        val vitalsRestored = repository.restoreWithVitals(toStore)
+    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = restoreHousehold(listOf(BackupMember(data)), mode)
+
+    /** Restores every profile of a backup, with the original files it carries. */
+    suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = operation {
+        val outcome = repository.restoreMembers(members, mode, sourceStore, ::randomId)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
-        switchProfile(toStore.profile.profileId)
+        switchProfile(outcome.profileIds.first())
         DashboardRefreshSignal.notifyRepositoryChanged()
         mutableState.value = mutableState.value.copy(
-            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
+            notice = message(if (outcome.allVitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
         )
+    }
+
+    /**
+     * Every profile with its vitals and original source files, for a household backup. A missing or unreadable file is
+     * left out; loading stops with BACKUP_TOO_LARGE as soon as the originals cannot fit in a backup.
+     */
+    suspend fun householdForBackup(): List<BackupMember> {
+        var encoded = 0L
+        return repository.profiles.value.map { profile ->
+            val data = repository.peekProfile(profile.profileId)
+            val files = mutableMapOf<String, ByteArray>()
+            data.documents.forEach { document ->
+                (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEachIndexed { index, key ->
+                    val fileId = backupFileId(document.documentId, index + 1)
+                    val bytes = try {
+                        sourceStore?.load(document.profileId, fileId, key)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (unreadable: Exception) {
+                        null
+                    } ?: return@forEachIndexed
+                    encoded += (bytes.size + 2L) / 3 * 4
+                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    files[fileId] = bytes
+                }
+            }
+            BackupMember(data, files)
+        }
     }
 
     private suspend fun operation(block: suspend () -> Unit) {
