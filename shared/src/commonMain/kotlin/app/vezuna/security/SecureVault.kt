@@ -14,9 +14,24 @@ data class CipherEnvelope(
 interface SecureVault {
     suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope
     suspend fun decrypt(envelope: CipherEnvelope): ByteArray
+
+    /**
+     * Decrypts only an envelope bound to [expectedAssociatedData]. The stored copy is never trusted: a mismatch is
+     * rejected as [VaultFailure.CORRUPT] before any key or cipher is touched.
+     */
+    suspend fun decrypt(envelope: CipherEnvelope, expectedAssociatedData: ByteArray): ByteArray {
+        if (!envelope.associatedData.contentEquals(expectedAssociatedData)) throw VaultUnreadableException(VaultFailure.CORRUPT)
+        return decrypt(envelope)
+    }
     suspend fun write(key: String, ciphertext: ByteArray)
     suspend fun read(key: String): ByteArray?
     suspend fun delete(key: String)
+
+    /**
+     * Keys that have stored data (current or previous generation), or null when this vault cannot enumerate them.
+     * A key can be listed whose data is unreadable; callers still read it through [read].
+     */
+    suspend fun listKeys(): List<String>? = null
 
     /** The generation written before the current one, or null when the vault keeps none. */
     suspend fun readPrevious(key: String): ByteArray? = null

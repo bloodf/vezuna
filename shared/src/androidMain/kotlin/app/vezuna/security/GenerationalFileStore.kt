@@ -46,11 +46,24 @@ class GenerationalFileStore(private val directory: File) {
         return true
     }
 
-    /** Current generation; if a crash hit between the two renames, the previous one stands in. */
-    fun read(name: String): ByteArray? =
-        File(directory, name).takeIf { it.isFile }?.readBytes() ?: readPrevious(name)
+    /**
+     * Current generation; a missing file (crash between the renames) lets the previous one stand in. A zero-length
+     * file is a truncated write: the previous generation wins, and without one the empty bytes are returned so the
+     * caller sees corruption instead of "nothing stored".
+     */
+    fun read(name: String): ByteArray? {
+        val current = File(directory, name).takeIf { it.isFile }?.readBytes()
+        return if (current != null && current.isNotEmpty()) current else readPrevious(name) ?: current
+    }
 
     fun readPrevious(name: String): ByteArray? = File(directory, "$name$PREVIOUS").takeIf { it.isFile }?.readBytes()
+
+    /** Names with a committed current or previous generation; temp files of unfinished writes are not data. */
+    fun names(): List<String> = directory.listFiles { file -> file.isFile }.orEmpty()
+        .map { it.name }
+        .filterNot { it.endsWith(TEMP) }
+        .map { it.removeSuffix(PREVIOUS) }
+        .distinct()
 
     fun delete(name: String) {
         listOf(name, "$name$PREVIOUS", "$name$TEMP").forEach { File(directory, it).delete() }

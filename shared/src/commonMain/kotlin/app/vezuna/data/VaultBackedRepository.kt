@@ -46,6 +46,7 @@ import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -82,6 +83,8 @@ class VaultBackedRepository(
     private val pendingQuarantine = mutableSetOf<String>()
     // Index entries whose record is missing; carried forward in the index so their vitals and files are never swept.
     private val skipped = mutableMapOf<String, Profile>()
+    // Ids of profiles the user deleted. Null when the tombstone file is unreadable: then nothing is recovered from orphans.
+    private var deletedProfileIds: Set<String>? = emptySet()
     private var initialized = false
     private var selectedProfileId: String? = null
     private var healthLinkId: String? = null
@@ -126,6 +129,7 @@ class VaultBackedRepository(
         require(profile.displayName.isNotBlank()) { "Profile name is required" }
         val data = ProfileData(profile = profile)
         skipped.remove(profile.profileId)
+        forgetDeleted(profile.profileId)
         persist(data)
         writeIndex(indexWith(data.profile))
         records[profile.profileId] = data
@@ -225,6 +229,8 @@ class VaultBackedRepository(
         val removed = records[profileId]
         val unavailable = skipped[profileId]
         if (removed == null && unavailable == null) throw IllegalArgumentException("Profile not found")
+        // Recorded before anything is removed: a record file that survives a failed delete is then never recovered as an orphan.
+        recordDeleted(profileId)
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
         skipped.remove(profileId)
         try {
@@ -281,6 +287,7 @@ class VaultBackedRepository(
         // Vitals live in their own file; callers write them through replaceVitals (see restoreWithVitals).
         val stored = data.copy(vitals = ProfileVitals())
         val previous = records[data.profile.profileId]
+        forgetDeleted(data.profile.profileId)
         persist(stored)
         // The record is durable from here on. Nothing below may throw for a profile that already existed: its index
         // entry is repaired on the next load, and callers must not roll back files the durable record points at.
@@ -414,6 +421,7 @@ class VaultBackedRepository(
         pendingQuarantine.clear()
         skipped.clear()
         mutableOpenedFromPrevious.value = false
+        deletedProfileIds = readDeleted()
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
 
@@ -431,16 +439,24 @@ class VaultBackedRepository(
         }
 
         var indexStale = false
+        // Unlisted records that could not be read: left on disk, and their vitals must survive the sweep below.
+        val unreadableUnlisted = mutableSetOf<String>()
         val listed = index.orEmpty().associateBy { it.profileId }
-        // A previous-generation index is one write behind; records it does not list but whose vitals exist are kept.
-        val extra = if (mutableOpenedFromPrevious.value) {
-            vitalsStore.ids().filter { it !in listed && vault.read(profileKey(it)) != null }
-        } else {
-            emptyList()
-        }
+        // A previous-generation index is one write behind: records it does not list are recovered, unless the user deleted them.
+        val extra = if (mutableOpenedFromPrevious.value) orphanIds(listed.keys) else emptyList()
         (listed.keys + extra).forEach { id ->
-            val data = readDocument(profileKey(id), profileAssociatedData(id)) { parseProfile(id, it) }
+            val data = if (id in listed) {
+                readDocument(profileKey(id), profileAssociatedData(id)) { parseProfile(id, it) }
+            } else {
+                readOrphan(id)
+            }
             if (data == null) {
+                if (id in listed && deletedProfileIds?.contains(id) == true) {
+                    // Deleted by the user: the index entry is stale, not an unavailable profile.
+                    indexStale = true
+                    return@forEach
+                }
+                if (id !in listed) unreadableUnlisted += id
                 // A crash or partial delete left an index entry without its record; the other profiles must still open.
                 warn("Skipping profile $id: its record is missing", null)
                 listed[id]?.let { skipped[id] = it }
@@ -456,7 +472,7 @@ class VaultBackedRepository(
         }
         if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
         // Vitals of skipped profiles stay until the user deletes the profile or its record reappears.
-        vitalsStore.sweep(records.keys + skipped.keys)
+        vitalsStore.sweep(records.keys + skipped.keys + unreadableUnlisted)
         if (legacyPresent) {
             try {
                 vault.delete(LEGACY_KEY)
@@ -469,6 +485,66 @@ class VaultBackedRepository(
         publishProfiles()
         initialized = true
     }
+
+    /**
+     * Profile ids whose record file exists but which the loaded index does not list. Only reached for a previous-generation
+     * index. Ids with vitals count too, and an id the user deleted never does. When the tombstones cannot be read nothing
+     * new is recovered from record files; the vitals path keeps its earlier behavior.
+     */
+    private suspend fun orphanIds(listed: Set<String>): List<String> {
+        val deleted = deletedProfileIds
+        val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted.orEmpty() && vault.read(profileKey(it)) != null }
+        if (deleted == null) return withVitals
+        val stored = vault.listKeys().orEmpty().mapNotNull(::profileIdOf).filter { it !in listed && it !in deleted }
+        return (withVitals + stored).distinct()
+    }
+
+    /** An unlisted record is optional: one that cannot be read is left untouched on disk and the vault still opens. */
+    private suspend fun readOrphan(id: String): ProfileData? = try {
+        readDocument(profileKey(id), profileAssociatedData(id)) { parseProfile(id, it) }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: VaultUnreadableException) {
+        if (error.failure == VaultFailure.SCHEMA_NEWER || error.failure == VaultFailure.KEY_INVALIDATED) throw error
+        warn("Skipping unlisted profile record $id: it could not be read", error)
+        null
+    }
+
+    private suspend fun readDeleted(): Set<String>? = try {
+        readDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, ::parseDeleted)?.toSet() ?: emptySet()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: VaultUnreadableException) {
+        if (error.failure == VaultFailure.SCHEMA_NEWER) throw error
+        warn("Could not read the deleted-profile record; unlisted profiles will not be recovered", error)
+        null
+    }
+
+    private fun parseDeleted(element: JsonElement): List<String> =
+        json.decodeFromJsonElement(ListSerializer(String.serializer()), StorageSchema.migrate(element as JsonObject).getValue(INDEX_DELETED))
+
+    private suspend fun writeDeleted(ids: Set<String>) {
+        val document = StorageSchema.stamp(JsonObject(mapOf(INDEX_DELETED to json.encodeToJsonElement(ListSerializer(String.serializer()), ids.sorted()))))
+        writeDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, document)
+        deletedProfileIds = ids
+    }
+
+    private suspend fun recordDeleted(profileId: String) {
+        val known = deletedProfileIds
+        // Unreadable tombstones are replaced (the unreadable file is quarantined first), starting again from this id.
+        if (known == null) pendingQuarantine += DELETED_KEY
+        writeDeleted(known.orEmpty() + profileId)
+    }
+
+    /** A profile id being created or restored again is no longer deleted. */
+    private suspend fun forgetDeleted(profileId: String) {
+        val known = deletedProfileIds ?: return
+        if (profileId in known) writeDeleted(known - profileId)
+    }
+
+    private fun profileIdOf(key: String): String? =
+        key.takeIf { it != INDEX_KEY && it.startsWith(PROFILE_PREFIX) && it.endsWith(PROFILE_SUFFIX) }
+            ?.removePrefix(PROFILE_PREFIX)?.removeSuffix(PROFILE_SUFFIX)?.takeIf { it.isNotBlank() }
 
     /** Writes every profile, the health link, and the index last; only then is the new layout authoritative. */
     private suspend fun migrateLegacy(legacy: LegacySnapshot): List<Profile> {
@@ -532,9 +608,7 @@ class VaultBackedRepository(
 
     private suspend fun <T> decode(stored: ByteArray, associatedData: String, parse: (JsonElement) -> T): T {
         val envelope = CipherEnvelopeCodec.decode(stored)
-        val plain = vault.decrypt(envelope)
-        // Associated data is authenticated by the vault envelope. Reject a mismatched payload before decoding.
-        if (envelope.associatedData.decodeToString() != associatedData) error("Vault associated data mismatch")
+        val plain = vault.decrypt(envelope, associatedData.encodeToByteArray())
         return parse(json.parseToJsonElement(plain.decodeToString()))
     }
 
@@ -582,7 +656,12 @@ class VaultBackedRepository(
         private const val INDEX_PROFILES = "profiles"
         private const val SELECTION_KEY = "repository-selected-profile-v1"
         private const val HEALTH_LINK_KEY = "repository-health-link-v1"
-        private fun profileKey(profileId: String) = "repository-profile-$profileId-v1"
+        private const val DELETED_KEY = "repository-deleted-profiles-v1"
+        private const val DELETED_ASSOCIATED_DATA = "Vezuna repository deleted profiles v1"
+        private const val INDEX_DELETED = "deleted"
+        private const val PROFILE_PREFIX = "repository-profile-"
+        private const val PROFILE_SUFFIX = "-v1"
+        private fun profileKey(profileId: String) = "$PROFILE_PREFIX$profileId$PROFILE_SUFFIX"
         private fun profileAssociatedData(profileId: String) = "Vezuna repository profile v1:$profileId"
     }
 }
