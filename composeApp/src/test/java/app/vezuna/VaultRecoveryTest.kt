@@ -1,6 +1,6 @@
 package app.vezuna
 
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.Profile
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.GenerationalFileStore
@@ -46,10 +46,10 @@ private class FileVault(private val directory: File, var keyInvalidated: Boolean
 class VaultRecoveryTest {
     private val directory: File = Files.createTempDirectory("vault-recovery").toFile()
     private val vault = FileVault(directory)
-    private val key = "repository-v1"
+    private val key = "repository-profile-index-v1"
 
     private suspend fun seed(vararg names: String) {
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         names.forEach { repository.createProfile(Profile("id-$it", it, createdAt = Instant.fromEpochMilliseconds(1))) }
     }
@@ -59,7 +59,7 @@ class VaultRecoveryTest {
         seed("Ana", "Bia")
         File(directory, key).writeBytes("{truncated".encodeToByteArray())
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
 
         assertEquals(listOf("Ana"), restored.profiles.value.map { it.displayName })
@@ -71,7 +71,7 @@ class VaultRecoveryTest {
         val broken = "{truncated".encodeToByteArray()
         File(directory, key).writeBytes(broken)
 
-        val restored = PersistentVezunaRepository(vault)
+        val restored = VaultBackedRepository(vault)
         restored.load()
 
         assertTrue(restored.openedFromPreviousGeneration.value)
@@ -79,7 +79,7 @@ class VaultRecoveryTest {
         assertContentEquals(broken, File(kept, key).readBytes())
         restored.createProfile(Profile("id-Cy", "Cy", createdAt = Instant.fromEpochMilliseconds(3)))
         // The good previous generation is still the pre-corruption snapshot, not the corrupt bytes.
-        val previous = PersistentVezunaRepository(FileVault(directory)).also { it.load() }
+        val previous = VaultBackedRepository(FileVault(directory)).also { it.load() }
         assertEquals(listOf("Ana", "Cy"), previous.profiles.value.map { it.displayName })
         restored.acknowledgePreviousGeneration()
         assertEquals(false, restored.openedFromPreviousGeneration.value)
@@ -91,12 +91,12 @@ class VaultRecoveryTest {
         File(directory, key).writeBytes("{truncated".encodeToByteArray())
         val flaky = FileVault(directory, quarantineFailures = 1)
 
-        val restored = PersistentVezunaRepository(flaky)
+        val restored = VaultBackedRepository(flaky)
         restored.load()
         assertEquals(listOf("Ana"), restored.profiles.value.map { it.displayName })
         restored.createProfile(Profile("id-Cy", "Cy", createdAt = Instant.fromEpochMilliseconds(3)))
 
-        assertEquals(listOf("Ana", "Cy"), PersistentVezunaRepository(vault).also { it.load() }.profiles.value.map { it.displayName })
+        assertEquals(listOf("Ana", "Cy"), VaultBackedRepository(vault).also { it.load() }.profiles.value.map { it.displayName })
         assertEquals("{truncated", directory.listFiles { f -> f.isDirectory }.orEmpty().single().resolve(key).readText())
     }
 
@@ -105,7 +105,7 @@ class VaultRecoveryTest {
         seed("Ana", "Bia")
         File(directory, key).writeBytes("{truncated".encodeToByteArray())
         val stuck = FileVault(directory, quarantineFailures = 2)
-        val restored = PersistentVezunaRepository(stuck)
+        val restored = VaultBackedRepository(stuck)
         restored.load()
 
         assertFailsWith<IllegalStateException> {
@@ -122,7 +122,7 @@ class VaultRecoveryTest {
         File(directory, key).writeBytes("garbage".encodeToByteArray())
         File(directory, "$key.prev").writeBytes("garbage".encodeToByteArray())
 
-        val failure = assertFailsWith<VaultUnreadableException> { PersistentVezunaRepository(vault).load() }
+        val failure = assertFailsWith<VaultUnreadableException> { VaultBackedRepository(vault).load() }
 
         assertEquals(VaultFailure.CORRUPT, failure.failure)
     }
@@ -132,7 +132,7 @@ class VaultRecoveryTest {
         seed("Ana", "Bia")
         vault.keyInvalidated = true
 
-        val failure = assertFailsWith<VaultUnreadableException> { PersistentVezunaRepository(vault).load() }
+        val failure = assertFailsWith<VaultUnreadableException> { VaultBackedRepository(vault).load() }
 
         assertEquals(VaultFailure.KEY_INVALIDATED, failure.failure)
     }
@@ -143,7 +143,7 @@ class VaultRecoveryTest {
         val broken = "garbage".encodeToByteArray()
         File(directory, key).writeBytes(broken)
         File(directory, "$key.prev").delete()
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         assertFailsWith<VaultUnreadableException> { repository.load() }
 
         repository.resetAfterFailure()
@@ -152,6 +152,6 @@ class VaultRecoveryTest {
         val kept = directory.listFiles { file -> file.isDirectory }.orEmpty().single()
         assertContentEquals(broken, File(kept, key).readBytes())
         repository.createProfile(Profile("fresh", "Fresh", createdAt = Instant.fromEpochMilliseconds(2)))
-        assertEquals(listOf("Fresh"), PersistentVezunaRepository(vault).also { it.load() }.profiles.value.map { it.displayName })
+        assertEquals(listOf("Fresh"), VaultBackedRepository(vault).also { it.load() }.profiles.value.map { it.displayName })
     }
 }
