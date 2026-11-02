@@ -42,7 +42,7 @@ object AnalyteConversions {
         UnitConversion("HDL cholesterol", setOf("HDL", "COLESTEROLHDL", "HDLCOLESTEROL", "HDLC", "HDLCHOLESTEROL"), "mg/dL", "mmol/L", 0.02586, refs("cholesterol 386.65 g/mol")),
         UnitConversion("LDL cholesterol", setOf("LDL", "COLESTEROLLDL", "LDLCOLESTEROL", "LDLC", "LDLCHOLESTEROL"), "mg/dL", "mmol/L", 0.02586, refs("cholesterol 386.65 g/mol")),
         UnitConversion("Triglycerides", setOf("TRIGLICERIDES", "TRIGLICERIDEOS", "TRIGLICERIDOS", "TRIGLYCERIDES", "TG", "TRIG"), "mg/dL", "mmol/L", 0.01129, refs("triolein 885.4 g/mol")),
-        UnitConversion("Creatinine", setOf("CREATININA", "CREATININE", "CREA"), "mg/dL", "µmol/L", 88.42, refs("creatinine 113.1 g/mol, x1000 for µmol")),
+        UnitConversion("Creatinine", setOf("CREATININA", "CREATININE", "CREA"), "mg/dL", "µmol/L", 88.4, refs("creatinine 113.12 g/mol, x1000 for µmol")),
         UnitConversion("Urea", setOf("UREIA", "UREA"), "mg/dL", "mmol/L", 0.1665, refs("urea 60.06 g/mol")),
         UnitConversion("Urea nitrogen (BUN)", setOf("BUN", "UREANITROGEN", "BLOODUREANITROGEN", "NITROGENIOUREICO"), "mg/dL", "mmol/L", 0.357, refs("nitrogen in urea 28.01 g/mol")),
         UnitConversion("Calcium (total)", setOf("CALCIO", "CALCIUM", "CALCIOTOTAL", "TOTALCALCIUM"), "mg/dL", "mmol/L", 0.2495, refs("calcium 40.08 g/mol")),

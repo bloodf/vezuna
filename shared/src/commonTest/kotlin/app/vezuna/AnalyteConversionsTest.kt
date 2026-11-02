@@ -26,7 +26,7 @@ class AnalyteConversionsTest {
             "HDL cholesterol" to 0.02586,
             "LDL cholesterol" to 0.02586,
             "Triglycerides" to 0.01129,
-            "Creatinine" to 88.42,
+            "Creatinine" to 88.4,
             "Urea" to 0.1665,
             "Urea nitrogen (BUN)" to 0.357,
             "Calcium (total)" to 0.2495,
@@ -50,7 +50,7 @@ class AnalyteConversionsTest {
             "Triglycerides" to 885.43, "Urea" to 60.06, "Urea nitrogen (BUN)" to 28.014, "Calcium (total)" to 40.078,
             "Magnesium" to 24.305, "Phosphorus (inorganic)" to 30.974,
         )
-        val micro = mapOf("Creatinine" to 113.1, "Uric acid" to 168.11, "Total bilirubin" to 584.66)
+        val micro = mapOf("Creatinine" to 113.12, "Uric acid" to 168.11, "Total bilirubin" to 584.66)
         AnalyteConversions.table.forEach { entry ->
             val expected = molarMass[entry.analyte]?.let { 10.0 / it } ?: micro[entry.analyte]?.let { 10_000.0 / it } ?: return@forEach
             assertTrue(abs(entry.factor - expected) / expected < 0.005, "${entry.analyte}: ${entry.factor} vs $expected")
