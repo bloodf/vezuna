@@ -1,6 +1,5 @@
 package app.vezuna.ui.care
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -69,7 +68,7 @@ internal fun DoseHistoryBody(ctx: RouteContext, medication: Medication?) {
             WindowSummary(30, windows.second)
             Text(vitaText(L10nKey.CARE_HISTORY_NOTE), style = MaterialTheme.typography.bodyMedium)
         }
-        RangeChips(range, { range = it }, Modifier.horizontalScroll(rememberScrollState()))
+        RangeChips(range, { range = it })
         if (shown.isEmpty()) {
             Text(vitaText(L10nKey.CARE_HISTORY_EMPTY), style = MaterialTheme.typography.bodyLarge)
         } else {

@@ -47,7 +47,8 @@ data class ScheduleDraft(
         fun from(schedule: DoseSchedule) = ScheduleDraft(
             scheduleId = schedule.scheduleId,
             recurrence = schedule.recurrence,
-            intervalDays = schedule.intervalDays.toString(),
+            // Daily/weekly schedules store 1; keep the editor default so the interval option never reads "Every 1 days".
+            intervalDays = if (schedule.recurrence == Recurrence.EVERY_N_DAYS) schedule.intervalDays.toString() else "2",
             daysOfWeek = schedule.daysOfWeek,
             times = schedule.timesLocal,
             startDate = schedule.startDate,

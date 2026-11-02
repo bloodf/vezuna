@@ -251,7 +251,12 @@ class PdfSampleWriterTest {
             "vezuna-lab-history-hemoglobin.pdf" to PdfFixtures.document(options = ExportOptions(testCodes = setOf("HGB"))),
             "vezuna-lab-history-one-day.pdf" to PdfFixtures.document(options = ExportOptions(from = LocalDate(2026, 10, 28), to = LocalDate(2026, 10, 28))),
             "vezuna-lab-history-long.pdf" to PdfFixtures.document(PdfFixtures.longHistory(120)),
-        )
+        ) + ExportFamily.entries.associate { family ->
+            // The design fixture carries dose events and device summaries, so every family has content.
+            "vezuna-${family.slug}.pdf" to DoctorExportContent.document(
+                app.vezuna.ui.DesignFixture.data(), ExportSectionText.titleOf(family, ContentLanguage.EN), ContentLanguage.EN, family.defaults(),
+            ).copy(generatedAt = PdfFixtures.generatedAt)
+        }
         samples.forEach { (name, document) -> File(directory, name).writeBytes(PdfFixtures.pdfBytes(document)) }
     }
 }

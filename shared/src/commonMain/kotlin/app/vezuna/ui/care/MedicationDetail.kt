@@ -1,5 +1,7 @@
 package app.vezuna.ui.care
 
+import app.vezuna.ui.components.clearOfArt
+import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -78,8 +80,8 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
     ) {
         Text(name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         CategoryPanel(Category.CARE, illustration = Res.drawable.ill_capsule) {
-            medication.strength?.let { Text(it, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 112.dp)) }
-            medication.instructions?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(end = 112.dp)) }
+            medication.strength?.let { Text(it, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.clearOfArt(112.dp)) }
+            medication.instructions?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.clearOfArt(112.dp)) }
             MedicationStatusTag(status)
             when (status) {
                 MedicationStatus.PAUSED -> Text(vitaText(L10nKey.CARE_PAUSED_NOTE), style = MaterialTheme.typography.bodyLarge)
@@ -114,9 +116,9 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
         )
         Spacer(Modifier.height(VezunaTokens.SpaceSm))
         if (status != MedicationStatus.STOPPED) {
-            DangerOutlineButton(vitaText(L10nKey.STOP_MEDICATION), { confirmStop = true }, enabled = !busy)
+            DangerOutlineButton(vitaText(L10nKey.STOP_MEDICATION), { confirmStop = true }, enabled = !busy, modifier = Modifier.returnFocusAfter(confirmStop))
         }
-        DangerOutlineButton(vitaText(L10nKey.DELETE_MEDICATION), { confirmDelete = true }, enabled = !busy)
+        DangerOutlineButton(vitaText(L10nKey.DELETE_MEDICATION), { confirmDelete = true }, enabled = !busy, modifier = Modifier.returnFocusAfter(confirmDelete))
         RecentDoses(ctx, CareDoses.recorded(data, medication.medicationId).take(RECENT_DOSES), medication) { actionFor = it }
         Spacer(Modifier.height(VezunaTokens.SpaceLg))
     }
@@ -171,12 +173,12 @@ internal fun scheduleText(schedule: DoseSchedule): String =
 
 /** Consequential but not the main action: outlined in the danger color, never filled, never next to Pause. */
 @Composable
-private fun DangerOutlineButton(text: String, onClick: () -> Unit, enabled: Boolean) {
+private fun DangerOutlineButton(text: String, onClick: () -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     val danger = MaterialTheme.colorScheme.error
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = VezunaTokens.RowHeight),
+        modifier = modifier.fillMaxWidth().heightIn(min = VezunaTokens.RowHeight),
         shape = RoundedCornerShape(VezunaTokens.ControlRadius),
         border = BorderStroke(1.dp, if (enabled) danger else MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = danger, disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant, containerColor = Color.Transparent),

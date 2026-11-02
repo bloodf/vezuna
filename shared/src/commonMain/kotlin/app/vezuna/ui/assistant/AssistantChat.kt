@@ -1,5 +1,6 @@
 package app.vezuna.ui.assistant
 
+import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -142,7 +143,7 @@ internal fun AssistantChat(ctx: RouteContext) {
                     SecondaryButton(vitaText(L10nKey.STOP_GENERATING), { askJob?.cancel() }, icon = Res.drawable.ic_close)
                 }
                 if (data.chat.isNotEmpty()) {
-                    DestructiveButton(vitaText(L10nKey.CLEAR_CHAT_HISTORY), { confirmClear = true }, enabled = state.streamingAnswer == null && !state.loading)
+                    DestructiveButton(vitaText(L10nKey.CLEAR_CHAT_HISTORY), { confirmClear = true }, Modifier.returnFocusAfter(confirmClear), enabled = state.streamingAnswer == null && !state.loading)
                 }
             }
             if (!unavailable) {

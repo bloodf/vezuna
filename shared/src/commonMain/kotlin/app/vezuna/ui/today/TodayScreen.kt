@@ -1,5 +1,6 @@
 package app.vezuna.ui.today
 
+import app.vezuna.ui.components.clearOfArt
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -150,7 +151,7 @@ private fun NextDosePanel(ctx: RouteContext, dose: DashboardDose) {
     }
     CategoryPanel(Category.CARE, illustration = Res.drawable.ill_capsule) {
         // The end padding keeps the text clear of the illustration; at large sizes the text wraps instead.
-        val clearOfArt = Modifier.padding(end = 96.dp)
+        val clearOfArt = Modifier.clearOfArt()
         Text(vitaText(L10nKey.NEXT_DOSE), style = MaterialTheme.typography.titleMedium, modifier = clearOfArt.semantics { heading() })
         Text(vitaText(L10nKey.TODAY_SCHEDULED_FOR, formatUiDateTime(dose.scheduledFor)), style = MaterialTheme.typography.bodyLarge, modifier = clearOfArt)
         Text(dose.medicationName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = clearOfArt)

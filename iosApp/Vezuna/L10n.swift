@@ -6,12 +6,10 @@ enum NativeString: String {
     case third_party_notices, third_party_notices_unavailable
     case taken, skip, snooze_10_minutes, notification_permission_off, scheduled_medication_reminder, reminder_for_profile
     case medication_schedules_unavailable, native_actions, storage_unavailable, opening_storage
-    case import_lab_source, healthkit_import_menu, export_backup_menu, ai_activation_menu
+    case import_lab_source, healthkit_import_menu, ai_activation_menu
     case camera, add_page, photos_done, pages_in_report
     case value
     case close
-    case export_always_available, doctor_export, share_save_csv, share_save_pdf, profile_backup
-    case share_save_encrypted_backup, backup_profile_description, export_title, preparing_device, export_prepare_failed
     case healthkit_description, healthkit_unavailable, authorize_import_health, reading_health, latest_batch
     case heart_rate_samples, step_samples, weight_samples, deleted_sample_references, health_import
     case health_no_readings, health_revoke_ios
@@ -25,10 +23,6 @@ enum NativeString: String {
     case model_catalog_invalid
     case medication_reminder_title
     case app_lock_reason
-    case export_language, export_language_device
-    case export_options, export_from_date, export_to_date, export_active_medications_only, export_include_medications_csv
-    case export_tests, export_date_invalid, export_date_range_reversed
-    case export_paper_size, export_paper_a4, export_paper_letter, export_grayscale
 }
 
 enum L10n {

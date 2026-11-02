@@ -120,6 +120,10 @@ def main():
         ios_plurals[language] = read_stringsdict(ROOT / f"iosApp/Vezuna/{language}.lproj/Localizable.stringsdict")
         info = read_strings(ROOT / f"iosApp/Vezuna/{language}.lproj/InfoPlist.strings")
         assert {"CFBundleDisplayName", "NSCameraUsageDescription", "NSHealthShareUsageDescription", "NSPhotoLibraryUsageDescription"} <= info.keys(), f"{language}: missing permission descriptions"
+    for language, (entries, _) in shared.items():
+        # Compose resources show a backslash literally; only Android res needs \' escaping.
+        escaped = sorted(name for name, value in entries.items() if "\\'" in value)
+        assert not escaped, f"shared {language}: escaped apostrophes shown literally {escaped}"
     compare_catalogs({language: value[0] for language, value in shared.items()})
     compare_catalogs({language: value[1] for language, value in shared.items()}, plural=True)
     compare_catalogs({language: value[0] for language, value in android.items()})

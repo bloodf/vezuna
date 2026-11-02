@@ -109,14 +109,6 @@ private fun LockScreen(appLock: AppLock) {
     }
 }
 
-/** Settings toggle. Hidden when the platform supplied no [AppLock]. */
-@Composable
-fun AppLockSettings() {
-    val appLock = LocalAppLock.current ?: return
-    GroupedRows(title = vitaText(L10nKey.APP_LOCK_TITLE)) { AppLockToggle(appLock) }
-    AppLockProblems(appLock.state.collectAsState().value)
-}
-
 /** One focus stop: the whole row toggles, the switch only mirrors the state (no separately labeled control). */
 @Composable
 fun AppLockToggle(appLock: AppLock) {

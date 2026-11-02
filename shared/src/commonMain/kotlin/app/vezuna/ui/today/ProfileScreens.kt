@@ -1,5 +1,6 @@
 package app.vezuna.ui.today
 
+import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -151,7 +152,7 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
             SecondaryButton(vitaText(L10nKey.SWITCH_TO_PROFILE, profile.displayName), { ctx.switchProfile(profile.profileId) }, Modifier.fillMaxWidth(), enabled = !state.loading)
         }
         val lastProfile = state.profiles.size <= 1
-        DestructiveButton(vitaText(L10nKey.DELETE_PROFILE), { ctx.controller.clearMessages(); confirmDelete = true }, Modifier.fillMaxWidth(), enabled = !lastProfile && !state.loading)
+        DestructiveButton(vitaText(L10nKey.DELETE_PROFILE), { ctx.controller.clearMessages(); confirmDelete = true }, Modifier.fillMaxWidth().returnFocusAfter(confirmDelete), enabled = !lastProfile && !state.loading)
         if (lastProfile) LastProfileNotice()
     }
     if (confirmDelete) {

@@ -1,6 +1,7 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.Profile
 import app.vezuna.domain.Recurrence
 import app.vezuna.llm.InstalledModel
@@ -53,6 +54,13 @@ class ScheduleDraftTest {
     @Test
     fun irrelevantFieldsDoNotBlockOtherRecurrences() {
         assertEquals(emptyList(), draft(Recurrence.DAILY, interval = "x").errors())
+    }
+
+    @Test
+    fun editingDailyScheduleKeepsIntervalDefaultButKeepsRealInterval() {
+        val daily = DoseSchedule("p", "s", "m", Recurrence.DAILY, startDate = start, timesLocal = listOf("08:00"))
+        assertEquals("2", ScheduleDraft.from(daily).intervalDays)
+        assertEquals("3", ScheduleDraft.from(daily.copy(recurrence = Recurrence.EVERY_N_DAYS, intervalDays = 3)).intervalDays)
     }
 
     @Test

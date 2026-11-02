@@ -87,7 +87,7 @@ iOS: %2$s</string>
     <string name="model_not_in_catalog">Model is not in the trusted catalog</string>
     <string name="model_ready">Model ready</string>
     <string name="model_restoration_failed">Model restoration failed</string>
-    <string name="model_security_notice">Store packs are checked by size and SHA-256 before use. Download and inference stay separate from health records.</string>
+    <string name="model_security_notice">Downloaded models are checked before use. They run on this device and never receive your records unless you choose them for a question.</string>
     <string name="model_selected_not_loaded">Model selected, not loaded</string>
     <string name="model_sha_failed">Model SHA-256 verification failed</string>
     <string name="model_size_mismatch">Model size does not match catalog</string>
@@ -534,7 +534,7 @@ iOS: %2$s</string>
     <string name="welcome_body">Records, routines and family profiles, kept on your device.</string>
     <string name="welcome_restore">Restore a backup</string>
     <string name="first_profile_title">Create your first profile</string>
-    <string name="first_profile_subtitle">Keep your household\'s health organized, offline and in one place.</string>
+    <string name="first_profile_subtitle">Keep your household's health organized, offline and in one place.</string>
     <string name="first_profile_question">Who are these records for?</string>
     <string name="first_profile_hint">Separate records for each person.</string>
     <string name="first_profile_create">Create profile</string>
@@ -548,7 +548,7 @@ iOS: %2$s</string>
     <string name="profile_saved">Profile saved</string>
     <string name="profile_created">%1$s added</string>
     <string name="profile_deleted">%1$s deleted</string>
-    <string name="profile_delete_title">Delete %1$s\'s profile?</string>
+    <string name="profile_delete_title">Delete %1$s's profile?</string>
     <string name="profile_delete_type_name">Type %1$s to confirm</string>
     <string name="profile_last_title">Keep at least one profile.</string>
     <string name="profile_last_body">Add another profile before deleting this one.</string>
@@ -620,7 +620,7 @@ iOS: %2$s</string>
     </plurals>
     <string name="entry_page_source">Page %1$s: %2$s</string>
     <string name="entry_page_embedded">Embedded text</string>
-    <string name="entry_page_ocr">On-device OCR</string>
+    <string name="entry_page_ocr">Read on this device</string>
     <string name="entry_page_no_text">No text was found on this page.</string>
     <string name="entry_show_text">Show recognized text</string>
     <string name="entry_hide_text">Hide recognized text</string>
@@ -654,7 +654,7 @@ iOS: %2$s</string>
     <string name="entry_manual_title">Add result</string>
     <string name="entry_for_profile">For %1$s</string>
     <string name="entry_save_correction">Save correction</string>
-    <string name="entry_correction_note">The previous value, unit, reference and date stay in this result\'s correction history.</string>
+    <string name="entry_correction_note">The previous value, unit, reference and date stay in this result's correction history.</string>
     <string name="entry_history_title">Correction history</string>
     <plurals name="entry_corrections">
         <item quantity="one">%1$d correction</item>
@@ -677,7 +677,7 @@ iOS: %2$s</string>
     <string name="entry_unit">Unit</string>
     <string name="entry_reference_low">Reference low (optional)</string>
     <string name="entry_reference_high">Reference high (optional)</string>
-    <string name="entry_reference_text_hint">Copy the report\'s wording, for example Less than 200</string>
+    <string name="entry_reference_text_hint">Copy the report's wording, for example Less than 200</string>
     <string name="entry_collection_date_help">Use the date the sample was collected</string>
     <string name="entry_error_required">Required</string>
     <string name="entry_error_number">Enter a number, for example 13.2 or 13,2</string>
@@ -768,7 +768,7 @@ iOS: %2$s</string>
     <string name="source_zoom_in">Zoom in</string>
     <string name="source_zoom_out">Zoom out</string>
     <string name="source_missing_title">Original file is not available.</string>
-    <string name="source_missing_body">This device has no stored copy of this report\'s file. Restored backups keep the results, not the original files. Your results stay as they are.</string>
+    <string name="source_missing_body">This device has no stored copy of this report's file. Restored backups keep the results, not the original files. Your results stay as they are.</string>
     <string name="source_missing_reimport_hint">Import the same file again to view it here. Values already reviewed are not added twice.</string>
     <string name="source_reimport">Import the file again</string>
     <string name="source_unreadable_body">The stored file could not be opened on this device. Your results stay as they are.</string>
@@ -1003,10 +1003,10 @@ iOS: %2$s</string>
     <string name="backup_last_profile">Last backup %1$s, one profile</string>
     <string name="backup_last_title">Last backup</string>
     <string name="backup_leave_out_chat">Leave out assistant chat</string>
-    <string name="backup_leave_out_chat_body">The backup will not contain chat messages. Restoring it replaces a profile\'s chat with none.</string>
+    <string name="backup_leave_out_chat_body">The backup will not contain chat messages. Restoring it replaces a profile's chat with none.</string>
     <string name="backup_never">Never backed up</string>
     <string name="backup_not_saved">Not saved. The file is still here: choose Save backup to try again.</string>
-    <string name="backup_open_failed_title">Couldn\'t open this backup</string>
+    <string name="backup_open_failed_title">Couldn't open this backup</string>
     <string name="backup_open_today">Go to Today</string>
     <string name="backup_originals_missing_body">Reports keep their details and results, but their original PDF or photo will not be available after restoring.</string>
     <string name="backup_originals_missing_title">Some original files are not in this backup</string>
@@ -1033,13 +1033,13 @@ iOS: %2$s</string>
     <string name="backup_restoring_body">Keep the app open. Your current records stay as they are until this step finishes.</string>
     <string name="backup_save_action">Save backup</string>
     <string name="backup_scope_household">All profiles with original files</string>
-    <string name="backup_scope_household_body">Every profile with its records, medications, device data and chat, plus the original report files. The file must stay under 24 MB; an original that can\'t be read is left out.</string>
+    <string name="backup_scope_household_body">Every profile with its records, medications, device data and chat, plus the original report files. The file must stay under 24 MB; an original that can't be read is left out.</string>
     <string name="backup_scope_profile">One profile</string>
-    <string name="backup_scope_profile_body">One profile\'s records, reports, medications, dose history, device data and chat. Original report files (PDFs and photos) are not included.</string>
+    <string name="backup_scope_profile_body">One profile's records, reports, medications, dose history, device data and chat. Original report files (PDFs and photos) are not included.</string>
     <string name="backup_scope_profile_named">Only %1$s</string>
     <string name="backup_scope_title">What to back up</string>
     <string name="backup_screen_title">Backups</string>
-    <string name="backup_unavailable">Backup files can\'t be opened or saved here.</string>
+    <string name="backup_unavailable">Backup files can't be opened or saved here.</string>
     <string name="continue_action">Continue</string>
     <string name="data_privacy_encryption">Encryption</string>
     <string name="data_privacy_encryption_body">Your records are encrypted on this device.</string>

@@ -1,5 +1,7 @@
 package app.vezuna.ui.records
 
+import app.vezuna.ui.components.clearOfArt
+import app.vezuna.ui.components.returnFocusAfter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,7 +77,7 @@ internal fun ReportDetailContent(ctx: RouteContext, reportId: String, onDeleted:
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         CategoryPanel(Category.RECORDS, illustration = Res.drawable.ill_lab_tube) {
-            Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(end = 96.dp).semantics { heading() })
+            Text(name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.clearOfArt().semantics { heading() })
             Text(formatUiDate(entry.date), style = MaterialTheme.typography.titleMedium)
             Text(data.profile.displayName, style = MaterialTheme.typography.bodyLarge)
             val origin = entry.document?.let { vitaText(L10nKey.SOURCE_DOCUMENT_NAME, it.displayName) }
@@ -105,8 +107,8 @@ internal fun ReportDetailContent(ctx: RouteContext, reportId: String, onDeleted:
         }
         GroupedRows {
             ListRow(vitaText(L10nKey.REPORT_DETAIL_CREATE_EXPORT), leadingIcon = Res.drawable.ic_download, onClick = { ctx.navigate(AppScreen.ExportHub) })
-            ListRow(vitaText(L10nKey.EDIT_REPORT_DETAILS), leadingIcon = Res.drawable.ic_edit, onClick = { editDetails = true })
-            ListRow(vitaText(L10nKey.DELETE_REPORT), leadingIcon = Res.drawable.ic_trash, onClick = { confirmDelete = true })
+            ListRow(vitaText(L10nKey.EDIT_REPORT_DETAILS), leadingIcon = Res.drawable.ic_edit, onClick = { editDetails = true }, modifier = Modifier.returnFocusAfter(editDetails))
+            ListRow(vitaText(L10nKey.DELETE_REPORT), leadingIcon = Res.drawable.ic_trash, onClick = { confirmDelete = true }, modifier = Modifier.returnFocusAfter(confirmDelete))
         }
     }
 

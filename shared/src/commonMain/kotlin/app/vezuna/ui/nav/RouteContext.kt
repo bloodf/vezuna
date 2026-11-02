@@ -26,9 +26,6 @@ enum class NativeAction {
     /** iOS native picker and extractor (Android imports through the shared source picker). */
     IMPORT_SOURCE,
 
-    /** iOS native export and share sheet. */
-    EXPORT,
-
     /** Health Connect (Android) or HealthKit (iOS) import. */
     HEALTH,
 
