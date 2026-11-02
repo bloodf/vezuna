@@ -10,23 +10,25 @@ set -uo pipefail
 ROOT="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ALLOW="$ROOT/scripts/ios-network-allowlist.txt"
 
-PATTERN='\b(URLSession\w*|NSURLSession\w*|NSURLConnection|URLRequest|NSURLRequest|NSMutableURLRequest|NWConnection|NWListener|NWPathMonitor|NWBrowser|NWEndpoint|CFNetwork|CFSocket|CF(Read|Write)?Stream\w*|CFHTTP\w*|CFHost\w*|CFURLConnection|NSInputStream|NSOutputStream|WKWebView|WKWebViewConfiguration|SFSafariViewController|ASWebAuthenticationSession|MultipeerConnectivity|MCSession|GKMatch|NetService|NSNetService|GCDAsyncSocket|Alamofire|AsyncImage|Link|openURL|dataWithContentsOfURL|stringWithContentsOfURL|initWithContentsOfURL|getStreamsToHost|getaddrinfo|gethostbyname|socket|nw_\w+)\b|io\.ktor|okhttp3|platform\.Network|platform\.posix\.(socket|connect|getaddrinfo|gethostbyname|send|recv)|@import[[:space:]]+Network|#import[[:space:]]*<Network/|\bimport[[:space:]]+(typealias[[:space:]]+|struct[[:space:]]+|class[[:space:]]+|func[[:space:]]+)?Network([.[:space:]]|$)|\b(Data|String|NSData|NSString)\(contentsOf:[^)]*(URL\(string|https?:)|InputStream\(url:|AVPlayer\(url:|AVPlayerItem\(url:|AVURLAsset\(url:|UIApplication[A-Za-z.]*\.open\(|\bconnect[[:space:]]*\([^)]*sock'
+PATTERN='\b(URLSession\w*|NSURLSession\w*|NSURLConnection|URLRequest|NSURLRequest|NSMutableURLRequest|NWConnection|NWListener|NWPathMonitor|NWBrowser|NWEndpoint|CFNetwork|CFSocket|CF(Read|Write)?Stream\w*|CFHTTP\w*|CFHost\w*|CFURLConnection|NSInputStream|NSOutputStream|WKWebView|WKWebViewConfiguration|SFSafariViewController|ASWebAuthenticationSession|MultipeerConnectivity|MCSession|GKMatch|NetService|NSNetService|GCDAsyncSocket|Alamofire|AsyncImage|Link|openURL|dataWithContentsOfURL|stringWithContentsOfURL|initWithContentsOfURL|getStreamsToHost\w*|UIWebView|CloudKit|CKContainer|playerWithURL|getaddrinfo|gethostbyname|socket|nw_\w+)\b|io\.ktor|okhttp3|platform\.Network|platform\.posix\.(socket|connect|getaddrinfo|gethostbyname|send|recv)|@import[[:space:]]+Network|#import[[:space:]]*<Network/|\bimport[[:space:]]+(typealias[[:space:]]+|struct[[:space:]]+|class[[:space:]]+|func[[:space:]]+)?Network([.[:space:]]|$)|\b(Data|String|NSData|NSString)\(contentsOf:[^)]*(URL\(string|https?:)|InputStream\(url:|AVPlayer\(url:|AVPlayerItem\(url:|AVURLAsset\(url:|UIApplication[A-Za-z.]*\.open\(|\bconnect[[:space:]]*\([^)]*sock'
 
 export PATTERN
 DIRS=()
-for d in iosApp shared/src/iosMain shared/src/commonMain; do [[ -d "$ROOT/$d" ]] && DIRS+=("$d"); done
-[[ ${#DIRS[@]} -gt 0 ]] || { echo "check-ios-network: no iOS source dirs under $ROOT" >&2; exit 2; }
+for d in iosApp shared/src/iosMain shared/src/commonMain; do
+  [[ -d "$ROOT/$d" ]] || { echo "check-ios-network: missing source dir $d under $ROOT" >&2; exit 2; }
+  DIRS+=("$d")
+done
 
 # Strip /* */ (keeping newlines so line numbers hold) and // comments (not the // in a URL), then print matching lines.
-hits="$(cd "$ROOT" && find "${DIRS[@]}" \( -name build -o -name .build -o -name DerivedData -o -name '*.xcodeproj' \) -prune -o \
-  -type f \( -name '*.swift' -o -name '*.m' -o -name '*.mm' -o -name '*.h' -o -name '*.kt' \) -print0 \
+hits="$(cd "$ROOT" && find "${DIRS[@]}" \( -name build -o -name .build -o -name DerivedData -o -name Frameworks -o -name '*.xcodeproj' \) -prune -o \
+  -type f \( -name '*.swift' -o -name '*.m' -o -name '*.mm' -o -name '*.h' -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.kt' \) -print0 \
   | xargs -0 perl -e '
       $re = qr/$ENV{PATTERN}/;
       for $f (@ARGV) {
         open(my $h, "<", $f) or do { print STDERR "unreadable: $f\n"; exit 3 };
         local $/; my $s = <$h>; close $h;
-        $s =~ s{/\*.*?\*/}{ my $m = $&; $m =~ s/[^\n]//g; $m }gse;
-        $s =~ s{(?<!:)//[^\n]*}{}g;
+        # One pass so a "/*" or "//" inside a string is not read as a comment. Strings stay, so a name in one is flagged.
+        $s =~ s{("(?:\\.|[^"\\\n])*")|/\*.*?\*/|//[^\n]*}{defined $1 ? $1 : ($& =~ tr/\n//cdr)}gse;
         my $n = 0;
         for my $l (split /\n/, $s, -1) { $n++; print "$f:$n:$l\n" if $l =~ $re; }
       }' )"
@@ -44,6 +46,7 @@ while IFS= read -r line; do
       entry="${entry%%#*}"; entry="${entry//[[:space:]]/}"
       [[ -n "$entry" ]] || continue
       apath="${entry%%:*}"; asym="${entry#*:}"
+      [[ "$entry" == *:* && -n "$asym" ]] || { echo "check-ios-network: allowlist entry needs path:Symbol: $entry" >&2; exit 2; }
       if [[ "$file" == "$apath" && "${text//[[:space:]]/}" == *"$asym"* ]]; then allowed=1; break; fi
     done < "$ALLOW"
   fi

@@ -11,7 +11,8 @@ run || { echo "FAIL: clean tree rejected"; exit 1; }
 
 expect_caught() { # file, content
   printf '%s\n' "$2" > "$T/$1"
-  run && { echo "FAIL: not caught in $1: $2"; exit 1; }
+  run; rc=$?
+  [[ $rc -eq 1 ]] || { echo "FAIL: expected rc=1, got rc=$rc in $1: $2"; exit 1; }
   rm "$T/$1"
 }
 SW=iosApp/Vezuna/B.swift
@@ -33,6 +34,29 @@ for bad in 'import platform.Foundation.NSURLSession' 'import platform.posix.sock
   expect_caught shared/src/commonMain/kotlin/K.kt "$bad"
   expect_caught iosApp/SharedBridge/K.kt "$bad"
 done
+
+# A "/*" or "//" inside a string or line comment must not hide the code after it.
+for bad in $'let g = "/*"\nlet s = URLSession.shared\nlet h = "*/"' $'// path /*\nlet s = URLSession.shared\n/* note */' 'let a = "x//y"; URLSession.shared' \
+  'Stream.getStreamsToHostWithName(h)' 'let w = UIWebView()' 'import CloudKit' 'let c = CKContainer.default()'; do
+  expect_caught "$SW" "$bad"
+done
+expect_caught iosApp/Vezuna/D.cpp 'int fd = socket(AF_INET, SOCK_STREAM, 0);'
+
+# Build output is not scanned, so results do not depend on local build state.
+mkdir -p "$T/iosApp/Frameworks"; printf 'let s = URLSession.shared\n' > "$T/iosApp/Frameworks/G.swift"
+run || { echo "FAIL: iosApp/Frameworks was scanned"; exit 1; }
+rm -r "$T/iosApp/Frameworks"
+
+# An allowlist entry with no symbol is an error, not a whole-file pass.
+printf 'iosApp/Vezuna/B.swift:\n' > "$T/scripts/ios-network-allowlist.txt"
+printf 'let s = URLSession.shared\n' > "$T/$SW"
+run; rc=$?; [[ $rc -eq 2 ]] || { echo "FAIL: empty allowlist symbol gave rc=$rc"; exit 1; }
+rm "$T/$SW"; : > "$T/scripts/ios-network-allowlist.txt"
+
+# A missing source dir is an error, not a smaller scan.
+mv "$T/shared/src/commonMain" "$T/shared/src/commonMain.off"
+run; rc=$?; [[ $rc -eq 2 ]] || { echo "FAIL: missing source dir gave rc=$rc"; exit 1; }
+mv "$T/shared/src/commonMain.off" "$T/shared/src/commonMain"
 
 # Networking dependency in build files.
 printf 'implementation("io.ktor:ktor-client-darwin:3.0.0")\n' > "$T/shared/build.gradle.kts"
