@@ -403,7 +403,7 @@ class MultiPageDocumentTest {
         val file = service.createHousehold(listOf(BackupMember(like)), "correct horse battery".toCharArray())
         assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, "correct horse battery".toCharArray()) }.userText.key)
 
-        val many = threePages("p").let { it.copy(documents = it.documents.map { d -> d.copy(pageVaultKeys = (1..501).map { n -> "k$n" }) }) }
+        val many = threePages("p").let { it.copy(documents = it.documents.map { d -> d.copy(pageVaultKeys = (1..11).map { n -> "k$n" }) }) }
         val file2 = service.createHousehold(listOf(BackupMember(many)), "correct horse battery".toCharArray())
         assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file2, "correct horse battery".toCharArray()) }.userText.key)
     }

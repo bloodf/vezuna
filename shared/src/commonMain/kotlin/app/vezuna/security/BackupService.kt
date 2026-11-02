@@ -33,7 +33,7 @@ data class BackupPayload(
 fun backupFileId(documentId: String, page: Int): String = if (page == 1) documentId else "$documentId-page-$page"
 
 private val PAGE_LIKE_ID = Regex(".*-page-[0-9]+")
-private const val MAX_PAGES = 500
+private const val MAX_PAGES = 10
 
 /** Every file ID a document can have in a backup or in the vault: its first page and each further page. */
 fun SourceDocument.fileIds(): List<String> = (1..1 + pageVaultKeys.size).map { backupFileId(documentId, it) }
