@@ -2,26 +2,23 @@ package app.vezuna.ui.export
 
 import androidx.compose.runtime.Composable
 import app.vezuna.ui.AppScreen
-import app.vezuna.ui.SettingsScreen
-import app.vezuna.ui.nav.LegacyPushed
+import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.nav.RouteContext
 
-/** Lane L9 (exports and PDF). Doctor export lives in Settings today, so the stubs show it. */
+/** Lane L9 (exports and PDF): hub, options, test selection and the preview that saves or shares the same bytes. */
 object ExportRoutes {
     @Composable
-    private fun Legacy(ctx: RouteContext) = LegacyPushed(ctx) {
-        SettingsScreen(ctx.state, ctx.controller, ctx.scope, ctx.backupFiles, ctx.reminders)
-    }
+    fun ExportHub(ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) { ExportHubScreen(ctx) }
 
     @Composable
-    fun ExportHub(ctx: RouteContext) = Legacy(ctx)
+    fun ExportOptions(screen: AppScreen.ExportOptions, ctx: RouteContext) =
+        FocusedTaskScaffold(title = null, onBack = ctx::back) { ExportOptionsScreen(ctx, screen.kind) }
 
     @Composable
-    fun ExportOptions(@Suppress("UNUSED_PARAMETER") screen: AppScreen.ExportOptions, ctx: RouteContext) = Legacy(ctx)
+    fun ExportSelection(screen: AppScreen.ExportSelection, ctx: RouteContext) =
+        FocusedTaskScaffold(title = null, onBack = ctx::back) { ExportSelectionScreen(ctx, screen.kind) }
 
     @Composable
-    fun ExportSelection(@Suppress("UNUSED_PARAMETER") screen: AppScreen.ExportSelection, ctx: RouteContext) = Legacy(ctx)
-
-    @Composable
-    fun ExportPreview(@Suppress("UNUSED_PARAMETER") screen: AppScreen.ExportPreview, ctx: RouteContext) = Legacy(ctx)
+    fun ExportPreview(screen: AppScreen.ExportPreview, ctx: RouteContext) =
+        FocusedTaskScaffold(title = null, onBack = ctx::back) { ExportPreviewScreen(ctx, screen.kind) }
 }

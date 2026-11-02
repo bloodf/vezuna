@@ -51,6 +51,8 @@ struct ContentView: View {
         .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
         .task {
             IosRuntime.shared.nativeActionHandler = nativeActions
+            // The fixture skips configure(), but its export preview still saves and shares through the system sheets.
+            if DebugLaunch.fixture { IosRuntime.shared.exportFiles = ComposeExportFiles() }
             if !DebugLaunch.fixture { model.configure() }
         }
         .onChange(of: lock.locked) { locked in
@@ -64,8 +66,6 @@ struct ContentView: View {
             switch sheet {
             case .health:
                 HealthImportView(importer: model.healthImporter)
-            case .export:
-                NativeExportView()
             case .license:
                 LicenseView(manager: model.licenseManager)
             case .notices:
@@ -84,7 +84,6 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
     func perform(action: String) {
         let sheet: AppShellModel.Sheet?
         switch action {
-        case "EXPORT": sheet = .export
         case "HEALTH": sheet = .health
         case "LICENSE": sheet = .license
         case "PRIVACY": sheet = .privacy

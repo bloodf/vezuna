@@ -23,6 +23,14 @@ data class ExportOptions(
     val grayscale: Boolean = false,
     /** PDF medication section; when false the PDF says the section was not selected. */
     val includeMedicationsPdf: Boolean = true,
+    /** Which PDF layout and title; also the file name. */
+    val family: ExportFamily = ExportFamily.LAB_HISTORY,
+    /** PDF laboratory section (confirmed results only). */
+    val includeLabsPdf: Boolean = true,
+    /** PDF dose-event table (#56): recorded doses inside the period, counts only, never a percentage. */
+    val includeDoseHistory: Boolean = false,
+    /** PDF device section: daily steps, daily average heart rate and weight readings inside the period. */
+    val includeDeviceData: Boolean = false,
 ) {
     init {
         require(from == null || to == null || from <= to) { "Export start date is after the end date" }
@@ -65,5 +73,21 @@ data class ExportOptions(
 
         /** Completed years on [on]; null when no birth date is recorded or it lies in the future. */
         fun ageYears(birthDate: LocalDate?, on: Instant): Int? = ProfileAge.years(birthDate, on.toLocalDateTime(TimeZone.UTC).date)
+    }
+}
+
+/** The four PDF layouts the export hub offers. [slug] names the file. */
+enum class ExportFamily(val slug: String) {
+    HEALTH_SUMMARY("health-summary"),
+    LAB_HISTORY("lab-history"),
+    MEDICATION_RECORD("medication-record"),
+    DEVICE_MEASUREMENTS("device-measurements"),
+    ;
+
+    /** Starting sections for this family; the user can change every one before exporting. */
+    fun defaults(paper: PaperSize = PaperSize.A4): ExportOptions = when (this) {
+        HEALTH_SUMMARY, LAB_HISTORY -> ExportOptions(family = this, paper = paper)
+        MEDICATION_RECORD -> ExportOptions(family = this, paper = paper, includeLabsPdf = false, includeDoseHistory = true)
+        DEVICE_MEASUREMENTS -> ExportOptions(family = this, paper = paper, includeLabsPdf = false, includeMedicationsPdf = false, includeDeviceData = true)
     }
 }

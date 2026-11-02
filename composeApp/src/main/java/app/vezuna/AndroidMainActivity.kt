@@ -36,6 +36,8 @@ import app.vezuna.export.AndroidBackupFiles
 import app.vezuna.export.AndroidExportCoordinator
 import app.vezuna.export.NativeExport
 import app.vezuna.export.UserCancelledExport
+import app.vezuna.ui.export.ExportPlatform
+import app.vezuna.ui.export.SaveOutcome
 import app.vezuna.health.HealthConnectPermissionFlow
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.importer.NativeOcrExtractionService
@@ -108,7 +110,6 @@ class AndroidMainActivity : FragmentActivity() {
     }
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
-    private val mutableExport = MutableStateFlow<NativeExport?>(null)
     private val mutableBusy = MutableStateFlow(false)
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -154,11 +155,11 @@ class AndroidMainActivity : FragmentActivity() {
         sourcePicker = AndroidSourcePicker(this, extraction)
         exports = AndroidExportCoordinator(this)
         backupFiles = AndroidBackupFiles(this, exports)
+        installExportPlatform()
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
             if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
         }
         val messageFlow = mutableMessage.asStateFlow()
-        val exportFlow = mutableExport.asStateFlow()
         val busyFlow = mutableBusy.asStateFlow()
         setContent {
             val vaultState by app.vaultState.collectAsState()
@@ -170,16 +171,11 @@ class AndroidMainActivity : FragmentActivity() {
                     sourcePicker = sourcePicker,
                     modelLoader = modelLoader,
                     messageFlow = messageFlow,
-                    exportFlow = exportFlow,
                     busyFlow = busyFlow,
                     onHealthConnect = ::openHealthConnect,
                     onReminders = ::requestReminders,
                     backupFiles = backupFiles.access,
                     reminders = reminders,
-                    onPresentExport = { mutableExport.value = it },
-                    onDismissExport = { mutableExport.value = null },
-                    onShareExport = ::shareExport,
-                    onSaveExport = ::saveExport,
                     onDismissMessage = { mutableMessage.value = null },
                     startRoute = debugStartRoute,
                 )
@@ -312,24 +308,15 @@ class AndroidMainActivity : FragmentActivity() {
         }
     }
 
-    private fun shareExport(export: NativeExport) {
-        lifecycleScope.launch {
-            exports.share(export).onSuccess {
-                mutableExport.value = null
-            }.onFailure { mutableMessage.value = it.toNativeText(NativeKey.SHARE_EXPORT_FAILED) }
+    /** The shared export preview hands its exact bytes to the system save (SAF) and share sheets through these hooks. */
+    private fun installExportPlatform() {
+        ExportPlatform.save = { fileName, mimeType, bytes ->
+            exports.save(NativeExport(fileName, mimeType, bytes)).fold(
+                onSuccess = { SaveOutcome.SAVED },
+                onFailure = { if (it is UserCancelledExport) SaveOutcome.CANCELLED else throw it },
+            )
         }
-    }
-
-    private fun saveExport(export: NativeExport) {
-        lifecycleScope.launch {
-            val result = exports.save(export)
-            result.onSuccess {
-                mutableExport.value = null
-                mutableMessage.value = nativeMessage(NativeKey.EXPORT_SAVED)
-            }.onFailure {
-                if (it !is UserCancelledExport) mutableMessage.value = it.toNativeText(NativeKey.EXPORT_SAVE_FAILED)
-            }
-        }
+        ExportPlatform.share = { fileName, mimeType, bytes -> exports.share(NativeExport(fileName, mimeType, bytes)).getOrThrow() }
     }
 
     private fun String.safeFilePart(): String = map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
