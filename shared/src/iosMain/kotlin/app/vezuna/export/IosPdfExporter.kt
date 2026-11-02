@@ -76,6 +76,7 @@ private class IosLabReport(private val drawing: UIGraphicsPDFRendererContext) {
         y += 13.0
         text("${t.reportPeriod}: ${DoctorReportFormat.period(document.resultRows, language)}", MARGIN, y, small)
         y += 13.0
+        DoctorReportFormat.sources(document.resultRows, language)?.let { y += wrapped(it, small, MARGIN, y, CONTENT_WIDTH) + 4.0 }
         y += wrapped(t.disclaimer, small, MARGIN, y, CONTENT_WIDTH)
         y += 8.0
         line(MARGIN, y, RIGHT, y, NAVY, 1.6)

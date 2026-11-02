@@ -1,6 +1,7 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.domain.vaultKeys
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.ui.ExtractedCandidate
@@ -147,5 +148,27 @@ class ReportDetailsTest {
         val row = app.vezuna.export.DoctorExportContent.document(data).resultRows.single()
         assertEquals("Lab Central", row.laboratoryName)
         assertEquals(ordered, row.orderedAt)
+    }
+}
+
+class MultiPageStorageTest {
+    private val day = Instant.parse("2026-03-10T12:00:00Z")
+
+    @Test
+    fun everyPhotoIsStoredAndDiscardedWithTheDocument() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val store = RecordingSourceStore()
+        val controller = labController(repository, store)
+        controller.initialize()
+        controller.importSource(PickedSource(
+            "photos.jpg", "image/jpeg", "p1".encodeToByteArray(),
+            listOf(ExtractedCandidate("HGB", "Hemoglobin", "13.2", "g/dL", collectedAt = day)),
+            additionalPages = listOf("p2".encodeToByteArray(), "p3".encodeToByteArray()),
+        ))
+        val document = repository.readProfile(repository.profiles.value.single().profileId).documents.single()
+        assertEquals(3, store.saved.size)
+        assertEquals(store.saved, listOfNotNull(document.vaultKey) + document.pageVaultKeys)
+        val profile = repository.readProfile(document.profileId)
+        assertEquals(store.saved.toSet(), profile.vaultKeys())
     }
 }

@@ -4,8 +4,8 @@ package app.vezuna.domain
 object NumberAmbiguity {
     const val LOW_CONFIDENCE = 0.4f
     private val SINGLE_GROUP = Regex("[+-]?[1-9]\\d{0,2}\\.\\d{3}")
-    private val COUNT_UNIT = Regex("(?:10\\d?)?/(?:mm3|µl|ul|mcl|l)")
-    private val SCALED_COUNT_UNIT = Regex("10\\d?/(?:mm3|µl|ul|mcl|l)")
+    private val COUNT_UNIT = Regex("(?:10\\d{1,2})?/(?:mm3|µl|ul|mcl|l)")
+    private val SCALED_COUNT_UNIT = Regex("10\\d{1,2}/(?:mm3|µl|ul|mcl|l)")
 
     fun isAmbiguousThousands(token: String): Boolean = SINGLE_GROUP.matches(token.trim())
 

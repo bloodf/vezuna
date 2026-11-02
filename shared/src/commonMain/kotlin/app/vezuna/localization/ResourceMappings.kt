@@ -421,6 +421,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.REPORT_ORDER_DATE to Res.string.report_order_date,
     L10nKey.REPORT_ORDER_DATE_NOT_SET to Res.string.report_order_date_not_set,
     L10nKey.CLEAR_DATE to Res.string.clear_date,
+    L10nKey.CHART_CONVERTED_POINTS to Res.string.chart_converted_points,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

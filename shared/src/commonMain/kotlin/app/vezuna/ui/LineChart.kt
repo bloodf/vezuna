@@ -25,17 +25,20 @@ import app.vezuna.domain.referenceBand
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.vitaPlural
+import app.vezuna.localization.vitaText
 
 @Composable
 internal fun TrendChart(series: TrendSeries, modifier: Modifier) {
     val values = series.points.map { it.y }
-    val description = vitaPlural(
+    val convertedCount = series.points.count { it.converted }
+    val summary = vitaPlural(
         L10nKey.TREND_CHART_ACCESSIBILITY, series.points.size, series.unit,
         formatLabValue(values.min()), formatLabValue(values.max()), formatLabValue(values.last()),
     )
+    val description = if (convertedCount == 0) summary else "$summary ${vitaText(L10nKey.CHART_CONVERTED_POINTS, convertedCount)}"
     LineChart(
         series.points.map { it.xEpochSeconds to it.y }, "${series.testCode}|${series.unit}", description, modifier,
-        unit = series.unit, band = series.referenceBand(),
+        unit = series.unit, band = series.referenceBand(), converted = series.points.map { it.converted },
     )
 }
 
@@ -51,6 +54,8 @@ internal fun LineChart(
     modifier: Modifier,
     unit: String = "",
     band: ReferenceBand? = null,
+    /** Per point: true when drawn from a converted value; those get a hollow marker. */
+    converted: List<Boolean> = emptyList(),
 ) {
     val color = MaterialTheme.colorScheme.primary
     val grid = MaterialTheme.colorScheme.outlineVariant
@@ -96,7 +101,8 @@ internal fun LineChart(
         offsets.forEachIndexed { index, point ->
             if (offsets.size == 1 || index.toFloat() / offsets.lastIndex <= progress.value) {
                 drawCircle(color, radius = POINT_DP.dp.toPx(), center = point)
-                drawCircle(pointCenter, radius = POINT_CENTER_DP.dp.toPx(), center = point)
+                val hollow = converted.getOrNull(index) == true
+                drawCircle(pointCenter, radius = (if (hollow) POINT_HOLLOW_DP else POINT_CENTER_DP).dp.toPx(), center = point)
             }
         }
         if (progress.value >= 1f) drawLatestLabel(measurer, "${formatLabValue(points.last().second)} $unit".trim(), latestStyle, offsets.last(), plotLeft)
@@ -122,3 +128,4 @@ private const val LATEST_LABEL_DP = 14
 private const val LINE_DP = 2
 private const val POINT_DP = 4
 private const val POINT_CENTER_DP = 1.5f
+private const val POINT_HOLLOW_DP = 2.8f

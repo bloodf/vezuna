@@ -92,7 +92,7 @@ class AndroidSourcePicker(
         activity.lifecycleScope.launch {
             try {
                 photos += withContext(Dispatchers.IO) { readBytes(uri) }
-                askForAnotherPhoto()
+                if (photos.size >= MAX_PHOTOS) finishPhotos() else askForAnotherPhoto()
             } catch (error: Throwable) {
                 pending = null
                 photos.clear()
@@ -102,6 +102,7 @@ class AndroidSourcePicker(
     }
 
     private fun askForAnotherPhoto() {
+        if (activity.isFinishing || activity.isDestroyed) return finishPhotos()
         AlertDialog.Builder(activity)
             .setTitle(nativeMessage(NativeKey.TAKE_PHOTO).resolve(activity))
             .setMessage(nativeMessage(NativeKey.PHOTO_ADDED_MESSAGE, photos.size).resolve(activity))
@@ -117,7 +118,7 @@ class AndroidSourcePicker(
             .show()
     }
 
-    /** One report from every photo taken so far: first page is the document, the rest only widen its identity. */
+    /** One report from every photo taken so far; every page is stored with the document. */
     private fun finishPhotos() {
         val result = pending ?: return
         val taken = photos.toList()
@@ -135,9 +136,11 @@ class AndroidSourcePicker(
                 mutableLastExtraction.value = OcrExtractionResult(text, pages, false)
                 val header = parseReportHeader(text)
                 val name = if (taken.size == 1) "lab-image.jpg" else "lab-photos-${taken.size}.jpg"
+                val candidates = pages.flatMap { parseExtractedCandidates(it.text) }
+                    .distinctBy { Triple(it.testCode, it.rawValue, it.rawUnit) }
                 complete(
                     PickedSource(
-                        name, "image/jpeg", taken.first(), pages.flatMap { parseExtractedCandidates(it.text) },
+                        name, "image/jpeg", taken.first(), candidates,
                         header.laboratoryName, header.orderedAt, taken.drop(1),
                     ),
                 )
@@ -192,5 +195,8 @@ class AndroidSourcePicker(
         if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
     }
 
-    private companion object { const val MAX_SOURCE_BYTES = 64 * 1024 * 1024 }
+    private companion object {
+        const val MAX_SOURCE_BYTES = 64 * 1024 * 1024
+        const val MAX_PHOTOS = 10
+    }
 }

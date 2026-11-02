@@ -20,6 +20,8 @@ struct NativeImportView: View {
     @State private var appendingPage = false
     @State private var laboratoryName = ""
     @State private var orderedAt: Date?
+    /// True while `orderedAt` came from the page text (noon UTC), so it is stored as read instead of re-derived from the local calendar.
+    @State private var orderedFromHeader = false
     @State private var editingOrderDate = false
     @State private var draftOrderDate = Date()
     @State private var candidates: [ImportedLabCandidate] = []
@@ -67,7 +69,7 @@ struct NativeImportView: View {
                                     .toolbar {
                                         ToolbarItem(placement: .cancellationAction) { Button(L10n.text(.close)) { editingOrderDate = false } }
                                         ToolbarItem(placement: .confirmationAction) {
-                                            Button(L10n.text(.choose_date_button)) { orderedAt = draftOrderDate; editingOrderDate = false }
+                                            Button(L10n.text(.choose_date_button)) { orderedAt = draftOrderDate; orderedFromHeader = false; editingOrderDate = false }
                                         }
                                     }
                             }
@@ -79,7 +81,7 @@ struct NativeImportView: View {
                         if !extraPages.isEmpty {
                             Text(L10n.text(.pages_in_report, extraPages.count + 1)).font(.footnote).foregroundStyle(.secondary)
                         }
-                        if sourceMediaType == "image/jpeg", UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        if sourceMediaType == "image/jpeg", extraPages.count < 9, UIImagePickerController.isSourceTypeAvailable(.camera) {
                             Button { appendingPage = true; showCamera = true } label: { Label(L10n.text(.add_page), systemImage: "camera.badge.ellipsis") }
                         }
                     }
@@ -211,9 +213,10 @@ struct NativeImportView: View {
                 candidates = parsed
                 laboratoryName = ""
                 orderedAt = nil
+                orderedFromHeader = false
             }
             if laboratoryName.isEmpty, let found = header.laboratoryName { laboratoryName = found }
-            if orderedAt == nil, let seconds = header.orderedEpochSeconds { orderedAt = Date(timeIntervalSince1970: TimeInterval(truncating: seconds)) }
+            if orderedAt == nil, let seconds = header.orderedEpochSeconds { orderedAt = Date(timeIntervalSince1970: TimeInterval(truncating: seconds)); orderedFromHeader = true }
             extractionNote = L10n.plural(extracted.usedOfflineOCR ? .extraction_results_ocr : .extraction_results_embedded, parsed.count)
         } catch {
             errorMessage = error.localizedDescription
@@ -266,7 +269,7 @@ struct NativeImportView: View {
             candidates: input,
             additionalPages: extraPages.map { $0.kotlinBytes },
             laboratoryName: laboratoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : laboratoryName,
-            orderedEpochSeconds: orderedAt.map { KotlinLong(value: storedInstant($0)) }
+            orderedEpochSeconds: orderedAt.map { KotlinLong(value: orderedFromHeader ? Int64($0.timeIntervalSince1970) : storedInstant($0)) }
         ) { error in
             DispatchQueue.main.async {
                 saving = false

@@ -420,7 +420,7 @@ iOS: %2$s</string>
     <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
     <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
     <string name="trend_units_dropped">Não exibidos: resultados em %1$s não têm conversão publicada para %2$s.</string>
-    <string name="trend_converted_note">Pontos marcados com ≈ foram convertidos com fatores publicados. Os valores originais aparecem na lista abaixo.</string>
+    <string name="trend_converted_note">Pontos ocos ou marcados com ≈ foram convertidos com fatores publicados. Os valores originais aparecem na lista abaixo.</string>
     <string name="converted_value">≈ %1$s (fator publicado %2$s)</string>
     <string name="labs_empty_explanation">Importe um laudo ou adicione um resultado manualmente. Ele aparece aqui depois que você confirmar.</string>
     <string name="trends_empty_explanation">As tendências precisam de pelo menos um resultado numérico confirmado. Importe um laudo ou adicione um resultado manualmente.</string>
@@ -445,4 +445,5 @@ iOS: %2$s</string>
     <string name="report_order_date">Data do pedido: %1$s</string>
     <string name="report_order_date_not_set">não informada</string>
     <string name="clear_date">Limpar data</string>
+    <string name="chart_converted_points">%1$s pontos são valores convertidos.</string>
 </resources>

@@ -2,7 +2,7 @@ package app.vezuna.domain
 
 /** Pure update/delete transitions shared by every repository implementation. */
 
-fun ProfileData.vaultKeys(): Set<String> = documents.mapNotNull { it.vaultKey }.toSet()
+fun ProfileData.vaultKeys(): Set<String> = documents.flatMap { listOfNotNull(it.vaultKey) + it.pageVaultKeys }.toSet()
 
 fun ProfileData.withProfile(updated: Profile): ProfileData {
     require(updated.profileId == profile.profileId)

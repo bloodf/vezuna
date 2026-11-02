@@ -215,7 +215,7 @@ class AppController(
                 failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
             }
         }
-        val sourceHash = sha256(source.additionalPages.fold(source.bytes) { all, page -> all + page }).toHex()
+        val sourceHash = sourceIdentity(source)
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
         val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
         if (existingDocument == null) addDocumentKeepingFile(document)
@@ -268,10 +268,28 @@ class AppController(
         return inserted
     }
 
+    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
+    private fun sourceIdentity(source: PickedSource): String {
+        val first = sha256(source.bytes).toHex()
+        if (source.additionalPages.isEmpty()) return first
+        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
+    }
+
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
-        val vaultKey = sourceStore?.save(profileId, documentId, source.bytes)
-        return SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(), vaultKey)
+        val store = sourceStore
+        val saved = mutableListOf<String>()
+        try {
+            store?.let { saved += it.save(profileId, documentId, source.bytes) }
+            store?.let { s -> source.additionalPages.forEachIndexed { index, page -> saved += s.save(profileId, "$documentId-page-${index + 2}", page) } }
+        } catch (error: Throwable) {
+            withContext(NonCancellable) { saved.forEach { store?.discard(it) } }
+            throw error
+        }
+        return SourceDocument(
+            profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(),
+            saved.firstOrNull(), saved.drop(1),
+        )
     }
 
     /** A stored file must never outlive a document that was not recorded. */
@@ -279,7 +297,7 @@ class AppController(
         try {
             repository.addDocument(document)
         } catch (error: Throwable) {
-            withContext(NonCancellable) { document.vaultKey?.let { sourceStore?.discard(it) } }
+            withContext(NonCancellable) { (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEach { sourceStore?.discard(it) } }
             throw error
         }
     }

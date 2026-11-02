@@ -53,6 +53,7 @@ private class AndroidLabReport(private val pdf: PdfDocument) {
         y += 13f
         text("${t.reportPeriod}: ${DoctorReportFormat.period(document.resultRows, language)}", MARGIN, y, small)
         y += 13f
+        DoctorReportFormat.sources(document.resultRows, language)?.let { y += wrapped(it, small, MARGIN, y, CONTENT_WIDTH) + 4f }
         y += wrapped(t.disclaimer, small, MARGIN, y, CONTENT_WIDTH)
         y += 8f
         line(MARGIN, y, RIGHT, y, navyLine)

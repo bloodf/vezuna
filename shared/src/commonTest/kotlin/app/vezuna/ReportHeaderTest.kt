@@ -18,7 +18,8 @@ class ReportHeaderTest {
     fun stripsALabelAndAcceptsOtherLanguages() {
         assertEquals("Fleury", ReportHeaderParser.parse("Laboratório: Fleury").laboratoryName)
         assertEquals(Instant.parse("2026-01-05T12:00:00Z"), ReportHeaderParser.parse("Fecha de solicitud 05/01/2026").orderedAt)
-        assertEquals(Instant.parse("2026-01-05T12:00:00Z"), ReportHeaderParser.parse("Order date: 05/01/2026").orderedAt)
+        assertNull(ReportHeaderParser.parse("Order date: 05/01/2026").orderedAt)
+        assertNull(ReportHeaderParser.parse("Exames laboratoriais\nResponsável técnico do laboratório").laboratoryName)
     }
 
     @Test

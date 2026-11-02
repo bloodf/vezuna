@@ -122,6 +122,14 @@ class OcrTextParserTest {
     }
 
     @Test
+    fun scaledTwelveDigitUnitsReadDecimals() {
+        val row = OcrTextParser.parseMeasurements("Hemácias 4.500 10^12/L 4.000 a 5.500").single()
+        assertNull(row.rawToken)
+        assertEquals("4.500", row.value)
+        assertEquals(5.5, row.referenceRange.upper)
+    }
+
+    @Test
     fun specificGravityAndPhStayFlagged() {
         val rows = OcrTextParser.parseMeasurements("Densidade 1.020 mg/dL 1.005 a 1.030")
         assertEquals("1.020", rows.first { it.displayName == "Densidade" }.rawToken)

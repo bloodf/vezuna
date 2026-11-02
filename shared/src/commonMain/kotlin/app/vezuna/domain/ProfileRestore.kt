@@ -40,7 +40,7 @@ private fun isIdField(key: String) = key != "recordId" && (key == "profileId" ||
 fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): ProfileData {
     val available = existing?.documents?.mapNotNull { doc -> doc.vaultKey?.let { doc.documentId to it } }?.toSet().orEmpty()
     return copy(documents = documents.map { doc ->
-        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) doc else doc.copy(vaultKey = null)
+        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) doc else doc.copy(vaultKey = null, pageVaultKeys = emptyList())
     })
 }
 

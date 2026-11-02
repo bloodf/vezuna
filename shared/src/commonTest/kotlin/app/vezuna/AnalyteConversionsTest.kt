@@ -50,12 +50,13 @@ class AnalyteConversionsTest {
             "Triglycerides" to 885.43, "Urea" to 60.06, "Urea nitrogen (BUN)" to 28.014, "Calcium (total)" to 40.078,
             "Magnesium" to 24.305, "Phosphorus (inorganic)" to 30.974,
         )
-        val micro = mapOf("Creatinine" to 113.12, "Uric acid" to 168.11, "Total bilirubin" to 584.66)
+        val micro = mapOf("Creatinine" to 113.1, "Uric acid" to 168.11, "Total bilirubin" to 584.66)
         AnalyteConversions.table.forEach { entry ->
             val expected = molarMass[entry.analyte]?.let { 10.0 / it } ?: micro[entry.analyte]?.let { 10_000.0 / it } ?: return@forEach
             assertTrue(abs(entry.factor - expected) / expected < 0.005, "${entry.analyte}: ${entry.factor} vs $expected")
         }
-        near(2.496, 1000.0 / 400.64 * 1.0, 0.01)
+        val vitaminD = AnalyteConversions.table.single { it.analyte == "25-OH vitamin D" }.factor
+        near(1000.0 / 400.64, vitaminD, 0.01)
     }
 
     @Test
