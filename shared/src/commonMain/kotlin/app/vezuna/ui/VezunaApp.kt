@@ -143,6 +143,10 @@ fun VezunaApp(
         controller.refreshDashboard()
     }
     VezunaTheme(animationsEnabled = animationsEnabled) {
+        if (state.onboarding && state.data != null) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { OnboardingScreen(state, controller, scope) }
+            return@VezunaTheme
+        }
         val motionEnabled = LocalVitaAnimationsEnabled.current
         val loadingDescription = vitaText(L10nKey.LOADING_DATA)
         Scaffold(
