@@ -37,19 +37,23 @@ class JvmSecureVault(private val directory: File) : SecureVault {
     override suspend fun read(key: String): ByteArray? = File(directory, safeName(key)).takeIf(File::isFile)?.readBytes()
     override suspend fun delete(key: String) { File(directory, safeName(key)).delete() }
 
-    private fun key(): SecretKeySpec {
+    override suspend fun listKeys(): List<String> = directory.listFiles { file -> file.isFile && file != secretFile }.orEmpty()
+        .mapNotNull { file -> runCatching { Base64.getUrlDecoder().decode(file.name).decodeToString() }.getOrNull() }
+
+    private fun key(): SecretKeySpec = synchronized(KEY_LOCK) {
         directory.mkdirs()
         if (!secretFile.exists()) {
             val generator = KeyGenerator.getInstance("AES")
             generator.init(256)
             secretFile.writeBytes(generator.generateKey().encoded)
         }
-        return SecretKeySpec(secretFile.readBytes(), "AES")
+        SecretKeySpec(secretFile.readBytes(), "AES")
     }
 
     private fun safeName(key: String) = Base64.getUrlEncoder().withoutPadding().encodeToString(key.encodeToByteArray())
 
     private companion object {
+        val KEY_LOCK = Any()
         const val KEY_ID = "jvm-local-test-v1"
         const val ALGORITHM = "AES-256-GCM"
     }

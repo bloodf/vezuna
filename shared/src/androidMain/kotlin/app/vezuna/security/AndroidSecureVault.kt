@@ -55,6 +55,8 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
 
     override suspend fun delete(key: String) = files.delete(safeName(key))
 
+    override suspend fun listKeys(): List<String> = files.names().mapNotNull(::keyFromName)
+
     override suspend fun quarantineAll(): Boolean {
         files.quarantineAll(System.currentTimeMillis().toString())
         return true
@@ -74,7 +76,8 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
 
     private fun existingKey(): SecretKey? = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
 
-    private fun key(): SecretKey {
+    /** Two first-use calls must not mint competing keys: the lookup and the creation run under one process-wide lock. */
+    private fun key(): SecretKey = synchronized(KEY_LOCK) {
         existingKey()?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
@@ -84,12 +87,19 @@ class AndroidSecureVault(private val directory: File) : SecureVault {
                 .setKeySize(256)
                 .build(),
         )
-        return generator.generateKey()
+        generator.generateKey()
     }
 
     private fun safeName(key: String) = Base64.encodeToString(key.encodeToByteArray(), Base64.URL_SAFE or Base64.NO_WRAP)
 
+    private fun keyFromName(name: String): String? = try {
+        Base64.decode(name, Base64.URL_SAFE or Base64.NO_WRAP).decodeToString()
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
     private companion object {
+        val KEY_LOCK = Any()
         const val KEY_ALIAS = "app.vezuna.vault.v1"
         const val ALGORITHM = "AES-256-GCM"
     }

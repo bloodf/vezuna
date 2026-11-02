@@ -69,3 +69,43 @@ class JvmSecureVaultTest {
         assertEquals(cause, e.cause)
     }
 }
+
+class JvmSecureVaultHardeningTest {
+    private fun dir() = Files.createTempDirectory("vault").toFile().also { it.deleteOnExit() }
+
+    @Test
+    fun mismatchedExpectedAssociatedDataIsRejectedBeforeAnyKeyIsCreated() = runTest {
+        val sealed = JvmSecureVault(dir()).encrypt("x".encodeToByteArray(), "a".encodeToByteArray())
+        val untouched = dir()
+        val failure = assertFailsWith<VaultUnreadableException> { JvmSecureVault(untouched).decrypt(sealed, "b".encodeToByteArray()) }
+        assertEquals(VaultFailure.CORRUPT, failure.failure)
+        assertEquals(0, untouched.listFiles().orEmpty().size, "no key file was created for a rejected envelope")
+    }
+
+    @Test
+    fun concurrentFirstUseCreatesOneKey() {
+        val d = dir()
+        val sealed = java.util.concurrent.ConcurrentLinkedQueue<app.vezuna.security.CipherEnvelope>()
+        val start = java.util.concurrent.CountDownLatch(1)
+        val threads = List(16) { n ->
+            Thread {
+                start.await()
+                sealed += kotlinx.coroutines.runBlocking { JvmSecureVault(d).encrypt("v$n".encodeToByteArray(), "aad".encodeToByteArray()) }
+            }.also { it.start() }
+        }
+        start.countDown()
+        threads.forEach { it.join() }
+        val reader = JvmSecureVault(d)
+        assertEquals(16, sealed.size)
+        sealed.forEach { kotlinx.coroutines.runBlocking { reader.decrypt(it, "aad".encodeToByteArray()) } }
+    }
+
+    @Test
+    fun listKeysReturnsStoredKeysOnly() = runTest {
+        val vault = JvmSecureVault(dir())
+        vault.encrypt(byteArrayOf(1), byteArrayOf())
+        vault.write("repository-profile-a-v1", byteArrayOf(1))
+        vault.write("other", byteArrayOf(2))
+        assertEquals(setOf("repository-profile-a-v1", "other"), vault.listKeys().toSet())
+    }
+}

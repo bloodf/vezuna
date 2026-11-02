@@ -239,7 +239,7 @@ class SourceFileStorageTest {
 
         assertTrue(!vault.current.getValue(key).contentEquals(original))
         assertContentEquals(original, store.load("p", "d", key))
-        assertFailsWith<IllegalArgumentException> { store.load("p", "other-document", key) }
+        assertFailsWith<app.vezuna.security.VaultUnreadableException> { store.load("p", "other-document", key) }
     }
 
     @Test

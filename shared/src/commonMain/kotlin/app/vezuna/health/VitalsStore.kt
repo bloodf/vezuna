@@ -22,7 +22,7 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
     suspend fun load(profileId: String, onUnreadable: (Throwable) -> Unit = {}): ProfileVitals? = try {
         vault.read(key(profileId))?.let { bytes ->
             val envelope = CipherEnvelopeCodec.decode(bytes)
-            json.decodeFromString(ProfileVitals.serializer(), vault.decrypt(envelope).decodeToString()).migrated()
+            json.decodeFromString(ProfileVitals.serializer(), vault.decrypt(envelope, associatedData(profileId)).decodeToString()).migrated()
         }
     } catch (error: CancellationException) {
         throw error
