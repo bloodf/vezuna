@@ -104,7 +104,7 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
         return Mapped(mapped, records.size - mapped.size)
     }
 
-    private fun Instant.toKotlin() = kotlinx.datetime.Instant.fromEpochMilliseconds(toEpochMilli())
+    private fun Instant.toKotlin() = kotlin.time.Instant.fromEpochMilliseconds(toEpochMilli())
     private fun LocalDate.toKotlin() = kotlinx.datetime.LocalDate(year, monthValue, dayOfMonth)
     private fun kotlinx.datetime.LocalDate.toJava(): LocalDate = LocalDate.of(year, monthNumber, dayOfMonth)
 }

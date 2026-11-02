@@ -13,7 +13,7 @@ import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.ExportOptions
 import app.vezuna.export.PaperSize
 import app.vezuna.export.NativePdfExporter
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith

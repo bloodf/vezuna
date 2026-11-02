@@ -9,7 +9,7 @@ import app.vezuna.health.DeviceVitalsSource
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.VitalsReadRequest
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

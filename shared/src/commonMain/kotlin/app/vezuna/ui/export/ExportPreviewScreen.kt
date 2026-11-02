@@ -67,7 +67,7 @@ import app.vezuna.ui.nav.RouteContext
 import app.vezuna.ui.records.renderPdfPage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res

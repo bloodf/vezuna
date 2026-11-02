@@ -17,7 +17,7 @@ import app.vezuna.ui.AppController
 import app.vezuna.ui.ScheduleDraft
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

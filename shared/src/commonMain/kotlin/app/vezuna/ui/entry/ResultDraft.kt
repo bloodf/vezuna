@@ -7,7 +7,7 @@ import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.parseDecimalInput
 import androidx.compose.runtime.saveable.listSaver
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * What the person is typing for one result: the same fields for manual entry, OCR review and correction.

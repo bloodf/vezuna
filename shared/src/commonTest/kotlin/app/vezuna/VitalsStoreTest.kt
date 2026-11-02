@@ -5,7 +5,7 @@ import app.vezuna.health.VitalsStore
 import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals

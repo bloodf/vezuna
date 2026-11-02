@@ -186,4 +186,4 @@ private fun DangerOutlineButton(text: String, onClick: () -> Unit, enabled: Bool
 }
 
 /** Formatting a UTC-midnight date at noon keeps the same calendar day in every local zone. */
-private fun kotlinx.datetime.Instant.plusHalfDay() = kotlinx.datetime.Instant.fromEpochSeconds(epochSeconds + 12 * 60 * 60)
+private fun kotlin.time.Instant.plusHalfDay() = kotlin.time.Instant.fromEpochSeconds(epochSeconds + 12 * 60 * 60)

@@ -17,7 +17,7 @@ import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals

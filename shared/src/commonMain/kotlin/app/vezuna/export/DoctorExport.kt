@@ -14,7 +14,7 @@ import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.UnitNormalizer
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.platform.currentInstant
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime

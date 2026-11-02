@@ -23,7 +23,7 @@ internal fun candidateFingerprint(
     rawValue: String,
     rawUnit: String,
     range: ReferenceRange,
-    collectedAt: kotlinx.datetime.Instant,
+    collectedAt: kotlin.time.Instant,
 ): String = listOf(
     testCode.trim().uppercase(),
     displayName.trim().lowercase(),
