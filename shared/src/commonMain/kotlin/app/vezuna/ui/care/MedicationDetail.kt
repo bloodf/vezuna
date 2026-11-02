@@ -98,6 +98,7 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
                 ListRow(vitaText(L10nKey.SCHEDULE), supporting = scheduleText(schedule), leadingIcon = Res.drawable.ic_calendar, category = Category.CARE)
             }
         }
+        SupplySection(ctx, medication)
         PrimaryButton(vitaText(L10nKey.EDIT_MEDICATION), { ctx.navigate(AppScreen.MedicationForm(medication.medicationId)) }, Modifier.fillMaxWidth(), enabled = !busy, icon = Res.drawable.ic_edit)
         val resume = status != MedicationStatus.ACTIVE
         SecondaryButton(

@@ -125,6 +125,8 @@ class BackupService(
             BackupKind.SAME_DEVICE -> {
                 val localVault = vault ?: failMessage(L10nKey.BACKUP_SAME_DEVICE_UNAVAILABLE)
                 val envelope = json.decodeFromString(CipherEnvelope.serializer(), file.decodeToString())
+                // The profile id is only known from the payload, so the prefix is checked here and the full value after decoding.
+                if (!envelope.associatedData.decodeToString().startsWith(LEGACY_BACKUP_AAD_PREFIX)) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                 val plain = try {
                     localVault.decrypt(envelope)
                 } catch (error: CancellationException) {
@@ -134,7 +136,7 @@ class BackupService(
                 }
                 val members = decodePayload(plain)
                 // The associated data names the profile the old service bound the file to.
-                val expected = "Vezuna backup v1:${members.first().data.profile.profileId}".encodeToByteArray()
+                val expected = "$LEGACY_BACKUP_AAD_PREFIX${members.first().data.profile.profileId}".encodeToByteArray()
                 if (!envelope.associatedData.contentEquals(expected)) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                 OpenedBackup(kind, members)
             }
@@ -198,6 +200,7 @@ class BackupService(
          * Highest payload version this build reads. 2 added the vitals section; 3 is the last single-profile shape;
          * 4 is the household payload (several profiles, original source files). Versions 1-4 are all accepted.
          */
+        private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
 
         /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */

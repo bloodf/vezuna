@@ -57,3 +57,7 @@
 "app_lock_reason" = "Confirma que eres tú para abrir tus registros de salud";
 "health_no_readings" = "No se devolvió ninguna lectura. Si desactivaste el acceso, cámbialo en Ajustes > Salud > Acceso a datos y dispositivos > Vezuna.";
 "health_revoke_ios" = "Para que Vezuna deje de leer datos nuevos, abre Ajustes > Salud > Acceso a datos y dispositivos > Vezuna. Las mediciones ya guardadas se quedan en el perfil vinculado.";
+"supply_low_title" = "Suministro bajo";
+"supply_low_text" = "%1$@: quedan %2$d";
+"supply_low_generic_text" = "Un medicamento se está acabando";
+"supply_low_soon_text" = "%@ se está acabando";

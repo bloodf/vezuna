@@ -8,6 +8,7 @@ import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MedicationSupplies
 import app.vezuna.domain.MissedDoses
 import app.vezuna.domain.HeartRateBucket
 import app.vezuna.domain.StepsDay
@@ -78,9 +79,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlinx.serialization.serializer
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
@@ -461,6 +465,48 @@ object IosRuntime {
                     }
                 }
                 completion(JsonArray(active).toString(), null)
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
+    /**
+     * Low-supply reminders of every profile as JSON. [previousJson] maps a notice key to the fire time the native side
+     * stored for it, so the shared rule can tell a notice that already fired; `fireEpochSeconds` is null for those.
+     */
+    fun planLowSupplyNotices(previousJson: String, completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val previous = json.parseToJsonElement(previousJson).jsonObject.mapValues { it.value.jsonPrimitive.long }
+                val now = currentInstant()
+                val profiles = repository.profiles.value
+                val notices = profiles.flatMap { profile ->
+                    MedicationSupplies.notices(repository.peekProfile(profile.profileId), now, TimeZone.currentSystemDefault()).map { profile to it }
+                }
+                completion(
+                    JsonArray(
+                        notices.map { (profile, notice) ->
+                            JsonObject(
+                                mapOf(
+                                    "key" to JsonPrimitive(notice.key),
+                                    "profileId" to JsonPrimitive(notice.profileId),
+                                    "medicationId" to JsonPrimitive(notice.medicationId),
+                                    "medicationName" to JsonPrimitive(notice.medicationName),
+                                    "remaining" to JsonPrimitive(notice.remaining),
+                                    "lowNow" to JsonPrimitive(notice.lowNow),
+                                    "fireEpochSeconds" to (MedicationSupplies.fireTime(notice, previous[notice.key], now)?.let { JsonPrimitive(it) } ?: JsonNull),
+                                    "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
+                                ),
+                            )
+                        },
+                    ).toString(),
+                    null,
+                )
             } catch (error: Throwable) {
                 completion(null, nativeMessage("action_failed"))
             }
