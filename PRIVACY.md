@@ -44,7 +44,7 @@ The app itself does not send health data anywhere. Platform and store services s
 - Google ML Kit text recognition is used for Android OCR. Its Latin model is bundled with the dependency; Google's ML Kit terms apply.
 - Health Connect, HealthKit, and the system share sheet.
 
-Because the Android build has no `INTERNET` permission, store-side delivery happens through the Play Store app, not through the app's own connection. The iOS build has no equivalent manifest guarantee: its network behavior is limited by code review only, and no iOS network audit has been done.
+Because the Android build has no `INTERNET` permission, store-side delivery happens through the Play Store app, not through the app's own connection. The iOS build has no equivalent manifest guarantee: app-owned iOS code is checked locally by `scripts/check-ios-network.sh` (part of `scripts/check-all.sh`), which fails on networking APIs such as URLSession or the Network framework outside an explicit allowlist. That check scans source only; it does not cover system frameworks or third-party SDK behavior, and no full iOS network audit has been done.
 
 Google's [ML Kit data-disclosure guidance](https://developers.google.com/ml-kit/android-data-disclosure) describes SDK diagnostic and usage data. The merged debug APK was inspected on 2026-10-31 and has no `INTERNET` permission, but that inspection does not establish every SDK or platform service's behavior. Verify the exact release dependency versions, effective settings, and runtime behavior before answering the stores' data-collection questions. Do not infer a final "no data collected" declaration from this document.
 

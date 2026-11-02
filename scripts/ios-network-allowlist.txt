@@ -1,0 +1,3 @@
+# Exceptions to scripts/check-ios-network.sh, one "relative/path:Symbol" per line.
+# Each entry needs a comment above it explaining why the code cannot send health data off-device, and PRIVACY.md must match.
+# Currently empty: app-owned iOS code uses no networking APIs.
