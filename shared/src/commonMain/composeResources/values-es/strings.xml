@@ -87,7 +87,7 @@ iOS: %2$s</string>
     <string name="model_not_in_catalog">El modelo no está en el catálogo de confianza</string>
     <string name="model_ready">Modelo listo</string>
     <string name="model_restoration_failed">Error al restaurar el modelo</string>
-    <string name="model_security_notice">Los paquetes de la tienda se comprueban por tamaño y SHA-256 antes de usarse. La descarga y la inferencia permanecen separadas de los registros de salud.</string>
+    <string name="model_security_notice">Los modelos descargados se comprueban antes de usarse. Funcionan en este dispositivo y solo reciben tus registros cuando los eliges para una pregunta.</string>
     <string name="model_selected_not_loaded">Modelo seleccionado, no cargado</string>
     <string name="model_sha_failed">Error en la verificación SHA-256 del modelo</string>
     <string name="model_size_mismatch">El tamaño del modelo no coincide con el catálogo</string>
@@ -620,7 +620,7 @@ iOS: %2$s</string>
     </plurals>
     <string name="entry_page_source">Página %1$s: %2$s</string>
     <string name="entry_page_embedded">Texto incrustado</string>
-    <string name="entry_page_ocr">OCR en el dispositivo</string>
+    <string name="entry_page_ocr">Leído en este dispositivo</string>
     <string name="entry_page_no_text">No se encontró texto en esta página.</string>
     <string name="entry_show_text">Mostrar texto reconocido</string>
     <string name="entry_hide_text">Ocultar texto reconocido</string>
