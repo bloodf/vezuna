@@ -1,6 +1,15 @@
 package app.vezuna.ui.more
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import app.vezuna.ui.components.CategoryPanel
+import vezuna.shared.generated.resources.ic_chevron_right
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -75,12 +84,12 @@ private fun Body(text: String) =
 
 @Composable
 private fun LinkRow(title: String, icon: DrawableResource, category: Category, url: String, supporting: String? = null) {
-    val open = MorePlatform.openUrl
+    val open = MorePlatform.openUrl ?: return
     val hint = vitaText(L10nKey.ABOUT_OPENS_BROWSER)
     ListRow(
         title = title,
         supporting = supporting,
-        onClick = open?.let { { it(url) } },
+        onClick = { open(url) },
         leadingIcon = icon,
         category = category,
         showChevron = false,
@@ -205,17 +214,39 @@ fun HelpScreen(ctx: RouteContext) = PushedPage(ctx, vitaText(L10nKey.MORE_HELP))
 }
 
 @Composable
+private fun PanelRow(title: String, supporting: String, icon: DrawableResource, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).heightIn(min = VezunaTokens.RowHeight),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
+    ) {
+        Box(Modifier.size(40.dp).background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(VezunaTokens.ControlRadius)), contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(22.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(supporting, style = MaterialTheme.typography.bodySmall)
+        }
+        Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
 internal fun MoreRows(ctx: RouteContext) {
     val nav = ctx::navigate
-    GroupedRows {
-        ListRow(vitaText(L10nKey.MORE_PROFILES), onClick = { nav(AppScreen.Profiles) }, supporting = vitaText(L10nKey.MORE_PROFILES_SUB), leadingIcon = Res.drawable.ic_users, category = Category.RECORDS)
-        ListRow(vitaText(L10nKey.MORE_EXPORTS), onClick = { nav(AppScreen.ExportHub) }, supporting = vitaText(L10nKey.MORE_EXPORTS_SUB), leadingIcon = Res.drawable.ic_share, category = Category.RECORDS)
-        ListRow(vitaText(L10nKey.MORE_BACKUPS), onClick = { nav(AppScreen.Backups) }, supporting = vitaText(L10nKey.MORE_BACKUPS_SUB), leadingIcon = Res.drawable.ic_storage, category = Category.RECORDS)
+    CategoryPanel(Category.RECORDS) {
+        PanelRow(vitaText(L10nKey.MORE_PROFILES), vitaText(L10nKey.MORE_PROFILES_SUB), Res.drawable.ic_users) { nav(AppScreen.Profiles) }
+        PanelRow(vitaText(L10nKey.MORE_EXPORTS), vitaText(L10nKey.MORE_EXPORTS_SUB), Res.drawable.ic_share) { nav(AppScreen.ExportHub) }
+        PanelRow(vitaText(L10nKey.MORE_BACKUPS), vitaText(L10nKey.MORE_BACKUPS_SUB), Res.drawable.ic_storage) { nav(AppScreen.Backups) }
     }
-    GroupedRows {
-        ListRow(vitaText(L10nKey.MORE_PRIVACY_LOCK), onClick = { nav(AppScreen.DataPrivacy) }, supporting = vitaText(L10nKey.MORE_PRIVACY_LOCK_SUB), leadingIcon = Res.drawable.ic_lock, category = Category.CARE)
-        ListRow(vitaText(L10nKey.MORE_CONNECTIONS), onClick = { nav(AppScreen.Connections) }, supporting = vitaText(L10nKey.MORE_CONNECTIONS_SUB), leadingIcon = Res.drawable.ic_connect, category = Category.ACTIVITY)
-        ListRow(vitaText(L10nKey.MORE_ASSISTANT_MODELS), onClick = { nav(AppScreen.AiChat) }, supporting = vitaText(L10nKey.MORE_ASSISTANT_MODELS_SUB), leadingIcon = Res.drawable.ic_chat, category = Category.TRENDS)
+    CategoryPanel(Category.CARE) {
+        PanelRow(vitaText(L10nKey.MORE_PRIVACY_LOCK), vitaText(L10nKey.MORE_PRIVACY_LOCK_SUB), Res.drawable.ic_lock) { nav(AppScreen.DataPrivacy) }
+    }
+    CategoryPanel(Category.ACTIVITY) {
+        PanelRow(vitaText(L10nKey.MORE_CONNECTIONS), vitaText(L10nKey.MORE_CONNECTIONS_SUB), Res.drawable.ic_connect) { nav(AppScreen.Connections) }
+    }
+    CategoryPanel(Category.TRENDS) {
+        PanelRow(vitaText(L10nKey.MORE_ASSISTANT_MODELS), vitaText(L10nKey.MORE_ASSISTANT_MODELS_SUB), Res.drawable.ic_chat) { nav(AppScreen.AiChat) }
     }
     GroupedRows {
         ListRow(vitaText(L10nKey.MORE_APPEARANCE), onClick = { nav(AppScreen.Appearance) }, supporting = vitaText(L10nKey.MORE_APPEARANCE_SUB), leadingIcon = Res.drawable.ic_moon, category = Category.RECORDS)

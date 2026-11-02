@@ -26,3 +26,12 @@ class MorePlatformTest {
         MorePlatform.restoreTheme(ThemeMode.SYSTEM)
     }
 }
+
+class VezunaLinksTest {
+    @Test
+    fun linksAreHttpsUnderProjectRepository() {
+        listOf(VezunaLinks.REPOSITORY, VezunaLinks.LICENSE, VezunaLinks.CONTRIBUTORS, VezunaLinks.NEW_ISSUE).forEach {
+            assertEquals(true, it.startsWith("https://github.com/bloodf/vezuna"), it)
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package app.vezuna
 
+import androidx.compose.runtime.snapshotFlow
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -109,9 +110,8 @@ class AndroidMainActivity : FragmentActivity() {
         )
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val darkTheme = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+    /** Status and navigation bars follow the app theme (System, Light or Dark), not only the OS night mode. */
+    private fun applySystemBars(darkTheme: Boolean) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme },
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme },
@@ -122,6 +122,15 @@ class AndroidMainActivity : FragmentActivity() {
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        installMorePlatform(this)
+        val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        lifecycleScope.launch {
+            snapshotFlow { app.vezuna.ui.more.MorePlatform.themeMode }.collect { applySystemBars(it.isDark(systemDark)) }
         }
         // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
         deviceAuthenticator = AndroidDeviceAuthenticator(this)

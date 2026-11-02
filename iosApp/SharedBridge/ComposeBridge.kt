@@ -679,7 +679,9 @@ private fun installMorePlatformIos() {
             app.vezuna.ui.more.ThemeMode.LIGHT -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleLight
             app.vezuna.ui.more.ThemeMode.DARK -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleDark
         }
-        platform.UIKit.UIApplication.sharedApplication.windows.forEach { (it as? platform.UIKit.UIWindow)?.overrideUserInterfaceStyle = style }
+        platform.UIKit.UIApplication.sharedApplication.connectedScenes.forEach { scene ->
+            (scene as? platform.UIKit.UIWindowScene)?.windows?.forEach { (it as? platform.UIKit.UIWindow)?.overrideUserInterfaceStyle = style }
+        }
     }
     val saved = defaults.stringForKey("vezuna-theme-mode")
         ?.let { name -> app.vezuna.ui.more.ThemeMode.entries.firstOrNull { it.name == name } }
@@ -689,6 +691,7 @@ private fun installMorePlatformIos() {
         defaults.setObject(it.name, forKey = "vezuna-theme-mode")
         applyToWindows(it)
     }
+    applyToWindows(saved)
     platform.darwin.dispatch_async(platform.darwin.dispatch_get_main_queue()) { applyToWindows(saved) }
     val bundle = platform.Foundation.NSBundle.mainBundle
     app.vezuna.ui.more.MorePlatform.versionName = bundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String

@@ -21,12 +21,10 @@ internal fun installMorePlatform(context: Context) {
     MorePlatform.versionName = info?.versionName
     MorePlatform.buildNumber = info?.let { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.longVersionCode.toString() else @Suppress("DEPRECATION") it.versionCode.toString() }
     MorePlatform.openLanguageSettings = {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null))
-        } else {
-            Intent(Settings.ACTION_LOCALE_SETTINGS)
-        }
-        runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        fun start(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+        val appLocale = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            start(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+        if (!appLocale) start(Intent(Settings.ACTION_LOCALE_SETTINGS))
     }
     MorePlatform.openUrl = { url ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
