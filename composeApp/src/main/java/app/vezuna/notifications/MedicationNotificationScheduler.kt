@@ -51,7 +51,14 @@ class MedicationNotificationScheduler(private val context: Context) {
             try {
                 val data = repository.readProfile(profile.profileId)
                 loaded[profile.profileId] = data
-                recordMissedDoses(repository, data, now, zone)
+                try {
+                    recordMissedDoses(repository, data, now, zone)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    // Missed-dose bookkeeping must never stop reminders from being armed.
+                    Log.e(TAG, "Could not record missed doses", error)
+                }
                 // The member name only disambiguates reminders when the household has more than one profile.
                 val profileName = data.profile.displayName.takeIf { repository.profiles.value.size > 1 }
                 armProfile(data, now, zone, armed, profileName)
@@ -76,7 +83,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     /** Same rule as iOS: shared [MissedDoses] decides which past doses become MISSED; the repository keeps user actions on top. */
     private suspend fun recordMissedDoses(repository: PersistentVezunaRepository, data: ProfileData, now: Instant, zone: ZoneId) {
         MissedDoses.pending(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond), kotlinx.datetime.TimeZone.of(zone.id))
-            .forEach { repository.addDoseEvent(it) }
+            .let { repository.addDoseEvents(data.profile.profileId, it) }
     }
 
     private fun armProfile(data: ProfileData, now: Instant, zone: ZoneId, armed: MutableSet<String>, profileName: String?) {
@@ -195,7 +202,8 @@ class MedicationNotificationScheduler(private val context: Context) {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText(if (hideName) genericText else listOfNotNull(medicationName, profileName).joinToString(" · "))
+            .setContentText(if (hideName) genericText else medicationName)
+            .setSubText(note?.resolve(context) ?: profileName?.takeUnless { hideName }?.let { context.getString(R.string.reminder_for_profile, it) })
             // Names are shown on the lock screen by default; the Settings toggle swaps in a generic public version.
             .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .apply {
@@ -216,7 +224,6 @@ class MedicationNotificationScheduler(private val context: Context) {
                 putString(EXTRA_MEDICATION_ID, intent.getStringExtra(EXTRA_MEDICATION_ID))
                 putString(EXTRA_SCHEDULE_ID, intent.getStringExtra(EXTRA_SCHEDULE_ID))
             })
-            .setSubText(note?.resolve(context))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, nativeMessage(NativeKey.TAKEN).resolve(context), actionIntent(intent, DoseAction.TAKEN, notificationId + 1))
             .addAction(0, nativeMessage(NativeKey.SKIP).resolve(context), actionIntent(intent, DoseAction.SKIP, notificationId + 2))

@@ -22,8 +22,6 @@ data class MedicationDoseHistory(
     val medicationName: String,
     val last7Days: DoseCounts,
     val last30Days: DoseCounts,
-    /** Newest first. */
-    val events: List<DoseEvent>,
 )
 
 data class DoseHistory(
@@ -46,8 +44,8 @@ object DoseHistoryFactory {
             )
         }
         val medications = data.medications.filter { it.profileId == data.profile.profileId }.map { medication ->
-            val events = terminal.filter { it.medicationId == medication.medicationId }.sortedByDescending { it.scheduledFor }
-            MedicationDoseHistory(medication.medicationId, medication.displayName, counts(events, 7), counts(events, 30), events)
+            val events = terminal.filter { it.medicationId == medication.medicationId }
+            MedicationDoseHistory(medication.medicationId, medication.displayName, counts(events, 7), counts(events, 30))
         }
         return DoseHistory(counts(terminal, 7), counts(terminal, 30), medications)
     }
@@ -67,6 +65,7 @@ object MissedDoses {
             .map { it.scheduleId to it.scheduledFor.epochSeconds }.toSet()
         val snoozes = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
         val superseded = snoozes.map { it.scheduleId to it.replacesScheduledFor!!.epochSeconds }.toSet()
+        val snoozeTimes = snoozes.map { it.scheduledFor.epochSeconds }.toSet()
         val result = linkedMapOf<String, DoseEvent>()
 
         fun consider(medication: Medication, scheduleId: String, at: Instant) {
@@ -80,11 +79,23 @@ object MissedDoses {
 
         data.medications.filter { it.active }.forEach { medication ->
             medication.schedules.forEach { schedule ->
+                // Never judge doses from before the schedule existed in its current form; legacy records fall back to their first event.
+                val trackedFrom = schedule.trackedSince
+                    ?: data.doseEvents.filter { it.scheduleId == schedule.scheduleId }.minOfOrNull { it.scheduledFor }
+                    ?: return@forEach
+                // A terminal event on a day at a time this schedule does not have (time zone change) means the day is already accounted for.
+                val foreignDays = data.doseEvents.filter {
+                    it.scheduleId == schedule.scheduleId && DoseEvents.isTerminal(it.status) && it.scheduledFor.epochSeconds !in snoozeTimes &&
+                        it.scheduledFor.toLocalDateTime(zone).time.toString().take(5) !in schedule.timesLocal
+                }.map { it.scheduledFor.toLocalDateTime(zone).date }.toSet()
                 var date = maxOf(schedule.startDate, today.minus(LOOKBACK_DAYS + 1, DateTimeUnit.DAY))
                 val limit = minOf(schedule.endDate ?: today, today)
                 while (date <= limit) {
-                    if (MedicationRecurrence.occursOn(schedule, date)) {
-                        schedule.timesLocal.forEach { time -> consider(medication, schedule.scheduleId, LocalDateTime.parse("${date}T$time").toInstant(zone)) }
+                    if (date !in foreignDays && MedicationRecurrence.occursOn(schedule, date)) {
+                        schedule.timesLocal.forEach { time ->
+                            val at = LocalDateTime.parse("${date}T$time").toInstant(zone)
+                            if (at >= trackedFrom) consider(medication, schedule.scheduleId, at)
+                        }
                     }
                     date = date.plus(1, DateTimeUnit.DAY)
                 }

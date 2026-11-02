@@ -492,10 +492,15 @@ object IosRuntime {
         scope.launch {
             try {
                 val now = currentInstant()
+                var wrote = false
                 repository.profiles.value.forEach { profile ->
-                    MissedDoses.pending(repository.peekProfile(profile.profileId), now, TimeZone.currentSystemDefault())
-                        .forEach { repository.addDoseEvent(it) }
+                    val missed = MissedDoses.pending(repository.peekProfile(profile.profileId), now, TimeZone.currentSystemDefault())
+                    if (missed.isNotEmpty()) {
+                        repository.addDoseEvents(profile.profileId, missed)
+                        wrote = true
+                    }
                 }
+                if (wrote) repositoryObserver?.repositoryDidChange()
                 completion(null)
             } catch (error: Throwable) {
                 completion(nativeMessage("dose_record_failed"))

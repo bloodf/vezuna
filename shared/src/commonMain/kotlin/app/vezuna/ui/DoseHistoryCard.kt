@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import app.vezuna.domain.DoseCounts
 import app.vezuna.domain.DoseHistoryFactory
 import app.vezuna.domain.ProfileData
@@ -16,7 +15,8 @@ import kotlinx.datetime.TimeZone
 /** Descriptive dose history: adherence over 7 and 30 days and per-medication taken/skipped/missed counts. */
 @Composable
 fun DoseHistoryCard(data: ProfileData) {
-    val history = remember(data) { DoseHistoryFactory.create(data, currentInstant(), TimeZone.currentSystemDefault()) }
+    if (data.medications.isEmpty()) return
+    val history = DoseHistoryFactory.create(data, currentInstant(), TimeZone.currentSystemDefault())
     SectionHeading(vitaText(L10nKey.DOSE_HISTORY))
     if (history.last30Days.completed == 0) {
         Text(vitaText(L10nKey.NO_DOSE_EVENTS), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

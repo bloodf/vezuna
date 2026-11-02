@@ -71,6 +71,7 @@
     <string name="privacy_policy_unavailable">The privacy policy could not be loaded.</string>
     <!-- reminders lane -->
     <string name="medication_reminder_generic_text">Time to take a medication</string>
+    <string name="reminder_for_profile">For %1$s</string>
     <!-- App lock -->
     <string name="app_lock_prompt_title">Unlock Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirm it is you to open your health records</string>

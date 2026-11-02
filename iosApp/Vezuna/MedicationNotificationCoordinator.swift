@@ -136,15 +136,16 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 try await center.add(request(for: reminder, hidden: hidden))
             }
             for snoozed in rebuiltSnoozes { try await center.add(request(for: snoozed, hidden: hidden)) }
-            let rebuiltIds = Set(rebuiltSnoozes.map { $0.identifier(hidingName: hidden) })
-            for snoozed in await pendingSnoozes(for: medications, hidden: hidden, now: now)
-            where !existing.contains(snoozed.identifier(hidingName: hidden)) && !rebuiltIds.contains(snoozed.identifier(hidingName: hidden)) {
+            // Stored snoozes are matched by (schedule, time), not identifier: the name hashed into it may have changed since.
+            func snoozeKey(_ reminder: DoseReminder) -> String { "\(reminder.scheduleId):\(Int(reminder.scheduledAt.timeIntervalSince1970))" }
+            let coveredSnoozes = Set(pending.filter { $0.identifier.hasSuffix(DoseReminder.snoozeSuffix) }.compactMap { reminder(from: $0.content.userInfo) }.map(snoozeKey))
+            for snoozed in await pendingSnoozes(for: medications, hidden: hidden, now: now) where !coveredSnoozes.contains(snoozeKey(snoozed)) {
                 try await center.add(request(for: snoozed, hidden: hidden))
             }
             let coverage = planner.coverageEnd(of: reminders, after: now)
             IosRuntime.shared.setReminderCoverage(untilEpochSeconds: coverage.map { Int64($0.timeIntervalSince1970) } ?? -1)
-            await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
             lastError = nil
+            await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
         } catch {
             lastError = error.localizedDescription
         }
