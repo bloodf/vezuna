@@ -38,18 +38,21 @@ final class KeychainKeyStore: NSObject, VaultKeyStore {
         }
     }
 
+    /// Add-only: an existing item is never replaced, so a false "missing" can never destroy the real key.
     func write(key: KotlinByteArray) -> Bool {
+        add(account: Self.account, key: key)
+    }
+
+    func archive(key: KotlinByteArray) -> Bool {
+        add(account: "\(Self.account)-archived-\(Int(Date().timeIntervalSince1970 * 1000))", key: key)
+    }
+
+    private func add(account: String, key: KotlinByteArray) -> Bool {
         var attributes = query
+        attributes[kSecAttrAccount as String] = account
         attributes[kSecValueData as String] = key.toData()
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        var status = SecItemAdd(attributes as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            status = SecItemUpdate(query as CFDictionary, [
-                kSecValueData as String: key.toData(),
-                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            ] as CFDictionary)
-        }
-        return status == errSecSuccess
+        return SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess
     }
 
     func delete() -> Bool {

@@ -1,6 +1,8 @@
 package app.vezuna.security
 
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
@@ -41,6 +43,8 @@ actual fun createPlatformVault(storagePath: String): SecureVault = IosSecureVaul
 @OptIn(ExperimentalForeignApi::class)
 class IosSecureVault(private val directory: String) : SecureVault {
     private val manager = NSFileManager.defaultManager
+    private val lock = Mutex()
+    private var protectionRelaxed = false
 
     private val core = KeyFileVaultCore(
         files = IosFileOps(),
@@ -53,32 +57,51 @@ class IosSecureVault(private val directory: String) : SecureVault {
         keyStore = IosKeyStoreBridge.keyStore,
     )
 
-    override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope {
+    override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope = lock.withLock {
         prepareDirectory()
-        return core.encrypt(plainText, associatedData)
+        core.encrypt(plainText, associatedData)
     }
 
-    override suspend fun decrypt(envelope: CipherEnvelope): ByteArray = core.decrypt(envelope)
+    override suspend fun decrypt(envelope: CipherEnvelope): ByteArray = lock.withLock {
+        relaxExistingProtection()
+        core.decrypt(envelope)
+    }
 
     override suspend fun write(key: String, ciphertext: ByteArray) {
         prepareDirectory()
         writeProtected(fileFor(key), ciphertext)
     }
 
-    override suspend fun read(key: String): ByteArray? = core.readData(fileFor(key))
+    override suspend fun read(key: String): ByteArray? {
+        relaxExistingProtection()
+        return core.readData(fileFor(key))
+    }
 
     override suspend fun delete(key: String) { manager.removeItemAtPath(fileFor(key), null) }
 
-    override suspend fun quarantineAll(): Boolean {
+    /** All-or-nothing: the Keychain key is archived first, files are moved only then, the key is deleted last. */
+    override suspend fun quarantineAll(): Boolean = lock.withLock {
         prepareDirectory()
+        if (!core.archiveKey()) return@withLock false
         val names = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty()
             .filterIsInstance<String>()
             .filterNot { it.startsWith(QUARANTINE) }
-        val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}"
-        if (!manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null)) return false
-        if (!names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }) return false
-        // Only reached after the user confirmed the reset. The Keychain key is archived next to the data, never dropped.
-        return runCatching { core.discardKey { writeProtected("$target/keychain-master-key", it) } }.getOrDefault(false)
+        if (names.isNotEmpty()) {
+            val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}"
+            if (!manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null)) return@withLock false
+            if (!names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }) return@withLock false
+        }
+        core.deleteKey()
+    }
+
+    /** Files written by older builds carry `.complete`; relax them once so lock-screen dose actions can read them. */
+    private fun relaxExistingProtection() {
+        if (protectionRelaxed) return
+        protectionRelaxed = true
+        val keyName = fileFor("master-key").substringAfterLast('/')
+        (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
+            .filterNot { it.startsWith(QUARANTINE) || it == keyName }
+            .forEach { manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), "$directory/$it", null) }
     }
 
     private fun randomKey(): ByteArray {
@@ -92,10 +115,12 @@ class IosSecureVault(private val directory: String) : SecureVault {
         override fun exists(path: String): Boolean = manager.fileExistsAtPath(path)
         override fun read(path: String): ByteArray? = NSData.dataWithContentsOfFile(path)?.toByteArray()
         override fun write(path: String, bytes: ByteArray) = writeProtected(path, bytes)
-        override fun quarantine(path: String): Boolean {
-            val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}-migrated-key"
-            return manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null) &&
-                manager.moveItemAtPath(path, "$target/${path.substringAfterLast('/')}", null)
+        override fun delete(path: String): Boolean = manager.removeItemAtPath(path, null)
+        override fun dataFiles(): List<String> {
+            val keyName = fileFor("master-key").substringAfterLast('/')
+            return (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
+                .filterNot { it.startsWith(QUARANTINE) || it == keyName }
+                .map { "$directory/$it" }
         }
     }
 
@@ -107,6 +132,7 @@ class IosSecureVault(private val directory: String) : SecureVault {
     }
 
     private fun prepareDirectory() {
+        relaxExistingProtection()
         manager.createDirectoryAtPath(
             directory,
             withIntermediateDirectories = true,

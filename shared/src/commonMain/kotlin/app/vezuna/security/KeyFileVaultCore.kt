@@ -1,5 +1,7 @@
 package app.vezuna.security
 
+import kotlinx.serialization.json.Json
+
 /** Minimal file seam so key-file rules can be tested without Foundation. */
 interface VaultFileOps {
     fun exists(path: String): Boolean
@@ -8,8 +10,11 @@ interface VaultFileOps {
     fun read(path: String): ByteArray?
     fun write(path: String, bytes: ByteArray)
 
-    /** Moves a file into the unreadable/quarantine area instead of deleting it. False when not possible. */
-    fun quarantine(path: String): Boolean = false
+    /** Deletes a file. Only used for the legacy key file once its Keychain copy is proven to work. */
+    fun delete(path: String): Boolean = false
+
+    /** Vault data files: everything in the vault directory except the key file and quarantine folders. */
+    fun dataFiles(): List<String> = emptyList()
 }
 
 enum class KeyStoreStatus { FOUND, MISSING, UNAVAILABLE }
@@ -20,7 +25,12 @@ class KeyStoreRead(val status: KeyStoreStatus, val key: ByteArray? = null)
 /** Secure key slot (the iOS Keychain). Implemented natively and faked in tests. */
 interface VaultKeyStore {
     fun read(): KeyStoreRead
+
+    /** Add-only: false when an item already exists or the write failed. Never replaces a stored key. */
     fun write(key: ByteArray): Boolean
+
+    /** Keeps a copy of [key] under a separate slot so a reset never destroys the only key to quarantined data. */
+    fun archive(key: ByteArray): Boolean
     fun delete(): Boolean
 }
 
@@ -62,31 +72,36 @@ class KeyFileVaultCore(
     }
 
     /**
-     * Removes the secure-store key after the caller confirmed a reset. The key is handed to [archive] first so
-     * quarantined data stays recoverable. False (nothing deleted) when the key cannot be read or deleted now.
+     * First half of a confirmed reset: copies the stored key into the archive slot. False (change nothing) when
+     * the key cannot be read right now or archived. True when archived or when there is no stored key.
      */
-    fun discardKey(archive: (ByteArray) -> Unit): Boolean {
+    fun archiveKey(): Boolean {
         val store = keyStore ?: return true
         val read = store.read()
-        when (read.status) {
-            KeyStoreStatus.UNAVAILABLE -> return false
-            KeyStoreStatus.FOUND -> {
-                archive(read.key ?: return false)
-                if (!store.delete()) return false
-            }
-            KeyStoreStatus.MISSING -> Unit
+        return when (read.status) {
+            KeyStoreStatus.UNAVAILABLE -> false
+            KeyStoreStatus.MISSING -> true
+            KeyStoreStatus.FOUND -> read.key?.let(store::archive) ?: false
         }
-        cachedKey = null
-        return true
     }
 
+    /** Second half of a reset, after the data was moved aside. */
+    fun deleteKey(): Boolean {
+        cachedKey = null
+        return keyStore?.delete() ?: true
+    }
+
+    /**
+     * Not thread safe by itself: callers serialize access. Cross-instance races are still safe because the
+     * store write is add-only and the loser adopts the stored key.
+     */
     private fun key(createIfAbsent: Boolean): ByteArray {
         val store = keyStore ?: return fileKey(createIfAbsent)
         cachedKey?.let { return it }
         val read = store.read()
         val key = when (read.status) {
             KeyStoreStatus.UNAVAILABLE -> throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
-            KeyStoreStatus.FOUND -> validKey(read.key).also { retireLegacyFile(it) }
+            KeyStoreStatus.FOUND -> reconcile(validKey(read.key))
             KeyStoreStatus.MISSING -> when {
                 files.exists(keyPath) -> migrate(store)
                 createIfAbsent -> create(store)
@@ -97,28 +112,65 @@ class KeyFileVaultCore(
         return key
     }
 
-    /** Copies the legacy file key into the store; the file is quarantined only after a verified read-back. */
+    /** The store holds [stored]. A leftover legacy file is removed only once the stored key provably decrypts data. */
+    private fun reconcile(stored: ByteArray): ByteArray {
+        if (!files.exists(keyPath)) return stored
+        val legacy = files.read(keyPath)?.takeIf { it.size == KEY_BYTES } ?: return stored
+        if (legacy.contentEquals(stored)) {
+            if (decrypts(stored) == true) files.delete(keyPath)
+            return stored
+        }
+        // Two different keys: keep whichever decrypts the data, leave both in place.
+        return if (decrypts(stored) == false && decrypts(legacy) == true) legacy else stored
+    }
+
+    /** Copies the legacy file key into the store; the file goes only after read-back matches and data decrypts. */
     private fun migrate(store: VaultKeyStore): ByteArray {
-        val key = validKey(files.read(keyPath))
-        if (stored(store, key)) files.quarantine(keyPath)
-        return key
+        val legacy = validKey(files.read(keyPath))
+        if (store.write(legacy)) {
+            if (readsBack(store, legacy) && decrypts(legacy) == true) files.delete(keyPath)
+            return legacy
+        }
+        return adoptStored(store) ?: legacy
     }
 
-    /** A store write failure falls back to the key file so the key is never lost; migration retries next launch. */
+    /** Refuses to invent a key when encrypted data already exists; a store write failure falls back to the file. */
     private fun create(store: VaultKeyStore): ByteArray {
+        if (files.dataFiles().isNotEmpty()) throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
         val key = randomKey()
-        if (!stored(store, key)) files.write(keyPath, key)
+        if (store.write(key) && readsBack(store, key)) return key
+        adoptStored(store)?.let { return it }
+        if (files.exists(keyPath)) return validKey(files.read(keyPath))
+        files.write(keyPath, key)
         return key
     }
 
-    private fun stored(store: VaultKeyStore, key: ByteArray): Boolean {
-        if (!store.write(key)) return false
+    /** After a failed add: a stored key (written by a concurrent creator) wins; locked means unknown, never overwrite. */
+    private fun adoptStored(store: VaultKeyStore): ByteArray? {
+        val read = store.read()
+        return when (read.status) {
+            KeyStoreStatus.FOUND -> validKey(read.key)
+            KeyStoreStatus.UNAVAILABLE -> throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
+            KeyStoreStatus.MISSING -> null
+        }
+    }
+
+    private fun readsBack(store: VaultKeyStore, key: ByteArray): Boolean {
         val back = store.read()
         return back.status == KeyStoreStatus.FOUND && back.key?.contentEquals(key) == true
     }
 
-    private fun retireLegacyFile(key: ByteArray) {
-        if (files.exists(keyPath) && files.read(keyPath)?.contentEquals(key) == true) files.quarantine(keyPath)
+    /** True when a stored vault envelope decrypts with [key], false when envelopes exist but none do, null when none exist. */
+    private fun decrypts(key: ByteArray): Boolean? {
+        var seen = false
+        for (path in files.dataFiles()) {
+            val envelope = files.read(path)
+                ?.let { runCatching { envelopeJson.decodeFromString(CipherEnvelope.serializer(), it.decodeToString()) }.getOrNull() }
+                ?.takeIf { it.algorithm == algorithm && it.keyId == keyId } ?: continue
+            seen = true
+            if (runCatching { open(key, envelope) }.isSuccess) return true
+        }
+        return if (seen) false else null
     }
 
     private fun validKey(bytes: ByteArray?): ByteArray {
@@ -131,6 +183,8 @@ class KeyFileVaultCore(
         if (!createIfAbsent) throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
         return randomKey().also { files.write(keyPath, it) }
     }
+
+    private val envelopeJson = Json { ignoreUnknownKeys = true }
 
     companion object {
         const val KEY_BYTES = 32

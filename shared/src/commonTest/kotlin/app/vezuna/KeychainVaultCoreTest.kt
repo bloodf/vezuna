@@ -8,37 +8,44 @@ import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultFileOps
 import app.vezuna.security.VaultKeyStore
 import app.vezuna.security.VaultUnreadableException
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private class FakeKeyFiles : VaultFileOps {
     val data = mutableMapOf<String, ByteArray?>()
-    val quarantined = mutableListOf<String>()
+    val deleted = mutableListOf<String>()
     override fun exists(path: String) = data.containsKey(path)
     override fun read(path: String) = data[path]
     override fun write(path: String, bytes: ByteArray) { data[path] = bytes }
-    override fun quarantine(path: String): Boolean { quarantined += path; data.remove(path); return true }
+    override fun delete(path: String): Boolean { deleted += path; data.remove(path); return true }
+    override fun dataFiles() = data.keys.filter { it != "key" }
 }
 
 private class FakeKeyStore : VaultKeyStore {
     var key: ByteArray? = null
     var locked = false
     var failWrites = false
-    var reads = 0
+    var raceKey: ByteArray? = null // another creator wins the add
+    val archived = mutableListOf<ByteArray>()
     var deletes = 0
-    override fun read(): KeyStoreRead {
-        reads++
-        return when {
-            locked -> KeyStoreRead(KeyStoreStatus.UNAVAILABLE)
-            key == null -> KeyStoreRead(KeyStoreStatus.MISSING)
-            else -> KeyStoreRead(KeyStoreStatus.FOUND, key)
-        }
+    override fun read(): KeyStoreRead = when {
+        locked -> KeyStoreRead(KeyStoreStatus.UNAVAILABLE)
+        key == null -> KeyStoreRead(KeyStoreStatus.MISSING)
+        else -> KeyStoreRead(KeyStoreStatus.FOUND, key)
     }
-    override fun write(key: ByteArray): Boolean { if (failWrites) return false; this.key = key; return true }
+    override fun write(key: ByteArray): Boolean {
+        raceKey?.let { this.key = it; raceKey = null }
+        if (failWrites || this.key != null) return false
+        this.key = key
+        return true
+    }
+    override fun archive(key: ByteArray): Boolean { archived += key; return true }
     override fun delete(): Boolean { deletes++; key = null; return true }
 }
 
@@ -47,120 +54,197 @@ class KeychainVaultCoreTest {
     private val store = FakeKeyStore()
     private var generated = 0
     private val fileKey = ByteArray(32) { 7 }
-    private val core = KeyFileVaultCore(
+    private val newKey = ByteArray(32) { 9 }
+    private val otherKey = ByteArray(32) { 3 }
+    private val json = Json
+
+    private fun core(s: FakeKeyStore = store) = KeyFileVaultCore(
         files = files, keyPath = "key", algorithm = "ALG", keyId = "ID",
-        randomKey = { generated++; ByteArray(32) { 9 } },
-        seal = { key, plain, aad -> CipherEnvelope("x", "x", byteArrayOf(1), plain + key.take(1), aad) },
-        open = { _, e -> e.cipherText },
-        keyStore = store,
+        randomKey = { generated++; newKey },
+        seal = { key, plain, aad -> CipherEnvelope("x", "x", byteArrayOf(1), byteArrayOf(key[0]) + plain, aad) },
+        open = { key, e ->
+            if (e.cipherText[0] != key[0]) throw RuntimeException("auth failed")
+            e.cipherText.copyOfRange(1, e.cipherText.size)
+        },
+        keyStore = s,
     )
 
-    @Test
-    fun migratesFileKeyToStoreThenQuarantinesFile() {
-        files.data["key"] = fileKey
+    private val core = core()
 
-        core.encrypt(byteArrayOf(1), byteArrayOf())
+    private fun envelopeFile(key: ByteArray) =
+        json.encodeToString(CipherEnvelope.serializer(), CipherEnvelope("ALG", "ID", byteArrayOf(1), byteArrayOf(key[0], 5), byteArrayOf())).encodeToByteArray()
+
+    private fun encrypt(c: KeyFileVaultCore = core) = c.encrypt(byteArrayOf(1), byteArrayOf())
+    private fun failure(action: () -> Unit) = assertFailsWith<VaultUnreadableException> { action() }.failure
+
+    @Test
+    fun migrationDeletesFileOnlyAfterDataDecryptsWithStoredKey() {
+        files.data["key"] = fileKey
+        files.data["data"] = envelopeFile(fileKey)
+
+        encrypt()
 
         assertContentEquals(fileKey, store.key)
-        assertEquals(listOf("key"), files.quarantined)
-        assertFalse(files.exists("key"))
+        assertEquals(listOf("key"), files.deleted)
         assertEquals(0, generated)
     }
 
     @Test
-    fun failedStoreWriteKeepsFileAndStillUsesItsKey() {
+    fun migrationKeepsFileWhenNothingProvesTheKey() {
         files.data["key"] = fileKey
+
+        encrypt()
+
+        assertContentEquals(fileKey, store.key)
+        assertTrue(files.deleted.isEmpty())
+        assertTrue(files.exists("key"))
+    }
+
+    @Test
+    fun failedStoreWriteKeepsFileAndRetriesNextLaunch() {
+        files.data["key"] = fileKey
+        files.data["data"] = envelopeFile(fileKey)
         store.failWrites = true
 
-        core.encrypt(byteArrayOf(1), byteArrayOf())
+        encrypt()
 
-        assertTrue(files.quarantined.isEmpty())
-        assertContentEquals(fileKey, files.data["key"])
-        assertEquals(0, generated)
-        // next launch retries
+        assertTrue(files.deleted.isEmpty())
+        assertEquals(null, store.key)
         store.failWrites = false
-        val next = KeyFileVaultCore(files, "key", "ALG", "ID", { generated++; ByteArray(32) }, { _, p, a -> CipherEnvelope("x", "x", byteArrayOf(), p, a) }, { _, e -> e.cipherText }, store)
-        next.encrypt(byteArrayOf(1), byteArrayOf())
+        encrypt(core())
         assertContentEquals(fileKey, store.key)
-        assertEquals(listOf("key"), files.quarantined)
+        assertEquals(listOf("key"), files.deleted)
     }
 
     @Test
     fun lockedStoreIsKeyUnavailableAndNeverRegenerates() {
         store.locked = true
-        listOf(true, false).forEach { withFile ->
-            if (withFile) files.data["key"] = fileKey
-            assertEquals(VaultFailure.KEY_UNAVAILABLE, assertFailsWith<VaultUnreadableException> { core.encrypt(byteArrayOf(1), byteArrayOf()) }.failure)
-            assertEquals(VaultFailure.KEY_UNAVAILABLE, assertFailsWith<VaultUnreadableException> {
-                core.decrypt(CipherEnvelope("ALG", "ID", byteArrayOf(), byteArrayOf(1), byteArrayOf()))
-            }.failure)
+        repeat(2) {
+            assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { encrypt() })
+            assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { core.decrypt(CipherEnvelope("ALG", "ID", byteArrayOf(), byteArrayOf(1), byteArrayOf())) })
+            files.data["key"] = fileKey
         }
         assertEquals(0, generated)
-        assertEquals(null, store.key)
-        assertTrue(files.quarantined.isEmpty())
+        assertNull(store.key)
+        assertTrue(files.deleted.isEmpty())
     }
 
     @Test
     fun unreadableLegacyFileWithEmptyStoreIsKeyUnavailable() {
         files.data["key"] = null
 
-        assertEquals(VaultFailure.KEY_UNAVAILABLE, assertFailsWith<VaultUnreadableException> { core.encrypt(byteArrayOf(1), byteArrayOf()) }.failure)
+        assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { encrypt() })
         assertEquals(0, generated)
-        assertEquals(null, store.key)
+        assertNull(store.key)
     }
 
     @Test
-    fun freshInstallCreatesKeyInStoreOnlyAndCachesIt() {
-        core.encrypt(byteArrayOf(1), byteArrayOf())
-        core.encrypt(byteArrayOf(1), byteArrayOf())
+    fun wrongSizeStoredKeyIsKeyUnavailableWithoutNewKey() {
+        store.key = ByteArray(5)
+
+        assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { encrypt() })
+        assertEquals(0, generated)
+        assertEquals(5, store.key?.size)
+    }
+
+    @Test
+    fun freshInstallCreatesKeyInStoreOnly() {
+        encrypt()
+        encrypt()
 
         assertEquals(1, generated)
-        assertContentEquals(ByteArray(32) { 9 }, store.key)
-        assertTrue(files.data.isEmpty())
-        assertEquals(2, store.reads) // one lookup + one migration/creation read-back, then cached
+        assertContentEquals(newKey, store.key)
+        assertTrue(files.data.none { it.key == "key" })
     }
 
     @Test
-    fun freshInstallStoreWriteFailureFallsBackToFile() {
+    fun existingDataWithoutAnyKeyNeverCreatesOne() {
+        files.data["data"] = envelopeFile(fileKey)
+
+        assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { encrypt() })
+        assertEquals(0, generated)
+        assertNull(store.key)
+    }
+
+    @Test
+    fun concurrentFirstUseAdoptsTheKeyAnotherCreatorStored() {
+        store.raceKey = otherKey
+
+        val envelope = encrypt()
+
+        assertContentEquals(otherKey, store.key)
+        assertEquals(otherKey[0], envelope.cipherText[0])
+        assertTrue(files.data.none { it.key == "key" })
+    }
+
+    @Test
+    fun twoCoresOnOneStoreConvergeOnOneKey() {
+        val a = encrypt(core())
+        val b = encrypt(core())
+
+        assertEquals(1, generated)
+        assertEquals(a.cipherText[0], b.cipherText[0])
+    }
+
+    @Test
+    fun storeWriteFailureOnFreshInstallFallsBackToFileWhenStoreIsEmpty() {
         store.failWrites = true
 
-        core.encrypt(byteArrayOf(1), byteArrayOf())
+        encrypt()
 
-        assertContentEquals(ByteArray(32) { 9 }, files.data["key"])
+        assertContentEquals(newKey, files.data["key"])
     }
 
     @Test
-    fun decryptNeverCreatesKey() {
-        assertEquals(VaultFailure.KEY_UNAVAILABLE, assertFailsWith<VaultUnreadableException> {
-            core.decrypt(CipherEnvelope("ALG", "ID", byteArrayOf(), byteArrayOf(1), byteArrayOf()))
-        }.failure)
-        assertEquals(0, generated)
+    fun mismatchedKeysKeepWhicheverDecryptsData() {
+        store.key = otherKey
+        files.data["key"] = fileKey
+        files.data["data"] = envelopeFile(fileKey)
+
+        val envelope = encrypt()
+
+        assertEquals(fileKey[0], envelope.cipherText[0])
+        assertTrue(files.exists("key"))
+        assertContentEquals(otherKey, store.key)
+        assertTrue(files.deleted.isEmpty())
     }
 
     @Test
-    fun discardKeyArchivesThenDeletesAndLockedLeavesItAlone() {
-        core.encrypt(byteArrayOf(1), byteArrayOf())
-        var archived: ByteArray? = null
+    fun mismatchedKeysPreferStoreWhenItDecrypts() {
+        store.key = otherKey
+        files.data["key"] = fileKey
+        files.data["data"] = envelopeFile(otherKey)
+
+        assertEquals(otherKey[0], encrypt().cipherText[0])
+        assertTrue(files.exists("key"))
+    }
+
+    @Test
+    fun staleLegacyFileEqualToStoredKeyIsDeletedOnlyWhenProven() {
+        store.key = fileKey
+        files.data["key"] = fileKey
+        encrypt()
+        assertTrue(files.deleted.isEmpty())
+
+        files.data["data"] = envelopeFile(fileKey)
+        encrypt(core())
+        assertEquals(listOf("key"), files.deleted)
+    }
+
+    @Test
+    fun resetArchivesBeforeDeleteAndLockedChangesNothing() {
+        encrypt()
 
         store.locked = true
-        assertFalse(core.discardKey { archived = it })
+        assertFalse(core.archiveKey())
+        assertTrue(store.archived.isEmpty())
         assertEquals(0, store.deletes)
 
         store.locked = false
-        assertTrue(core.discardKey { archived = it })
-        assertContentEquals(ByteArray(32) { 9 }, archived)
-        assertEquals(1, store.deletes)
-        assertEquals(null, store.key)
-    }
-
-    @Test
-    fun staleLegacyFileEqualToStoreKeyIsRetired() {
-        store.key = fileKey
-        files.data["key"] = fileKey
-
-        core.encrypt(byteArrayOf(1), byteArrayOf())
-
-        assertEquals(listOf("key"), files.quarantined)
-        assertEquals(0, generated)
+        assertTrue(core.archiveKey())
+        assertContentEquals(newKey, store.archived.single())
+        assertEquals(0, store.deletes)
+        assertTrue(core.deleteKey())
+        assertNull(store.key)
     }
 }
