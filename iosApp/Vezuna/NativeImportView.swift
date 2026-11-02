@@ -338,7 +338,7 @@ extension ComposeSourcePicker: UIDocumentPickerDelegate {
             let data = try Data(contentsOf: url)
             let type = UTType(filenameExtension: url.pathExtension)
             let mediaType = type?.conforms(to: .pdf) == true ? "application/pdf" : (type?.preferredMIMEType ?? "image/*")
-            completion?(PickedSource(fileName: url.lastPathComponent, mediaType: mediaType, bytes: data.kotlinBytes, candidates: []))
+            completion?(PickedSource(fileName: url.lastPathComponent, mediaType: mediaType, bytes: data.kotlinBytes, candidates: [], laboratoryName: nil, orderedAt: nil, additionalPages: []))
         } catch {
             completion?(nil)
         }
