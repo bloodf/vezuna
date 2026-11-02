@@ -16,10 +16,13 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
     /// The running extraction and any temporary file copy it depends on; both are dropped on cancel.
     private var extraction: Task<Void, Never>?
     private var temporaryCopy: URL?
+    /// Identifies the current pick. A stopped extraction may still be unwinding; it must never touch a later pick.
+    private var pickID = UUID()
 
     func pickSource(kind: String, completion: @escaping (PickedSource?, String?, String?) -> Void) {
         guard self.completion == nil else { completion(nil, nil, nil); return }
         self.completion = completion
+        pickID = UUID()
         photos = []
         DispatchQueue.main.async {
             switch kind {
@@ -35,6 +38,7 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
         extraction?.cancel()
         extraction = nil
         removeTemporaryCopy()
+        pickID = UUID()
         completion = nil
         photos = []
     }
@@ -120,13 +124,19 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
 
     private func extract(name: String, mediaType: String, files: [Data], texts: @escaping (@escaping (Int, Int) -> Void) async throws -> ExtractedSourceText) {
         IosRuntime.shared.importReading(fileName: name)
+        let id = pickID
         extraction = Task { @MainActor in
-            defer { extraction = nil; removeTemporaryCopy() }
+            defer {
+                if id == pickID { extraction = nil; removeTemporaryCopy() }
+            }
             do {
                 let extracted = try await texts { page, count in
-                    DispatchQueue.main.async { IosRuntime.shared.importProgress(page: Int32(page), pageCount: Int32(count)) }
+                    DispatchQueue.main.async {
+                        if id == self.pickID { IosRuntime.shared.importProgress(page: Int32(page), pageCount: Int32(count)) }
+                    }
                 }
                 try Task.checkCancellation()
+                guard id == pickID else { return }
                 let source = IosRuntime.shared.extractedSource(
                     fileName: name,
                     mediaType: mediaType,
@@ -139,9 +149,9 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
             } catch is CancellationError {
                 // cancelPick already cleared the completion; nothing is reported or saved.
             } catch ImportError.tooManyPages {
-                fail("TOO_MANY_PAGES", name)
+                if id == pickID { fail("TOO_MANY_PAGES", name) }
             } catch {
-                fail("UNREADABLE", name)
+                if id == pickID { fail("UNREADABLE", name) }
             }
         }
     }

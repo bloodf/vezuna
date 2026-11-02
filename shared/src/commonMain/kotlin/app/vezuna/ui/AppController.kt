@@ -58,6 +58,7 @@ import app.vezuna.ui.security.RestoreResult
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -860,8 +861,17 @@ class AppController(
             return announce(message(L10nKey.ENTRY_PROFILE_CHANGED))
         }
         if (source.candidates.isEmpty()) return session.noResults(source.fileName)
+        // Stopped before the save began: nothing is stored. Once saving starts it always finishes, so a document
+        // never exists with only some of its candidates.
+        try {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            session.idle()
+            throw cancellation
+        }
+        session.saving()
         val onSourceScreen = navigator.current == AppScreen.ImportSource || navigator.current == AppScreen.ImportExtract
-        importSource(source)
+        withContext(NonCancellable) { importSource(source) }
         // The source step is finished: back from the review returns to where the import began, not to the picker.
         if (onSourceScreen && mutableState.value.error == null && navigator.current == AppScreen.ImportReview) {
             navigator.back()

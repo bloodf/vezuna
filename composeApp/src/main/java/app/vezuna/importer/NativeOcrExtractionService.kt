@@ -21,6 +21,8 @@ import app.vezuna.ui.entry.ImportFailure
 import app.vezuna.ui.entry.ImportFailureReason
 import app.vezuna.ui.entry.MAX_PDF_PAGES
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -83,7 +85,7 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
                 PdfRenderer(descriptor).use { renderer ->
                     val pageCount = renderer.pageCount
                     if (pageCount > MAX_PDF_PAGES) throw ImportFailure(ImportFailureReason.TOO_MANY_PAGES, displayName)
-                    val embedded = embeddedPages(bytes)
+                    val embedded = embeddedPages(bytes) { ensureActive() }
                     val pages = mutableListOf<OcrPageText>()
                     for (index in 0 until pageCount) {
                         ensureActive()
@@ -114,15 +116,18 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
         }
     }
 
-    private fun embeddedPages(bytes: ByteArray): List<String> = try {
+    private fun embeddedPages(bytes: ByteArray, checkActive: () -> Unit): List<String> = try {
         PDDocument.load(bytes).use { document ->
             (1..document.numberOfPages).map { page ->
+                checkActive()
                 PDFTextStripper().apply {
                     startPage = page
                     endPage = page
                 }.getText(document)
             }
         }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+        throw error
     } catch (_: Exception) {
         emptyList()
     }
@@ -145,7 +150,15 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
 
     private suspend fun recognize(bitmap: Bitmap): String = recognize(InputImage.fromBitmap(bitmap, 0))
 
-    private suspend fun recognize(image: InputImage): String = recognizer.process(image).await().text
+    /**
+     * ML Kit keeps reading the bitmap until its task ends, so the call is not cancelled midway: cancellation lands
+     * right after it, before the caller recycles the bitmap.
+     */
+    private suspend fun recognize(image: InputImage): String {
+        val text = withContext(NonCancellable) { recognizer.process(image).await().text }
+        currentCoroutineContext().ensureActive()
+        return text
+    }
 
     private fun applyExifRotation(original: Bitmap, bytes: ByteArray): Bitmap {
         val rotation = try {

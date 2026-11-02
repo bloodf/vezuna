@@ -27,7 +27,8 @@ data class ExtractionDetails(val fileName: String, val pages: List<ExtractedPage
 sealed interface ImportPhase {
     data object Idle : ImportPhase
     /** [page] of [pageCount] is 0 of 0 until the page count is known. */
-    data class Reading(val fileName: String?, val page: Int = 0, val pageCount: Int = 0) : ImportPhase
+    /** [cancellable] is false once extraction is done and the result is being saved: that step always completes. */
+    data class Reading(val fileName: String?, val page: Int = 0, val pageCount: Int = 0, val cancellable: Boolean = true) : ImportPhase
     data class Failed(val reason: ImportFailureReason, val fileName: String?, val kind: SourceKind) : ImportPhase
     data class NoResults(val fileName: String, val kind: SourceKind) : ImportPhase
 }
@@ -72,6 +73,11 @@ class ImportSession {
     /** Page [page] (1-based) of [pageCount] is being read; ignored once the import is no longer reading. */
     fun progress(page: Int, pageCount: Int) {
         mutablePhase.update { current -> if (current is ImportPhase.Reading) current.copy(page = page, pageCount = pageCount) else current }
+    }
+
+    /** Extraction is finished and the source is being stored; Stop is no longer offered. */
+    fun saving() {
+        mutablePhase.update { current -> if (current is ImportPhase.Reading) current.copy(cancellable = false) else current }
     }
 
     fun publish(details: ExtractionDetails) {

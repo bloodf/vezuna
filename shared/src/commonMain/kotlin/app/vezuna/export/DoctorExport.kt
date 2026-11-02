@@ -474,7 +474,7 @@ class CsvDoctorExporter {
         // Spreadsheets run a cell as a formula after =, +, -, @ (even behind blanks) and after a leading tab or carriage return.
         // A plain signed decimal (-1.5) is a number, not a formula: it stays exact so spreadsheets keep it numeric.
         val protected = if (PLAIN_NUMBER.matches(raw)) raw
-        else if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
+        else if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@', '＝', '＋', '－', '＠')) "'$raw" else raw
         return "\"${protected.replace("\"", "\"\"")}\""
     }
 

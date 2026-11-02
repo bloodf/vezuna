@@ -44,7 +44,6 @@ import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.components.ListRow
 import app.vezuna.ui.components.PrimaryButton
-import app.vezuna.ui.components.ProgressState
 import app.vezuna.ui.components.SecondaryButton
 import app.vezuna.ui.components.TertiaryButton
 import app.vezuna.ui.nav.RouteContext
@@ -86,7 +85,7 @@ internal fun ImportSourceScreen(ctx: RouteContext) {
             when (val current = phase) {
                 ImportPhase.Idle -> SourceChoices(ctx.sourcePicker != null, true, start, manual)
                 // While the OS picker is open (no file yet) the choices stay underneath it, inactive.
-                is ImportPhase.Reading -> current.fileName?.let { Reading(it, current.page, current.pageCount, cancel) } ?: SourceChoices(ctx.sourcePicker != null, false, start, manual)
+                is ImportPhase.Reading -> current.fileName?.let { Reading(it, current.page, current.pageCount, cancel.takeIf { current.cancellable }) } ?: SourceChoices(ctx.sourcePicker != null, false, start, manual)
                 is ImportPhase.Failed -> Problem(
                     illustration = Res.drawable.ill_file_error,
                     title = vitaText(current.reason.titleKey()),
@@ -172,7 +171,7 @@ private fun SourceOption(category: Category, icon: DrawableResource, title: Stri
 }
 
 @Composable
-private fun Reading(fileName: String, page: Int, pageCount: Int, onCancel: () -> Unit) {
+private fun Reading(fileName: String, page: Int, pageCount: Int, onCancel: (() -> Unit)?) {
     Surface(shape = RoundedCornerShape(VezunaTokens.CardRadius), color = Category.RECORDS.fill, contentColor = Category.RECORDS.onFill) {
         Column(
             Modifier.fillMaxWidth().padding(VezunaTokens.SpaceLg).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -184,13 +183,13 @@ private fun Reading(fileName: String, page: Int, pageCount: Int, onCancel: () ->
             Text(fileName, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Text(vitaText(L10nKey.ENTRY_READING_BODY), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
             if (pageCount > 0) {
-                ProgressState(vitaText(L10nKey.ENTRY_READING_PROGRESS, page, pageCount))
-                LinearProgressIndicator(progress = { page.toFloat() / pageCount }, modifier = Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
+                Text(vitaText(L10nKey.ENTRY_READING_PROGRESS, page, pageCount), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+                LinearProgressIndicator(progress = { (page - 1).coerceAtLeast(0).toFloat() / pageCount }, modifier = Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
             } else {
                 // Indeterminate until the page count is known.
                 LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
             }
-            TertiaryButton(vitaText(L10nKey.ENTRY_CANCEL_READING), onCancel, Modifier.fillMaxWidth())
+            onCancel?.let { TertiaryButton(vitaText(L10nKey.ENTRY_CANCEL_READING), it, Modifier.fillMaxWidth()) }
         }
     }
 }
