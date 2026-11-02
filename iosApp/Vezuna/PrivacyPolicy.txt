@@ -28,7 +28,7 @@ The app encrypts its local vault. Android uses Android Keystore. iPhone uses Cry
 
 Records remain locally until you remove them with the available app controls or remove the app and its stored data through device settings. An imported record is a separate copy from the original document or health service. Removing Vezuna does not remove the original source, shared exports, or backups stored elsewhere.
 
-Vezuna disables Android cloud backup and device transfer for app data. App-owned iPhone vault and model directories are marked as excluded from backup. In-app encrypted backups require the same device key to restore. They do not provide cross-device recovery. Uninstalling the app or losing the key can make a backup unusable.
+Vezuna disables Android cloud backup and device transfer for app data. App-owned iPhone vault and model directories are marked as excluded from backup. In-app backups are encrypted with a passphrase you choose and can be restored on another device. Vezuna cannot recover a lost passphrase, so a backup without it cannot be opened. Backups made by earlier builds open only on the same device with the same device key.
 
 Exports and sharing
 

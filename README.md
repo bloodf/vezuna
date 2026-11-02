@@ -84,7 +84,7 @@ There is no application server and no health-data HTTP client. Android removes I
 
 Android uses a non-exportable AES-256 key in Android Keystore with AES-GCM. iOS uses CryptoKit AES-GCM and protected app-private files, not Keychain-backed key storage. See [privacy details](PRIVACY.md) for file protection, backup exclusions, and limitations. No independent security audit is claimed.
 
-`BackupService` creates an authenticated encrypted profile envelope for same-device restore. Portable cross-device recovery requires a separately designed user-passphrase envelope; it is not claimed by this version.
+`BackupService` creates passphrase-sealed portable backups (one profile, or the whole household with vitals and original documents) that restore on another device. A lost passphrase cannot be recovered. Older same-device envelopes still open on the device that made them.
 
 The pre-release app identity changed to `app.vezuna`. It installs separately from builds with an earlier ID. Existing installations are not removed, and their encrypted data does not transfer automatically. See the [identity transition](docs/ARCHITECTURE.md).
 
