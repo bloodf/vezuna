@@ -283,8 +283,17 @@ private fun VezunaNavigationBar(current: Destination, onSelect: (Destination) ->
                 selected = destination == current,
                 onClick = { onSelect(destination) },
                 icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                // Labels never truncate: at large text they wrap to a second line instead.
-                label = { Text(vitaText(destination.label()), maxLines = 2, textAlign = TextAlign.Center) },
+                // Labels never truncate: at large text they wrap to a second line instead. The Material bar size
+                // (12sp) keeps "Records"/"Registros" on one line on narrow phones (about 290pt wide).
+                label = {
+                    Text(
+                        vitaText(destination.label()),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2,
+                        textAlign = TextAlign.Center,
+                        fontWeight = if (destination == current) FontWeight.Bold else FontWeight.Normal,
+                    )
+                },
                 alwaysShowLabel = true,
                 // Selected tab: a filled indicator at 3:1 or more on the bar (pine on light, mint on dark) and a
                 // bold label, so the state never rests on a faint tint.
