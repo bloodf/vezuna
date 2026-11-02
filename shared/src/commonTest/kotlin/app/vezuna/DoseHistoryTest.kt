@@ -81,6 +81,20 @@ class DoseHistoryTest {
     }
 
     @Test
+    fun legacyScheduleWithOldEventIsStampedAndNothingIsBackfilled() {
+        val legacy = data(trackedSince = null, events = listOf(event("2026-03-01T09:00:00Z", DoseEventStatus.TAKEN)))
+        assertEquals(emptyList(), MissedDoses.pending(legacy, now, zone))
+        val stamped = MissedDoses.stampLegacy(legacy, now)
+        assertEquals(listOf(now), stamped.map { it.trackedSince })
+    }
+
+    @Test
+    fun resumedMedicationIsNotJudgedForPausedDays() {
+        // Resume stamps trackedSince = now, so the paused days before it stay unjudged.
+        assertEquals(emptyList(), MissedDoses.pending(data(trackedSince = now), now, zone))
+    }
+
+    @Test
     fun timeZoneShiftDoesNotMarkAnAlreadyRecordedDayMissed() {
         // Recorded at 09:00 in an old zone = 06:00 here; the 09:00 occurrence of that day must not become MISSED.
         val missed = MissedDoses.pending(

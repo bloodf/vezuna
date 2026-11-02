@@ -552,7 +552,8 @@ class AppController(
         val medication = findMedication(data, medicationId)
         val today = clock().toLocalDateTime(timeZone()).date
         val schedules = if (active) {
-            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+            // Paused or stopped days are not due: doses count again only from the moment of resuming.
+            medication.schedules.map { (if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it).copy(trackedSince = clock()) }
         } else {
             medication.schedules
         }

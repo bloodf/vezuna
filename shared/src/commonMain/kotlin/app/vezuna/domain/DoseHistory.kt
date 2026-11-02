@@ -56,6 +56,10 @@ object MissedDoses {
     const val GRACE_SECONDS = 24 * 60 * 60L
     private const val LOOKBACK_DAYS = 7
 
+    /** Legacy schedules (no [DoseSchedule.trackedSince]) stamped with [now]: nothing before the upgrade is ever judged missed. */
+    fun stampLegacy(data: ProfileData, now: Instant): List<DoseSchedule> =
+        data.medications.flatMap { it.schedules }.filter { it.trackedSince == null }.map { it.copy(trackedSince = now) }
+
     /** MISSED events to record now. Only active medications; snoozed doses are judged at their snoozed time. */
     fun pending(data: ProfileData, now: Instant, zone: TimeZone): List<DoseEvent> {
         val cutoff = Instant.fromEpochSeconds(now.epochSeconds - GRACE_SECONDS)
@@ -79,10 +83,9 @@ object MissedDoses {
 
         data.medications.filter { it.active }.forEach { medication ->
             medication.schedules.forEach { schedule ->
-                // Never judge doses from before the schedule existed in its current form; legacy records fall back to their first event.
-                val trackedFrom = schedule.trackedSince
-                    ?: data.doseEvents.filter { it.scheduleId == schedule.scheduleId }.minOfOrNull { it.scheduledFor }
-                    ?: return@forEach
+                // Never judge doses from before the schedule existed in its current form. Legacy schedules wait for [stampLegacy].
+                val trackedFrom = schedule.trackedSince ?: return@forEach
+                // ponytail: keyed on the local date in the current zone, so an evening dose recorded before a big zone shift may land on the next date; refine with the recorded zone if that ever matters.
                 // A terminal event on a day at a time this schedule does not have (time zone change) means the day is already accounted for.
                 val foreignDays = data.doseEvents.filter {
                     it.scheduleId == schedule.scheduleId && DoseEvents.isTerminal(it.status) && it.scheduledFor.epochSeconds !in snoozeTimes &&

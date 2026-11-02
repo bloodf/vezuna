@@ -494,7 +494,9 @@ object IosRuntime {
                 val now = currentInstant()
                 var wrote = false
                 repository.profiles.value.forEach { profile ->
-                    val missed = MissedDoses.pending(repository.peekProfile(profile.profileId), now, TimeZone.currentSystemDefault())
+                    val data = repository.peekProfile(profile.profileId)
+                    MissedDoses.stampLegacy(data, now).forEach { repository.updateSchedule(it) }
+                    val missed = MissedDoses.pending(data, now, TimeZone.currentSystemDefault())
                     if (missed.isNotEmpty()) {
                         repository.addDoseEvents(profile.profileId, missed)
                         wrote = true
