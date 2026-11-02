@@ -44,14 +44,14 @@ import app.vezuna.localization.message
 import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
-import app.vezuna.data.restoreWithVitals
-import app.vezuna.domain.keepingOnlyAvailableSourceFiles
-import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.data.restoreMembers
+import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
+import app.vezuna.security.backupFileId
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,6 +71,9 @@ interface SourceFileStore {
 
     /** Removes a stored file when the import that owned it could not be recorded. */
     suspend fun discard(key: String)
+
+    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
+    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
 }
 
 sealed interface AppScreen {
@@ -218,12 +221,19 @@ class AppController(
                 failMessage(L10nKey.NUMERIC_CANDIDATE_UNIT_REQUIRED)
             }
         }
-        val sourceHash = sha256(source.bytes).toHex()
+        val sourceHash = sourceIdentity(source)
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
         val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
         if (existingDocument == null) addDocumentKeepingFile(document)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
-            repository.addReport(LabReport(data.profile.profileId, randomId(), document.documentId, importedAt = currentInstant()))
+            repository.addReport(
+                LabReport(
+                    data.profile.profileId, randomId(), document.documentId,
+                    laboratoryName = source.laboratoryName?.trim()?.takeIf { it.isNotEmpty() },
+                    orderedAt = source.orderedAt,
+                    importedAt = currentInstant(),
+                ),
+            )
         }
         val existingFingerprints = data.ocrCandidates.filter { it.sourceDocumentId == document.documentId }
             .mapTo(mutableSetOf()) { candidateFingerprint(it.testCode, it.displayName, it.rawValue, it.rawUnit, it.referenceRange, it.collectedAt) }
@@ -264,10 +274,28 @@ class AppController(
         return inserted
     }
 
+    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
+    private fun sourceIdentity(source: PickedSource): String {
+        val first = sha256(source.bytes).toHex()
+        if (source.additionalPages.isEmpty()) return first
+        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
+    }
+
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
-        val vaultKey = sourceStore?.save(profileId, documentId, source.bytes)
-        return SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(), vaultKey)
+        val store = sourceStore
+        val saved = mutableListOf<String>()
+        try {
+            store?.let { saved += it.save(profileId, documentId, source.bytes) }
+            store?.let { s -> source.additionalPages.forEachIndexed { index, page -> saved += s.save(profileId, "$documentId-page-${index + 2}", page) } }
+        } catch (error: Throwable) {
+            withContext(NonCancellable) { saved.forEach { store?.discard(it) } }
+            throw error
+        }
+        return SourceDocument(
+            profileId, documentId, source.fileName.trim(), source.mediaType, sourceHash, currentInstant(),
+            saved.firstOrNull(), saved.drop(1),
+        )
     }
 
     /** A stored file must never outlive a document that was not recorded. */
@@ -275,7 +303,7 @@ class AppController(
         try {
             repository.addDocument(document)
         } catch (error: Throwable) {
-            withContext(NonCancellable) { document.vaultKey?.let { sourceStore?.discard(it) } }
+            withContext(NonCancellable) { (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEach { sourceStore?.discard(it) } }
             throw error
         }
     }
@@ -480,6 +508,24 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
+    /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
+    suspend fun updateReportDetails(reportId: String, laboratoryName: String, orderedAt: kotlinx.datetime.Instant?) = operation {
+        val data = requireData()
+        val report = data.reports.firstOrNull { it.reportId == reportId } ?: failMessage(L10nKey.REPORT_NOT_FOUND)
+        repository.updateReport(report.copy(laboratoryName = laboratoryName.trim().takeIf { it.isNotEmpty() }, orderedAt = orderedAt))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Returns a rejected candidate to review. Only a rejected candidate can be restored; a confirmed one never. */
+    suspend fun restoreCandidate(candidateId: String) = operation {
+        val data = requireData()
+        val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
+            ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
+        if (candidate.status != ConfirmationStatus.REJECTED) failMessage(L10nKey.CANDIDATE_ALREADY_REVIEWED)
+        repository.updateCandidate(candidate.copy(status = ConfirmationStatus.UNREVIEWED))
+        loadProfile(data.profile.profileId)
+    }
+
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) =
         addMedication(name, strength, instructions, listOf(ScheduleDraft(times = listOf(time), startDate = clock().toLocalDateTime(timeZone()).date)))
 
@@ -492,17 +538,24 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
-    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>): List<DoseSchedule> {
+    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>, previous: List<DoseSchedule> = emptyList()): List<DoseSchedule> {
         if (drafts.isEmpty()) failMessage(L10nKey.SCHEDULE_TIMES_REQUIRED)
         drafts.firstNotNullOfOrNull { it.errors().firstOrNull() }?.let { failMessage(it) }
-        return drafts.map { it.toSchedule(profileId, medicationId, ::randomId) }
+        val now = clock()
+        return drafts.map { draft ->
+            val schedule = draft.toSchedule(profileId, medicationId, ::randomId)
+            val old = previous.firstOrNull { it.scheduleId == schedule.scheduleId }
+            // Doses count from the moment the schedule was created or its times/recurrence last changed.
+            val unchanged = old != null && old.copy(trackedSince = null) == schedule
+            schedule.copy(trackedSince = if (unchanged) old?.trackedSince else now)
+        }
     }
 
     suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
         val data = requireData()
         val medication = findMedication(data, medicationId)
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
-        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
+        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts, medication.schedules)
         repository.updateMedication(
             medication.copy(
                 displayName = name.trim(),
@@ -522,7 +575,11 @@ class AppController(
         if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
         // The editor exposes one reminder time; it replaces the first time of the first schedule.
         val schedules = medication.schedules.mapIndexed { index, schedule ->
-            if (index == 0) schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1)) else schedule
+            if (index == 0 && schedule.timesLocal.firstOrNull() != canonicalTime) {
+                schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1), trackedSince = clock())
+            } else {
+                schedule
+            }
         }
         repository.updateMedication(
             medication.copy(
@@ -541,7 +598,8 @@ class AppController(
         val medication = findMedication(data, medicationId)
         val today = clock().toLocalDateTime(timeZone()).date
         val schedules = if (active) {
-            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+            // Paused or stopped days are not due: doses count again only from the moment of resuming.
+            medication.schedules.map { (if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it).copy(trackedSince = clock()) }
         } else {
             medication.schedules
         }
@@ -686,20 +744,45 @@ class AppController(
     }
 
     /** Backup restore. A profile that already exists is either replaced or the backup is stored under fresh IDs. */
-    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = operation {
-        val exists = repository.profiles.value.any { it.profileId == data.profile.profileId }
-        val toStore = when {
-            !exists -> data.keepingOnlyAvailableSourceFiles(null)
-            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
-            else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
-        }
-        val vitalsRestored = repository.restoreWithVitals(toStore)
+    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = restoreHousehold(listOf(BackupMember(data)), mode)
+
+    /** Restores every profile of a backup, with the original files it carries. */
+    suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = operation {
+        val outcome = repository.restoreMembers(members, mode, sourceStore, ::randomId)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
-        switchProfile(toStore.profile.profileId)
+        switchProfile(outcome.profileIds.first())
         DashboardRefreshSignal.notifyRepositoryChanged()
         mutableState.value = mutableState.value.copy(
-            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
+            notice = message(if (outcome.allVitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
         )
+    }
+
+    /**
+     * Every profile with its vitals and original source files, for a household backup. A missing or unreadable file is
+     * left out; loading stops with BACKUP_TOO_LARGE as soon as the originals cannot fit in a backup.
+     */
+    suspend fun householdForBackup(): List<BackupMember> {
+        var encoded = 0L
+        return repository.profiles.value.map { profile ->
+            val data = repository.peekProfile(profile.profileId)
+            val files = mutableMapOf<String, ByteArray>()
+            data.documents.forEach { document ->
+                (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEachIndexed { index, key ->
+                    val fileId = backupFileId(document.documentId, index + 1)
+                    val bytes = try {
+                        sourceStore?.load(document.profileId, fileId, key)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (unreadable: Exception) {
+                        null
+                    } ?: return@forEachIndexed
+                    encoded += (bytes.size + 2L) / 3 * 4
+                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    files[fileId] = bytes
+                }
+            }
+            BackupMember(data, files)
+        }
     }
 
     private suspend fun operation(block: suspend () -> Unit) {

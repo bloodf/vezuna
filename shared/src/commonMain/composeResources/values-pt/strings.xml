@@ -5,6 +5,9 @@
     <string name="add_profile">Adicionar perfil</string>
     <string name="adherence_30_day">Adesão em 30 dias</string>
     <string name="adherence_summary">%1$s% · %2$s/%3$s tomadas</string>
+    <string name="adherence_7_day">Adesão em 7 dias</string>
+    <string name="dose_history">Histórico de doses</string>
+    <string name="dose_history_counts">%1$s tomadas · %2$s puladas · %3$s perdidas · 30 dias</string>
     <string name="ai">IA</string>
     <string name="ask_on_device_model">Perguntar ao modelo no dispositivo</string>
     <string name="ask_record_education">Peça explicações sobre registros ou educação geral em saúde</string>
@@ -200,6 +203,7 @@ iOS: %2$s</string>
     <string name="vault_recovery_body_key_invalidated">A chave de segurança do dispositivo que protege seus registros não é mais válida. Isso pode ocorrer após alterar o bloqueio de tela ou a biometria.</string>
     <string name="vault_recovery_body_key_unavailable">A chave que protege seus registros está ausente ou ilegível neste dispositivo.</string>
     <string name="vault_recovery_body_unavailable">Seus registros estão temporariamente indisponíveis. O dispositivo pode estar bloqueado ou o armazenamento seguro ocupado. Tente novamente em instantes.</string>
+    <string name="vault_recovery_body_schema_newer">Seus registros foram salvos por uma versão mais nova do Vezuna. Atualize o app para abri-los. Nada foi alterado ou apagado.</string>
     <string name="vault_recovery_cancel">Cancelar</string>
     <string name="vault_recovery_kept_note">Nada é apagado automaticamente. Os arquivos ilegíveis permanecem neste dispositivo em uma pasta separada.</string>
     <string name="vault_recovery_reset">Começar com um cofre vazio</string>
@@ -304,8 +308,8 @@ iOS: %2$s</string>
         <item quantity="other">%1$d candidatos precisam da sua confirmação antes de entrar nas tendências ou na IA.</item>
     </plurals>
     <plurals name="trend_chart_accessibility">
-        <item quantity="one">Gráfico de tendência com %1$d resultado confirmado, unidade %2$s</item>
-        <item quantity="other">Gráfico de tendência com %1$d resultados confirmados, unidade %2$s</item>
+        <item quantity="one">Gráfico de tendência com %1$d resultado confirmado, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico de tendência com %1$d resultados confirmados, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <plurals name="unreviewed_candidates_added">
         <item quantity="one">%1$d candidato não revisado adicionado; confirme cada resultado individualmente</item>
@@ -330,6 +334,9 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta forte</string>
     <string name="backup_create_action">Criar backup</string>
     <string name="backup_saved">Backup salvo. Guarde bem a frase secreta</string>
+    <string name="backup_too_large">Este backup é grande demais (mais de 24 MB com os arquivos originais). Faça o backup de um perfil por vez.</string>
+    <string name="backup_include_household">Fazer backup de todos os perfis com os arquivos originais</string>
+    <string name="backup_household_contents">Backup de %1$d perfis: %2$s</string>
     <string name="backup_enter_passphrase_title">Digite a frase secreta do backup</string>
     <string name="backup_unlock">Abrir backup</string>
     <string name="backup_same_device_label">Backup do mesmo aparelho: só restaura no aparelho que o criou</string>
@@ -367,8 +374,8 @@ iOS: %2$s</string>
     <string name="vital_unit_kg">kg</string>
     <string name="vitals_retention_note">As leituras ficam guardadas por um ano. Frequência cardíaca e passos com mais de um mês são resumidos por dia. São valores registrados, não uma avaliação.</string>
     <plurals name="vitals_chart_accessibility">
-        <item quantity="one">Gráfico com %1$d leitura, unidade %2$s</item>
-        <item quantity="other">Gráfico com %1$d leituras, unidade %2$s</item>
+        <item quantity="one">Gráfico com %1$d leitura, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico com %1$d leituras, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <!-- App lock -->
     <string name="app_lock_title">Bloqueio do app</string>
@@ -419,6 +426,33 @@ iOS: %2$s</string>
     <string name="export_language_device">Idioma do app</string>
     <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
     <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
+    <string name="trend_units_dropped">Não exibidos: resultados em %1$s não têm conversão publicada para %2$s.</string>
+    <string name="trend_converted_note">Pontos ocos ou marcados com ≈ foram convertidos com fatores publicados. Os valores originais aparecem na lista abaixo.</string>
+    <string name="converted_value">≈ %1$s (fator publicado %2$s)</string>
+    <string name="labs_empty_explanation">Importe um laudo ou adicione um resultado manualmente. Ele aparece aqui depois que você confirmar.</string>
+    <string name="trends_empty_explanation">As tendências precisam de pelo menos um resultado numérico confirmado. Importe um laudo ou adicione um resultado manualmente.</string>
+    <string name="labs_search_hint">Buscar por nome ou código</string>
+    <string name="labs_filter_out_of_range">Somente fora da referência</string>
+    <string name="labs_filter_from">De: %1$s</string>
+    <string name="labs_filter_to">Até: %1$s</string>
+    <string name="labs_filter_any_date">qualquer data</string>
+    <string name="labs_group_by_report">Agrupar por laudo</string>
+    <string name="labs_clear_filters">Limpar filtros</string>
+    <string name="labs_no_matches">Nenhum resultado corresponde aos filtros</string>
+    <plurals name="labs_result_count">
+        <item quantity="one">%1$d resultado</item>
+        <item quantity="other">%1$d resultados</item>
+    </plurals>
+    <string name="source_document_name">Documento de origem: %1$s</string>
+    <string name="rejected_filter">Rejeitados</string>
+    <string name="rejected_candidates_none">Nenhum candidato rejeitado</string>
+    <string name="restore_candidate">Restaurar para revisão</string>
+    <string name="edit_report_details">Editar dados do laboratório</string>
+    <string name="report_laboratory_name">Nome do laboratório</string>
+    <string name="report_order_date">Data do pedido: %1$s</string>
+    <string name="report_order_date_not_set">não informada</string>
+    <string name="clear_date">Limpar data</string>
+    <string name="chart_converted_points">%1$s pontos são valores convertidos.</string>
     <string name="generated_text_disclaimer">Texto gerado, pode estar errado</string>
     <string name="stop_generating">Parar</string>
     <string name="model_insufficient_ram">Este modelo precisa de pelo menos %1$s MB de RAM; este dispositivo tem %2$s MB.</string>

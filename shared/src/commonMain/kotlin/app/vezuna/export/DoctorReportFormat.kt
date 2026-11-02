@@ -60,6 +60,18 @@ object DoctorReportFormat {
         return "${date(instant, language)}, $time UTC"
     }
 
+    /** "Laboratories: Lab Central (ordered 20 Apr 2026); ..." from the rows' source reports, or null when none is known. */
+    fun sources(rows: List<DoctorResultRow>, language: ContentLanguage = ContentLanguage.EN): String? {
+        val t = ExportText.of(language)
+        val entries = rows.filter { it.laboratoryName != null || it.orderedAt != null }
+            .map { it.laboratoryName to it.orderedAt }.distinct()
+            .map { (name, ordered) ->
+                val ordering = ordered?.let { "${t.orderedOn} ${date(it, language)}" }
+                listOfNotNull(name, ordering?.let { if (name == null) it else "($it)" }).joinToString(" ")
+            }
+        return entries.takeIf { it.isNotEmpty() }?.joinToString("; ")?.let { "${t.sources}: $it" }
+    }
+
     fun period(rows: List<DoctorResultRow>, language: ContentLanguage = ContentLanguage.EN): String {
         if (rows.isEmpty()) return ExportText.of(language).noConfirmedResults
         val first = rows.minOf { it.collectedAt }

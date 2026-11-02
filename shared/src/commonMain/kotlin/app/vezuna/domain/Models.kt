@@ -22,6 +22,8 @@ data class SourceDocument(
     val sha256: String,
     val importedAt: Instant,
     val vaultKey: String? = null,
+    /** Vault keys of pages 2..n when one report was captured as several photos; [vaultKey] holds page 1. */
+    val pageVaultKeys: List<String> = emptyList(),
 )
 
 @Serializable
@@ -160,6 +162,8 @@ data class DoseSchedule(
     val startDate: LocalDate,
     val endDate: LocalDate? = null,
     val timesLocal: List<String>,
+    /** When doses of this schedule started to count (creation or last change of times/recurrence). Null for legacy records. */
+    val trackedSince: Instant? = null,
 ) {
     init {
         require(intervalDays > 0)

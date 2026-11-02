@@ -47,6 +47,9 @@
     <string name="import_source_title">Importar una fuente de laboratorio</string>
     <string name="import_source_message">El reconocimiento de texto de cámara, imágenes y PDF se procesa en este dispositivo.</string>
     <string name="take_photo">Tomar foto</string>
+    <string name="add_another_photo">Añadir página</string>
+    <string name="photos_done">Usar estas fotos</string>
+    <string name="photo_added_message">Fotos en este informe: %1$d. ¿Añadir otra página?</string>
     <string name="choose_image">Elegir imagen</string>
     <string name="choose_pdf">Elegir PDF</string>
     <string name="source_too_large">La fuente supera el límite de importación de 64 MB.</string>
@@ -71,6 +74,7 @@
     <string name="privacy_policy_unavailable">No se pudo cargar la política de privacidad.</string>
     <!-- reminders lane -->
     <string name="medication_reminder_generic_text">Hora de tomar un medicamento</string>
+    <string name="reminder_for_profile">Para %1$s</string>
     <!-- App lock -->
     <string name="app_lock_prompt_title">Desbloquear Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirma que eres tú para abrir tus registros de salud</string>

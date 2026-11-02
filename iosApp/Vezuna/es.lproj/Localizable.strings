@@ -3,6 +3,7 @@
 "snooze_10_minutes" = "Posponer 10 minutos";
 "notification_permission_off" = "El permiso de notificaciones está desactivado. Los registros de medicación siguen disponibles.";
 "scheduled_medication_reminder" = "Recordatorio de medicación programado";
+"reminder_for_profile" = "Para %@";
 "medication_schedules_unavailable" = "Los horarios de medicación no están disponibles";
 "native_actions" = "Acciones nativas de Vezuna";
 "storage_unavailable" = "Almacenamiento cifrado no disponible";
@@ -14,6 +15,11 @@
 "source" = "Fuente";
 "photo_library" = "Fototeca";
 "camera" = "Cámara";
+"add_page" = "Añadir otra página";
+"pages_in_report" = "Páginas en este informe: %1$d";
+"laboratory_name" = "Nombre del laboratorio";
+"order_date" = "Fecha del pedido";
+"clear_date" = "Borrar fecha";
 "pdf_or_image" = "Archivo PDF o de imagen";
 "extracting_text" = "Extrayendo texto en este dispositivo…";
 "review_extracted_results" = "Revisar resultados extraídos";

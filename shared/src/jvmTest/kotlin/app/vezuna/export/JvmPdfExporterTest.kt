@@ -77,3 +77,18 @@ class JvmPdfExporterLanguageTest {
         assertTrue(es.contains("(Por encima de la referencia)") && es.contains("Generado el 06 Mar 2026") && es.contains("(17,5 g/dL)"))
     }
 }
+
+class JvmPdfExporterSourceTest {
+    @Test
+    fun headerNamesTheLaboratoryAndOrderDate() {
+        val row = DoctorResultRow(
+            Instant.parse("2026-03-05T08:30:00Z"), "Hemoglobina", "HGB", 17.5, "g/dL", 175.0, "g/L", ReferenceRange(12.0, 15.5, unit = "g/dL"),
+            app.vezuna.domain.RangeAssessment.ABOVE, laboratoryName = "Lab Central", orderedAt = Instant.parse("2026-03-01T12:00:00Z"),
+        )
+        val document = DoctorPdfDocument("Report", emptyList(), profileDisplayName = "Ana", resultRows = listOf(row))
+        val pdf = String(NativePdfExporter().export(document).bytes, Charsets.ISO_8859_1)
+        assertTrue(pdf.contains("Laboratories: Lab Central") && pdf.contains("ordered 01 Mar 2026"), "lab name missing from PDF")
+        assertEquals("Laboratories: Lab Central (ordered 01 Mar 2026)", app.vezuna.export.DoctorReportFormat.sources(listOf(row)))
+        assertEquals(null, app.vezuna.export.DoctorReportFormat.sources(listOf(row.copy(laboratoryName = null, orderedAt = null))))
+    }
+}
