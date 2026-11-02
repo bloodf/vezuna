@@ -146,11 +146,51 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             }
             let coverage = planner.coverageEnd(of: reminders, after: now)
             IosRuntime.shared.setReminderCoverage(untilEpochSeconds: coverage.map { Int64($0.timeIntervalSince1970) } ?? -1)
+            await planLowSupply(hidden: hidden)
             lastError = nil
             await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Low-supply reminders: the schedule comes from shared code; the fire time stored per key keeps a delivered one from repeating.
+    private func planLowSupply(hidden: Bool) async {
+        let storeKey = "vezuna.lowSupplyFireTimes"
+        let previous = defaults.dictionary(forKey: storeKey) as? [String: Int64] ?? [:]
+        do {
+            let previousJSON = String(decoding: try JSONSerialization.data(withJSONObject: previous), as: UTF8.self)
+            let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                IosRuntime.shared.planLowSupplyNotices(previousJson: previousJSON) { json, error in
+                    if let json { continuation.resume(returning: json) }
+                    else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "action_failed", args: []))) }
+                }
+            }
+            let notices = try JSONDecoder().decode([LowSupplyNotice].self, from: Data(json.utf8))
+            let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.supply.") }
+            let wanted = Set(notices.filter { $0.fireEpochSeconds != nil }.map(\.identifier))
+            center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter { !wanted.contains($0) })
+            var stored: [String: Int64] = [:]
+            for notice in notices {
+                stored[notice.key] = previous[notice.key]
+                guard let seconds = notice.fireEpochSeconds else { continue }
+                stored[notice.key] = seconds
+                try await center.add(Self.supplyRequest(for: notice, at: Date(timeIntervalSince1970: TimeInterval(seconds)), hidingName: hidden, calendar: planner.calendar))
+            }
+            defaults.set(stored, forKey: storeKey)
+        } catch {
+            log.error("Could not plan low-supply reminders: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    static func supplyRequest(for notice: LowSupplyNotice, at date: Date, hidingName: Bool, calendar: Calendar) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.text(.supply_low_title)
+        content.body = hidingName ? L10n.text(.supply_low_generic_text) : L10n.text(.supply_low_text, notice.medicationName, notice.remaining)
+        content.sound = .default
+        content.userInfo = ["medicationId": notice.medicationId, "supplyKey": notice.key]
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        return UNNotificationRequest(identifier: notice.identifier, content: content, trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
     }
 
     private func request(for reminder: DoseReminder, hidden: Bool) -> UNNotificationRequest {

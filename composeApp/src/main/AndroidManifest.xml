@@ -56,6 +56,7 @@
 
         <receiver android:name=".notifications.ReminderReceiver" android:exported="false" />
         <receiver android:name=".notifications.DoseActionReceiver" android:exported="false" />
+        <receiver android:name=".notifications.SupplyReceiver" android:exported="false" />
         <receiver
             android:name=".notifications.RescheduleReceiver"
             android:enabled="true"

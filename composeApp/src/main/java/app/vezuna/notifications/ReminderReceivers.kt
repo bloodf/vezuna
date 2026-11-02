@@ -10,6 +10,7 @@ import app.vezuna.nativeMessage
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.MedicationSupplies
 import app.vezuna.ui.DashboardRefreshSignal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -147,6 +148,27 @@ class DoseActionReceiver : BroadcastReceiver() {
                 recordedAt = Instant.fromEpochMilliseconds(System.currentTimeMillis()),
             ),
         )
+    }
+}
+
+/** Delivers a low-supply reminder. The medication is re-read first, so an edited or refilled supply stays quiet. */
+class SupplyReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as VezunaApplication
+        guarded(app, goAsync(), "SupplyReceiver") {
+            if (!app.awaitRepository()) return@guarded
+            val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return@guarded
+            val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return@guarded
+            val data = try {
+                app.repository.readProfile(profileId)
+            } catch (missing: NoSuchElementException) {
+                return@guarded
+            }
+            val now = Instant.fromEpochMilliseconds(System.currentTimeMillis())
+            val notice = MedicationSupplies.notices(data, now, kotlinx.datetime.TimeZone.currentSystemDefault()).firstOrNull { it.medicationId == medicationId }
+            if (notice != null && notice.lowNow) app.notifications.showLowSupply(medicationId, notice.medicationName, notice.remaining)
+            app.notifications.rescheduleAll(app.repository)
+        }
     }
 }
 

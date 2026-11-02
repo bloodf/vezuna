@@ -141,3 +141,17 @@ extension Date {
     /// Dose events store whole seconds, so a snooze time must not carry a fraction the stored event cannot.
     var roundedDownToSecond: Date { Date(timeIntervalSince1970: timeIntervalSince1970.rounded(.down)) }
 }
+
+/// A low-supply reminder planned by shared code. `fireEpochSeconds` is nil once the notice was already delivered.
+struct LowSupplyNotice: Codable, Equatable {
+    let key: String
+    let profileId: String
+    let medicationId: String
+    let medicationName: String
+    let remaining: Int
+    let fireEpochSeconds: Int64?
+    let profileName: String?
+
+    /// One request per medication: scheduling again replaces the earlier one.
+    var identifier: String { "vezuna.supply.\(medicationId)" }
+}

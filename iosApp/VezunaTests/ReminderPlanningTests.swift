@@ -119,4 +119,16 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertFalse(response.isExpired(now: received.addingTimeInterval(6 * 24 * 3600)))
         XCTAssertTrue(response.isExpired(now: received.addingTimeInterval(8 * 24 * 3600)))
     }
+
+    func testLowSupplyNoticeDecodesAndSchedulesOneRequestPerMedication() throws {
+        let json = #"[{"key":"m|1|3","profileId":"p","medicationId":"m","medicationName":"Vitamin D","remaining":3,"fireEpochSeconds":1793610000,"profileName":null},{"key":"n|1|3","profileId":"p","medicationId":"n","medicationName":"X","remaining":2,"fireEpochSeconds":null,"profileName":null}]"#
+        let notices = try JSONDecoder().decode([LowSupplyNotice].self, from: Data(json.utf8))
+        XCTAssertEqual(notices.map(\.identifier), ["vezuna.supply.m", "vezuna.supply.n"])
+        XCTAssertNil(notices[1].fireEpochSeconds)
+        let at = Date(timeIntervalSince1970: 1_793_610_000)
+        let named = MedicationNotificationCoordinator.supplyRequest(for: notices[0], at: at, hidingName: false, calendar: calendar)
+        XCTAssertTrue(named.content.body.contains("Vitamin D"))
+        let hidden = MedicationNotificationCoordinator.supplyRequest(for: notices[0], at: at, hidingName: true, calendar: calendar)
+        XCTAssertFalse(hidden.content.body.contains("Vitamin D"))
+    }
 }
