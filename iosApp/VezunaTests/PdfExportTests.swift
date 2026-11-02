@@ -14,7 +14,7 @@ final class PdfExportTests: XCTestCase {
             normalizedValue: KotlinDouble(value: value * 10), normalizedUnit: "g/L",
             referenceRange: ReferenceRange(lower: KotlinDouble(value: 12), upper: KotlinDouble(value: 16), text: "12.0–16.0 g/dL", unit: "g/dL"),
             assessment: .within, qualitativeValue: nil, valueDecimals: KotlinInt(int: decimals),
-            sourceName: source, manualEntry: false
+            sourceName: source, manualEntry: false, laboratoryName: "Example Laboratory", orderedAt: nil
         )
     }
 
