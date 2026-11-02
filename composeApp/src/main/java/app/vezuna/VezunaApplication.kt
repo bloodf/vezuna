@@ -3,13 +3,16 @@ package app.vezuna
 import android.app.Application
 import android.util.Log
 import android.os.SystemClock
-import app.vezuna.data.PersistentVezunaRepository
-import app.vezuna.data.restoreWithVitals
+import app.vezuna.data.VaultBackedRepository
+import app.vezuna.data.VaultSourceFileStore
+import app.vezuna.data.restoreMembers
 import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.LegacyHealthConnectMigration
 import app.vezuna.llm.AndroidModelFileStore
-import app.vezuna.domain.ProfileData
+import app.vezuna.platform.randomId
+import app.vezuna.security.BackupMember
+import app.vezuna.ui.RestoreMode
 import app.vezuna.notifications.MedicationNotificationScheduler
 import app.vezuna.platform.currentInstant
 import app.vezuna.security.AndroidSecureVault
@@ -37,7 +40,7 @@ class VezunaApplication : Application() {
     )
     lateinit var vault: AndroidSecureVault
         private set
-    lateinit var repository: PersistentVezunaRepository
+    lateinit var repository: VaultBackedRepository
         private set
     lateinit var modelFiles: AndroidModelFileStore
         private set
@@ -68,7 +71,7 @@ class VezunaApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         vault = AndroidSecureVault(File(noBackupFilesDir, "vault"))
-        repository = PersistentVezunaRepository(vault)
+        repository = VaultBackedRepository(vault, warn = { message, error -> Log.w(TAG, message, error) })
         loadVault { repository.load() }
         modelFiles = AndroidModelFileStore(this)
         notifications = MedicationNotificationScheduler(this)
@@ -102,12 +105,12 @@ class VezunaApplication : Application() {
      * Restore from the recovery screen: the unreadable vault is quarantined (never deleted), then the backup is
      * stored into the fresh vault. Both steps run in one load so the app never sees a half-restored state.
      */
-    fun restoreVaultFromBackup(data: ProfileData) {
+    fun restoreVaultFromBackup(members: List<BackupMember>) {
         var restoreStarted = false
         loadVault(restoreFailed = { restoreStarted }) {
             repository.resetAfterFailure()
             restoreStarted = true
-            repository.restoreWithVitals(data)
+            repository.restoreMembers(members, RestoreMode.REPLACE_EXISTING, VaultSourceFileStore(vault), ::randomId)
         }
     }
 

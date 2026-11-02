@@ -5,6 +5,9 @@
     <string name="add_profile">Add profile</string>
     <string name="adherence_30_day">30-day adherence</string>
     <string name="adherence_summary">%1$s% · %2$s/%3$s taken</string>
+    <string name="adherence_7_day">7-day adherence</string>
+    <string name="dose_history">Dose history</string>
+    <string name="dose_history_counts">%1$s taken · %2$s skipped · %3$s missed · 30 days</string>
     <string name="ai">AI</string>
     <string name="ask_on_device_model">Ask on-device model</string>
     <string name="ask_record_education">Ask for record explanation or general education</string>
@@ -200,6 +203,7 @@ iOS: %2$s</string>
     <string name="vault_recovery_body_key_invalidated">The device security key that protects your records is no longer valid. This can happen after changing the screen lock or biometrics.</string>
     <string name="vault_recovery_body_key_unavailable">The key that protects your records is missing or unreadable on this device.</string>
     <string name="vault_recovery_body_unavailable">Your records are temporarily unavailable. The device may be locked or its secure storage busy. Try again in a moment.</string>
+    <string name="vault_recovery_body_schema_newer">Your records were saved by a newer version of Vezuna. Update the app to open them. Nothing was changed or deleted.</string>
     <string name="vault_recovery_cancel">Cancel</string>
     <string name="vault_recovery_kept_note">Nothing is deleted automatically. The unreadable files stay on this device in a separate folder.</string>
     <string name="vault_recovery_reset">Start with an empty vault</string>
@@ -330,6 +334,9 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Strong passphrase</string>
     <string name="backup_create_action">Create backup</string>
     <string name="backup_saved">Backup saved. Keep the passphrase safe</string>
+    <string name="backup_too_large">This backup is too large (over 24 MB with the original files). Back up one profile at a time.</string>
+    <string name="backup_include_household">Back up all profiles with their original files</string>
+    <string name="backup_household_contents">Backup of %1$d profiles: %2$s</string>
     <string name="backup_enter_passphrase_title">Enter the backup passphrase</string>
     <string name="backup_unlock">Open backup</string>
     <string name="backup_same_device_label">Same-device backup: it only restores on the device that created it</string>

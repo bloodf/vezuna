@@ -19,6 +19,8 @@ struct NativeMedication: Codable {
     let instructions: String?
     let schedules: [NativeDoseSchedule]
     let active: Bool
+    /// Present only when the household has several profiles, so reminders can say who the dose is for.
+    var profileName: String? = nil
 }
 
 struct DoseReminder: Equatable {
@@ -29,13 +31,14 @@ struct DoseReminder: Equatable {
     let scheduledAt: Date
     /// A snoozed copy of a delivered reminder. Planning never replaces or removes it; only an inactive medication does.
     var isSnooze = false
+    var profileName: String? = nil
 
     /// The name is part of the identifier so renaming a medication replaces its already scheduled requests.
     var identifier: String { identifier(hidingName: false) }
 
     /// The lock-screen privacy mode is part of the identifier so toggling it replaces already scheduled requests.
     func identifier(hidingName: Bool) -> String {
-        let base = "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970)).\(String(UInt32(truncatingIfNeeded: stableHash(medicationName)), radix: 16))"
+        let base = "vezuna.dose.\(scheduleId).\(Int(scheduledAt.timeIntervalSince1970)).\(String(UInt32(truncatingIfNeeded: stableHash(medicationName + "|" + (profileName ?? ""))), radix: 16))"
         return base + (hidingName ? ".private" : "") + (isSnooze ? Self.snoozeSuffix : "")
     }
 
@@ -69,7 +72,8 @@ struct NotificationPlanner {
                                 medicationId: schedule.medicationId,
                                 medicationName: medication.displayName,
                                 scheduleId: schedule.scheduleId,
-                                scheduledAt: date
+                                scheduledAt: date,
+                                profileName: medication.profileName
                             ))
                         }
                         guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
@@ -98,8 +102,9 @@ struct NotificationPlanner {
             medicationId: reminder.medicationId,
             medicationName: reminder.medicationName,
             scheduleId: reminder.scheduleId,
-            scheduledAt: now.addingTimeInterval(delay),
-            isSnooze: true
+            scheduledAt: now.addingTimeInterval(delay).roundedDownToSecond,
+            isSnooze: true,
+            profileName: reminder.profileName
         )
     }
 
@@ -130,4 +135,9 @@ struct NotificationPlanner {
         guard parts.count == 2, (0...23).contains(parts[0]), (0...59).contains(parts[1]) else { return nil }
         return (parts[0], parts[1])
     }
+}
+
+extension Date {
+    /// Dose events store whole seconds, so a snooze time must not carry a fraction the stored event cannot.
+    var roundedDownToSecond: Date { Date(timeIntervalSince1970: timeIntervalSince1970.rounded(.down)) }
 }

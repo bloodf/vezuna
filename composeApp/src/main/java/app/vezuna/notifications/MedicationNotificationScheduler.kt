@@ -16,9 +16,10 @@ import app.vezuna.NativeText
 import app.vezuna.R
 import app.vezuna.nativeMessage
 import app.vezuna.resolve
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MissedDoses
 import app.vezuna.domain.ProfileData
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -41,7 +42,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    suspend fun rescheduleAll(repository: PersistentVezunaRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
+    suspend fun rescheduleAll(repository: VaultBackedRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
         val loaded = mutableMapOf<String, ProfileData>()
@@ -50,7 +51,17 @@ class MedicationNotificationScheduler(private val context: Context) {
             try {
                 val data = repository.readProfile(profile.profileId)
                 loaded[profile.profileId] = data
-                armProfile(data, now, zone, armed)
+                try {
+                    recordMissedDoses(repository, data, now, zone)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    // Missed-dose bookkeeping must never stop reminders from being armed.
+                    Log.e(TAG, "Could not record missed doses", error)
+                }
+                // The member name only disambiguates reminders when the household has more than one profile.
+                val profileName = data.profile.displayName.takeIf { repository.profiles.value.size > 1 }
+                armProfile(data, now, zone, armed, profileName)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -69,7 +80,14 @@ class MedicationNotificationScheduler(private val context: Context) {
         cancelStaleNotifications(loaded)
     }
 
-    private fun armProfile(data: ProfileData, now: Instant, zone: ZoneId, armed: MutableSet<String>) {
+    /** Same rule as iOS: shared [MissedDoses] decides which past doses become MISSED; the repository keeps user actions on top. */
+    private suspend fun recordMissedDoses(repository: VaultBackedRepository, data: ProfileData, now: Instant, zone: ZoneId) {
+        MissedDoses.stampLegacy(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond)).forEach { repository.updateSchedule(it) }
+        MissedDoses.pending(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond), kotlinx.datetime.TimeZone.of(zone.id))
+            .let { repository.addDoseEvents(data.profile.profileId, it) }
+    }
+
+    private fun armProfile(data: ProfileData, now: Instant, zone: ZoneId, armed: MutableSet<String>, profileName: String?) {
         val terminalEvents = data.doseEvents.filter {
             it.status == DoseEventStatus.TAKEN || it.status == DoseEventStatus.SKIPPED || it.status == DoseEventStatus.MISSED
         }
@@ -84,7 +102,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                 val superseded = scheduledEvents.any { it.scheduleId == schedule.scheduleId && it.replacesScheduledFor?.epochSeconds == at.epochSecond }
                 if (!completed && !superseded) {
                     armed += armedKey(medication.medicationId, alarmId)
-                    setAlarm(at.toEpochMilli(), showIntent(medication, schedule.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
+                    setAlarm(at.toEpochMilli(), showIntent(medication, schedule.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId, profileName))
                 }
             }
         }
@@ -97,7 +115,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             val superseded = scheduledEvents.any { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
             if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && !completed && !superseded) {
                 armed += armedKey(medication.medicationId, alarmId)
-                setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId))
+                setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId, profileName))
             }
         }
     }
@@ -172,6 +190,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     fun showReminder(intent: Intent, note: NativeText? = null) {
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
         val medicationName = intent.getStringExtra(EXTRA_MEDICATION_NAME).orEmpty()
+        val profileName = intent.getStringExtra(EXTRA_PROFILE_NAME)
         val content = PendingIntent.getActivity(
             context,
             notificationId,
@@ -185,6 +204,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(if (hideName) genericText else medicationName)
+            .setSubText(note?.resolve(context) ?: profileName?.takeUnless { hideName }?.let { nativeMessage(NativeKey.REMINDER_FOR_PROFILE, it).resolve(context) })
             // Names are shown on the lock screen by default; the Settings toggle swaps in a generic public version.
             .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .apply {
@@ -205,7 +225,6 @@ class MedicationNotificationScheduler(private val context: Context) {
                 putString(EXTRA_MEDICATION_ID, intent.getStringExtra(EXTRA_MEDICATION_ID))
                 putString(EXTRA_SCHEDULE_ID, intent.getStringExtra(EXTRA_SCHEDULE_ID))
             })
-            .setSubText(note?.resolve(context))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .addAction(0, nativeMessage(NativeKey.TAKEN).resolve(context), actionIntent(intent, DoseAction.TAKEN, notificationId + 1))
             .addAction(0, nativeMessage(NativeKey.SKIP).resolve(context), actionIntent(intent, DoseAction.SKIP, notificationId + 2))
@@ -217,9 +236,9 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     fun cancel(notificationId: Int) = NotificationManagerCompat.from(context).cancel(notificationId)
 
-    private fun showIntent(medication: Medication, scheduleId: String, at: Instant, flags: Int, alarmId: String = scheduleId): PendingIntent {
+    private fun showIntent(medication: Medication, scheduleId: String, at: Instant, flags: Int, alarmId: String = scheduleId, profileName: String? = null): PendingIntent {
         val notificationId = alarmId.hashCode()
-        return PendingIntent.getBroadcast(context, notificationId, reminderIntent(medication, scheduleId, at, alarmId), flags or PendingIntent.FLAG_IMMUTABLE)
+        return PendingIntent.getBroadcast(context, notificationId, reminderIntent(medication, scheduleId, at, alarmId, profileName), flags or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun cancelAlarm(medication: Medication, scheduleId: String, at: Instant, alarmId: String) {
@@ -234,7 +253,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         pending.cancel()
     }
 
-    private fun reminderIntent(medication: Medication, scheduleId: String, at: Instant, alarmId: String): Intent {
+    private fun reminderIntent(medication: Medication, scheduleId: String, at: Instant, alarmId: String, profileName: String? = null): Intent {
         val notificationId = alarmId.hashCode()
         return Intent(context, ReminderReceiver::class.java).apply {
             action = ACTION_SHOW
@@ -242,6 +261,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             putExtra(EXTRA_PROFILE_ID, medication.profileId)
             putExtra(EXTRA_MEDICATION_ID, medication.medicationId)
             putExtra(EXTRA_MEDICATION_NAME, medication.displayName)
+            profileName?.let { putExtra(EXTRA_PROFILE_NAME, it) }
             putExtra(EXTRA_SCHEDULE_ID, scheduleId)
             putExtra(EXTRA_SCHEDULED_FOR, at.toEpochMilli())
             putExtra(EXTRA_ORIGINAL_SCHEDULED_FOR, at.toEpochMilli())
@@ -265,6 +285,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         const val EXTRA_PROFILE_ID = "profileId"
         const val EXTRA_MEDICATION_ID = "medicationId"
         const val EXTRA_MEDICATION_NAME = "medicationName"
+        const val EXTRA_PROFILE_NAME = "profileName"
         const val EXTRA_SCHEDULE_ID = "scheduleId"
         const val EXTRA_SCHEDULED_FOR = "scheduledFor"
         const val EXTRA_ORIGINAL_SCHEDULED_FOR = "originalScheduledFor"
