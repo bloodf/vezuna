@@ -17,6 +17,9 @@ interface SourceFileStore {
 
     /** Removes a stored file when the import that owned it could not be recorded. */
     suspend fun discard(key: String)
+
+    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
+    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
 }
 
 data class AppUiState(
@@ -30,6 +33,8 @@ data class AppUiState(
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
     val healthLinkedProfileId: String? = null,
+    /** True only on a fresh install, until the user finishes or skips the first-run screen. Never gates records. */
+    val onboarding: Boolean = false,
     /** Assistant text received so far while an answer is being generated; null when idle. */
     val streamingAnswer: String? = null,
 )

@@ -19,12 +19,14 @@ import androidx.core.view.WindowCompat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.Settings
+import app.vezuna.ui.more.MorePlatform
 import app.vezuna.export.NativeExport
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.llm.ModelPackLoadState
@@ -75,13 +77,20 @@ fun VezunaAndroidApp(
     MaterialTheme {
         val context = LocalContext.current
         remember(context) { installMorePlatform(context); true }
-        val animationsEnabled = remember(context) {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+        // Followed live: turning animations off in system settings applies without restarting the app.
+        val animationsEnabled by produceState(animationScale(context) > 0f, context) {
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    value = animationScale(context) > 0f
+                }
+            }
+            context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+            awaitDispose { context.contentResolver.unregisterContentObserver(observer) }
         }
         // The shared shell owns the window insets: its pine header bands reach under the status bar, so the
         // status bar icons are light while the shell shows, and follow the theme again when it leaves (lock).
         val view = LocalView.current
-        val darkTheme = isSystemInDarkTheme()
+        val darkTheme = MorePlatform.themeMode.isDark(isSystemInDarkTheme())
         DisposableEffect(view, darkTheme) {
             val window = (view.context as? android.app.Activity)?.window
             val insets = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -175,5 +184,8 @@ fun VezunaAndroidApp(
         }
     }
 }
+
+private fun animationScale(context: android.content.Context): Float =
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
 
 private val androidNativeActions = setOf(NativeAction.HEALTH, NativeAction.REMINDERS, NativeAction.PRIVACY, NativeAction.NOTICES)

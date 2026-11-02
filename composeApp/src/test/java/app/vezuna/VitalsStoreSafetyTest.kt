@@ -1,6 +1,6 @@
 package app.vezuna
 
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.StepsDay
@@ -70,7 +70,7 @@ class VitalsStoreSafetyTest {
     @Test
     fun failedProfileDeleteKeepsVitalsAndOrphansAreSweptOnLoad() = runTest {
         val vault = ControlledVault(canQuarantine = true)
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
@@ -87,13 +87,13 @@ class VitalsStoreSafetyTest {
     @Test
     fun replaceVitalsWritesTheFileAndKeepsLastSync() = runTest {
         val vault = ControlledVault(canQuarantine = true)
-        val repository = PersistentVezunaRepository(vault)
+        val repository = VaultBackedRepository(vault)
         repository.load()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         val restoredVitals = ProfileVitals(steps = listOf(StepsDay(LocalDate(2026, 10, 1), 5)), weights = listOf(weight), lastSync = now)
         repository.replaceVitals("a", restoredVitals)
 
-        val reopened = PersistentVezunaRepository(vault)
+        val reopened = VaultBackedRepository(vault)
         reopened.load()
         assertEquals(restoredVitals, reopened.readProfile("a").vitals)
         assertFailsWith<IllegalArgumentException> { repository.replaceVitals("missing", restoredVitals) }

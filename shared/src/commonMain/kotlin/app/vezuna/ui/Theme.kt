@@ -22,8 +22,8 @@ import org.jetbrains.compose.resources.FontResource
 import vezuna.shared.generated.resources.*
 
 private val LightColors = lightColorScheme(
-    // Teal #087F8C reaches only 4.41:1 on paper, so text actions and fills use the darker focus teal (5.9:1).
-    primary = VezunaTokens.Light.focus,
+    // Teal #087F8C reaches only 4.41:1 as text on paper, so text actions use the link teal (5.47:1).
+    primary = VezunaTokens.Light.link,
     onPrimary = VezunaTokens.Light.onPrimary,
     primaryContainer = VezunaTokens.Light.surfaceSubtle,
     onPrimaryContainer = VezunaTokens.Light.text,

@@ -34,11 +34,14 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
             } else if let error = model.startupError {
-                VStack(spacing: 12) {
-                    Image(systemName: "lock.trianglebadge.exclamationmark").font(.largeTitle)
-                    Text(L10n.text(.storage_unavailable)).font(.headline)
-                    Text(error).multilineTextAlignment(.center)
-                }.padding()
+                // Scrolls so the message never clips at the largest accessibility text sizes.
+                ScrollView {
+                    VStack(spacing: 12) {
+                        Image(systemName: "lock.trianglebadge.exclamationmark").font(.largeTitle).accessibilityHidden(true)
+                        Text(L10n.text(.storage_unavailable)).font(.headline).accessibilityAddTraits(.isHeader)
+                        Text(error).multilineTextAlignment(.center)
+                    }.padding()
+                }
             } else {
                 ProgressView(L10n.text(.opening_storage))
             }
