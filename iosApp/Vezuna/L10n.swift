@@ -29,6 +29,8 @@ enum NativeString: String {
     case reference_text
     case app_lock_reason
     case export_language, export_language_device
+    case export_options, export_from_date, export_to_date, export_active_medications_only, export_include_medications_csv
+    case export_tests, export_date_invalid, export_date_range_reversed
 }
 
 enum L10n {
