@@ -42,10 +42,10 @@ object TrendsRoutes {
     }
 
     @Composable
-    fun VitalsDetail(screen: AppScreen.VitalsDetail, ctx: RouteContext): Unit {
+    fun VitalsDetail(screen: AppScreen.VitalsDetail, ctx: RouteContext) {
         val kind = VitalSeriesKind.entries.firstOrNull { it.name == screen.metric }
-        FocusedTaskScaffold(vitaText(kind?.copy()?.title ?: L10nKey.TR_DEVICE_TITLE), ctx::back) {
-        WithProfile(ctx) { data -> if (kind == null) DeviceMeasurementsBody(ctx, data) else VitalDetailBody(ctx, data, kind) }
+        FocusedTaskScaffold(vitaText(kind?.let { it.copy().title } ?: L10nKey.TR_DEVICE_TITLE), ctx::back) {
+            WithProfile(ctx) { data -> if (kind == null) DeviceMeasurementsBody(ctx, data) else VitalDetailBody(ctx, data, kind) }
         }
     }
 

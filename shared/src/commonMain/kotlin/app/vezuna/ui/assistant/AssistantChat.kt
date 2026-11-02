@@ -87,7 +87,9 @@ internal fun AssistantChat(ctx: RouteContext) {
 
         Column(Modifier.fillMaxSize()) {
             Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    // The composer clears the edge itself; without it the list does.
+                    .then(if (unavailable) Modifier.clearOfNavigationBar() else Modifier).padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
                 verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
             ) {
                 Text(vitaText(L10nKey.ON_DEVICE_AI_SUBTITLE), style = MaterialTheme.typography.bodyLarge)

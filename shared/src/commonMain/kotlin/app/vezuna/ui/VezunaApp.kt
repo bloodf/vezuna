@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -336,7 +338,8 @@ private fun VezunaRail(current: Destination, onSelect: (Destination) -> Unit) {
             )
         },
     ) {
-        Column(Modifier.padding(top = 8.dp)) {
+        // Scrolls so a short (landscape) window never stacks the items on top of each other.
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(top = 8.dp)) {
             Destination.entries.forEach { destination ->
                 NavigationRailItem(
                     selected = destination == current,
