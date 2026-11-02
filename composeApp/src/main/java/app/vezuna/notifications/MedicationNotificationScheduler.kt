@@ -16,7 +16,7 @@ import app.vezuna.NativeText
 import app.vezuna.R
 import app.vezuna.nativeMessage
 import app.vezuna.resolve
-import app.vezuna.data.PersistentVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
 import app.vezuna.domain.MissedDoses
@@ -42,7 +42,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    suspend fun rescheduleAll(repository: PersistentVezunaRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
+    suspend fun rescheduleAll(repository: VaultBackedRepository, now: Instant = Instant.now()) = reconciliationMutex.withLock {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
         val loaded = mutableMapOf<String, ProfileData>()
@@ -81,7 +81,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     }
 
     /** Same rule as iOS: shared [MissedDoses] decides which past doses become MISSED; the repository keeps user actions on top. */
-    private suspend fun recordMissedDoses(repository: PersistentVezunaRepository, data: ProfileData, now: Instant, zone: ZoneId) {
+    private suspend fun recordMissedDoses(repository: VaultBackedRepository, data: ProfileData, now: Instant, zone: ZoneId) {
         MissedDoses.stampLegacy(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond)).forEach { repository.updateSchedule(it) }
         MissedDoses.pending(data, kotlinx.datetime.Instant.fromEpochSeconds(now.epochSecond), kotlinx.datetime.TimeZone.of(zone.id))
             .let { repository.addDoseEvents(data.profile.profileId, it) }
