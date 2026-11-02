@@ -34,9 +34,10 @@ final class AppShellModel: ObservableObject {
             let support = try AppFileStorage.applicationSupportDirectory()
             let vault = support.appendingPathComponent("Vault", isDirectory: true)
             let models = support.appendingPathComponent("Models", isDirectory: true)
-            try AppFileStorage.preparePrivateDirectory(vault)
+            try AppFileStorage.prepareVaultDirectory(vault)
             try AppFileStorage.preparePrivateDirectory(models)
             IosAesGcmBridge.shared.install(implementation: CryptoKitAesGcm())
+            IosKeyStoreBridge.shared.install(keyStore: KeychainKeyStore())
             IosRuntime.shared.licenseProvider = licenseManager
             IosRuntime.shared.sourcePicker = sourcePicker
             IosRuntime.shared.backupFiles = backupFiles
