@@ -11,6 +11,11 @@ case "$MODE" in
   *) echo "Usage: $0 [create-upload-key|build]" >&2; exit 2 ;;
 esac
 
+if [[ "$MODE" == build ]]; then
+  : "${VEZUNA_VERSION_CODE:?Set VEZUNA_VERSION_CODE (see docs/RELEASING.md)}"
+  : "${VEZUNA_VERSION_NAME:?Set VEZUNA_VERSION_NAME (see docs/RELEASING.md)}"
+fi
+
 export VEZUNA_UPLOAD_STORE_FILE="${VEZUNA_UPLOAD_STORE_FILE:-$HOME/.local/share/vezuna/release/vezuna-upload.jks}"
 export VEZUNA_UPLOAD_KEY_ALIAS="${VEZUNA_UPLOAD_KEY_ALIAS:-vezuna-upload}"
 if [[ -z "${VEZUNA_LVL_PUBLIC_KEY+x}" && -f "$HOME/.local/share/vezuna/release/play-licensing-public-key.txt" ]]; then
@@ -75,8 +80,8 @@ export VEZUNA_UPLOAD_KEY_PASSWORD
 # Disable caches that can retain the signing configuration and its passwords.
 "$ROOT/gradlew" -p "$ROOT" --no-daemon --no-configuration-cache \
   :composeApp:bundleRelease :composeApp:assembleRelease \
-  "-PVEZUNA_VERSION_CODE=${VEZUNA_VERSION_CODE:-1}" \
-  "-PVEZUNA_VERSION_NAME=${VEZUNA_VERSION_NAME:-1.0}"
+  "-PVEZUNA_VERSION_CODE=${VEZUNA_VERSION_CODE}" \
+  "-PVEZUNA_VERSION_NAME=${VEZUNA_VERSION_NAME}"
 
 python3 "$ROOT/tools/release/check_android_native.py" \
   "$ROOT/composeApp/build/outputs/bundle/release/composeApp-release.aab"

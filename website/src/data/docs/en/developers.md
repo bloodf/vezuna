@@ -100,11 +100,11 @@ export VEZUNA_UPLOAD_STORE_FILE=$HOME/vezuna-upload.jks
 export VEZUNA_UPLOAD_STORE_PASSWORD=...
 export VEZUNA_UPLOAD_KEY_ALIAS=vezuna-upload
 export VEZUNA_UPLOAD_KEY_PASSWORD=...
-./gradlew :composeApp:bundleRelease -PVEZUNA_VERSION_CODE=2
-./gradlew :composeApp:assembleRelease
+./gradlew :composeApp:bundleRelease -PVEZUNA_VERSION_CODE=2 -PVEZUNA_VERSION_NAME=1.1
+./gradlew :composeApp:assembleRelease -PVEZUNA_VERSION_CODE=2 -PVEZUNA_VERSION_NAME=1.1
 ```
 
-Android defaults to version name `1.0` and version code `1`; use an increasing integer version code for every upload. Outputs are:
+Release builds fail unless both `VEZUNA_VERSION_CODE` and `VEZUNA_VERSION_NAME` are set; use an increasing integer version code for every upload. Outputs are:
 
 ```text
 composeApp/build/outputs/bundle/release/composeApp-release.aab

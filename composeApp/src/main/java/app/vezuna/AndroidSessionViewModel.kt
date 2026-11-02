@@ -49,7 +49,6 @@ class AndroidSessionViewModel(
     }
 
     override fun onCleared() {
-        licenseGate.close()
         app.applicationScope.launch { runCatching { modelManager.unload() } }
         super.onCleared()
     }
