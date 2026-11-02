@@ -87,14 +87,14 @@ first/continuation pages, single test, sparse period, Portuguese and Letter gray
 structure; health summary, medication record and device measurements carry the data as tables but not the
 reference charts, schedule strip or day timeline (partial in the ledger); the source appendix (pdf-09) is not built.
 
-## Test results (check-all, 2026-11-02)
+## Test results (check-all after the L9 merge, 2026-11-02)
 
-`scripts/check-all.sh` -> `CHECK_ALL_PASSED: localization brand lab-importer gradle ios` (rerun after the L9 merge, see below)
+`scripts/check-all.sh` -> `CHECK_ALL_PASSED: localization brand lab-importer gradle ios` (rerun after the L9 merge)
 
-- Localization catalogs: passed (1002 shared, 75 Android, 87 iOS keys in EN/PT/ES).
+- Localization catalogs: passed (1085 shared, 75 Android, 62 iOS keys in EN/PT/ES).
 - Brand and contrast check: passed.
 - Lab importer tests: passed.
-- `:shared:jvmTest`: 482 tests, 0 failures. `:shared:koverVerify` passed.
+- `:shared:jvmTest`: 494 tests, 0 failures. `:shared:koverVerify` passed.
 - `:composeApp:testDebugUnitTest`: 59 tests, 0 failures. assembleDebug, assembleDebugAndroidTest, lintDebug and
   assembleRelease (throwaway key) passed.
 - iOS: build and XCTest, 27 tests, 0 failures.
