@@ -66,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -143,6 +144,13 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
                     }
                 }
                 BirthDateField(data.profile.birthDate) { scope.launch { controller.setBirthDate(data.profile.profileId, it) } }
+                (state.error as? app.vezuna.localization.UserText.Key)?.takeIf { it.key == L10nKey.BIRTH_DATE_INVALID }?.let {
+                    Text(
+                        vitaText(L10nKey.BIRTH_DATE_INVALID),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = newProfile,

@@ -136,9 +136,14 @@ class AppController(
         if (freshInstall) {
             repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
-        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value, onboarding = freshInstall)
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || mutableState.value.onboarding)
         val profileId = mutableState.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
         loadProfile(profileId)
+        // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
+        val loaded = mutableState.value.data
+        if (mutableState.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty())) {
+            mutableState.value = mutableState.value.copy(onboarding = false)
+        }
         modelManager.refresh()
     }
 

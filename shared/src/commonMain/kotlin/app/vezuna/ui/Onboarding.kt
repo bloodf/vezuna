@@ -25,6 +25,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ProfileAge
 import app.vezuna.localization.L10nKey
@@ -59,7 +62,7 @@ fun OnboardingScreen(state: AppUiState, controller: AppController, scope: Corout
         )
         BirthDateField(birthDate, { birthDate = it })
         Text(vitaText(L10nKey.ONBOARDING_PRIVACY), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         Button(
             onClick = { scope.launch { controller.completeOnboarding(name, birthDate) } },
             modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp),
@@ -71,11 +74,9 @@ fun OnboardingScreen(state: AppUiState, controller: AppController, scope: Corout
     }
 }
 
-private const val MAX_UTC_OFFSET_MILLIS = 14L * 60 * 60 * 1000
-
 @OptIn(ExperimentalMaterial3Api::class)
 private object NoFutureBirthDates : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= currentInstant().toEpochMilliseconds() + MAX_UTC_OFFSET_MILLIS
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= ProfileAge.today(currentInstant(), TimeZone.currentSystemDefault()).toPickerMillis()
 }
 
 /** The picker yields UTC midnight, which read as UTC is exactly the chosen calendar day. */

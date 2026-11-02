@@ -74,6 +74,45 @@ class ProfileOnboardingTest {
         assertNull(repository.profiles.value.single().birthDate)
     }
 
+    @Test
+    fun capLeapDayAndLegacyJson() {
+        val today = LocalDate(2026, 11, 1)
+        assertFalse(ProfileAge.isValid(LocalDate(1896, 10, 31), today))
+        assertTrue(ProfileAge.isValid(LocalDate(1896, 11, 1), today))
+        assertEquals(1, ProfileAge.years(LocalDate(2024, 2, 29), LocalDate(2025, 3, 1)))
+        assertEquals(0, ProfileAge.years(LocalDate(2024, 2, 29), LocalDate(2025, 2, 28)))
+        val legacy = kotlinx.serialization.json.Json.decodeFromString<Profile>("""{"profileId":"p","displayName":"Me","createdAt":"2026-01-01T00:00:00Z"}""")
+        assertNull(legacy.birthDate)
+    }
+
+    @Test
+    fun freshProfileUsesDeviceDefaultNameAndBirthDateClears() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val c = controller(repository)
+        c.initialize()
+        val p = repository.profiles.value.single()
+        assertEquals(app.vezuna.domain.DefaultProfileName.of(app.vezuna.localization.ContentLanguage.device()), p.displayName)
+        c.setBirthDate(p.profileId, LocalDate(2000, 1, 1))
+        assertEquals(LocalDate(2000, 1, 1), repository.profiles.value.single().birthDate)
+        c.setBirthDate(p.profileId, null)
+        assertNull(repository.profiles.value.single().birthDate)
+        c.setBirthDate(p.profileId, LocalDate(1800, 1, 1))
+        assertEquals(L10nKey.BIRTH_DATE_INVALID, (c.state.value.error as UserText.Key).key)
+    }
+
+    @Test
+    fun reInitMidFirstRunKeepsOnboarding() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val c = controller(repository)
+        c.initialize()
+        c.initialize()
+        assertTrue(c.state.value.onboarding)
+        assertEquals(1, repository.profiles.value.size)
+        c.createProfile("Second")
+        c.initialize()
+        assertFalse(c.state.value.onboarding)
+    }
+
     private object NoModels : ModelFileStore {
         override suspend fun installed(): List<InstalledModel> = emptyList()
         override suspend fun install(model: InstalledModel, sourcePath: String) = Unit
