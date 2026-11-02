@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import app.vezuna.ui.components.decorativeArtShown
 import app.vezuna.ui.components.CategoryPanel
 import vezuna.shared.generated.resources.ic_chevron_right
 import androidx.compose.foundation.layout.Column
@@ -220,7 +221,8 @@ private fun PanelRow(title: String, supporting: String, icon: DrawableResource, 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
     ) {
-        Box(Modifier.size(40.dp).background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(VezunaTokens.ControlRadius)), contentAlignment = Alignment.Center) {
+        // At very large text the icon tile gives its width back so a long name ("Exportaciones") never breaks mid-word.
+        if (decorativeArtShown()) Box(Modifier.size(40.dp).background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(VezunaTokens.ControlRadius)), contentAlignment = Alignment.Center) {
             Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f)) {

@@ -98,8 +98,10 @@ fun ListRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
     ) {
+        // At very large text the decorative icon gives its width back so long names do not break mid-word.
         when {
             leading != null -> leading()
+            leadingIcon != null && !decorativeArtShown() -> Unit
             leadingIcon != null && category != null -> Box(
                 Modifier.size(40.dp).clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background(category.fill),
                 contentAlignment = Alignment.Center,
