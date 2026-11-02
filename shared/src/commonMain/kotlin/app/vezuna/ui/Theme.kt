@@ -1,5 +1,6 @@
 package app.vezuna.ui
 
+import app.vezuna.ui.more.MorePlatform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -170,7 +171,7 @@ private fun vezunaTypography(): Typography {
 
 @Composable
 fun VezunaTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = MorePlatform.themeMode.isDark(isSystemInDarkTheme()),
     animationsEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
