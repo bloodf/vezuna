@@ -16,6 +16,7 @@ class RestoreOutcome(val profileIds: List<String>, val allVitalsRestored: Boolea
  * Restores backup members one by one. A profile that already exists is replaced or stored under fresh IDs ([mode]).
  * Original files carried by the backup are written to [files] before the records that point at them; if a member's
  * records cannot be stored, the files written for it are removed again (files of a replaced profile are never touched).
+ * A member whose document IDs collide with another profile's is stored under fresh IDs instead of overwriting that profile's files.
  * Members stored before a failure stay stored.
  */
 suspend fun VezunaRepository.restoreMembers(
@@ -29,9 +30,13 @@ suspend fun VezunaRepository.restoreMembers(
     members.forEach { member ->
         val data = member.data
         val existing = if (profiles.value.any { it.profileId == data.profile.profileId }) peekProfile(data.profile.profileId) else null
+        // Original-file keys derive from the document ID, so an ID already used by another profile would overwrite its file.
+        val usedByOthers = profiles.value.filter { it.profileId != data.profile.profileId }
+            .flatMapTo(mutableSetOf()) { peekProfile(it.profileId).documents.map { document -> document.documentId } }
+        val collides = data.documents.any { it.documentId in usedByOthers }
         val toStore = when {
+            mode == RestoreMode.RESTORE_AS_NEW || collides -> data.remappedAsNew(newId)
             existing == null -> data.keepingOnlyAvailableSourceFiles(null)
-            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(newId)
             else -> data.keepingOnlyAvailableSourceFiles(existing)
         }
         val keptKeys = existing?.takeIf { toStore.profile.profileId == it.profile.profileId }?.vaultKeys().orEmpty()
@@ -40,7 +45,8 @@ suspend fun VezunaRepository.restoreMembers(
             // Remapping keeps document order, so the n-th document of the backup is the n-th document to store.
             val withFiles = toStore.copy(documents = toStore.documents.mapIndexed { index, document ->
                 val bytes = member.files[data.documents[index].documentId]
-                if (files == null || bytes == null) {
+                // A kept original of the profile being replaced is already stored and is never rewritten.
+                if (files == null || bytes == null || document.vaultKey in keptKeys) {
                     document
                 } else {
                     val key = files.save(document.profileId, document.documentId, bytes)

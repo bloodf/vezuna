@@ -182,7 +182,8 @@ class BackupService(
 
         /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
         const val SINGLE_SCHEMA_VERSION = 3
-        const val MAX_BACKUP_BYTES = 64 * 1024 * 1024
+        /** Held in memory several times over (bytes, Base64, JSON, plaintext, ciphertext), so kept well below Android heap limits. */
+        const val MAX_BACKUP_BYTES = 24 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"
     }
 }

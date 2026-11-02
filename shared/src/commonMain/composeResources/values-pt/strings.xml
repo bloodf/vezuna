@@ -331,7 +331,7 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta forte</string>
     <string name="backup_create_action">Criar backup</string>
     <string name="backup_saved">Backup salvo. Guarde bem a frase secreta</string>
-    <string name="backup_too_large">Este backup é grande demais (mais de 64 MB com os arquivos originais). Faça o backup de um perfil por vez.</string>
+    <string name="backup_too_large">Este backup é grande demais (mais de 24 MB com os arquivos originais). Faça o backup de um perfil por vez.</string>
     <string name="backup_include_household">Fazer backup de todos os perfis com os arquivos originais</string>
     <string name="backup_household_contents">Backup de %1$d perfis: %2$s</string>
     <string name="backup_enter_passphrase_title">Digite a frase secreta do backup</string>

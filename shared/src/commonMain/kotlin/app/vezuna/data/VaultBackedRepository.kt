@@ -80,6 +80,8 @@ class VaultBackedRepository(
     private val vitals = mutableMapOf<String, ProfileVitals>()
     // Keys whose corrupt current file was replaced by the previous generation; quarantined before the next write of that key.
     private val pendingQuarantine = mutableSetOf<String>()
+    // Index entries whose record is missing; carried forward in the index so their vitals and files are never swept.
+    private val skipped = mutableMapOf<String, Profile>()
     private var initialized = false
     private var selectedProfileId: String? = null
     private var healthLinkId: String? = null
@@ -88,6 +90,9 @@ class VaultBackedRepository(
     private val mutableOpenedFromPrevious = MutableStateFlow(false)
 
     var changeObserver: (() -> Unit)? = null
+
+    /** Profiles listed in the index whose record could not be found; hidden from [profiles] but never forgotten. */
+    val unavailableProfiles: List<Profile> get() = skipped.values.toList()
 
     /** True when the last load had to use a previous generation, so recent changes may be missing. */
     val openedFromPreviousGeneration: StateFlow<Boolean> = mutableOpenedFromPrevious.asStateFlow()
@@ -120,6 +125,7 @@ class VaultBackedRepository(
         require(!records.containsKey(profile.profileId)) { "Profile already exists" }
         require(profile.displayName.isNotBlank()) { "Profile name is required" }
         val data = ProfileData(profile = profile)
+        skipped.remove(profile.profileId)
         persist(data)
         writeIndex(indexWith(data.profile))
         records[profile.profileId] = data
@@ -255,10 +261,28 @@ class VaultBackedRepository(
         val stored = data.copy(vitals = ProfileVitals())
         val previous = records[data.profile.profileId]
         persist(stored)
-        writeIndex(indexWith(data.profile))
+        // The record is durable from here on. Nothing below may throw for a profile that already existed: its index
+        // entry is repaired on the next load, and callers must not roll back files the durable record points at.
+        try {
+            skipped.remove(data.profile.profileId)
+            writeIndex(indexWith(data.profile))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (previous == null) throw error
+            warn("Could not update the profile index after a restore", error)
+        }
         records[data.profile.profileId] = stored
-        // Files orphaned by the replacement go only after the restored record is durable.
-        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { vault.delete(it) }
+        // Files orphaned by the replacement go only after the restored record is durable; best effort.
+        ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { key ->
+            try {
+                vault.delete(key)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                warn("Could not delete an orphaned original", error)
+            }
+        }
         changed()
     }
 
@@ -315,7 +339,11 @@ class VaultBackedRepository(
     private fun changed() {
         publishProfiles()
         mutableRevision.value += 1
-        changeObserver?.invoke()
+        try {
+            changeObserver?.invoke()
+        } catch (error: Exception) {
+            warn("Change observer failed", error)
+        }
     }
 
     private suspend fun persistHealthLink(profileId: String) {
@@ -343,7 +371,8 @@ class VaultBackedRepository(
     }
 
     private suspend fun writeIndex(profiles: List<Profile>) {
-        val document = StorageSchema.stamp(JsonObject(mapOf(INDEX_PROFILES to json.encodeToJsonElement(ListSerializer(Profile.serializer()), profiles))))
+        val all = profiles + skipped.values.filter { s -> profiles.none { it.profileId == s.profileId } }
+        val document = StorageSchema.stamp(JsonObject(mapOf(INDEX_PROFILES to json.encodeToJsonElement(ListSerializer(Profile.serializer()), all))))
         writeDocument(INDEX_KEY, INDEX_ASSOCIATED_DATA, document)
     }
 
@@ -362,6 +391,7 @@ class VaultBackedRepository(
         records.clear()
         vitals.clear()
         pendingQuarantine.clear()
+        skipped.clear()
         mutableOpenedFromPrevious.value = false
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
@@ -380,23 +410,32 @@ class VaultBackedRepository(
         }
 
         var indexStale = false
-        index.orEmpty().forEach { profile ->
-            val data = readDocument(profileKey(profile.profileId), profileAssociatedData(profile.profileId)) { parseProfile(profile.profileId, it) }
+        val listed = index.orEmpty().associateBy { it.profileId }
+        // A previous-generation index is one write behind; records it does not list but whose vitals exist are kept.
+        val extra = if (mutableOpenedFromPrevious.value) {
+            vitalsStore.ids().filter { it !in listed && vault.read(profileKey(it)) != null }
+        } else {
+            emptyList()
+        }
+        (listed.keys + extra).forEach { id ->
+            val data = readDocument(profileKey(id), profileAssociatedData(id)) { parseProfile(id, it) }
             if (data == null) {
                 // A crash or partial delete left an index entry without its record; the other profiles must still open.
-                warn("Skipping profile ${profile.profileId}: its record is missing", null)
+                warn("Skipping profile $id: its record is missing", null)
+                listed[id]?.let { skipped[id] = it }
                 return@forEach
             }
             // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
-            if (data.profile != profile) indexStale = true
-            val stored = vitalsStore.load(profile.profileId) { warn("Could not read stored vitals", it) }
+            if (data.profile != listed[id]) indexStale = true
+            val stored = vitalsStore.load(id) { warn("Could not read stored vitals (${it::class.simpleName})", null) }
             // Vitals saved inside the profile record by an earlier build move to their own file.
-            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(profile.profileId, it) }
-            if (loaded != null) vitals[profile.profileId] = loaded
-            records[profile.profileId] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
+            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(id, it) }
+            if (loaded != null) vitals[id] = loaded
+            records[id] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
         }
         if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
-        vitalsStore.sweep(records.keys)
+        // Vitals of skipped profiles stay until the user deletes the profile or its record reappears.
+        vitalsStore.sweep(records.keys + skipped.keys)
         if (legacyPresent) {
             try {
                 vault.delete(LEGACY_KEY)

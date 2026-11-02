@@ -125,6 +125,94 @@ class HouseholdBackupTest {
     }
 }
 
+class HouseholdBackupSafetyTest {
+    private val t = Instant.parse("2026-01-01T00:00:00Z")
+
+    private class CountingStore(val failOn: Set<String> = emptySet(), val size: Int = 1) : SourceFileStore {
+        var loads = 0
+        override suspend fun save(profileId: String, documentId: String, bytes: ByteArray) = "k-$documentId"
+        override suspend fun discard(key: String) {}
+        override suspend fun load(profileId: String, documentId: String, key: String): ByteArray {
+            loads++
+            if (documentId in failOn) error("unreadable original")
+            return ByteArray(size)
+        }
+    }
+
+    private suspend fun repositoryWithDocuments(count: Int): InMemoryVezunaRepository {
+        val repository = InMemoryVezunaRepository()
+        repository.createProfile(Profile("p", "Ana", createdAt = t))
+        (1..count).forEach { repository.addDocument(app.vezuna.domain.SourceDocument("p", "d$it", "d.pdf", "application/pdf", "h", t, vaultKey = "k-d$it")) }
+        return repository
+    }
+
+    @Test
+    fun sizeLimitIsEnforcedWhileOriginalsLoadNotAfterwards() = runTest {
+        val store = CountingStore(size = 5 * 1024 * 1024)
+        val controller = labController(repositoryWithDocuments(10), store)
+
+        val failure = assertFailsWith<VitaMessageException> { controller.householdForBackup() }
+
+        assertEquals(L10nKey.BACKUP_TOO_LARGE, failure.userText.key)
+        assertTrue(store.loads < 10, "stopped after ${store.loads} loads")
+    }
+
+    @Test
+    fun oneUnreadableOriginalDoesNotBlockTheBackup() = runTest {
+        val store = CountingStore(failOn = setOf("d2"))
+        val members = labController(repositoryWithDocuments(3), store).householdForBackup()
+
+        assertEquals(setOf("d1", "d3"), members.single().files.keys)
+    }
+}
+
+class RestoreSafetyTest {
+    private val t = Instant.parse("2026-01-01T00:00:00Z")
+    private val vault = GenerationalMemoryVault()
+    private var ids = 0
+    private fun newId() = "fresh-${ids++}"
+
+    private fun profileWithDocuments(profileId: String, vararg documentIds: String) = ProfileData(
+        Profile(profileId, "Name $profileId", createdAt = t),
+        documents = documentIds.map { app.vezuna.domain.SourceDocument(profileId, it, "$it.pdf", "application/pdf", "h", t) },
+    )
+
+    @Test
+    fun restoreAfterTheRecordIsDurableNeverRemovesItsOriginals() = runTest {
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(profileWithDocuments("r", "d1"), mapOf("d1" to byteArrayOf(1)))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        // From now on the profile index cannot be written (disk full), after the record itself was stored.
+        vault.failingWrites += "repository-profile-index-v1"
+
+        repository.restoreMembers(
+            listOf(BackupMember(profileWithDocuments("r", "d1", "d2"), mapOf("d1" to byteArrayOf(1), "d2" to byteArrayOf(2)))),
+            RestoreMode.REPLACE_EXISTING, store, ::newId,
+        )
+
+        vault.failingWrites.clear()
+        val reopened = VaultBackedRepository(vault).also { it.load() }
+        val docs = reopened.readProfile("r").documents
+        assertEquals(listOf("d1", "d2"), docs.map { it.documentId })
+        docs.forEach { assertNotNull(store.load("r", it.documentId, assertNotNull(it.vaultKey))) }
+    }
+
+    @Test
+    fun backupDocumentIdUsedByAnotherProfileCannotOverwriteItsOriginal() = runTest {
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(profileWithDocuments("a", "d1"), mapOf("d1" to byteArrayOf(1, 1)))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val keyA = assertNotNull(repository.readProfile("a").documents.single().vaultKey)
+
+        val outcome = repository.restoreMembers(listOf(BackupMember(profileWithDocuments("b", "d1"), mapOf("d1" to byteArrayOf(9)))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+
+        assertContentEquals(byteArrayOf(1, 1), store.load("a", "d1", keyA), "the other profile's original is untouched and still readable")
+        val restored = repository.readProfile(outcome.profileIds.single())
+        assertNotEquals("d1", restored.documents.single().documentId)
+        assertContentEquals(byteArrayOf(9), store.load(restored.profile.profileId, restored.documents.single().documentId, assertNotNull(restored.documents.single().vaultKey)))
+    }
+}
+
 class SourceFileStorageTest {
     private val vault = GenerationalMemoryVault()
 

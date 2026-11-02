@@ -331,7 +331,7 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta fuerte</string>
     <string name="backup_create_action">Crear copia</string>
     <string name="backup_saved">Copia guardada. Conserva bien la frase secreta</string>
-    <string name="backup_too_large">Esta copia es demasiado grande (más de 64 MB con los archivos originales). Haz la copia de un perfil a la vez.</string>
+    <string name="backup_too_large">Esta copia es demasiado grande (más de 24 MB con los archivos originales). Haz la copia de un perfil a la vez.</string>
     <string name="backup_include_household">Copiar todos los perfiles con sus archivos originales</string>
     <string name="backup_household_contents">Copia de %1$d perfiles: %2$s</string>
     <string name="backup_enter_passphrase_title">Introduce la frase secreta de la copia</string>

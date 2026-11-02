@@ -69,7 +69,7 @@ On-disk formats and migration:
 - Plaintext documents carry `schemaVersion` (`StorageSchema.CURRENT`). Unversioned documents are version 1. Add a migration step in `StorageSchema.steps` for every bump. Data from a newer schema fails with `VaultFailure.SCHEMA_NEWER` and is never rewritten or quarantined.
 - Older Android builds kept one `repository-v1` blob. On first load it is split into per-profile files, the index is written last, and the blob is deleted only after the new files load. An interrupted migration restarts from the untouched blob.
 
-Backup payload `SCHEMA_VERSION` is 4 (versions 1-4 open). `BackupService.create` still writes the single-profile version 3 shape. `createHousehold` writes version 4: every profile with its vitals and original source files (Base64 inside the sealed payload). The whole file must stay under `MAX_BACKUP_BYTES` (64 MiB); a household whose originals exceed roughly 48 MiB of raw files is refused with a clear message, and profiles are then backed up one at a time.
+Backup payload `SCHEMA_VERSION` is 4 (versions 1-4 open). `BackupService.create` still writes the single-profile version 3 shape. `createHousehold` writes version 4: every profile with its vitals and original source files (Base64 inside the sealed payload). The whole file must stay under `MAX_BACKUP_BYTES` (24 MiB, because the payload is held in memory several times over); a household whose originals exceed roughly 18 MiB of raw files is refused with a clear message, and profiles are then backed up one at a time.
 
 ## Local AI
 

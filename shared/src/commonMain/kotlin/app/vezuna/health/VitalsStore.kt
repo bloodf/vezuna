@@ -47,6 +47,9 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
         writeIndex(readIndex() - profileId)
     }
 
+    /** Profile IDs that have a vitals file. */
+    suspend fun ids(): Set<String> = readIndex()
+
     /** Deletes vitals files of profiles that no longer exist (left by a delete that failed or was interrupted). */
     suspend fun sweep(existingProfileIds: Set<String>) {
         (readIndex() - existingProfileIds).forEach { delete(it) }

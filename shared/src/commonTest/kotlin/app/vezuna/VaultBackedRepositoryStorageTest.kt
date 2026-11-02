@@ -35,6 +35,7 @@ internal class GenerationalMemoryVault : SecureVault {
     val current = mutableMapOf<String, ByteArray>()
     val previous = mutableMapOf<String, ByteArray>()
     val quarantined = mutableMapOf<String, ByteArray>()
+    val failingWrites = mutableSetOf<String>()
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray) =
         CipherEnvelope("test-xor", "test-key", byteArrayOf(7), plainText.xor(), associatedData)
@@ -45,6 +46,7 @@ internal class GenerationalMemoryVault : SecureVault {
     }
 
     override suspend fun write(key: String, ciphertext: ByteArray) {
+        if (key in failingWrites) error("disk full")
         current[key]?.let { previous[key] = it }
         current[key] = ciphertext.copyOf()
     }
@@ -87,15 +89,43 @@ class VaultBackedRepositoryStorageTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = t))
         repository.createProfile(Profile("b", "Bia", createdAt = t))
+        val vitals = sampleProfileData("V").vitals
+        repository.replaceVitals("a", vitals)
+        val savedRecord = vault.current.getValue(profileKey("a")).copyOf()
         vault.delete(profileKey("a"))
 
         val reopened = open()
 
+        assertEquals(listOf("a"), reopened.unavailableProfiles.map { it.profileId })
+        assertNotNull(vault.read("repository-vitals-a-v1"), "vitals of a skipped profile are not swept")
         assertEquals(listOf("b"), reopened.profiles.value.map { it.profileId })
         assertEquals("Bia", reopened.readProfile("b").profile.displayName)
         // The healthy record is untouched and the user can keep working.
         reopened.createProfile(Profile("c", "Cy", createdAt = t))
         assertEquals(listOf("b", "c"), open().profiles.value.map { it.profileId })
+        // The skipped entry is carried in the index, so the record coming back brings the profile and its vitals back.
+        vault.current[profileKey("a")] = savedRecord
+        val healed = open()
+        assertEquals(listOf("a", "b", "c"), healed.profiles.value.map { it.profileId })
+        assertEquals(vitals.steps, healed.readProfile("a").vitals.steps)
+    }
+
+    @Test
+    fun previousGenerationIndexKeepsTheNewestProfileAndItsVitals() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = t))
+        repository.createProfile(Profile("p", "Pia", createdAt = t))
+        val vitals = sampleProfileData("V").vitals
+        repository.replaceVitals("p", vitals)
+        // The index written for "p" is corrupt, so the one before it (without "p") stands in.
+        vault.current[INDEX] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertTrue(reopened.openedFromPreviousGeneration.value)
+        assertEquals(vitals.steps, reopened.readProfile("p").vitals.steps)
+        assertEquals(listOf("a", "p"), reopened.profiles.value.map { it.profileId }.sorted())
+        assertNotNull(vault.read("repository-vitals-p-v1"))
     }
 
     @Test

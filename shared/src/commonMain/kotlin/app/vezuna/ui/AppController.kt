@@ -679,14 +679,30 @@ class AppController(
         )
     }
 
-    /** Every profile with its vitals and original source files, for a household backup. A missing file is simply left out. */
-    suspend fun householdForBackup(): List<BackupMember> = repository.profiles.value.map { profile ->
-        val data = repository.peekProfile(profile.profileId)
-        val files = data.documents.mapNotNull { document ->
-            val key = document.vaultKey ?: return@mapNotNull null
-            sourceStore?.load(document.profileId, document.documentId, key)?.let { document.documentId to it }
-        }.toMap()
-        BackupMember(data, files)
+    /**
+     * Every profile with its vitals and original source files, for a household backup. A missing or unreadable file is
+     * left out; loading stops with BACKUP_TOO_LARGE as soon as the originals cannot fit in a backup.
+     */
+    suspend fun householdForBackup(): List<BackupMember> {
+        var encoded = 0L
+        return repository.profiles.value.map { profile ->
+            val data = repository.peekProfile(profile.profileId)
+            val files = mutableMapOf<String, ByteArray>()
+            data.documents.forEach { document ->
+                val key = document.vaultKey ?: return@forEach
+                val bytes = try {
+                    sourceStore?.load(document.profileId, document.documentId, key)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (unreadable: Exception) {
+                    null
+                } ?: return@forEach
+                encoded += (bytes.size + 2L) / 3 * 4
+                if (encoded > BackupService.MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                files[document.documentId] = bytes
+            }
+            BackupMember(data, files)
+        }
     }
 
     private suspend fun operation(block: suspend () -> Unit) {
