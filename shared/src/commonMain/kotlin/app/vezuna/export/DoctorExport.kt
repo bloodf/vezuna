@@ -315,7 +315,7 @@ object DoctorExportContent {
 
     fun lines(data: ProfileData, language: ContentLanguage = ContentLanguage.EN): List<String> = buildList {
         val text = ExportText.of(language)
-        fun num(value: Double) = DoctorReportFormat.localizeDecimal(value.toString(), language)
+        fun num(value: Double) = DoctorReportFormat.value(value, language)
         add("${text.profile}: ${data.profile.displayName}")
         add(text.confirmedResults)
         data.observations.filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
@@ -364,12 +364,12 @@ class CsvDoctorExporter {
                     observation.collectedAt.toString(),
                     observation.testCode,
                     observation.displayName,
-                    if (observation.isQualitative) "" else observation.originalValue.toString(),
+                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.originalValue, observation.valueDecimals),
                     observation.originalUnit,
-                    if (observation.isQualitative) "" else observation.normalizedValue.toString(),
+                    if (observation.isQualitative) "" else DoctorReportFormat.value(observation.normalizedValue),
                     observation.normalizedUnit,
-                    observation.referenceRange.lower?.toString().orEmpty(),
-                    observation.referenceRange.upper?.toString().orEmpty(),
+                    observation.referenceRange.lower?.let { DoctorReportFormat.value(it) }.orEmpty(),
+                    observation.referenceRange.upper?.let { DoctorReportFormat.value(it) }.orEmpty(),
                     observation.referenceRange.unit.orEmpty(),
                     observation.referenceRange.text.orEmpty(),
                     observation.qualitativeValue.orEmpty(),

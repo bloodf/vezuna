@@ -108,6 +108,15 @@ class ExportOptionsTest {
     }
 
     @Test
+    fun csvWritesValuesWithTheirPrintedPrecision() {
+        val whole = observation("w", "HGB", "2026-04-10T10:00:00Z").copy(originalValue = 146.0, normalizedValue = 146.0, valueDecimals = 0, referenceRange = ReferenceRange(70.0, 99.0))
+        val two = observation("x", "GLU", "2026-04-11T10:00:00Z").copy(originalValue = 5.7, normalizedValue = 5.7, valueDecimals = 2)
+        val csv = CsvDoctorExporter().export(data.copy(observations = listOf(whole, two)))
+        assertTrue("\"146\"," in csv && "146.0" !in csv && "99.0" !in csv, csv)
+        assertTrue("\"5.70\"" in csv, csv)
+    }
+
+    @Test
     fun csvFieldsStartingWithFormulaOrControlCharsAreNeutralised() {
         val exporter = CsvDoctorExporter()
         assertEquals("\"'=SUM(A1)\"", exporter.escape("=SUM(A1)"))
