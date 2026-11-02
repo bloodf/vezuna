@@ -47,7 +47,7 @@ The manifest removes `INTERNET`, disables backup, and excludes all data from clo
 
 ## iOS (iosApp/)
 
-SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin compiled into the framework (injected by `iosApp/SharedBridge.gradle` through `scripts/build-ios.sh`). Swift pieces: `CryptoKitAesGcm`, `AppFileStorage` (complete file protection, excluded from backup), `HealthKitImporter`, `SourceTextExtractor` (PDFKit/Vision), `MedicationNotificationCoordinator`, `LicenseManager`/`LicenseView` (StoreKit), `StoreModelPackLoader`.
+SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin compiled into the framework (injected by `iosApp/SharedBridge.gradle` through `scripts/build-ios.sh`). Swift pieces: `CryptoKitAesGcm`, `KeychainKeyStore` (vault master key, `AfterFirstUnlockThisDeviceOnly`; `KeyFileVaultCore` migrates the legacy key file (deleted only once data decrypts with the Keychain key; Keychain add is add-only) and returns `KEY_UNAVAILABLE`, never a new key, while the item is unreadable), `AppFileStorage` (complete protection for models/exports; vault files use `completeUntilFirstUserAuthentication` for lock-screen dose actions, data still AES-GCM encrypted; all excluded from backup), `HealthKitImporter`, `SourceTextExtractor` (PDFKit/Vision), `MedicationNotificationCoordinator`, `LicenseManager`/`LicenseView` (StoreKit), `StoreModelPackLoader`.
 
 ## Data flow
 
