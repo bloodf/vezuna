@@ -141,6 +141,7 @@ fun DashboardScreen(state: AppUiState, controller: AppController, scope: Corouti
                         }
                     }
                 }
+                BirthDateField(data.profile.birthDate) { scope.launch { controller.setBirthDate(data.profile.profileId, it) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = newProfile,

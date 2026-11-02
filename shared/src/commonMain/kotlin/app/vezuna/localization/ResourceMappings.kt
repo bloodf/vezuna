@@ -399,6 +399,17 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_LANGUAGE_DEVICE to Res.string.export_language_device,
     L10nKey.EXPORT_LANGUAGE_EXPLANATION to Res.string.export_language_explanation,
     L10nKey.MODEL_CATALOG_UNREADABLE to Res.string.model_catalog_unreadable,
+    L10nKey.BIRTH_DATE to Res.string.birth_date,
+    L10nKey.BIRTH_DATE_NOT_SET to Res.string.birth_date_not_set,
+    L10nKey.BIRTH_DATE_INVALID to Res.string.birth_date_invalid,
+    L10nKey.BIRTH_DATE_CLEAR to Res.string.birth_date_clear,
+    L10nKey.PROFILE_AGE to Res.string.profile_age,
+    L10nKey.ONBOARDING_TITLE to Res.string.onboarding_title,
+    L10nKey.ONBOARDING_BODY to Res.string.onboarding_body,
+    L10nKey.ONBOARDING_NAME to Res.string.onboarding_name,
+    L10nKey.ONBOARDING_PRIVACY to Res.string.onboarding_privacy,
+    L10nKey.ONBOARDING_DONE to Res.string.onboarding_done,
+    L10nKey.ONBOARDING_SKIP to Res.string.onboarding_skip,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

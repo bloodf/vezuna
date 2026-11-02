@@ -419,4 +419,15 @@ iOS: %2$s</string>
     <string name="export_language_device">App language</string>
     <string name="export_language_explanation">Choose the language of headings, statuses and numbers in the export. Clinical values and units never change.</string>
     <string name="model_catalog_unreadable">The model catalog bundled with the app could not be read. AI models are unavailable.</string>
+    <string name="birth_date">Birth date</string>
+    <string name="birth_date_not_set">Not set</string>
+    <string name="birth_date_invalid">Birth date cannot be in the future or more than 130 years ago</string>
+    <string name="birth_date_clear">Clear birth date</string>
+    <string name="profile_age">Age %1$s</string>
+    <string name="onboarding_title">Welcome to Vezuna</string>
+    <string name="onboarding_body">Your health records stay on this device. Add a name for the first profile; you can change it later.</string>
+    <string name="onboarding_name">Name</string>
+    <string name="onboarding_privacy">Nothing leaves your device unless you export or back it up yourself.</string>
+    <string name="onboarding_done">Get started</string>
+    <string name="onboarding_skip">Skip for now</string>
 </resources>
