@@ -2,43 +2,32 @@ package app.vezuna.ui.entry
 
 import androidx.compose.runtime.Composable
 import app.vezuna.ui.AppScreen
-import app.vezuna.ui.ImportReviewScreen
-import app.vezuna.ui.ResultDetailScreen
-import app.vezuna.ui.nav.LegacyPushed
 import app.vezuna.ui.nav.RouteContext
 
 /**
- * Lane L3 (import, review, result entry and editing). R0 stubs render the current screens: the import
- * screen covers source choice, extraction, review and manual entry; result detail holds the edit dialog.
+ * Lane L3: add a record (system camera, photos and files, or manual entry), local extraction, review of drafts,
+ * and correction of confirmed results. The same shared screens run on Android and iOS.
  */
 object EntryRoutes {
     @Composable
-    private fun Import(ctx: RouteContext) = LegacyPushed(ctx) {
-        ImportReviewScreen(ctx.state, ctx.controller, ctx.scope, ctx.sourcePicker)
-    }
+    fun ImportReview(ctx: RouteContext) = ReviewQueueScreen(ctx)
 
     @Composable
-    fun ImportReview(ctx: RouteContext) = Import(ctx)
+    fun ImportSource(ctx: RouteContext) = ImportSourceScreen(ctx)
+
+    /** Extraction progress and failures live on the source screen, so retry and the other sources stay one tap away. */
+    @Composable
+    fun ImportExtract(ctx: RouteContext) = ImportSourceScreen(ctx)
 
     @Composable
-    fun ImportSource(ctx: RouteContext) = Import(ctx)
+    fun CandidateReview(screen: AppScreen.CandidateReview, ctx: RouteContext) = CandidateReviewScreen(ctx, screen.candidateId)
 
     @Composable
-    fun ImportExtract(ctx: RouteContext) = Import(ctx)
+    fun ManualEntry(ctx: RouteContext) = ManualEntryScreen(ctx)
 
     @Composable
-    fun CandidateReview(@Suppress("UNUSED_PARAMETER") screen: AppScreen.CandidateReview, ctx: RouteContext) = Import(ctx)
+    fun ResultEdit(screen: AppScreen.ResultEdit, ctx: RouteContext) = ResultEditScreen(ctx, screen.observationId)
 
     @Composable
-    fun ManualEntry(ctx: RouteContext) = Import(ctx)
-
-    @Composable
-    fun ResultEdit(screen: AppScreen.ResultEdit, ctx: RouteContext) = LegacyPushed(ctx) {
-        ResultDetailScreen(ctx.state, screen.observationId, ctx.controller)
-    }
-
-    @Composable
-    fun ResultHistory(screen: AppScreen.ResultHistory, ctx: RouteContext) = LegacyPushed(ctx) {
-        ResultDetailScreen(ctx.state, screen.observationId, ctx.controller)
-    }
+    fun ResultHistory(screen: AppScreen.ResultHistory, ctx: RouteContext) = ResultHistoryScreen(ctx, screen.observationId)
 }

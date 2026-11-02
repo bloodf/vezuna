@@ -162,6 +162,7 @@ class AppController(
      */
     private fun onProfileChanged() {
         mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        importSession.clear()
         navigator.resetToRoots()
     }
 
@@ -210,7 +211,8 @@ class AppController(
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
-        navigator.navigate(AppScreen.ImportReview)
+        // The source and extraction steps are done; back from review returns to where the import began.
+        navigator.replace(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
             else pluralMessage(L10nKey.UNREVIEWED_CANDIDATES_ADDED, inserted),
@@ -819,6 +821,37 @@ class AppController(
     private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
         parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)
     }
+
+    // region L3 import and entry
+    /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */
+    val importSession = app.vezuna.ui.entry.ImportSession()
+
+    /**
+     * Opens the platform picker for [kind] and imports what it extracts. A cancelled picker returns silently;
+     * a failure or a source without results stays on the source screen with its own explanation.
+     */
+    suspend fun importFrom(kind: app.vezuna.ui.entry.SourceKind, picker: suspend () -> PickedSource?) {
+        val session = importSession
+        session.start(kind)
+        val source = try {
+            picker()
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            session.idle()
+            throw cancellation
+        } catch (failure: app.vezuna.ui.entry.ImportFailure) {
+            return session.fail(failure.reason, failure.fileName)
+        } catch (error: Throwable) {
+            return session.fail(app.vezuna.ui.entry.ImportFailureReason.UNREADABLE, null)
+        } ?: return session.idle()
+        if (source.candidates.isEmpty()) return session.noResults(source.fileName)
+        importSource(source)
+        session.idle()
+    }
+
+    /** True when the last operation failed because the result is already recorded (the draft stays editable). */
+    val lastErrorWasDuplicate: Boolean
+        get() = (mutableState.value.error as? UserText.Key)?.key == L10nKey.DUPLICATE_CLINICAL_RESULT
+    // endregion L3 import and entry
 }
 
 private val REMINDER_TIME = Regex("(?:[01]\\d|2[0-3]):[0-5]\\d")
