@@ -29,7 +29,7 @@ jobs:
           packages: platform-tools
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Check localization, branding, and synthetic importer
         run: |
           python3 tools/localization/check_localization.py
