@@ -63,7 +63,8 @@ internal class ProfileController(
 
     /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
     suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) {
-        val profile = repository.profiles.value.firstOrNull() ?: return skipOnboarding()
+        val current = state.value.data?.profile?.profileId
+        val profile = repository.profiles.value.let { all -> all.firstOrNull { it.profileId == current } ?: all.firstOrNull() } ?: return skipOnboarding()
         core.clearMessages()
         if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
         if (birthDate != null) setBirthDate(profile.profileId, birthDate)
