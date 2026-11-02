@@ -34,6 +34,30 @@ data class ExportSectionText(
     val value: String,
     val time: String,
     val stepsUnit: String,
+    val doseTimeline: String,
+    val scheduleWeek: String,
+    val scheduleNote: String,
+    val endDate: String,
+    /** Monday first, short forms. */
+    val weekdays: List<String>,
+    /** {days}: calendar days with at least one device measurement in the export. */
+    val deviceDays: String,
+    val sourcesIncluded: String,
+    val sourcesNote: String,
+    val report: String,
+    val originalFile: String,
+    val originalStored: String,
+    val originalMissing: String,
+    val noFileManual: String,
+    /** {count}: captured photo pages of the original. */
+    val pages: String,
+    /** {count}: confirmed results from this report in the export. */
+    val confirmedInSource: String,
+    val notIncluded: String,
+    val notIncludedNote: String,
+    /** {count}: unreviewed values of a document, never printed. */
+    val unreviewedInSource: String,
+    val noSources: String,
 ) {
     fun title(family: ExportFamily, language: ContentLanguage): String = when (family) {
         ExportFamily.HEALTH_SUMMARY -> healthSummary
@@ -80,6 +104,25 @@ data class ExportSectionText(
             value = "Value",
             time = "Time",
             stepsUnit = "steps",
+            doseTimeline = "Daily dose timeline",
+            scheduleWeek = "Schedule for the next seven days",
+            scheduleNote = "Planned times from the schedule, not dose history.",
+            endDate = "End date",
+            weekdays = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
+            deviceDays = "Days with device data in this export: {days}. Changes are arithmetic differences.",
+            sourcesIncluded = "Sources included",
+            sourcesNote = "Original files are listed, not embedded. Only confirmed results are included.",
+            report = "Report",
+            originalFile = "Original file",
+            originalStored = "Original stored in Vezuna",
+            originalMissing = "Original not stored on this device",
+            noFileManual = "No file: entered manually",
+            pages = "Pages: {count}",
+            confirmedInSource = "Confirmed results included: {count}",
+            notIncluded = "Not included",
+            notIncludedNote = "Not included because its values are unreviewed.",
+            unreviewedInSource = "Unreviewed values: {count}",
+            noSources = "No source reports: no confirmed results are included.",
         )
 
         private val PT = ExportSectionText(
@@ -110,6 +153,25 @@ data class ExportSectionText(
             value = "Valor",
             time = "Hora",
             stepsUnit = "passos",
+            doseTimeline = "Linha do tempo diária das doses",
+            scheduleWeek = "Horários dos próximos sete dias",
+            scheduleNote = "Horários planejados pelo agendamento, não histórico de doses.",
+            endDate = "Data de término",
+            weekdays = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"),
+            deviceDays = "Dias com dados do dispositivo nesta exportação: {days}. As alterações são diferenças aritméticas.",
+            sourcesIncluded = "Fontes incluídas",
+            sourcesNote = "Os arquivos originais são listados, não incorporados. Somente resultados confirmados são incluídos.",
+            report = "Laudo",
+            originalFile = "Arquivo original",
+            originalStored = "Original guardado no Vezuna",
+            originalMissing = "Original não guardado neste dispositivo",
+            noFileManual = "Sem arquivo: inserido manualmente",
+            pages = "Páginas: {count}",
+            confirmedInSource = "Resultados confirmados incluídos: {count}",
+            notIncluded = "Não incluídos",
+            notIncludedNote = "Não incluído porque seus valores não foram revisados.",
+            unreviewedInSource = "Valores não revisados: {count}",
+            noSources = "Nenhum laudo de origem: nenhum resultado confirmado foi incluído.",
         )
 
         private val ES = ExportSectionText(
@@ -140,6 +202,25 @@ data class ExportSectionText(
             value = "Valor",
             time = "Hora",
             stepsUnit = "pasos",
+            doseTimeline = "Línea de tiempo diaria de dosis",
+            scheduleWeek = "Horario de los próximos siete días",
+            scheduleNote = "Horas previstas por la pauta, no historial de dosis.",
+            endDate = "Fecha de fin",
+            weekdays = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"),
+            deviceDays = "Días con datos del dispositivo en esta exportación: {days}. Los cambios son diferencias aritméticas.",
+            sourcesIncluded = "Fuentes incluidas",
+            sourcesNote = "Los archivos originales se enumeran, no se incrustan. Solo se incluyen resultados confirmados.",
+            report = "Informe",
+            originalFile = "Archivo original",
+            originalStored = "Original guardado en Vezuna",
+            originalMissing = "Original no guardado en este dispositivo",
+            noFileManual = "Sin archivo: introducido manualmente",
+            pages = "Páginas: {count}",
+            confirmedInSource = "Resultados confirmados incluidos: {count}",
+            notIncluded = "No incluidos",
+            notIncludedNote = "No se incluye porque sus valores no están revisados.",
+            unreviewedInSource = "Valores sin revisar: {count}",
+            noSources = "No hay informes de origen: no se incluye ningún resultado confirmado.",
         )
     }
 }

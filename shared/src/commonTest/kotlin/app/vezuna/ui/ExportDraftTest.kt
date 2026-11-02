@@ -33,6 +33,9 @@ class ExportDraftTest {
         assertTrue(options.includeDoseHistory)
         assertEquals(PaperSize.LETTER, options.paper)
         assertEquals(null to null, draft.bounds(today))
+        assertFalse(options.includeSourceAppendix, "the source appendix is opt-in")
+        draft.includeSources = true
+        assertTrue(draft.options(today)!!.includeSourceAppendix)
     }
 
     @Test

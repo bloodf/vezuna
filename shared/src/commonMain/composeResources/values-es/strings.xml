@@ -1143,6 +1143,7 @@ iOS: %2$s</string>
     <string name="export_section_meds">Medicamentos</string>
     <string name="export_section_doses">Historial de dosis</string>
     <string name="export_section_device">Datos del dispositivo</string>
+    <string name="export_section_sources">Apéndice de fuentes</string>
     <string name="export_section_device_none">No hay datos del dispositivo en este perfil</string>
     <string name="export_tests_row">Pruebas</string>
     <string name="export_tests_all">Todas las pruebas</string>

@@ -103,6 +103,7 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
                     if (data.vitals.isEmpty) vitaText(L10nKey.EXPORT_SECTION_DEVICE_NONE) else null,
                     draft.includeDevice,
                 ) { draft.includeDevice = it }
+                SwitchRow(vitaText(L10nKey.EXPORT_SECTION_SOURCES), null, draft.includeSources) { draft.includeSources = it }
             }
             if (csv || draft.includeMedications || draft.includeDoses) {
                 SwitchRow(vitaText(L10nKey.EXPORT_ACTIVE_MEDICATIONS_ONLY), null, draft.activeMedicationsOnly) { draft.activeMedicationsOnly = it }

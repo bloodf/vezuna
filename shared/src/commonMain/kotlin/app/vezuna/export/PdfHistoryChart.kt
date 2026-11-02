@@ -6,14 +6,14 @@ import app.vezuna.localization.ContentLanguage
  * Full-width history graph: actual collection dates at their real spacing, every dot labelled with its recorded
  * value when the label fits at 11 pt, the source reference as a band/dashed line (shared bounds) or per-reading bars.
  */
-internal class PdfHistoryChart(private val pen: PdfPen, private val language: ContentLanguage) {
+internal class PdfHistoryChart(private val pen: PdfPen, private val language: ContentLanguage, private val plotHeight: Double = PLOT_HEIGHT) {
     private val referenceLabel = ExportText.of(language).recordedReference
 
     data class Result(val height: Double, val labelsOmitted: Boolean)
 
     private data class Label(val text: String, val left: Double, val top: Double, val width: Double)
 
-    fun height(): Double = UNIT_ROW + PLOT_HEIGHT + DATE_ROW
+    fun height(): Double = UNIT_ROW + plotHeight + DATE_ROW
 
     /** [decimals] prints each dot as recorded (13.0, not 13); null prints the shortest exact value. */
     fun draw(series: DoctorTrendSeries, left: Double, top: Double, width: Double, decimals: Int? = null): Result {
@@ -24,9 +24,9 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
         val plotLeft = left + axisWidth + 4.0
         val plotRight = left + width - 6.0
         val plotTop = top + UNIT_ROW
-        val plotBottom = plotTop + PLOT_HEIGHT
+        val plotBottom = plotTop + plotHeight
         fun x(fraction: Double) = plotLeft + 14.0 + fraction * (plotRight - plotLeft - 28.0)
-        fun y(value: Double) = plotBottom - geometry.yFraction(value) * PLOT_HEIGHT
+        fun y(value: Double) = plotBottom - geometry.yFraction(value) * plotHeight
 
         pen.text(series.unit, left, top, size, PdfStyle.MUTED, bold = true)
         geometry.ticks.forEachIndexed { index, tick ->

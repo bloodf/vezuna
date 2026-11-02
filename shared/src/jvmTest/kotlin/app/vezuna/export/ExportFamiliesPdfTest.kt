@@ -103,8 +103,7 @@ class ExportFamiliesSampleWriterTest {
         val zone = TimeZone.of("America/Sao_Paulo")
         val data = DesignFixture.data()
         fun doc(family: ExportFamily, language: ContentLanguage = ContentLanguage.EN, options: ExportOptions = family.defaults()) =
-            DoctorExportContent.document(data, ExportSectionText.titleOf(family, language), language, options.copy(family = family), zone)
-                .copy(generatedAt = PdfFixtures.generatedAt)
+            DoctorExportContent.document(data, ExportSectionText.titleOf(family, language), language, options.copy(family = family), zone, PdfFixtures.generatedAt)
         mapOf(
             "pdf-01-health-summary.pdf" to doc(ExportFamily.HEALTH_SUMMARY),
             "pdf-02-03-lab-history.pdf" to doc(ExportFamily.LAB_HISTORY),
@@ -116,6 +115,10 @@ class ExportFamiliesSampleWriterTest {
             "pdf-11-portuguese-history.pdf" to doc(ExportFamily.LAB_HISTORY, ContentLanguage.PT),
             "pdf-12-letter-grayscale.pdf" to doc(ExportFamily.LAB_HISTORY, options = ExportFamily.LAB_HISTORY.defaults(PaperSize.LETTER).copy(grayscale = true)),
             "es-health-summary.pdf" to doc(ExportFamily.HEALTH_SUMMARY, ContentLanguage.ES),
+            "pdf-09-source-appendix.pdf" to doc(ExportFamily.HEALTH_SUMMARY, options = ExportFamily.HEALTH_SUMMARY.defaults().copy(includeSourceAppendix = true)),
+            "pt-medication-record.pdf" to doc(ExportFamily.MEDICATION_RECORD, ContentLanguage.PT, ExportFamily.MEDICATION_RECORD.defaults().copy(from = LocalDate(2026, 10, 25), to = LocalDate(2026, 10, 31))),
+            "es-device-measurements.pdf" to doc(ExportFamily.DEVICE_MEASUREMENTS, ContentLanguage.ES, ExportFamily.DEVICE_MEASUREMENTS.defaults().copy(from = LocalDate(2026, 10, 25), to = LocalDate(2026, 10, 31))),
+            "letter-grayscale-medication-record.pdf" to doc(ExportFamily.MEDICATION_RECORD, options = ExportFamily.MEDICATION_RECORD.defaults(PaperSize.LETTER).copy(grayscale = true, from = LocalDate(2026, 10, 25), to = LocalDate(2026, 10, 31))),
         ).forEach { (name, document) -> File(directory, name).writeBytes(PdfFixtures.pdfBytes(document)) }
     }
 }

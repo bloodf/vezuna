@@ -8,15 +8,19 @@ import app.vezuna.domain.VitalMetric
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MedicationRecurrence
+import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.RangeAssessment
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.UnitNormalizer
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.platform.currentInstant
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 
 data class DoctorPdfDocument(
@@ -39,6 +43,8 @@ data class DoctorPdfDocument(
     val family: ExportFamily = ExportFamily.LAB_HISTORY,
     val doseRows: List<DoctorDoseRow> = emptyList(),
     val deviceRows: List<DoctorDeviceRow> = emptyList(),
+    /** Source reports behind the exported results, plus documents left out for unreviewed values (pdf-09). */
+    val sourceRows: List<DoctorSourceRow> = emptyList(),
 ) {
     val hasStructuredContent: Boolean get() = profileDisplayName.isNotEmpty() || resultRows.isNotEmpty() || medicationRows.isNotEmpty() ||
         doseRows.isNotEmpty() || deviceRows.isNotEmpty()
@@ -53,6 +59,27 @@ data class DoctorDoseRow(
     /** Local "HH:mm" the user recorded the action; null for missed doses or when not recorded. */
     val recordedTime: String? = null,
 )
+
+/**
+ * One source report of the appendix. [results] confirmed results from it are in the export; a row with no results
+ * lists a document left out because its [unreviewed] values were never confirmed. Never carries the values themselves.
+ */
+data class DoctorSourceRow(
+    val collectedAt: Instant,
+    val documentName: String?,
+    val laboratoryName: String?,
+    val orderedAt: Instant?,
+    /** Captured photo pages; null when unknown (PDF originals are not paged here, or no original is stored). */
+    val pages: Int?,
+    /** True only when the original file is in this device's vault; restored backups carry no originals. */
+    val originalStored: Boolean,
+    val manualEntry: Boolean,
+    val results: Int,
+    val unreviewed: Int = 0,
+)
+
+/** Planned dose times of one calendar day, from the medication's schedules (not dose history). */
+data class DoctorScheduleDay(val date: LocalDate, val times: List<String>)
 
 /** One device reading: a day total (steps), a daily average (heart rate) or a single reading (weight, with [time]). */
 data class DoctorDeviceRow(val metric: VitalMetric, val date: LocalDate, val value: Double, val time: String? = null)
@@ -87,6 +114,10 @@ data class DoctorMedicationRow(
     /** Local "HH:mm" times of every schedule. */
     val times: List<String> = emptyList(),
     val startDate: LocalDate? = null,
+    /** Latest schedule end; null when any schedule is open-ended or none is recorded. */
+    val endDate: LocalDate? = null,
+    /** The seven days from the export date with their planned times; empty for inactive or unscheduled medications. */
+    val week: List<DoctorScheduleDay> = emptyList(),
 )
 
 /** What the export selected and left out, so the PDF can state its own scope. */
@@ -104,6 +135,7 @@ data class DoctorExportScope(
     val deviceIncluded: Boolean = false,
     /** Last device import, printed with the device section. */
     val deviceLastSync: Instant? = null,
+    val sourceAppendixIncluded: Boolean = false,
 )
 
 data class DoctorTrendSeries(
@@ -132,8 +164,9 @@ object DoctorExportContent {
         language: ContentLanguage = ContentLanguage.EN,
         options: ExportOptions = ExportOptions(),
         zone: TimeZone = TimeZone.currentSystemDefault(),
+        /** Export time; also the first day of each medication's seven-day schedule strip. */
+        generatedAt: Instant = currentInstant(),
     ): DoctorPdfDocument {
-        val generatedAt = currentInstant()
         val selected = options.apply(data)
         val available = data.observations.filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
         val scope = DoctorExportScope(
@@ -147,6 +180,7 @@ object DoctorExportContent {
             doseHistoryIncluded = options.includeDoseHistory,
             deviceIncluded = options.includeDeviceData,
             deviceLastSync = data.vitals.lastSync,
+            sourceAppendixIncluded = options.includeSourceAppendix,
         )
         val built = build(selected, title, language, generatedAt, ExportOptions.ageYears(data.profile.birthDate, generatedAt))
         return built.copy(
@@ -154,12 +188,43 @@ object DoctorExportContent {
             paper = options.paper,
             grayscale = options.grayscale,
             scope = scope,
-            medicationRows = if (options.includeMedicationsPdf) medicationRows(selected) else emptyList(),
+            medicationRows = if (options.includeMedicationsPdf) medicationRows(selected, generatedAt.toLocalDateTime(zone).date) else emptyList(),
             resultRows = if (options.includeLabsPdf) built.resultRows else emptyList(),
             family = options.family,
             doseRows = if (options.includeDoseHistory) doseRows(data, options, zone) else emptyList(),
             deviceRows = if (options.includeDeviceData) deviceRows(data, options, zone) else emptyList(),
+            sourceRows = if (options.includeSourceAppendix) sourceRows(data, selected, options) else emptyList(),
         )
+    }
+
+    /** Reports of the exported confirmed results, then documents whose values all await review (listed, never printed). */
+    fun sourceRows(data: ProfileData, selected: ProfileData, options: ExportOptions): List<DoctorSourceRow> {
+        val profileId = data.profile.profileId
+        val documents = data.documents.filter { it.profileId == profileId }.associateBy { it.documentId }
+        val reports = data.reports.filter { it.profileId == profileId }.associateBy { it.reportId }
+        val unreviewed = options.unreviewedByDocument(data)
+        fun pages(document: SourceDocument?) =
+            document?.takeIf { it.vaultKey != null && it.mediaType.startsWith("image/") }?.let { 1 + it.pageVaultKeys.size }
+        val confirmed = if (!options.includeLabsPdf) emptyList() else selected.observations.filter { it.profileId == profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
+        val groups = confirmed.groupBy { reports[it.reportId] }
+        val included = groups.map { (report, rows) ->
+            val document = report?.sourceDocumentId?.let(documents::get)
+            DoctorSourceRow(
+                collectedAt = rows.minOf { it.collectedAt }, documentName = document?.displayName?.takeIf { it.isNotBlank() },
+                laboratoryName = report?.laboratoryName?.takeIf { it.isNotBlank() }, orderedAt = report?.orderedAt, pages = pages(document),
+                originalStored = document?.vaultKey != null, manualEntry = report?.isManual == true, results = rows.size,
+                unreviewed = document?.let { unreviewed[it.documentId]?.size } ?: 0,
+            )
+        }
+        val usedDocuments = groups.keys.mapNotNull { it?.sourceDocumentId }.toSet()
+        val excluded = unreviewed.mapNotNull { (id, dates) ->
+            val document = documents[id]?.takeIf { it.documentId !in usedDocuments } ?: return@mapNotNull null
+            DoctorSourceRow(
+                collectedAt = dates.min(), documentName = document.displayName, laboratoryName = null, orderedAt = null, pages = pages(document),
+                originalStored = document.vaultKey != null, manualEntry = false, results = 0, unreviewed = dates.size,
+            )
+        }
+        return included.sortedWith(compareBy({ it.collectedAt }, { it.documentName.orEmpty() })) + excluded.sortedBy { it.collectedAt }
     }
 
     private fun localTime(instant: Instant, zone: TimeZone): String =
@@ -223,10 +288,14 @@ object DoctorExportContent {
         'ú' to 'u', 'ù' to 'u', 'û' to 'u', 'ü' to 'u', 'ç' to 'c', 'ñ' to 'n',
     )
 
-    private fun medicationRows(data: ProfileData): List<DoctorMedicationRow> = data.medications
+    private fun medicationRows(data: ProfileData, today: LocalDate? = null): List<DoctorMedicationRow> = data.medications
         .filter { it.profileId == data.profile.profileId }
         .sortedBy { it.displayName }
         .map { medication ->
+            val week = if (today == null || !medication.active || medication.schedules.isEmpty()) emptyList() else (0 until 7).map { offset ->
+                val day = today.plus(offset, DateTimeUnit.DAY)
+                DoctorScheduleDay(day, medication.schedules.filter { MedicationRecurrence.occursOn(it, day) }.flatMap { it.timesLocal }.distinct().sorted())
+            }
             DoctorMedicationRow(
                 displayName = medication.displayName,
                 strength = medication.strength,
@@ -234,6 +303,8 @@ object DoctorExportContent {
                 active = medication.active,
                 times = medication.schedules.flatMap { it.timesLocal }.distinct().sorted(),
                 startDate = medication.schedules.minOfOrNull { it.startDate },
+                endDate = medication.schedules.takeIf { list -> list.isNotEmpty() && list.all { it.endDate != null } }?.maxOf { it.endDate!! },
+                week = week,
             )
         }
 

@@ -58,6 +58,7 @@ internal class PdfPen(val canvas: PdfCanvas, private val grayscale: Boolean) {
 
     fun rect(x: Double, top: Double, width: Double, height: Double, color: PdfColor) = canvas.rect(x, top, width, height, color(color))
     fun circle(x: Double, y: Double, radius: Double, color: PdfColor) = canvas.circle(x, y, radius, color(color))
+    fun path(ops: List<PathOp>, color: PdfColor, strokeWidth: Double?) = canvas.path(ops, color(color), strokeWidth)
 
     fun lineHeight(size: Double) = size * if (size <= PdfStyle.NOTE) PdfStyle.NOTE_LEADING else PdfStyle.BODY_LEADING
 

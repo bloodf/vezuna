@@ -31,6 +31,8 @@ data class ExportOptions(
     val includeDoseHistory: Boolean = false,
     /** PDF device section: daily steps, daily average heart rate and weight readings inside the period. */
     val includeDeviceData: Boolean = false,
+    /** PDF source appendix (pdf-09): the reports the exported results came from; files are listed, never embedded. */
+    val includeSourceAppendix: Boolean = false,
 ) {
     init {
         require(from == null || to == null || from <= to) { "Export start date is after the end date" }
@@ -43,15 +45,19 @@ data class ExportOptions(
     )
 
     /** Unreviewed imported values of the profile inside this selection: excluded from the export, but counted in its scope. */
-    fun unreviewedCount(data: ProfileData): Int {
+    fun unreviewedCount(data: ProfileData): Int = unreviewedByDocument(data).values.sumOf { it.size }
+
+    /** Collection times of the unreviewed values inside this selection, keyed by source document (null: unknown document). */
+    fun unreviewedByDocument(data: ProfileData): Map<String?, List<Instant>> {
         val profileId = data.profile.profileId
-        val observations = data.observations.count {
-            it.profileId == profileId && it.confirmation == ConfirmationStatus.UNREVIEWED && includes(it)
-        }
-        val candidates = data.ocrCandidates.count {
-            it.profileId == profileId && it.status == ConfirmationStatus.UNREVIEWED && includes(it.testCode, it.collectedAt)
-        }
-        return observations + candidates
+        val documents = data.reports.associate { it.reportId to it.sourceDocumentId }
+        val observations = data.observations
+            .filter { it.profileId == profileId && it.confirmation == ConfirmationStatus.UNREVIEWED && includes(it) }
+            .map { documents[it.reportId] to it.collectedAt }
+        val candidates = data.ocrCandidates
+            .filter { it.profileId == profileId && it.status == ConfirmationStatus.UNREVIEWED && includes(it.testCode, it.collectedAt) }
+            .map { it.sourceDocumentId to it.collectedAt }
+        return (observations + candidates).groupBy({ it.first }, { it.second })
     }
 
     private fun includes(observation: LabObservation): Boolean = includes(observation.testCode, observation.collectedAt)
