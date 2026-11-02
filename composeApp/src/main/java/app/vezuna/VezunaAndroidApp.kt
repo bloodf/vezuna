@@ -1,10 +1,5 @@
 package app.vezuna
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -17,9 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import android.provider.Settings
 import app.vezuna.export.NativeExport
 import app.vezuna.importer.AndroidSourcePicker
@@ -59,7 +52,6 @@ fun VezunaAndroidApp(
     val message by messageFlow.collectAsState()
     val pendingExport by exportFlow.collectAsState()
     val nativeBusy by busyFlow.collectAsState()
-    val extraction by sourcePicker.lastExtraction.collectAsState()
     val modelLoadState by modelLoader.state.collectAsState()
 
     LaunchedEffect(state.csvExport) {
@@ -77,7 +69,7 @@ fun VezunaAndroidApp(
         VezunaApp(
             controller = controller,
             scope = scope,
-            sourcePicker = sourcePicker::pick,
+            sourcePicker = { sourcePicker.pick(controller.importSession) },
             modelPackLoader = modelLoader::load,
             animationsEnabled = animationsEnabled,
             backupFiles = backupFiles,
@@ -128,24 +120,6 @@ fun VezunaAndroidApp(
                     TextButton(onClick = { onSaveExport(export) }) { Text(nativeMessage(NativeKey.SAVE).resolve(context)) }
                     TextButton(onClick = onDismissExport) { Text(nativeMessage(NativeKey.CLOSE).resolve(context)) }
                 },
-            )
-        }
-
-        extraction?.let { result ->
-            AlertDialog(
-                onDismissRequest = sourcePicker::clearExtraction,
-                title = { Text(nativeMessage(NativeKey.OFFLINE_SOURCE_EXTRACTION).resolve(context)) },
-                text = {
-                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                        Text(nativeMessage(if (result.usedEmbeddedText) NativeKey.EXTRACTION_EMBEDDED else NativeKey.EXTRACTION_OCR).resolve(context))
-                        result.pages.forEach { page ->
-                            val sourceLabel = nativeMessage(if (page.source.name == "EMBEDDED_PDF_TEXT") NativeKey.EMBEDDED_TEXT else NativeKey.OCR).resolve(context)
-                            Text(nativeMessage(NativeKey.EXTRACTION_PAGE, page.pageNumber, sourceLabel).resolve(context), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
-                            Text(page.text.ifBlank { nativeMessage(NativeKey.NO_TEXT_PAGE).resolve(context) })
-                        }
-                    }
-                },
-                confirmButton = { TextButton(onClick = sourcePicker::clearExtraction) { Text(nativeMessage(NativeKey.CLOSE).resolve(context)) } },
             )
         }
 

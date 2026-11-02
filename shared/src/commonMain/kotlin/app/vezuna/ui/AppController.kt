@@ -212,7 +212,9 @@ class AppController(
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
         // The source and extraction steps are done; back from review returns to where the import began.
-        navigator.replace(AppScreen.ImportReview)
+        val current = navigator.current
+        if (current == AppScreen.ImportSource || current == AppScreen.ImportExtract) navigator.replace(AppScreen.ImportReview)
+        else navigator.navigate(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
             else pluralMessage(L10nKey.UNREVIEWED_CANDIDATES_ADDED, inserted),

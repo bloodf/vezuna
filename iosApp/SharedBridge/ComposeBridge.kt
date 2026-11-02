@@ -7,7 +7,6 @@ import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
 import app.vezuna.domain.MissedDoses
-import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.HeartRateBucket
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
@@ -48,7 +47,6 @@ import app.vezuna.ui.AppLockHost
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.ui.ExtractedCandidate
-import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
 import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
@@ -95,9 +93,15 @@ import platform.Foundation.NSUserDefaults
 import platform.Foundation.dataWithContentsOfFile
 import platform.UIKit.UIViewController
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
+/**
+ * Opens the system camera, photo picker or document picker for [kind] (a [app.vezuna.ui.entry.SourceKind] name)
+ * and extracts text on the device. Completion: the source (null when cancelled), or a failure
+ * ([app.vezuna.ui.entry.ImportFailureReason] name) with the file name when known.
+ */
 interface NativeSourcePicker {
-    fun pickSource(completion: (PickedSource?) -> Unit)
+    fun pickSource(kind: String, completion: (PickedSource?, String?, String?) -> Unit)
 }
 
 data class NativeMessage(val key: String, val args: List<String> = emptyList())
@@ -150,7 +154,7 @@ interface NativeActionHandler {
 
 /** Native screens iOS offers from More (they used to sit in the toolbar menu). */
 private val iosNativeActions = setOf(
-    NativeAction.IMPORT_SOURCE, NativeAction.EXPORT, NativeAction.HEALTH,
+    NativeAction.EXPORT, NativeAction.HEALTH,
     NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
 )
 
@@ -171,41 +175,6 @@ private data class NativeHeartRate(val startEpochSeconds: Long, val min: Double,
 
 @Serializable
 private data class NativeWeight(val recordId: String, val epochSeconds: Long, val kg: Double)
-
-data class NativeCandidateInput(
-    val testCode: String,
-    val displayName: String,
-    val rawValue: String,
-    val rawUnit: String,
-    val referenceLower: String,
-    val referenceUpper: String,
-    val confidence: Float?,
-    val collectedEpochSeconds: Long,
-    val rawToken: String? = null,
-    val referenceText: String? = null,
-    val referenceUnit: String? = null,
-    val qualitative: Boolean = false,
-)
-
-private fun NativeCandidateInput.toExtracted(): ExtractedCandidate {
-    val unit = rawUnit.trim()
-    return ExtractedCandidate(
-        testCode = testCode,
-        displayName = displayName,
-        rawValue = rawValue,
-        rawUnit = unit,
-        referenceRange = ReferenceRange(
-            app.vezuna.localization.parseDecimalInput(referenceLower),
-            app.vezuna.localization.parseDecimalInput(referenceUpper),
-            text = referenceText?.trim()?.takeIf { it.isNotEmpty() },
-            unit = referenceUnit?.takeIf { it.isNotBlank() } ?: unit.takeIf { it.isNotEmpty() },
-        ),
-        collectedAt = Instant.fromEpochSeconds(collectedEpochSeconds),
-        confidence = confidence?.coerceIn(0f, 1f),
-        valueKind = if (qualitative) ExtractedValueKind.QUALITATIVE else ExtractedValueKind.NUMERIC,
-        rawToken = rawToken,
-    )
-}
 
 object IosRuntime {
     private val json = Json { encodeDefaults = true }
@@ -637,45 +606,39 @@ object IosRuntime {
         }
     }
 
-    fun importNativeCandidates(
-        profileId: String,
+    // region L3 import and entry
+    /** The platform picker reports the chosen file once extraction starts (shown on Add a record). */
+    fun importReading(fileName: String) {
+        if (initialized) controller.importSession.reading(fileName)
+    }
+
+    /**
+     * Turns the pages Swift extracted into one source with review drafts, using the same shared parser as Android,
+     * and publishes how each page was read. [pages] are the stored files (a PDF is one file with several texts).
+     */
+    fun extractedSource(
         fileName: String,
         mediaType: String,
-        sourceBytes: ByteArray,
-        candidates: List<NativeCandidateInput>,
-        additionalPages: List<ByteArray>,
-        laboratoryName: String?,
-        orderedEpochSeconds: Long?,
-        completion: (NativeMessage?) -> Unit,
-    ) {
-        if (!initialized) {
-            completion(nativeMessage("bridge_storage_not_ready"))
-            return
+        pages: List<ByteArray>,
+        pageTexts: List<String>,
+        embeddedText: List<Boolean>,
+        ocrConfidence: Float?,
+    ): PickedSource {
+        val candidates = pageTexts.flatMap { app.vezuna.importer.parseExtractedCandidates(it, ocrConfidence) }
+            .distinctBy { listOf(it.testCode, it.rawValue, it.rawUnit, it.collectedAt) }
+        val header = app.vezuna.importer.parseReportHeader(pageTexts.joinToString("\n\n"))
+        if (initialized) {
+            controller.importSession.publish(
+                app.vezuna.ui.entry.ExtractionDetails(
+                    fileName,
+                    pageTexts.mapIndexed { index, text -> app.vezuna.ui.entry.ExtractedPage(index + 1, embeddedText.getOrElse(index) { false }, text) },
+                    candidates.size,
+                ),
+            )
         }
-        scope.launch {
-            try {
-                if (profileId != currentProfileId()) {
-                    completion(nativeMessage("active_profile_changed"))
-                    return@launch
-                }
-                // The same AppController path as Android: SHA-256 dedupe, identical validation, one report per source.
-                controller.importSource(
-                    PickedSource(
-                        fileName, mediaType, sourceBytes, candidates.map { it.toExtracted() },
-                        laboratoryName, orderedEpochSeconds?.let { Instant.fromEpochSeconds(it) }, additionalPages,
-                    ),
-                )
-                if (controller.state.value.error != null) {
-                    completion(nativeMessage("import_save_failed"))
-                    return@launch
-                }
-                repositoryObserver?.repositoryDidChange()
-                completion(null)
-            } catch (error: Throwable) {
-                completion(nativeMessage("import_save_failed"))
-            }
-        }
+        return PickedSource(fileName, mediaType, pages.first(), candidates, header.laboratoryName, header.orderedAt, pages.drop(1))
     }
+    // endregion L3 import and entry
 
     private fun <T> withProfile(completion: (T?, NativeMessage?) -> Unit, block: suspend (app.vezuna.domain.ProfileData) -> T) {
         if (!initialized) {
@@ -722,8 +685,18 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
         scope = IosRuntime.composeScope(),
         sourcePicker = if (picker == null) null else {
             {
+                val kind = IosRuntime.controllerForCompose().importSession.requestedKind.name
                 suspendCancellableCoroutine { continuation ->
-                    picker.pickSource { source -> if (continuation.isActive) continuation.resume(source) }
+                    picker.pickSource(kind) { source, failure, fileName ->
+                        if (!continuation.isActive) return@pickSource
+                        if (failure == null) {
+                            continuation.resume(source)
+                        } else {
+                            val reason = app.vezuna.ui.entry.ImportFailureReason.entries.firstOrNull { it.name == failure }
+                                ?: app.vezuna.ui.entry.ImportFailureReason.UNREADABLE
+                            continuation.resumeWithException(app.vezuna.ui.entry.ImportFailure(reason, fileName))
+                        }
+                    }
                 }
             }
         },

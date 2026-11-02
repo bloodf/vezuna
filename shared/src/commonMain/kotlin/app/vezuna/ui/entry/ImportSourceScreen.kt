@@ -107,12 +107,14 @@ private fun ImportFailureReason.titleKey(): L10nKey = when (this) {
     ImportFailureReason.TOO_LARGE -> L10nKey.ENTRY_TOO_LARGE_TITLE
     ImportFailureReason.UNREADABLE -> L10nKey.ENTRY_UNREADABLE_TITLE
     ImportFailureReason.CAMERA_UNAVAILABLE -> L10nKey.ENTRY_CAMERA_UNAVAILABLE_TITLE
+    ImportFailureReason.CAMERA_DENIED -> L10nKey.ENTRY_CAMERA_DENIED_TITLE
 }
 
 private fun ImportFailureReason.bodyKey(): L10nKey = when (this) {
     ImportFailureReason.TOO_LARGE -> L10nKey.ENTRY_TOO_LARGE_BODY
     ImportFailureReason.UNREADABLE -> L10nKey.ENTRY_UNREADABLE_BODY
     ImportFailureReason.CAMERA_UNAVAILABLE -> L10nKey.ENTRY_CAMERA_UNAVAILABLE_BODY
+    ImportFailureReason.CAMERA_DENIED -> L10nKey.ENTRY_CAMERA_DENIED_BODY
 }
 
 @Composable

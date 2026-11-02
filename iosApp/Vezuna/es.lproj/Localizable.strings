@@ -15,6 +15,7 @@
 "source" = "Fuente";
 "photo_library" = "Fototeca";
 "camera" = "Cámara";
+"photos_done" = "Listo";
 "add_page" = "Añadir otra página";
 "pages_in_report" = "Páginas en este informe: %1$d";
 "laboratory_name" = "Nombre del laboratorio";

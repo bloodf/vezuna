@@ -56,8 +56,6 @@ struct ContentView: View {
         .onAppear { nativeActions.model = model }
         .sheet(item: $model.sheet) { sheet in
             switch sheet {
-            case .importSource:
-                NativeImportView()
             case .health:
                 HealthImportView(importer: model.healthImporter)
             case .export:
@@ -80,7 +78,6 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
     func perform(action: String) {
         let sheet: AppShellModel.Sheet?
         switch action {
-        case "IMPORT_SOURCE": sheet = .importSource
         case "EXPORT": sheet = .export
         case "HEALTH": sheet = .health
         case "LICENSE": sheet = .license

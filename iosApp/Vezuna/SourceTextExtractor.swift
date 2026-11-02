@@ -3,9 +3,12 @@ import UIKit
 import Vision
 
 struct ExtractedSourceText {
-    let text: String
+    /// One text per page, in page order; a photo is one page.
+    let pages: [String]
     let ocrConfidence: Float?
     let usedOfflineOCR: Bool
+
+    var text: String { pages.joined(separator: "\n") }
 }
 
 enum SourceTextExtractor {
@@ -15,14 +18,14 @@ enum SourceTextExtractor {
         }
         guard let image = normalizedImage(data: data) else { throw ImportError.unreadableImage }
         let result = try await recognize(image)
-        return ExtractedSourceText(text: result.text, ocrConfidence: result.confidence, usedOfflineOCR: true)
+        return ExtractedSourceText(pages: [result.text], ocrConfidence: result.confidence, usedOfflineOCR: true)
     }
 
     private static func extractPDF(_ data: Data) async throws -> ExtractedSourceText {
         guard let document = PDFDocument(data: data) else { throw ImportError.unreadablePDF }
-        let embedded = document.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !embedded.isEmpty {
-            return ExtractedSourceText(text: embedded, ocrConfidence: nil, usedOfflineOCR: false)
+        let embedded = (0..<document.pageCount).map { document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
+        if embedded.contains(where: { !$0.isEmpty }) {
+            return ExtractedSourceText(pages: embedded, ocrConfidence: nil, usedOfflineOCR: false)
         }
         var pages: [String] = []
         var confidences: [Float] = []
@@ -42,13 +45,11 @@ enum SourceTextExtractor {
             }
             guard let cgImage = image.cgImage else { continue }
             let result = try await recognize(cgImage)
-            if !result.text.isEmpty { pages.append(result.text) }
+            pages.append(result.text)
             if let confidence = result.confidence { confidences.append(confidence) }
         }
-        let combined = pages.joined(separator: "\n")
-        guard !combined.isEmpty else { throw ImportError.noTextFound }
         let mean = confidences.isEmpty ? nil : confidences.reduce(0, +) / Float(confidences.count)
-        return ExtractedSourceText(text: combined, ocrConfidence: mean, usedOfflineOCR: true)
+        return ExtractedSourceText(pages: pages, ocrConfidence: mean, usedOfflineOCR: true)
     }
 
     private static func recognize(_ image: CGImage) async throws -> (text: String, confidence: Float?) {

@@ -9,7 +9,7 @@ import kotlinx.datetime.Instant
 enum class SourceKind { CAMERA, PHOTOS, FILE }
 
 /** Explainable reasons a source could not be read; each has its own copy and recovery. */
-enum class ImportFailureReason { TOO_LARGE, UNREADABLE, CAMERA_UNAVAILABLE }
+enum class ImportFailureReason { TOO_LARGE, UNREADABLE, CAMERA_UNAVAILABLE, CAMERA_DENIED }
 
 /** Thrown by a platform picker for a specific failure the person can act on. Anything else counts as unreadable. */
 class ImportFailure(val reason: ImportFailureReason, val fileName: String? = null) : Exception(reason.name)

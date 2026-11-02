@@ -15,6 +15,7 @@
 "source" = "Source";
 "photo_library" = "Photo library";
 "camera" = "Camera";
+"photos_done" = "Done";
 "add_page" = "Add another page";
 "pages_in_report" = "Pages in this report: %1$d";
 "laboratory_name" = "Laboratory name";

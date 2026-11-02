@@ -624,5 +624,7 @@ iOS: %2$s</string>
     <string name="entry_error_unit">Um resultado numérico precisa da unidade</string>
     <string name="entry_error_range">O valor mínimo não pode ser maior que o máximo</string>
     <string name="entry_error_date">Escolha a data da coleta</string>
+    <string name="entry_camera_denied_title">O acesso à câmera está desativado</string>
+    <string name="entry_camera_denied_body">Permita o acesso à câmera para o Vezuna nos Ajustes ou escolha fotos ou um arquivo.</string>
     <!-- endregion L3 import and entry -->
 </resources>
