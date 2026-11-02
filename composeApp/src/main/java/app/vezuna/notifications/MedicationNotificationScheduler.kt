@@ -204,7 +204,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(if (hideName) genericText else medicationName)
-            .setSubText(note?.resolve(context) ?: profileName?.takeUnless { hideName }?.let { context.getString(R.string.reminder_for_profile, it) })
+            .setSubText(note?.resolve(context) ?: profileName?.takeUnless { hideName }?.let { nativeMessage(NativeKey.REMINDER_FOR_PROFILE, it).resolve(context) })
             // Names are shown on the lock screen by default; the Settings toggle swaps in a generic public version.
             .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .apply {
