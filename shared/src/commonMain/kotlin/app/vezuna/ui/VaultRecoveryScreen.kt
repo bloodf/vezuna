@@ -41,7 +41,8 @@ import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
-import app.vezuna.ui.components.ConfirmDialog
+import app.vezuna.ui.components.DestructiveButton
+import app.vezuna.ui.components.VezunaSheet
 import app.vezuna.ui.components.PrimaryButton
 import app.vezuna.ui.components.SecondaryButton
 import app.vezuna.ui.components.StatusKind
@@ -172,13 +173,13 @@ fun VaultRecoveryScreen(
             }
         }
         if (confirming) {
-            ConfirmDialog(
-                title = vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM_TITLE),
-                body = vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM_BODY),
-                confirmLabel = vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM),
-                onConfirm = { confirming = false; onReset() },
-                onDismiss = { confirming = false },
-            )
+            // Image 012: a sheet with an explicit verb; the body says the unreadable files are kept aside.
+            VezunaSheet(vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM_TITLE), onDismiss = { confirming = false }) {
+                Text(vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM_BODY), style = MaterialTheme.typography.bodyLarge)
+                DestructiveButton(vitaText(L10nKey.VAULT_RECOVERY_RESET_CONFIRM), { confirming = false; onReset() }, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(VezunaTokens.SpaceSm))
+                SecondaryButton(vitaText(L10nKey.VAULT_RECOVERY_CANCEL), { confirming = false }, Modifier.fillMaxWidth())
+            }
         }
     }
 }
