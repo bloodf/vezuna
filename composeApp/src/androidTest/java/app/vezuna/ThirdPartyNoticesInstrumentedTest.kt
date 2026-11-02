@@ -20,14 +20,14 @@ class ThirdPartyNoticesInstrumentedTest {
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales en-US")
         ActivityScenario.launch(AndroidMainActivity::class.java).use {
             assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            device.findObject(By.text("Device")).click()
+            device.findObject(By.text("More").clickable(true)).click()
             assertTrue(device.wait(Until.hasObject(By.text("Third-party notices")), 5_000))
-            device.findObject(By.text("Third-party notices")).click()
+            device.findObject(By.text("Third-party notices").clickable(true)).click()
             assertTrue(device.wait(Until.hasObject(By.text("Vezuna third-party notices")), 10_000))
             assertTrue(device.hasObject(By.textContains("Vezuna source and original artwork")))
             device.takeScreenshot(File(context.getExternalFilesDir(null), "third-party-notices.png"))
             device.findObject(By.text("Close")).click()
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 5_000))
+            assertTrue(device.wait(Until.hasObject(By.text("Third-party notices")), 5_000))
         }
         println("THIRD_PARTY_NOTICES_NAVIGATION_PASSED")
     }

@@ -31,16 +31,23 @@ class AppVisualInstrumentedTest {
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
             assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            assertTrue("Vezuna lockup is not accessible", device.hasObject(By.desc("Vezuna")))
+            assertTrue("Profile switcher is not accessible", device.hasObject(By.descContains("Switch profile")))
             capture(device, directory, "ui-home.png", "Household")
-            navigate(device, directory, "Labs", "Lab records", "ui-labs.png")
-            navigate(device, directory, "Meds", "Medications", "ui-medications.png")
-            navigate(device, directory, "AI", "On-device AI", "ui-ai.png")
-            navigate(device, directory, "Settings", "Settings & export", "ui-settings.png")
+            navigate(device, directory, "Records", "Lab records", "ui-labs.png")
+            navigate(device, directory, "Care", "Medications", "ui-medications.png")
+            navigate(device, directory, "More", "Assistant", "ui-more.png")
+            clickText(device, "Assistant")
+            assertTrue(device.wait(Until.hasObject(By.text("On-device AI")), 5_000))
+            capture(device, directory, "ui-ai.png", "On-device AI")
+            device.pressBack()
+            clickText(device, "Settings & export")
+            assertTrue(device.wait(Until.hasObject(By.text("No Vezuna app server")), 5_000))
+            capture(device, directory, "ui-settings.png", "Settings & export")
 
             device.executeShellCommand("cmd uimode night yes")
             // The session is retained across the recreation, so the Settings screen is still selected.
-            clickDescription(device, "Home")
+            device.pressBack()
+            clickText(device, "Today")
             assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 10_000))
             capture(device, directory, "ui-dark.png", "Household")
             device.executeShellCommand("cmd uimode night no")
@@ -52,7 +59,7 @@ class AppVisualInstrumentedTest {
             device.executeShellCommand("settings put system font_scale 1.0")
             device.executeShellCommand("settings put global animator_duration_scale 0")
             scenario.recreate()
-            navigate(device, directory, "Labs", "Lab records", "ui-reduced-motion.png")
+            navigate(device, directory, "Records", "Lab records", "ui-reduced-motion.png")
             println("APP_VISUAL_STATES_CAPTURED")
         } finally {
             device.executeShellCommand("cmd uimode night no")
@@ -97,7 +104,7 @@ class AppVisualInstrumentedTest {
         try {
             selectVisualProfile(device, scenario, profile.profileId)
             assertTrue(device.wait(Until.hasObject(By.textContains("Long-acting combination")), 15_000))
-            assertTrue(device.hasObject(By.desc("Vezuna")))
+            assertTrue(device.hasObject(By.descContains("Switch profile")))
             capture(device, directory, "vezuna-light-long-medication.png", "Light long medication")
             device.executeShellCommand("cmd uimode night yes")
             device.waitForIdle()
@@ -106,16 +113,16 @@ class AppVisualInstrumentedTest {
             capture(device, directory, "vezuna-dark-long-medication.png", "Dark long medication")
             device.executeShellCommand("cmd uimode night no")
             selectVisualProfile(device, scenario, profile.profileId)
-            clickDescription(device, "Meds")
+            clickText(device, "Care")
             device.executeShellCommand("settings put system font_scale 1.3")
             device.waitForIdle()
             selectVisualProfile(device, scenario, profile.profileId)
-            clickDescription(device, "Meds")
+            clickText(device, "Care")
             assertTrue(device.wait(Until.hasObject(By.text("Medications")), 10_000))
             capture(device, directory, "vezuna-large-text-medications.png", "Large text medications")
             device.executeShellCommand("settings put system font_scale 1.0")
             selectVisualProfile(device, scenario, profile.profileId)
-            clickDescription(device, "Meds")
+            clickText(device, "Care")
             assertTrue(device.wait(Until.hasObject(By.text("Medications")), 10_000))
             scenario.onActivity { activity ->
                 runBlocking { activity.controller.addMedication("Error fixture", "", "", "99:99") }
@@ -123,7 +130,8 @@ class AppVisualInstrumentedTest {
             assertTrue(device.wait(Until.hasObject(By.textContains("valid reminder time")), 5_000))
             capture(device, directory, "vezuna-error.png", "Invalid reminder time")
 
-            clickDescription(device, "Settings")
+            clickText(device, "More")
+            clickText(device, "Settings & export")
             assertTrue(device.wait(Until.hasObject(By.text("No Vezuna app server")), 5_000))
             capture(device, directory, "vezuna-offline-settings.png", "Offline settings")
 
@@ -132,10 +140,9 @@ class AppVisualInstrumentedTest {
             scenario.onActivity { activity ->
                 assertTrue("Android did not enter RTL layout", activity.resources.configuration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL)
             }
-            clickDescription(device, "Home")
             selectVisualProfile(device, scenario, profile.profileId)
             assertTrue(device.wait(Until.hasObject(By.textContains("Long-acting combination")), 10_000))
-            assertTrue("Vezuna lockup missing in RTL", device.hasObject(By.desc("Vezuna")))
+            assertTrue("Profile switcher missing in RTL", device.hasObject(By.descContains("Switch profile")))
             capture(device, directory, "vezuna-rtl.png", "RTL")
             println("VEZUNA_VISUAL_STATES_CAPTURED")
         } finally {
@@ -148,7 +155,7 @@ class AppVisualInstrumentedTest {
 
     private fun selectVisualProfile(device: UiDevice, scenario: ActivityScenario<AndroidMainActivity>, profileId: String) {
         // The session survives recreation, so return to the dashboard where the profile name is shown.
-        clickDescription(device, "Home")
+        scenario.onActivity { activity -> activity.controller.navigate(app.vezuna.ui.AppScreen.Dashboard) }
         scenario.onActivity { activity ->
             runBlocking { activity.controller.switchProfile(profileId) }
         }
@@ -156,19 +163,20 @@ class AppVisualInstrumentedTest {
         device.waitForIdle()
     }
 
-    private fun clickDescription(device: UiDevice, description: String) {
-        assertTrue("Control $description did not appear", device.wait(Until.hasObject(By.desc(description)), 10_000))
-        // Retry: the node can vanish while the Activity is being recreated after a configuration change.
+    /** Navigation items and list rows are found by their visible label; the clickable filter skips headings. */
+    private fun clickText(device: UiDevice, text: String) {
+        val selector = By.text(text).clickable(true)
+        assertTrue("Control $text did not appear", device.wait(Until.hasObject(selector), 10_000))
         repeat(5) {
-            device.findObject(By.desc(description))?.let { control -> control.click(); return }
+            device.findObject(selector)?.let { control -> control.click(); return }
             device.waitForIdle()
-            device.wait(Until.hasObject(By.desc(description)), 2_000)
+            device.wait(Until.hasObject(selector), 2_000)
         }
-        fail("Control $description disappeared before it could be clicked")
+        fail("Control $text disappeared before it could be clicked")
     }
 
     private fun navigate(device: UiDevice, directory: File, tab: String, title: String, fileName: String) {
-        clickDescription(device, tab)
+        clickText(device, tab)
         assertTrue("Destination $title did not appear", device.wait(Until.hasObject(By.text(title)), 5_000))
         capture(device, directory, fileName, title)
     }

@@ -50,6 +50,11 @@ import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
 import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
+import app.vezuna.ui.DesignFixture
+import app.vezuna.ui.nav.NativeAction
+import app.vezuna.ui.nav.NativeActions
+import app.vezuna.ui.nav.routeFromName
+import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -132,6 +137,17 @@ interface NativeRepositoryObserver {
     fun repositoryDidChange()
 }
 
+/** Opens a native SwiftUI sheet for a shared More row; [action] is a [NativeAction] name. */
+interface NativeActionHandler {
+    fun perform(action: String)
+}
+
+/** Native screens iOS offers from More (they used to sit in the toolbar menu). */
+private val iosNativeActions = setOf(
+    NativeAction.IMPORT_SOURCE, NativeAction.EXPORT, NativeAction.HEALTH,
+    NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
+)
+
 /** One HealthKit sync as encoded by Swift. Values are validated here, not in Swift. */
 @Serializable
 private data class NativeHealthBatch(
@@ -199,6 +215,7 @@ object IosRuntime {
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
+    var nativeActionHandler: NativeActionHandler? = null
 
     /** Must be installed before the first Compose view controller is made. */
     var deviceAuthenticator: NativeDeviceAuthenticator? = null
@@ -543,7 +560,8 @@ object IosRuntime {
     }
 }
 
-fun makeComposeViewController(): UIViewController = ComposeUIViewController {
+/** [route] is a debug deep link (launch argument `-VezunaRoute <Name>`); Swift passes it only in debug builds. */
+fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
@@ -580,8 +598,42 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
         },
         animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
         reminders = IosRuntime.reminderState,
+        nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+        startRoute = route?.let(::routeFromName),
     )
     }
+}
+
+/**
+ * Debug only (`-VezunaFixture`): the synthetic DATA_AND_COPY household in an in-memory repository, for the
+ * screenshot harness. The vault is never opened, read or written.
+ */
+fun makeDesignFixtureViewController(route: String?): UIViewController {
+    val repository = InMemoryVezunaRepository()
+    val llm = llamatikLocalLlm()
+    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModelFiles, llm), LocalHealthChat(repository, llm))
+    IosRuntime.scope.launch {
+        DesignFixture.install(repository)
+        controller.initialize()
+    }
+    return ComposeUIViewController {
+        VezunaApp(
+            controller = controller,
+            scope = IosRuntime.scope,
+            animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+            nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+            startRoute = route?.let(::routeFromName),
+        )
+    }
+}
+
+private object NoModelFiles : app.vezuna.llm.ModelFileStore {
+    override suspend fun installed(): List<app.vezuna.llm.InstalledModel> = emptyList()
+    override suspend fun install(model: app.vezuna.llm.InstalledModel, sourcePath: String) = Unit
+    override suspend fun verifyIntegrity(model: app.vezuna.llm.InstalledModel): Boolean = false
+    override suspend fun delete(model: app.vezuna.llm.InstalledModel) = Unit
+    override suspend fun saveSelection(modelId: String?) = Unit
+    override suspend fun savedSelection(): String? = null
 }
 
 /** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */

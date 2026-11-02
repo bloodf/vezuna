@@ -54,22 +54,6 @@ import app.vezuna.localization.vitaText
 import vezuna.shared.generated.resources.*
 
 @Composable
-fun MiniBrand(onDevice: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Image(
-            painter = org.jetbrains.compose.resources.painterResource(if (isSystemInDarkTheme()) Res.drawable.vezuna_lockup_dark else Res.drawable.vezuna_lockup_color),
-            contentDescription = vitaText(L10nKey.VEZUNA),
-            modifier = Modifier.weight(1f).height(40.dp).padding(end = 12.dp),
-        )
-        TextButton(onClick = onDevice, modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)) {
-            Icon(VezunaIcons.Connect, vitaText(L10nKey.DEVICE))
-            Spacer(Modifier.size(5.dp))
-            Text(vitaText(L10nKey.DEVICE))
-        }
-    }
-}
-
-@Composable
 fun ScreenColumn(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),

@@ -51,6 +51,8 @@ import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
 import app.vezuna.security.BackupService
+import app.vezuna.ui.nav.Destination
+import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,19 +74,6 @@ interface SourceFileStore {
     suspend fun discard(key: String)
 }
 
-sealed interface AppScreen {
-    data object Dashboard : AppScreen
-    data object Labs : AppScreen
-    data object ImportReview : AppScreen
-    data class ResultDetail(val observationId: String) : AppScreen
-    data object Trends : AppScreen
-    data object Medications : AppScreen
-    data object AiChat : AppScreen
-    data object Models : AppScreen
-    data object Settings : AppScreen
-    data object Vitals : AppScreen
-}
-
 data class AppUiState(
     val loading: Boolean = true,
     val error: UserText? = null,
@@ -92,7 +81,6 @@ data class AppUiState(
     val profiles: List<Profile> = emptyList(),
     val data: ProfileData? = null,
     val dashboard: DashboardSnapshot? = null,
-    val screen: AppScreen = AppScreen.Dashboard,
     val selectedObservationIds: Set<String> = emptySet(),
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
@@ -122,6 +110,9 @@ class AppController(
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
 
+    /** Back stacks for the five root destinations; the shell renders [Navigator.state]. */
+    val navigator = Navigator()
+
     suspend fun initialize() = operation {
         if (repository.profiles.value.isEmpty()) {
             repository.createProfile(Profile(randomId(), "Me", createdAt = currentInstant()))
@@ -142,13 +133,33 @@ class AppController(
     }
 
     fun navigate(screen: AppScreen) {
-        mutableState.value = mutableState.value.copy(screen = screen, error = null, notice = null)
+        navigator.navigate(screen)
+        clearMessages()
     }
+
+    fun selectRoot(destination: Destination) {
+        navigator.selectRoot(destination)
+        clearMessages()
+    }
+
+    /** False when there is nothing to go back to inside the app. */
+    fun back(): Boolean = navigator.back().also { if (it) clearMessages() }
 
     suspend fun switchProfile(profileId: String) = operation {
         if (repository.profiles.value.none { it.profileId == profileId }) failMessage(L10nKey.SELECT_PROFILE_FIRST)
-        mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        onProfileChanged()
         loadProfile(profileId)
+    }
+
+    /**
+     * Clears everything bound to the previous profile before another one loads: its data, the chat record
+     * selection, prepared exports and every pushed route (routes carry that profile's IDs). The shell also
+     * keys saved UI state (filters, drafts, scroll) by profile, so those are dropped with it.
+     * Lanes that add profile-bound state clear it here.
+     */
+    private fun onProfileChanged() {
+        mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        navigator.resetToRoots()
     }
 
     suspend fun createProfile(displayName: String) = operation {
@@ -176,7 +187,7 @@ class AppController(
         val remaining = repository.profiles.value
         val currentId = mutableState.value.data?.profile?.profileId
         if (currentId == null || currentId == profileId) {
-            mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+            onProfileChanged()
             loadProfile(remaining.first().profileId)
         } else {
             loadProfile(currentId)
@@ -196,8 +207,8 @@ class AppController(
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
+        navigator.navigate(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
-            screen = AppScreen.ImportReview,
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
             else pluralMessage(L10nKey.UNREVIEWED_CANDIDATES_ADDED, inserted),
         )
@@ -405,7 +416,8 @@ class AppController(
             throw error
         }
         loadProfile(data.profile.profileId)
-        mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
+        navigator.navigate(AppScreen.Labs)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
 
     /**

@@ -1,17 +1,13 @@
 package app.vezuna
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -19,10 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,7 +28,10 @@ import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.ReminderPlatformState
+import app.vezuna.ui.AppScreen
 import app.vezuna.ui.VezunaApp
+import app.vezuna.ui.nav.NativeAction
+import app.vezuna.ui.nav.NativeActions
 import kotlinx.coroutines.flow.StateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +53,7 @@ fun VezunaAndroidApp(
     onShareExport: (NativeExport) -> Unit,
     onSaveExport: (NativeExport) -> Unit,
     onDismissMessage: () -> Unit,
+    startRoute: AppScreen? = null,
 ) {
     val state by controller.state.collectAsState()
     val message by messageFlow.collectAsState()
@@ -63,7 +61,6 @@ fun VezunaAndroidApp(
     val nativeBusy by busyFlow.collectAsState()
     val extraction by sourcePicker.lastExtraction.collectAsState()
     val modelLoadState by modelLoader.state.collectAsState()
-    var deviceMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.csvExport) {
         state.csvExport?.let { onPresentExport(NativeExport("vezuna-doctor-export.csv", "text/csv", it.encodeToByteArray())) }
@@ -76,38 +73,28 @@ fun VezunaAndroidApp(
         val animationsEnabled = remember(context) {
             Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
         }
-        Scaffold { padding ->
-            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
-                VezunaApp(
-                    controller = controller,
-                    scope = scope,
-                    sourcePicker = sourcePicker::pick,
-                    modelPackLoader = modelLoader::load,
-                    onDevice = { deviceMenu = true },
-                    animationsEnabled = animationsEnabled,
-                    backupFiles = backupFiles,
-                    reminders = reminders,
-                )
-                DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_MENU).resolve(context)) }, onClick = { deviceMenu = false; onHealthConnect() }, enabled = !nativeBusy)
-                    DropdownMenuItem(
-                        text = { Text(nativeMessage(NativeKey.PRIVACY_POLICY).resolve(context)) },
-                        onClick = {
-                            deviceMenu = false
-                            context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
-                        },
-                    )
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.MEDICATION_REMINDERS_MENU).resolve(context)) }, onClick = { deviceMenu = false; onReminders() })
-                    DropdownMenuItem(
-                        text = { Text(nativeMessage(NativeKey.THIRD_PARTY_NOTICES).resolve(context)) },
-                        onClick = {
-                            deviceMenu = false
-                            context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))
-                        },
-                    )
+        // The shared shell owns the window insets: its header and background reach under the status bar.
+        VezunaApp(
+            controller = controller,
+            scope = scope,
+            sourcePicker = sourcePicker::pick,
+            modelPackLoader = modelLoader::load,
+            animationsEnabled = animationsEnabled,
+            backupFiles = backupFiles,
+            reminders = reminders,
+            nativeActions = NativeActions(
+                available = setOf(NativeAction.HEALTH, NativeAction.REMINDERS, NativeAction.PRIVACY, NativeAction.NOTICES),
+            ) { action ->
+                when (action) {
+                    NativeAction.HEALTH -> if (!nativeBusy) onHealthConnect()
+                    NativeAction.REMINDERS -> onReminders()
+                    NativeAction.PRIVACY -> context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
+                    NativeAction.NOTICES -> context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))
+                    else -> Unit
                 }
-            }
-        }
+            },
+            startRoute = startRoute,
+        )
 
         when (val current = modelLoadState) {
             is ModelPackLoadState.Failed,

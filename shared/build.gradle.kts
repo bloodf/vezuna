@@ -40,6 +40,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.ui.backhandler)
             implementation(libs.compose.material.icons.extended)
             implementation(compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)

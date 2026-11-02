@@ -4,31 +4,17 @@ import VezunaShared
 struct ContentView: View {
     @EnvironmentObject private var model: AppShellModel
     @EnvironmentObject private var lock: AppLockObserver
+    @StateObject private var nativeActions = NativeActionRouter()
 
     var body: some View {
         Group {
-            if model.ready {
+            if DebugLaunch.fixture {
+                DesignFixtureHostView().ignoresSafeArea(.container, edges: .bottom)
+            } else if model.ready {
                 NavigationStack {
                     ComposeHostView()
                         .ignoresSafeArea(.container, edges: .bottom)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            if !lock.locked {
-                            ToolbarItemGroup(placement: .topBarTrailing) {
-                                Menu {
-                                    Button { model.sheet = .importSource } label: { Label(L10n.text(.import_lab_source), systemImage: "doc.viewfinder") }
-                                    Button { model.sheet = .health } label: { Label(L10n.text(.healthkit_import_menu), systemImage: "heart") }
-                                    Button { model.sheet = .export } label: { Label(L10n.text(.export_backup_menu), systemImage: "square.and.arrow.up") }
-                                    Button { model.sheet = .license } label: { Label(L10n.text(.ai_activation_menu), systemImage: "checkmark.shield") }
-                                    Button { model.sheet = .notices } label: { Label(L10n.text(.third_party_notices), systemImage: "doc.text") }
-                                    Button { model.sheet = .privacy } label: { Label(L10n.text(.privacy_policy), systemImage: "hand.raised") }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle")
-                                        .accessibilityLabel(L10n.text(.native_actions))
-                                }
-                            }
-                            }
-                        }
+                        .toolbar(.hidden, for: .navigationBar)
                         .safeAreaInset(edge: .top) {
                             if let error = model.catalogError ?? model.modelLoader.lastError {
                                 Text(error)
@@ -57,13 +43,17 @@ struct ContentView: View {
                 ProgressView(L10n.text(.opening_storage))
             }
         }
-        .task { model.configure() }
+        .task {
+            IosRuntime.shared.nativeActionHandler = nativeActions
+            if !DebugLaunch.fixture { model.configure() }
+        }
         .onChange(of: lock.locked) { locked in
             guard locked else { return }
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) { model.sheet = nil }
         }
+        .onAppear { nativeActions.model = model }
         .sheet(item: $model.sheet) { sheet in
             switch sheet {
             case .importSource:
@@ -83,9 +73,47 @@ struct ContentView: View {
     }
 }
 
+/// Opens the native sheets that More lists (they used to live in the toolbar menu). Runs on the main queue.
+final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler {
+    weak var model: AppShellModel?
+
+    func perform(action: String) {
+        let sheet: AppShellModel.Sheet?
+        switch action {
+        case "IMPORT_SOURCE": sheet = .importSource
+        case "EXPORT": sheet = .export
+        case "HEALTH": sheet = .health
+        case "LICENSE": sheet = .license
+        case "PRIVACY": sheet = .privacy
+        case "NOTICES": sheet = .notices
+        default: sheet = nil
+        }
+        DispatchQueue.main.async { [weak self] in self?.model?.sheet = sheet }
+    }
+}
+
+/// Screenshot harness entry points, compiled into debug builds only.
+enum DebugLaunch {
+    #if DEBUG
+    static let fixture = ProcessInfo.processInfo.arguments.contains("-VezunaFixture")
+    static let route = UserDefaults.standard.string(forKey: "VezunaRoute")
+    #else
+    static let fixture = false
+    static let route: String? = nil
+    #endif
+}
+
+struct DesignFixtureHostView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        ComposeBridgeKt.makeDesignFixtureViewController(route: DebugLaunch.route)
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
 struct ComposeHostView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        ComposeBridgeKt.makeComposeViewController()
+        ComposeBridgeKt.makeComposeViewController(route: DebugLaunch.route)
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

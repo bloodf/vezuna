@@ -39,6 +39,13 @@ import app.vezuna.importer.NativeOcrExtractionService
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.security.BackupService
 import app.vezuna.ui.AppController
+import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.llm.InstalledModelManager
+import app.vezuna.llm.LocalHealthChat
+import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.llamatikLocalLlm
+import app.vezuna.ui.DesignFixture
+import app.vezuna.ui.nav.routeFromName
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.notifications.ReminderPreferences
 import app.vezuna.ui.PreviousGenerationNotice
@@ -53,7 +60,28 @@ class AndroidMainActivity : FragmentActivity() {
     private val session by viewModels<AndroidSessionViewModel> {
         viewModelFactory { initializer { AndroidSessionViewModel(app) } }
     }
-    internal val controller: AppController get() = session.controller
+    internal val controller: AppController get() = designFixture ?: session.controller
+
+    /**
+     * Debug only: `--ez fixture true` shows the synthetic DATA_AND_COPY household from an in-memory repository
+     * (the vault is never read or written), and `--es route <Name>` opens a route, for the screenshot harness.
+     */
+    private val designFixture: AppController? by lazy {
+        if (!BuildConfig.DEBUG || !intent.getBooleanExtra("fixture", false)) return@lazy null
+        val repository = InMemoryVezunaRepository()
+        val llm = llamatikLocalLlm()
+        AppController(
+            repository,
+            InstalledModelManager(ModelCatalog.unconfigured(), app.modelFiles, llm),
+            LocalHealthChat(repository, llm),
+        ).also { fixture ->
+            lifecycleScope.launch {
+                DesignFixture.install(repository)
+                fixture.initialize()
+            }
+        }
+    }
+    private val debugStartRoute get() = if (BuildConfig.DEBUG) intent.getStringExtra("route")?.let(::routeFromName) else null
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
@@ -142,6 +170,7 @@ class AndroidMainActivity : FragmentActivity() {
                 onShareExport = ::shareExport,
                 onSaveExport = ::saveExport,
                 onDismissMessage = { mutableMessage.value = null },
+                startRoute = debugStartRoute,
             )
             }
             }
