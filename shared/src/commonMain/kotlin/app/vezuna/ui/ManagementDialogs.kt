@@ -9,11 +9,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 
@@ -36,24 +33,6 @@ fun ConfirmDialog(title: String, message: String, confirmLabel: String, onConfir
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = { TextButton(onConfirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onDismiss) { Text(vitaText(L10nKey.CANCEL)) } },
-    )
-}
-
-/** Destructive confirmation that stays disabled until the exact [expected] text is typed. */
-@Composable
-fun TypeToConfirmDialog(title: String, message: String, label: String, expected: String, confirmLabel: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var typed by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(message)
-                OutlinedTextField(typed, { typed = it }, Modifier.fillMaxWidth(), label = { Text(label) }, singleLine = true)
-            }
-        },
-        confirmButton = { TextButton({ onConfirm(typed) }, enabled = typed.trim() == expected) { Text(confirmLabel) } },
         dismissButton = { TextButton(onDismiss) { Text(vitaText(L10nKey.CANCEL)) } },
     )
 }
