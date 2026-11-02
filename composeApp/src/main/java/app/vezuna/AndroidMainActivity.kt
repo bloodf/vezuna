@@ -260,9 +260,21 @@ class AndroidMainActivity : FragmentActivity() {
             HealthConnectClient.SDK_AVAILABLE -> lifecycleScope.launch {
                 if (app.healthConnect.hasPermissions()) synchronizeHealthConnect() else healthPermissions.request()
             }
-            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
                 mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_UPDATE_REQUIRED)
+                openHealthConnectUpdate()
+            }
             else -> mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_UNAVAILABLE)
+        }
+    }
+
+    /** Hands off to the store page that installs or updates the Health Connect provider (system-owned UI). */
+    private fun openHealthConnectUpdate() {
+        val uri = Uri.parse("market://details?id=$HEALTH_CONNECT_PROVIDER&url=healthconnect%3A%2F%2Fonboarding")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.android.vending").putExtra("overlay", true).putExtra("callerId", packageName))
+        } catch (missing: ActivityNotFoundException) {
+            // No store app: the message already explains how to update from the device.
         }
     }
 
@@ -313,3 +325,5 @@ class AndroidMainActivity : FragmentActivity() {
 
     private fun String.safeFilePart(): String = map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
 }
+
+private const val HEALTH_CONNECT_PROVIDER = "com.google.android.apps.healthdata"

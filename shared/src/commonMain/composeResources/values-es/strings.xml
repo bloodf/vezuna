@@ -673,4 +673,102 @@ iOS: %2$s</string>
     <string name="care_notifications_off_body">Tus horarios están guardados y los registros de dosis siguen funcionando. Los recordatorios no aparecerán hasta que se permitan las notificaciones.</string>
     <string name="care_open_device_settings">Abrir ajustes del dispositivo</string>
     <!-- end L4 Care -->
+    <!-- L5 trends -->
+    <string name="tr_subtitle">Sigue los cambios a lo largo del tiempo</string>
+    <string name="tr_tab_labs">Análisis</string>
+    <string name="tr_tab_device">Dispositivo</string>
+    <string name="tr_results">Resultados</string>
+    <string name="tr_period">%1$s – %2$s</string>
+    <string name="tr_available">Datos disponibles: %1$s</string>
+    <string name="tr_change_since">%1$s desde el %2$s</string>
+    <string name="tr_change_same_day">%1$s respecto a otro resultado del mismo día</string>
+    <string name="tr_since_previous">Cambio desde el resultado anterior</string>
+    <string name="tr_since_first">Cambio desde el primer resultado de este periodo</string>
+    <string name="tr_change_note">Los cambios son diferencias aritméticas entre valores registrados, no una evaluación clínica.</string>
+    <string name="tr_status_no_reading">No hay resultados registrados en este periodo</string>
+    <string name="tr_status_not_enough">Aún no hay tendencia: solo hay un resultado en este periodo, así que no hay nada que comparar.</string>
+    <string name="tr_no_trend_yet">Aún no hay tendencia</string>
+    <string name="tr_no_reading_body">Se mantienen las fechas elegidas. Elige un periodo más largo para ver resultados anteriores.</string>
+    <string name="tr_show_all">Mostrar todo el historial</string>
+    <string name="tr_latest_result">Resultado más reciente</string>
+    <string name="tr_latest">Más reciente</string>
+    <string name="tr_units_title">Unidades de los resultados</string>
+    <string name="tr_units_body">Las unidades distintas se muestran por separado. Se conservan las unidades originales.</string>
+    <string name="tr_units_separate">Registrado en %1$d unidades distintas, mostradas por separado</string>
+    <string name="tr_text_body">Los resultados de texto se muestran como registros con fecha.</string>
+    <string name="tr_source">Origen: %1$s</string>
+    <string name="tr_source_report">Informe de laboratorio</string>
+    <string name="tr_source_manual">Introducido manualmente</string>
+    <string name="tr_source_manual_lab">Introducido manualmente (%1$s)</string>
+    <string name="tr_source_device">Health Connect o Apple Salud</string>
+    <string name="tr_plotted_as">En el gráfico como %1$s (convertido)</string>
+    <string name="tr_converted_note">Los puntos huecos son resultados convertidos a %1$s. Cada fila conserva el valor registrado.</string>
+    <string name="tr_selected">Resultado seleccionado</string>
+    <string name="tr_previous_point">Resultado anterior</string>
+    <string name="tr_next_point">Resultado siguiente</string>
+    <string name="tr_daily_summary_note">Cada punto es un resumen diario del dispositivo, no una medición única.</string>
+    <string name="tr_no_line_note">No se dibuja ninguna línea: no hay suficientes fechas para unir.</string>
+    <string name="tr_band_shaded">Zona sombreada: rango del informe %1$s</string>
+    <string name="tr_band_line">Línea discontinua: referencia del informe %1$s</string>
+    <string name="tr_band_differs">Los rangos de los informes varían entre resultados, así que cada fila muestra el suyo.</string>
+    <string name="tr_empty_body">Confirma un resultado importado para empezar tu historial.</string>
+    <string name="tr_review_imports">Revisar importaciones</string>
+    <string name="tr_device_title">Mediciones del dispositivo</string>
+    <string name="tr_last_import">Última importación: %1$s</string>
+    <string name="tr_no_import_yet">Aún no hay importaciones</string>
+    <string name="tr_import_now">Importar ahora</string>
+    <string name="tr_steps_daily_total">Total de cada día</string>
+    <string name="tr_hr_daily_average">Frecuencia cardíaca media diaria</string>
+    <string name="tr_hr_granularity">Media de cada día</string>
+    <string name="tr_weight_granularity">Lecturas individuales con fecha</string>
+    <string name="tr_hr_not_resting">La media diaria no es la frecuencia cardíaca en reposo.</string>
+    <string name="tr_daily_values">Valores diarios</string>
+    <string name="tr_readings">Lecturas</string>
+    <string name="tr_vitals_empty_title">No hay mediciones importadas</string>
+    <string name="tr_vitals_empty_body">Conecta Apple Salud o Health Connect para leer pasos, frecuencia cardíaca y peso.</string>
+    <string name="tr_connect_device">Conectar datos del dispositivo</string>
+    <string name="tr_connections_title">Conexiones</string>
+    <string name="tr_link_heading">Vincular datos de salud del dispositivo</string>
+    <string name="tr_status_heading">Estado de la conexión</string>
+    <string name="tr_not_linked">Ningún perfil vinculado</string>
+    <string name="tr_not_linked_body">Los datos del dispositivo no están vinculados a ningún perfil, así que no se importa nada.</string>
+    <string name="tr_link_profile">Vincular a %1$s</string>
+    <string name="tr_linked_to">Vinculado a %1$s</string>
+    <string name="tr_linked_elsewhere">Este dispositivo está vinculado a %1$s</string>
+    <string name="tr_linked_elsewhere_body">Las mediciones de este dispositivo se guardan en el perfil %1$s.</string>
+    <string name="tr_relink">Vincular a %1$s en su lugar</string>
+    <string name="tr_relink_title">¿Vincular los datos del dispositivo a %1$s?</string>
+    <string name="tr_relink_body">Las nuevas importaciones se guardarán en %1$s. Las mediciones ya guardadas en %2$s se quedan ahí.</string>
+    <string name="tr_permission_note">El teléfono muestra su propia pantalla de permisos. Tú eliges qué mediciones puede leer Vezuna.</string>
+    <string name="tr_data_types">Datos de este dispositivo</string>
+    <string name="tr_read_only_note">Vezuna solo lee estas mediciones. Nunca escribe en Health Connect ni en Apple Salud.</string>
+    <string name="tr_revoke_heading">Dejar de compartir</string>
+    <string name="tr_revoke_body">Para que Vezuna deje de leer datos nuevos, desactiva su acceso en Health Connect en Android o en Ajustes > Salud > Acceso a datos y dispositivos en el iPhone. Las mediciones ya guardadas se quedan en el perfil vinculado.</string>
+    <string name="tr_health_unavailable_title">Los datos de salud no están disponibles aquí</string>
+    <string name="tr_health_unavailable_body">Este dispositivo no ofrece Health Connect ni Apple Salud. Tus registros y exportaciones siguen funcionando.</string>
+    <plurals name="tr_chart_description">
+        <item quantity="one">Gráfico de %2$s en %3$s, del %4$s al %5$s: %1$d lectura. Más reciente %6$s el %7$s. Mínimo %8$s, máximo %9$s.</item>
+        <item quantity="other">Gráfico de %2$s en %3$s, del %4$s al %5$s: %1$d lecturas. Más reciente %6$s el %7$s. Mínimo %8$s, máximo %9$s.</item>
+    </plurals>
+    <plurals name="tr_recorded_count">
+        <item quantity="one">%1$d lectura registrada en este periodo</item>
+        <item quantity="other">%1$d lecturas registradas en este periodo</item>
+    </plurals>
+    <plurals name="tr_result_count">
+        <item quantity="one">%1$d resultado</item>
+        <item quantity="other">%1$d resultados</item>
+    </plurals>
+    <plurals name="tr_text_count">
+        <item quantity="one">%1$d resultado de texto</item>
+        <item quantity="other">%1$d resultados de texto</item>
+    </plurals>
+    <plurals name="tr_text_outside_period">
+        <item quantity="one">%1$d resultado de texto está fuera de este periodo.</item>
+        <item quantity="other">%1$d resultados de texto están fuera de este periodo.</item>
+    </plurals>
+    <plurals name="tr_unit_count">
+        <item quantity="one">%1$d resultado en %2$s</item>
+        <item quantity="other">%1$d resultados en %2$s</item>
+    </plurals>
+    <!-- /L5 trends -->
 </resources>

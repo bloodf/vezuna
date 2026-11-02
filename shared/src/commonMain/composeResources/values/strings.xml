@@ -673,4 +673,102 @@ iOS: %2$s</string>
     <string name="care_notifications_off_body">Your schedules are saved and dose records still work. Reminders will not appear until notifications are allowed.</string>
     <string name="care_open_device_settings">Open device settings</string>
     <!-- end L4 Care -->
+    <!-- L5 trends -->
+    <string name="tr_subtitle">Track changes over time</string>
+    <string name="tr_tab_labs">Labs</string>
+    <string name="tr_tab_device">Device</string>
+    <string name="tr_results">Results</string>
+    <string name="tr_period">%1$s – %2$s</string>
+    <string name="tr_available">Data available: %1$s</string>
+    <string name="tr_change_since">%1$s since %2$s</string>
+    <string name="tr_change_same_day">%1$s compared with another result from the same day</string>
+    <string name="tr_since_previous">Change since the previous result</string>
+    <string name="tr_since_first">Change since the first result in this period</string>
+    <string name="tr_change_note">Changes are arithmetic differences between recorded values, not a clinical assessment.</string>
+    <string name="tr_status_no_reading">No recorded results in this period</string>
+    <string name="tr_status_not_enough">No trend yet: only one result in this period, so there is nothing to compare.</string>
+    <string name="tr_no_trend_yet">No trend yet</string>
+    <string name="tr_no_reading_body">The selected dates are kept. Choose a longer period to see older results.</string>
+    <string name="tr_show_all">Show all history</string>
+    <string name="tr_latest_result">Latest result</string>
+    <string name="tr_latest">Latest</string>
+    <string name="tr_units_title">Result units</string>
+    <string name="tr_units_body">Different units are shown separately. Original units are preserved.</string>
+    <string name="tr_units_separate">Recorded in %1$d different units, shown separately</string>
+    <string name="tr_text_body">Text results are shown as dated records.</string>
+    <string name="tr_source">Source: %1$s</string>
+    <string name="tr_source_report">Lab report</string>
+    <string name="tr_source_manual">Entered manually</string>
+    <string name="tr_source_manual_lab">Entered manually (%1$s)</string>
+    <string name="tr_source_device">Health Connect or Apple Health</string>
+    <string name="tr_plotted_as">Plotted as %1$s (converted)</string>
+    <string name="tr_converted_note">Hollow dots are results converted to %1$s. Each row keeps the value as recorded.</string>
+    <string name="tr_selected">Selected result</string>
+    <string name="tr_previous_point">Previous result</string>
+    <string name="tr_next_point">Next result</string>
+    <string name="tr_daily_summary_note">Each dot is one daily summary from the device, not a single measurement.</string>
+    <string name="tr_no_line_note">No line is drawn: there are not enough dates to connect.</string>
+    <string name="tr_band_shaded">Shaded area: report range %1$s</string>
+    <string name="tr_band_line">Dashed line: report reference %1$s</string>
+    <string name="tr_band_differs">Report ranges differ between results, so each row shows its own.</string>
+    <string name="tr_empty_body">Confirm an imported result to start your history.</string>
+    <string name="tr_review_imports">Review imports</string>
+    <string name="tr_device_title">Device measurements</string>
+    <string name="tr_last_import">Last import: %1$s</string>
+    <string name="tr_no_import_yet">No import yet</string>
+    <string name="tr_import_now">Import now</string>
+    <string name="tr_steps_daily_total">Daily total per day</string>
+    <string name="tr_hr_daily_average">Daily average heart rate</string>
+    <string name="tr_hr_granularity">Daily average per day</string>
+    <string name="tr_weight_granularity">Individual dated readings</string>
+    <string name="tr_hr_not_resting">Daily average is not resting heart rate.</string>
+    <string name="tr_daily_values">Daily values</string>
+    <string name="tr_readings">Readings</string>
+    <string name="tr_vitals_empty_title">No measurements imported</string>
+    <string name="tr_vitals_empty_body">Connect Apple Health or Health Connect to read steps, heart rate and weight.</string>
+    <string name="tr_connect_device">Connect device data</string>
+    <string name="tr_connections_title">Connections</string>
+    <string name="tr_link_heading">Link device health data</string>
+    <string name="tr_status_heading">Connection status</string>
+    <string name="tr_not_linked">No profile linked</string>
+    <string name="tr_not_linked_body">Device data is not linked to any profile, so nothing is imported.</string>
+    <string name="tr_link_profile">Link to %1$s</string>
+    <string name="tr_linked_to">Linked to %1$s</string>
+    <string name="tr_linked_elsewhere">This device is linked to %1$s</string>
+    <string name="tr_linked_elsewhere_body">Measurements from this device are saved to the profile %1$s.</string>
+    <string name="tr_relink">Link to %1$s instead</string>
+    <string name="tr_relink_title">Link device data to %1$s?</string>
+    <string name="tr_relink_body">New imports will be saved to %1$s. Measurements already saved to %2$s stay there.</string>
+    <string name="tr_permission_note">Your phone shows its own permission screen. You choose which measurements Vezuna can read.</string>
+    <string name="tr_data_types">Data from this device</string>
+    <string name="tr_read_only_note">Vezuna only reads these measurements. It never writes to Health Connect or Apple Health.</string>
+    <string name="tr_revoke_heading">Stop sharing</string>
+    <string name="tr_revoke_body">To stop Vezuna reading new data, turn off its access in Health Connect on Android, or in Settings > Health > Data Access &amp; Devices on iPhone. Measurements already saved stay in the linked profile.</string>
+    <string name="tr_health_unavailable_title">Health data is not available here</string>
+    <string name="tr_health_unavailable_body">This device does not offer Health Connect or Apple Health. Your records and exports still work.</string>
+    <plurals name="tr_chart_description">
+        <item quantity="one">%2$s chart in %3$s, %4$s to %5$s: %1$d reading. Latest %6$s on %7$s. Lowest %8$s, highest %9$s.</item>
+        <item quantity="other">%2$s chart in %3$s, %4$s to %5$s: %1$d readings. Latest %6$s on %7$s. Lowest %8$s, highest %9$s.</item>
+    </plurals>
+    <plurals name="tr_recorded_count">
+        <item quantity="one">%1$d recorded reading in this period</item>
+        <item quantity="other">%1$d recorded readings in this period</item>
+    </plurals>
+    <plurals name="tr_result_count">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
+    <plurals name="tr_text_count">
+        <item quantity="one">%1$d text result</item>
+        <item quantity="other">%1$d text results</item>
+    </plurals>
+    <plurals name="tr_text_outside_period">
+        <item quantity="one">%1$d text result is outside this period.</item>
+        <item quantity="other">%1$d text results are outside this period.</item>
+    </plurals>
+    <plurals name="tr_unit_count">
+        <item quantity="one">%1$d result in %2$s</item>
+        <item quantity="other">%1$d results in %2$s</item>
+    </plurals>
+    <!-- /L5 trends -->
 </resources>
