@@ -419,4 +419,19 @@ iOS: %2$s</string>
     <string name="export_language_device">Idioma de la app</string>
     <string name="export_language_explanation">Elige el idioma de los títulos, estados y números de la exportación. Los valores clínicos y las unidades nunca cambian.</string>
     <string name="model_catalog_unreadable">No se pudo leer el catálogo de modelos incluido en la app. Los modelos de IA no están disponibles.</string>
+    <string name="generated_text_disclaimer">Texto generado, puede ser incorrecto</string>
+    <string name="stop_generating">Detener</string>
+    <string name="model_insufficient_ram">Este modelo necesita al menos %1$s MB de RAM; este dispositivo tiene %2$s MB.</string>
+    <string name="model_insufficient_storage">Almacenamiento libre insuficiente: se necesitan %1$s MB, hay %2$s MB disponibles.</string>
+    <string name="export_options">Opciones de exportación</string>
+    <string name="export_from_date">Fecha inicial</string>
+    <string name="export_to_date">Fecha final</string>
+    <string name="export_date_hint">AAAA-MM-DD, opcional</string>
+    <string name="export_tests">Pruebas a incluir (si no elige ninguna, se exportan todas)</string>
+    <string name="export_active_medications_only">Solo medicamentos activos</string>
+    <string name="export_include_medications_csv">Incluir medicamentos en el CSV</string>
+    <string name="empty_model_answer">El modelo no devolvió ninguna respuesta. Inténtalo de nuevo.</string>
+    <string name="export_date_invalid">Introduce una fecha válida con el formato AAAA-MM-DD.</string>
+    <string name="export_date_range_reversed">La fecha inicial no puede ser posterior a la fecha final.</string>
+    <string name="export_no_matching_results">Ningún resultado confirmado coincide con estas opciones; la exportación no tendría resultados.</string>
 </resources>
