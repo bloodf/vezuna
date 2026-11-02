@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,9 @@ import app.vezuna.domain.Profile
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.VezunaTokens
+import app.vezuna.ui.nav.LocalRouteFocus
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.focusRequester
 import app.vezuna.ui.vezuna
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -49,6 +53,14 @@ import vezuna.shared.generated.resources.ic_check
 import vezuna.shared.generated.resources.ic_chevron_down
 import vezuna.shared.generated.resources.ic_users
 import vezuna.shared.generated.resources.ill_foliage
+
+/** Attaches the shell's route-change focus target (see LocalRouteFocus); [focusable] for plain text. */
+@Composable
+internal fun Modifier.routeFocus(focusable: Boolean = true): Modifier {
+    val requester = LocalRouteFocus.current ?: return this
+    val target = focusRequester(requester)
+    return if (focusable) target.focusable() else target
+}
 
 /** Up to two initials from the live profile name; never a raster avatar. */
 fun profileInitials(name: String): String =
@@ -95,7 +107,8 @@ fun RootHeader(
                     modifier = Modifier.align(Alignment.BottomEnd).width(132.dp).heightIn(max = 104.dp),
                 )
             }
-            Column(Modifier.padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceSm, bottom = VezunaTokens.SpaceLg)) {
+            // The band reaches under the status bar; its content starts below it.
+            Column(Modifier.statusBarsPadding().padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceSm, bottom = VezunaTokens.SpaceLg)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     val current = profiles.firstOrNull { it.profileId == currentProfileId }
                     // The name may take the whole row at large text sizes; actions keep their own width.
@@ -107,7 +120,7 @@ fun RootHeader(
                 Text(
                     title,
                     style = MaterialTheme.typography.displaySmall,
-                    modifier = Modifier.padding(top = VezunaTokens.SpaceSm, end = 120.dp).semantics { heading() },
+                    modifier = Modifier.padding(top = VezunaTokens.SpaceSm, end = 120.dp).routeFocus().semantics { heading() },
                 )
                 subtitle?.let {
                     Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(end = 120.dp))

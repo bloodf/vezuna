@@ -52,6 +52,9 @@ object VezunaTokens {
         val onHeaderAction: Color,
         val accent: Color,
         val onAccent: Color,
+        /** Selected-tab indicator on the bottom bar: 3:1 or more against the bar surface. */
+        val navIndicator: Color,
+        val onNavIndicator: Color,
     )
 
     val Light = Roles(
@@ -75,6 +78,8 @@ object VezunaTokens {
         onHeaderAction = Pine,
         accent = Mint,
         onAccent = Pine,
+        navIndicator = Pine,
+        onNavIndicator = Color(0xFFFFFFFF),
     )
 
     val Dark = Roles(
@@ -98,6 +103,8 @@ object VezunaTokens {
         onHeaderAction = Deep,
         accent = Color(0xFF35B7B8),
         onAccent = Deep,
+        navIndicator = Mint,
+        onNavIndicator = Deep,
     )
 
     val SpaceXs = 4.dp
