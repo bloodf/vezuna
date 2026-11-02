@@ -82,7 +82,6 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.EXPORT_OPTIONS), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Text(vitaText(draft.family?.style()?.title ?: L10nKey.EXPORT_CSV_HEADING), style = MaterialTheme.typography.titleLarge)
         GroupedRows(title = vitaText(L10nKey.EXPORT_FIELD_PROFILE)) {
             ListRow(data.profile.displayName, leading = { ProfileAvatar(data.profile.displayName) })
@@ -273,7 +272,6 @@ internal fun ExportSelectionScreen(ctx: RouteContext, kind: String) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.EXPORT_SELECTION_TITLE), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Text(vitaPlural(L10nKey.EXPORT_SELECTION_COUNT, tests.sumOf { it.count }), style = MaterialTheme.typography.titleMedium)
         GroupedRows {
             tests.forEach { test ->

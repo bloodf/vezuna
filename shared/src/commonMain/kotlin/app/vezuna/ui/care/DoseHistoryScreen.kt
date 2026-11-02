@@ -59,7 +59,6 @@ internal fun DoseHistoryBody(ctx: RouteContext, medication: Medication?) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.DOSE_HISTORY), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         CategoryPanel(Category.CARE) {
             Text(medication?.displayName ?: vitaText(L10nKey.CARE_ALL_MEDICATIONS), style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             medication?.let { m -> listOfNotNull(m.strength, m.instructions).takeIf { it.isNotEmpty() }?.let { Text(it.joinToString(", "), style = MaterialTheme.typography.bodyLarge) } }

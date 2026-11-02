@@ -37,18 +37,20 @@ object TrendsRoutes {
     }
 
     @Composable
-    fun Vitals(ctx: RouteContext) = FocusedTaskScaffold(null, ctx::back) {
+    fun Vitals(ctx: RouteContext) = FocusedTaskScaffold(vitaText(L10nKey.TR_DEVICE_TITLE), ctx::back) {
         WithProfile(ctx) { data -> DeviceMeasurementsBody(ctx, data) }
     }
 
     @Composable
-    fun VitalsDetail(screen: AppScreen.VitalsDetail, ctx: RouteContext) = FocusedTaskScaffold(null, ctx::back) {
+    fun VitalsDetail(screen: AppScreen.VitalsDetail, ctx: RouteContext): Unit {
         val kind = VitalSeriesKind.entries.firstOrNull { it.name == screen.metric }
+        FocusedTaskScaffold(vitaText(kind?.copy()?.title ?: L10nKey.TR_DEVICE_TITLE), ctx::back) {
         WithProfile(ctx) { data -> if (kind == null) DeviceMeasurementsBody(ctx, data) else VitalDetailBody(ctx, data, kind) }
+        }
     }
 
     @Composable
-    fun Connections(ctx: RouteContext) = FocusedTaskScaffold(null, ctx::back) {
+    fun Connections(ctx: RouteContext) = FocusedTaskScaffold(vitaText(L10nKey.TR_CONNECTIONS_TITLE), ctx::back) {
         WithProfile(ctx) { data -> ConnectionsBody(ctx, data) }
     }
 

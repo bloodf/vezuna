@@ -83,12 +83,6 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
         Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(
-            vitaText(if (editing) L10nKey.EDIT_MEDICATION else L10nKey.ADD_MEDICATION),
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.semantics { heading() },
-        )
         Text(vitaText(L10nKey.CARE_FORM_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LabeledField(vitaText(L10nKey.MEDICATION_NAME), name, { name = it }, Modifier.focusRequester(nameFocus), error = nameError)
         LabeledField(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED), strength, { strength = it }, hint = vitaText(L10nKey.CARE_STRENGTH_HINT))

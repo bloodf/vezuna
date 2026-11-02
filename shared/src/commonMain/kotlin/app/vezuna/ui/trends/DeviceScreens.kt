@@ -153,7 +153,6 @@ internal fun VitalDetailBody(ctx: RouteContext, data: ProfileData, kind: VitalSe
     val series = vitalSeries(kind, data, range, today)
     var selected by remember(series.key, range) { mutableStateOf<Int?>(null) }
     TrendColumn {
-        Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text(vitaText(copy.granularity), style = MaterialTheme.typography.bodyLarge)
         val linkedId = ctx.state.healthLinkedProfileId
         val linked = ctx.state.profiles.firstOrNull { it.profileId == linkedId }
@@ -181,7 +180,6 @@ internal fun VitalDetailBody(ctx: RouteContext, data: ProfileData, kind: VitalSe
 @Composable
 internal fun DeviceMeasurementsBody(ctx: RouteContext, data: ProfileData) {
     TrendColumn {
-        SectionHeading(vitaText(L10nKey.TR_DEVICE_TITLE))
         DeviceOverview(ctx, data)
     }
 }

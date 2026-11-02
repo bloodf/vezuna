@@ -25,13 +25,14 @@ object CareRoutes {
     }
 
     @Composable
-    fun MedicationForm(screen: AppScreen.MedicationForm, ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) {
+    fun MedicationForm(screen: AppScreen.MedicationForm, ctx: RouteContext) =
+        FocusedTaskScaffold(title = vitaText(if (screen.medicationId == null) L10nKey.ADD_MEDICATION else L10nKey.EDIT_MEDICATION), onBack = ctx::back) {
         val id = screen.medicationId
         if (id == null) MedicationFormBody(ctx, null) else withMedication(ctx, id) { MedicationFormBody(ctx, it) }
     }
 
     @Composable
-    fun DoseHistory(screen: AppScreen.DoseHistory, ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) {
+    fun DoseHistory(screen: AppScreen.DoseHistory, ctx: RouteContext) = FocusedTaskScaffold(title = vitaText(L10nKey.DOSE_HISTORY), onBack = ctx::back) {
         val id = screen.medicationId
         if (id == null) DoseHistoryBody(ctx, null) else withMedication(ctx, id) { DoseHistoryBody(ctx, it) }
     }

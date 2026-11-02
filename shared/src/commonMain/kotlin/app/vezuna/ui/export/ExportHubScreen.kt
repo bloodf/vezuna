@@ -74,7 +74,6 @@ internal fun ExportHubScreen(ctx: RouteContext) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = VezunaTokens.GutterNarrow),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
-        Text(vitaText(L10nKey.EXPORT_HUB_TITLE), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         Text(vitaText(L10nKey.EXPORT_HUB_SUBTITLE, data.profile.displayName), style = MaterialTheme.typography.bodyLarge)
         GroupedRows {
             ListRow(data.profile.displayName, supporting = vitaText(L10nKey.EXPORT_HUB_PROFILE), leading = { ProfileAvatar(data.profile.displayName) })

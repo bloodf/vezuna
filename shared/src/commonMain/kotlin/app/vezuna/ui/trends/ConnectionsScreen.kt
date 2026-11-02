@@ -41,7 +41,6 @@ import vezuna.shared.generated.resources.ill_privacy_device
 @Composable
 internal fun ConnectionsBody(ctx: RouteContext, data: ProfileData) {
     TrendColumn {
-        Text(vitaText(L10nKey.TR_CONNECTIONS_TITLE), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         if (NativeAction.HEALTH !in ctx.nativeActions) {
             EmptyState(Res.drawable.ill_privacy_device, vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_TITLE), vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_BODY))
             return@TrendColumn

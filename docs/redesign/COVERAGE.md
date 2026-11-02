@@ -41,7 +41,7 @@ runtime is iOS 27.1 and supports only the dual-screen "iPhone Duo" type; `simctl
 runtime renders normally. Shots (light and dark, Debug fixture build) were viewed for Dashboard, Labs, Medications,
 Trends, More, ResultDetail, ReportDetail, SourceViewer (missing file), MedicationDetail, MedicationForm, DoseHistory,
 Profiles, ManualEntry, Settings, Backups, ExportHub, AiChat, Models, Vitals, plus large text (accessibility XXXL,
-EN and ES). Screenshots stay outside the repo. Defect found and fixed: the Compose host stopped at the top safe
+EN and ES). Screenshots stay outside the repo. Focused screens that drew their own page title (Vitals, Vitals detail, Connections, Add/Edit medication, Dose history, Create export, Export options, Choose results) now pass it to the task header, matching Backups and Profiles. Defect found and fixed: the Compose host stopped at the top safe
 area, leaving a white status-bar strip and a doubled header gap (`ContentView.swift`). Other differences from the
 reference images are shared-UI design gaps already named per row, not iOS-only. VoiceOver and AX5 passes remain manual.
 
@@ -143,8 +143,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 - **iOS visuals:** routes not listed above were not shot; use an iPhone type on the iOS 27.0 runtime (not 27.1).
 - **Device-only states:** lock, unlock failure, vault recovery/reset, notification permission and the reminder
   notification itself need a physical device; Health Connect/HealthKit permission sheets are OS UI.
-- **Large text edge:** at 320dp + font scale 2.0, a few long single words in grouped rows still break mid-word
-  (e.g. ES "Exportaciones").
+- **Large text edge:** fixed and rechecked on Android at 320dp + font scale 2.0 (ES) in the closeout lane.
 - **Store assets:** not part of this pass.
 
 ## Per-image status
@@ -291,7 +290,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 138 | preview-dark | L9 | done | none |
 | 139 | portuguese-review | L3 | done | none (Android PT); iOS PT not taken |
 | 140 | spanish-care | L4 | done | none (Android ES) |
-| 141 | large-text | L1 | partial | fixed: icon tiles hide at font scale >=1.5 (ListRow, More PanelRow) so long names reflow; verified iOS ES at AX XXXL (Exportaciones whole); Android 320dp + 2.0 recheck owed (no emulator in this lane); VoiceOver pass owed |
+| 141 | large-text | L1 | partial | fixed: icon tiles hide at font scale >=1.5 (ListRow, More PanelRow) so long names reflow; verified Android 320dp, font 2.0, ES (Exportaciones whole, focused-screen titles wrap in the header) and iOS ES at AX XXXL; TalkBack/VoiceOver pass owed |
 | 142 | tablet-records | L2 | done | iOS fixture shots blocked: simulator framebuffer renders black (app running, no crash); verify in V; tablet landscape not captured |
 | 143 | tablet-review | L3 | partial | source/review split pane not built (proposed) |
 | 144 | components | R0 | done | No standalone component catalog screen; components verified in context on every Android shot |
