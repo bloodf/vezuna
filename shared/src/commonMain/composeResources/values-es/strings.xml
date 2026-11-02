@@ -426,6 +426,17 @@ iOS: %2$s</string>
     <string name="export_language_device">Idioma de la app</string>
     <string name="export_language_explanation">Elige el idioma de los títulos, estados y números de la exportación. Los valores clínicos y las unidades nunca cambian.</string>
     <string name="model_catalog_unreadable">No se pudo leer el catálogo de modelos incluido en la app. Los modelos de IA no están disponibles.</string>
+    <string name="birth_date">Fecha de nacimiento</string>
+    <string name="birth_date_not_set">Sin definir</string>
+    <string name="birth_date_invalid">La fecha de nacimiento no puede ser futura ni de hace más de 130 años</string>
+    <string name="birth_date_clear">Borrar fecha de nacimiento</string>
+    <string name="profile_age">Edad: %1$s</string>
+    <string name="onboarding_title">Te damos la bienvenida a Vezuna</string>
+    <string name="onboarding_body">Tus registros de salud se quedan en este dispositivo. Ponle nombre al primer perfil; puedes cambiarlo después.</string>
+    <string name="onboarding_name">Nombre</string>
+    <string name="onboarding_privacy">Nada sale de tu dispositivo a menos que lo exportes o hagas una copia.</string>
+    <string name="onboarding_done">Empezar</string>
+    <string name="onboarding_skip">Omitir por ahora</string>
     <string name="trend_units_dropped">No se muestran: los resultados en %1$s no tienen conversión publicada a %2$s.</string>
     <string name="trend_converted_note">Los puntos huecos o marcados con ≈ se convirtieron con factores publicados. Los valores originales aparecen en la lista de abajo.</string>
     <string name="converted_value">≈ %1$s (factor publicado %2$s)</string>

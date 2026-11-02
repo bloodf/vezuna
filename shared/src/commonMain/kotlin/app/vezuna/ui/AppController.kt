@@ -18,6 +18,8 @@ import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.Profile
+import app.vezuna.domain.DefaultProfileName
+import app.vezuna.domain.ProfileAge
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
@@ -59,6 +61,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -101,6 +104,8 @@ data class AppUiState(
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
     val healthLinkedProfileId: String? = null,
+    /** True only on a fresh install, until the user finishes or skips the first-run screen. Never gates records. */
+    val onboarding: Boolean = false,
     /** Assistant text received so far while an answer is being generated; null when idle. */
     val streamingAnswer: String? = null,
 )
@@ -129,12 +134,19 @@ class AppController(
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
 
     suspend fun initialize() = operation {
-        if (repository.profiles.value.isEmpty()) {
-            repository.createProfile(Profile(randomId(), "Me", createdAt = currentInstant()))
+        // A profile only exists once the first run began, so an existing profile means onboarding is done (or not needed).
+        val freshInstall = repository.profiles.value.isEmpty()
+        if (freshInstall) {
+            repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
-        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || mutableState.value.onboarding)
         val profileId = mutableState.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
         loadProfile(profileId)
+        // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
+        val loaded = mutableState.value.data
+        if (mutableState.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty())) {
+            mutableState.value = mutableState.value.copy(onboarding = false)
+        }
         modelManager.refresh()
     }
 
@@ -163,6 +175,28 @@ class AppController(
         repository.createProfile(profile)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
         switchProfile(profile.profileId)
+    }
+
+    /** Sets or clears (null) the birth date. Rejects future dates and ages above [ProfileAge.MAX_YEARS]. */
+    suspend fun setBirthDate(profileId: String, birthDate: LocalDate?) = operation {
+        val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        if (birthDate != null && !ProfileAge.isValid(birthDate, ProfileAge.today(clock(), timeZone()))) failMessage(L10nKey.BIRTH_DATE_INVALID)
+        repository.updateProfile(profile.copy(birthDate = birthDate))
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        reloadCurrentProfile()
+    }
+
+    /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) {
+        val profile = repository.profiles.value.firstOrNull() ?: return skipOnboarding()
+        clearMessages()
+        if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
+        if (birthDate != null) setBirthDate(profile.profileId, birthDate)
+        if (mutableState.value.error == null) skipOnboarding()
+    }
+
+    fun skipOnboarding() {
+        mutableState.value = mutableState.value.copy(onboarding = false)
     }
 
     suspend fun renameProfile(profileId: String, displayName: String) = operation {
