@@ -19,6 +19,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
@@ -39,6 +40,13 @@ import app.vezuna.importer.NativeOcrExtractionService
 import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.security.BackupService
 import app.vezuna.ui.AppController
+import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.llm.InstalledModelManager
+import app.vezuna.llm.LocalHealthChat
+import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.llamatikLocalLlm
+import app.vezuna.ui.DesignFixture
+import app.vezuna.ui.nav.routeFromName
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.notifications.ReminderPreferences
 import app.vezuna.ui.PreviousGenerationNotice
@@ -53,7 +61,29 @@ class AndroidMainActivity : FragmentActivity() {
     private val session by viewModels<AndroidSessionViewModel> {
         viewModelFactory { initializer { AndroidSessionViewModel(app) } }
     }
-    internal val controller: AppController get() = session.controller
+    internal val controller: AppController get() = designFixture ?: session.controller
+
+    /**
+     * Debug only: `--ez fixture true` shows the synthetic DATA_AND_COPY household from an in-memory repository,
+     * and `--es route <Name>` opens a route, for the screenshot harness. Fixture screens skip the vault gate and
+     * never read or write records or model files; the app process may still open the vault in the background.
+     */
+    private val designFixture: AppController? by lazy {
+        if (!BuildConfig.DEBUG || !intent.getBooleanExtra("fixture", false)) return@lazy null
+        val repository = InMemoryVezunaRepository()
+        val llm = llamatikLocalLlm()
+        AppController(
+            repository,
+            InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm),
+            LocalHealthChat(repository, llm),
+        ).also { fixture ->
+            lifecycleScope.launch {
+                DesignFixture.install(repository)
+                fixture.initialize()
+            }
+        }
+    }
+    private val debugStartRoute get() = if (BuildConfig.DEBUG) intent.getStringExtra("route")?.let(::routeFromName) else null
     private lateinit var extraction: NativeOcrExtractionService
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
@@ -117,33 +147,41 @@ class AndroidMainActivity : FragmentActivity() {
         setContent {
             val vaultState by app.vaultState.collectAsState()
             val openedFromPrevious by app.repository.openedFromPreviousGeneration.collectAsState()
-            AppLockHost(app.appLock) {
-            VaultGate(
-                vaultState,
-                onRetry = app::retryVault,
-                onReset = app::resetVault,
-                backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
-            ) {
-            PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
-            VezunaAndroidApp(
-                controller = controller,
-                scope = session.viewModelScope,
-                sourcePicker = sourcePicker,
-                modelLoader = modelLoader,
-                messageFlow = messageFlow,
-                exportFlow = exportFlow,
-                busyFlow = busyFlow,
-                onHealthConnect = ::openHealthConnect,
-                onReminders = ::requestReminders,
-                backupFiles = backupFiles.access,
-                reminders = reminders,
-                onPresentExport = { mutableExport.value = it },
-                onDismissExport = { mutableExport.value = null },
-                onShareExport = ::shareExport,
-                onSaveExport = ::saveExport,
-                onDismissMessage = { mutableMessage.value = null },
-            )
+            val shell: @Composable () -> Unit = {
+                VezunaAndroidApp(
+                    controller = controller,
+                    scope = session.viewModelScope,
+                    sourcePicker = sourcePicker,
+                    modelLoader = modelLoader,
+                    messageFlow = messageFlow,
+                    exportFlow = exportFlow,
+                    busyFlow = busyFlow,
+                    onHealthConnect = ::openHealthConnect,
+                    onReminders = ::requestReminders,
+                    backupFiles = backupFiles.access,
+                    reminders = reminders,
+                    onPresentExport = { mutableExport.value = it },
+                    onDismissExport = { mutableExport.value = null },
+                    onShareExport = ::shareExport,
+                    onSaveExport = ::saveExport,
+                    onDismissMessage = { mutableMessage.value = null },
+                    startRoute = debugStartRoute,
+                )
             }
+            if (designFixture != null) {
+                shell()
+            } else {
+                AppLockHost(app.appLock) {
+                    VaultGate(
+                        vaultState,
+                        onRetry = app::retryVault,
+                        onReset = app::resetVault,
+                        backup = BackupRecovery(BackupService(), backupFiles.access, app::restoreVaultFromBackup),
+                    ) {
+                        PreviousGenerationNotice(openedFromPrevious, onDismiss = app.repository::acknowledgePreviousGeneration)
+                        shell()
+                    }
+                }
             }
         }
     }

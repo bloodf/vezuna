@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840" role="img" aria-labelledby="title desc">
+<title id="title">Hepatitis B screening — fictional report excerpt</title>
+<desc id="desc">Synthetic Ana Silva source example: HBsAg, Not detected, recorded reference Not detected. Not a clinical document.</desc>
+<rect width="600" height="840" fill="#FFFFFF"/>
+<path d="M42 221H558M42 335H558M42 782H558" fill="none" stroke="#8CA7AD" stroke-width="1"/>
+<rect x="42" y="239" width="516" height="40" rx="5" fill="#E7F3F1"/>
+<g font-family="Noto Sans, sans-serif"><text x="42" y="46" font-size="12" fill="#526C74">FICTIONAL DESIGN FIXTURE · NOT A CLINICAL DOCUMENT</text>
+<text x="42" y="96" font-size="27" fill="#123B46">Example Laboratory</text>
+<text x="42" y="128" font-size="18" fill="#123B46">Hepatitis B screening</text>
+<text x="42" y="176" font-size="16" fill="#152E35">Profile: Ana Silva · Synthetic person</text>
+<text x="42" y="203" font-size="16" fill="#152E35">Collection: 28 Oct 2026</text>
+<text x="58" y="266" font-size="13" fill="#123B46">TEST</text>
+<text x="310" y="266" font-size="13" fill="#123B46">RESULT</text>
+<text x="445" y="266" font-size="13" fill="#123B46">REFERENCE</text>
+<text x="58" y="309" font-size="16" fill="#152E35">HBsAg</text>
+<text x="310" y="309" font-size="16" fill="#152E35">Not detected</text>
+<text x="445" y="309" font-size="16" fill="#152E35">Not detected</text>
+<text x="42" y="383" font-size="14" fill="#526C74">Text result. The application does not assess this reference.</text>
+<text x="42" y="740" font-size="13" fill="#526C74">Editable source excerpt for interface development only.</text>
+<text x="42" y="764" font-size="13" fill="#526C74">Production must display the user&#x27;s original report.</text>
+<text x="42" y="804" font-size="11" fill="#526C74">VEZUNA LIVING COLOR · SYNTHETIC FIXTURE · 1 NOVEMBER 2026</text></g>
+</svg>

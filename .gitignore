@@ -48,6 +48,8 @@ eas.local.json
 
 # Local design references have no redistribution grant
 design/inspiration/
+# Redesign image pack (PNG references, generation logs) stays local; docs/redesign holds the specs
+design/
 .impeccable/
 
 # Local git worktrees

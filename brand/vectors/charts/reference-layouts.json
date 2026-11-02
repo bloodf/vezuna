@@ -1,0 +1,261 @@
+{
+  "version": 2,
+  "source": "fixture-data.json",
+  "measurementDataChanged": false,
+  "references": [
+    {
+      "file": "assets/vectors/charts/hemoglobin.svg",
+      "source": "hemoglobin",
+      "selectedPeriod": [
+        "2026-04-12",
+        "2026-10-28"
+      ],
+      "dates": [
+        "2026-04-12",
+        "2026-07-15",
+        "2026-10-28"
+      ],
+      "values": [
+        13.0,
+        12.8,
+        13.2
+      ],
+      "pointCoordinates": [
+        [
+          112.0,
+          192.5
+        ],
+        [
+          387.85929648241205,
+          200.39999999999998
+        ],
+        [
+          696.0,
+          184.60000000000002
+        ]
+      ],
+      "note": "Available history: 12 Apr\u201328 Oct 2026."
+    },
+    {
+      "file": "assets/vectors/charts/ldl.svg",
+      "source": "ldl",
+      "selectedPeriod": [
+        "2026-04-12",
+        "2026-10-14"
+      ],
+      "dates": [
+        "2026-04-12",
+        "2026-07-15",
+        "2026-10-14"
+      ],
+      "values": [
+        146,
+        140,
+        132
+      ],
+      "pointCoordinates": [
+        [
+          112.0,
+          129.3
+        ],
+        [
+          408.7351351351351,
+          153.0
+        ],
+        [
+          696.0,
+          184.6
+        ]
+      ],
+      "note": "Available history: 12 Apr\u201314 Oct 2026."
+    },
+    {
+      "file": "assets/vectors/charts/steps.svg",
+      "source": "steps",
+      "selectedPeriod": [
+        "2026-10-25",
+        "2026-10-31"
+      ],
+      "dates": [
+        "2026-10-25",
+        "2026-10-26",
+        "2026-10-27",
+        "2026-10-28",
+        "2026-10-29",
+        "2026-10-30",
+        "2026-10-31"
+      ],
+      "values": [
+        5870,
+        7120,
+        6845,
+        5930,
+        7480,
+        6100,
+        6240
+      ],
+      "pointCoordinates": [
+        [
+          112.0,
+          116.0675
+        ],
+        [
+          209.33333333333331,
+          91.38
+        ],
+        [
+          306.66666666666663,
+          96.81125
+        ],
+        [
+          404.0,
+          114.88250000000001
+        ],
+        [
+          501.3333333333333,
+          84.26999999999998
+        ],
+        [
+          598.6666666666667,
+          111.525
+        ],
+        [
+          696.0,
+          108.75999999999999
+        ]
+      ],
+      "note": "Available history: 25 Oct\u201331 Oct 2026."
+    },
+    {
+      "file": "assets/vectors/charts/heart-rate.svg",
+      "source": "heart-rate",
+      "selectedPeriod": [
+        "2026-10-25",
+        "2026-10-31"
+      ],
+      "dates": [
+        "2026-10-25",
+        "2026-10-26",
+        "2026-10-27",
+        "2026-10-28",
+        "2026-10-29",
+        "2026-10-30",
+        "2026-10-31"
+      ],
+      "values": [
+        73,
+        72,
+        71,
+        74,
+        72,
+        73,
+        72
+      ],
+      "pointCoordinates": [
+        [
+          112.0,
+          129.3
+        ],
+        [
+          209.33333333333331,
+          137.2
+        ],
+        [
+          306.66666666666663,
+          145.1
+        ],
+        [
+          404.0,
+          121.4
+        ],
+        [
+          501.3333333333333,
+          137.2
+        ],
+        [
+          598.6666666666667,
+          129.3
+        ],
+        [
+          696.0,
+          137.2
+        ]
+      ],
+      "note": "Available history: 25 Oct\u201331 Oct 2026."
+    },
+    {
+      "file": "assets/vectors/charts/weight.svg",
+      "source": "weight",
+      "selectedPeriod": [
+        "2026-10-25",
+        "2026-10-31"
+      ],
+      "dates": [
+        "2026-10-25",
+        "2026-10-28",
+        "2026-10-31"
+      ],
+      "values": [
+        68.8,
+        68.6,
+        68.4
+      ],
+      "pointCoordinates": [
+        [
+          112.0,
+          168.80000000000024
+        ],
+        [
+          404.0,
+          184.60000000000045
+        ],
+        [
+          696.0,
+          200.39999999999955
+        ]
+      ],
+      "note": "Available history: 25 Oct\u201331 Oct 2026."
+    },
+    {
+      "file": "assets/vectors/charts/hemoglobin-year.svg",
+      "source": "hemoglobin",
+      "selectedPeriod": [
+        "2025-11-01",
+        "2026-11-01"
+      ],
+      "dates": [
+        "2026-04-12",
+        "2026-07-15",
+        "2026-10-28"
+      ],
+      "values": [
+        13.0,
+        12.8,
+        13.2
+      ],
+      "pointCoordinates": [
+        [
+          367.15616438356165,
+          192.5
+        ],
+        [
+          536.0986301369862,
+          200.39999999999998
+        ],
+        [
+          724.8109589041096,
+          184.60000000000002
+        ]
+      ],
+      "note": "1 Nov 2025\u20131 Nov 2026 selected; blank before first recorded result."
+    },
+    {
+      "file": "assets/vectors/charts/dose-history.svg",
+      "variant": "post-action",
+      "eventCount": 8,
+      "taken": 6,
+      "skipped": 1,
+      "missed": 1
+    }
+  ]
+}

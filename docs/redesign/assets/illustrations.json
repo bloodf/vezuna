@@ -1,0 +1,622 @@
+{
+  "version": 1,
+  "direction": "Vezuna Living Color",
+  "count": 30,
+  "coordinateSystem": "Standalone 320\u00d7240 viewBox; transparent surrounding canvas.",
+  "source": "generation/build_illustrations.py",
+  "palette": {
+    "pine": "#123B46",
+    "ink": "#152E35",
+    "mint": "#71E2CC",
+    "teal": "#249C92",
+    "coral": "#FF8A65",
+    "lavender": "#B8ABFF",
+    "violet": "#7560BC",
+    "citron": "#DDF27C",
+    "paper": "#F6F7F2",
+    "white": "#FFFFFF",
+    "muted": "#637D83",
+    "danger": "#A62D45"
+  },
+  "implementationRules": [
+    "These are coherent editable vector replacements for raster motifs, not exact pixel traces. Use them instead of extracting bitmap fragments.",
+    "Every file consists of editable SVG paths and basic shapes; no embedded images, fonts, scripts, filters, external links, or remote dependencies.",
+    "Decorative illustrations should be hidden from assistive technology in the app. Explanatory content belongs in adjacent native text.",
+    "Treat illustration as optional above 200% text size or when it competes with task content. Never hide a required control to preserve artwork.",
+    "Native OS authorization and sharing screens use system artwork and actual app branding. Do not substitute these illustrations for system components.",
+    "The Vezuna logo is separate and must use the supplied brand asset; these leaves and assistant motifs are not a logo."
+  ],
+  "assets": [
+    {
+      "id": "illustration-foliage",
+      "file": "assets/vectors/illustration-foliage.svg",
+      "title": "Living Color botanical header",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Pine headers",
+        "Welcome",
+        "Care",
+        "Records",
+        "Trends",
+        "More"
+      ],
+      "decorative": true,
+      "notes": "Recolor the leaf group to coral or lavender for section variants; keep it behind content and outside text bounds.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-capsule",
+      "file": "assets/vectors/illustration-capsule.svg",
+      "title": "White and citron capsule",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Medication summary",
+        "Dose recording",
+        "Care actions"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-medication-calendar",
+      "file": "assets/vectors/illustration-medication-calendar.svg",
+      "title": "Medication schedule and capsule",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "056",
+        "Medication empty state",
+        "Care schedule"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-records",
+      "file": "assets/vectors/illustration-records.svg",
+      "title": "Report pages",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Records",
+        "Import",
+        "Reports",
+        "PDF export artwork"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-record-search",
+      "file": "assets/vectors/illustration-record-search.svg",
+      "title": "Search records",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Search empty state",
+        "Report lookup",
+        "No search matches"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-record-empty",
+      "file": "assets/vectors/illustration-record-empty.svg",
+      "title": "Empty record folder",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Records empty",
+        "No reports",
+        "First import"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-trend-empty",
+      "file": "assets/vectors/illustration-trend-empty.svg",
+      "title": "Empty trend plot",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "053",
+        "No trend data",
+        "Incompatible units"
+      ],
+      "decorative": true,
+      "notes": "Empty axes and no plotted readings; decorative artwork must never imply measured clinical values.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-notification-bell",
+      "file": "assets/vectors/illustration-notification-bell.svg",
+      "title": "Reminder bell",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "068",
+        "Reminder permission",
+        "Notification reminders"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-notification-off",
+      "file": "assets/vectors/illustration-notification-off.svg",
+      "title": "Reminders off",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "070",
+        "Notifications disabled"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-device-link",
+      "file": "assets/vectors/illustration-device-link.svg",
+      "title": "Phone and health data link",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "072",
+        "074",
+        "075",
+        "076",
+        "080",
+        "Device health connection"
+      ],
+      "decorative": true,
+      "notes": "Represents phone health-service integration, not direct Bluetooth pairing. No device readings are embedded.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-activity-shoe",
+      "file": "assets/vectors/illustration-activity-shoe.svg",
+      "title": "Activity shoe",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Steps",
+        "Activity",
+        "Today movement"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-heart-rate",
+      "file": "assets/vectors/illustration-heart-rate.svg",
+      "title": "Heart rate motif",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Heart rate",
+        "073",
+        "Device measurement"
+      ],
+      "decorative": true,
+      "notes": "The pulse line is decorative and must never substitute for clinical ECG or measured data.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-weight-scale",
+      "file": "assets/vectors/illustration-weight-scale.svg",
+      "title": "Weight scale",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Weight",
+        "Device measurements"
+      ],
+      "decorative": true,
+      "notes": "Scale face contains no measurement or numeric value.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-privacy-device",
+      "file": "assets/vectors/illustration-privacy-device.svg",
+      "title": "Private data on your phone",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "083",
+        "Privacy",
+        "App switcher cover",
+        "Local data"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-lock",
+      "file": "assets/vectors/illustration-lock.svg",
+      "title": "Locked local data",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "App lock",
+        "Passphrase",
+        "Encrypted backup"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-unlock",
+      "file": "assets/vectors/illustration-unlock.svg",
+      "title": "Unlocked local data",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "App unlock",
+        "Open backup",
+        "Authentication success"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-assistant",
+      "file": "assets/vectors/illustration-assistant.svg",
+      "title": "Local assistant conversation",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Assistant",
+        "Local AI",
+        "Chat empty state"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-model-download",
+      "file": "assets/vectors/illustration-model-download.svg",
+      "title": "Local model download",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "AI models",
+        "Model download",
+        "Model installation"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-backup",
+      "file": "assets/vectors/illustration-backup.svg",
+      "title": "Encrypted portable backup file",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "084",
+        "085",
+        "086",
+        "087",
+        "088",
+        "092",
+        "Backup"
+      ],
+      "decorative": true,
+      "notes": "An encrypted local file. No cloud storage service is implied.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-restore",
+      "file": "assets/vectors/illustration-restore.svg",
+      "title": "Restore a portable backup",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "089",
+        "090",
+        "091",
+        "093",
+        "094",
+        "095",
+        "Restore backup"
+      ],
+      "decorative": true,
+      "notes": "File restore illustration. Existing-profile replacement requires the app's explicit destination confirmation.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-export",
+      "file": "assets/vectors/illustration-export.svg",
+      "title": "Export a record document",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "PDF export",
+        "CSV export",
+        "Share document",
+        "Export setup"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-success",
+      "file": "assets/vectors/illustration-success.svg",
+      "title": "Completed action",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "066",
+        "088",
+        "094",
+        "Saved",
+        "Completed"
+      ],
+      "decorative": true,
+      "notes": "Represents completion of an app action, never a health score or medical outcome.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-file-error",
+      "file": "assets/vectors/illustration-file-error.svg",
+      "title": "Unavailable or unreadable file",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "091",
+        "095",
+        "148",
+        "Invalid file",
+        "Original file unavailable"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-processing",
+      "file": "assets/vectors/illustration-processing.svg",
+      "title": "Document processing",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Import processing",
+        "Export generating",
+        "Backup encrypting"
+      ],
+      "decorative": true,
+      "notes": "Static progress motif. Runtime progress must be measured or announced as indeterminate; honor reduced motion.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-lab-tube",
+      "file": "assets/vectors/illustration-lab-tube.svg",
+      "title": "Laboratory sample tube",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "050",
+        "Laboratory results",
+        "Trends hero"
+      ],
+      "decorative": true,
+      "notes": "Generic sample tube, without test identity or inferred result.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-assistant-records",
+      "file": "assets/vectors/illustration-assistant-records.svg",
+      "title": "Assistant with selected records",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "100",
+        "Assistant context",
+        "Choose records for assistant"
+      ],
+      "decorative": true,
+      "notes": "",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-ocr-document",
+      "file": "assets/vectors/illustration-ocr-document.svg",
+      "title": "Scan a source document",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "149",
+        "OCR guidance",
+        "Import source",
+        "OCR review"
+      ],
+      "decorative": true,
+      "notes": "OCR visual framing only. Extracted text must remain a draft until user review and confirmation.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-appearance",
+      "file": "assets/vectors/illustration-appearance.svg",
+      "title": "Light and dark interface previews",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "098",
+        "Appearance setting",
+        "Light mode",
+        "Dark mode"
+      ],
+      "decorative": true,
+      "notes": "Miniature decorative UI previews. Build actual appearance selections as accessible components, with text labels and selected state.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-backdrop-mint",
+      "file": "assets/vectors/illustration-backdrop-mint.svg",
+      "title": "Mint organic backdrop",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Mint feature cards",
+        "Record hero",
+        "Welcome decoration"
+      ],
+      "decorative": true,
+      "notes": "Optional background only; keep all text outside complex shapes. Never place this behind source report content.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    },
+    {
+      "id": "illustration-backdrop-lavender",
+      "file": "assets/vectors/illustration-backdrop-lavender.svg",
+      "title": "Lavender organic backdrop",
+      "viewBox": [
+        0,
+        0,
+        320,
+        240
+      ],
+      "uses": [
+        "Trends hero",
+        "Assistant feature cards",
+        "Model setup decoration"
+      ],
+      "decorative": true,
+      "notes": "Optional decorative backdrop. Recolor only with design-system section colors and preserve foreground contrast.",
+      "provenance": "Original authored vector replacement; not a pixel trace or embedded raster."
+    }
+  ]
+}
