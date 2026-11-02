@@ -56,6 +56,10 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.llamatik.core)
         }
+        jvmMain.dependencies {
+            // JVM target is the test/sample renderer: embedded subset Noto Sans, Unicode text, document metadata.
+            implementation(libs.pdfbox)
+        }
     }
 }
 

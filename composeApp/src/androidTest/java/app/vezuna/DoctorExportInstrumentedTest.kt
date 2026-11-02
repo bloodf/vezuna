@@ -10,6 +10,8 @@ import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
+import app.vezuna.export.ExportOptions
+import app.vezuna.export.PaperSize
 import app.vezuna.export.NativePdfExporter
 import kotlinx.datetime.Instant
 import org.junit.Assert.assertTrue
@@ -79,6 +81,26 @@ class DoctorExportInstrumentedTest {
         File(context.getExternalFilesDir(null), "doctor-report-long.pdf").writeBytes(pdf.bytes)
         assertTrue(pdf.bytes.size > 20_000)
         println("DOCTOR_LONG_EXPORT_PASSED results=${observations.size} pdfBytes=${pdf.bytes.size}")
+    }
+
+    /** Sample for visual review: A4 and Letter grayscale through the real Android canvas, pulled with adb. */
+    @Test
+    fun writesLetterGrayscaleAndA4Samples() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val profile = Profile("synthetic-profile", "Ana Silva", createdAt = Instant.parse("2026-01-01T00:00:00Z"))
+        val range = ReferenceRange(12.0, 16.0, text = "12.0–16.0 g/dL", unit = "g/dL")
+        val data = ProfileData(
+            profile,
+            observations = listOf("2026-04-12" to 13.0, "2026-07-15" to 12.8, "2026-10-28" to 13.2).mapIndexed { index, (date, value) ->
+                observation("hgb-$index", "Hemoglobin", value, "${date}T11:00:00Z", range, unit = "g/dL").copy(valueDecimals = 1, normalizedValue = value * 10, normalizedUnit = "g/L")
+            },
+            medications = listOf(Medication(profile.profileId, "vitamin-d", "Vitamin D", "1,000 IU", "1 capsule")),
+        )
+        listOf(ExportOptions() to "a4", ExportOptions(paper = PaperSize.LETTER, grayscale = true) to "letter-grayscale").forEach { (options, name) ->
+            val pdf = NativePdfExporter().export(DoctorExportContent.document(data, options = options))
+            File(context.getExternalFilesDir(null), "vezuna-android-lab-history-$name.pdf").writeBytes(pdf.bytes)
+            assertTrue(pdf.fileName.startsWith("vezuna-ana-silva-lab-history-"))
+        }
     }
 
     private fun observation(

@@ -8,6 +8,7 @@ import app.vezuna.export.DoctorResultRow
 import app.vezuna.export.PdfCanvas
 import app.vezuna.export.PdfColor
 import app.vezuna.export.PdfReportLayout
+import app.vezuna.export.PathOp
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,7 +35,7 @@ class PdfReportLayoutTest {
     fun manyExamsPaginateAndEveryPageGetsAFooter() {
         val canvas = render(595.0, 842.0, exams = 30)
         assertTrue(canvas.pages > 1, "expected pagination, got ${canvas.pages}")
-        assertEquals((1..canvas.pages).map { "Page $it" }, canvas.texts.filter { it.startsWith("Page ") })
+        assertEquals((1..canvas.pages).map { "Page $it of ${canvas.pages}" }, canvas.texts.filter { it.startsWith("Page ") })
     }
 
     @Test
@@ -77,4 +78,5 @@ private class RecordingCanvas(override val pageWidth: Double, override val pageH
     override fun circle(x: Double, y: Double, radius: Double, color: PdfColor) {
         maxRight = maxOf(maxRight, x + radius); maxBottom = maxOf(maxBottom, y + radius)
     }
+    override fun path(ops: List<PathOp>, color: PdfColor, strokeWidth: Double?) = Unit
 }

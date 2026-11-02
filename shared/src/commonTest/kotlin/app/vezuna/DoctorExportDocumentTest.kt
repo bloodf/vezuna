@@ -134,7 +134,14 @@ class DoctorExportDocumentTest {
     fun clinicalFormattingUsesReadableDatesRangesAndRoundedValues() {
         assertEquals("01 Feb 2026", DoctorReportFormat.date(start))
         assertEquals("1.23", DoctorReportFormat.value(1.2300000000000002))
-        assertEquals("0", DoctorReportFormat.value(-0.0001))
+        assertEquals("0.0004", DoctorReportFormat.value(0.0004), "no three-decimal rounding")
+        assertEquals("-0.0001", DoctorReportFormat.value(-0.0001))
+        assertEquals("0", DoctorReportFormat.value(-0.0000000001))
+        assertEquals("5.70", DoctorReportFormat.recorded(5.7, 2), "source precision is kept")
+        assertEquals("13,0", DoctorReportFormat.recorded(13.0, 1, app.vezuna.localization.ContentLanguage.PT))
+        assertEquals("-14 mg/dL", DoctorReportFormat.signedChange(-14.0, 0, "mg/dL"))
+        assertEquals("+0.2 g/dL", DoctorReportFormat.signedChange(13.2 - 13.0, 1, "g/dL"))
+        assertEquals("0 g/dL", DoctorReportFormat.signedChange(-0.0000001, 0, "g/dL"))
         assertEquals("Not provided", DoctorExportContent.rangeText(ReferenceRange()))
         assertEquals("100–120 g/L", DoctorExportContent.rangeText(ReferenceRange(100.0, 120.0, unit = "g/L")))
     }

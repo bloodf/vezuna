@@ -5,6 +5,7 @@ import android.util.Log
 import android.os.SystemClock
 import app.vezuna.data.PersistentVezunaRepository
 import app.vezuna.data.restoreWithVitals
+import app.vezuna.export.AndroidPdfFonts
 import app.vezuna.health.AndroidHealthConnectImporter
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.LegacyHealthConnectMigration
@@ -67,6 +68,7 @@ class VezunaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AndroidPdfFonts.assets = assets
         vault = AndroidSecureVault(File(noBackupFilesDir, "vault"))
         repository = PersistentVezunaRepository(vault)
         loadVault { repository.load() }
