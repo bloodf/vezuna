@@ -159,6 +159,8 @@ object DoctorExportContent {
         val confirmed = data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedWith(compareBy({ it.collectedAt }, { it.observationId }))
+        val reports = data.reports.associateBy { it.reportId }
+        val documentNames = data.documents.associate { it.documentId to it.displayName }
         return DoctorPdfDocument(
             title = title,
             lines = lines(data, language),
@@ -167,6 +169,7 @@ object DoctorExportContent {
             ageYears = ageYears,
             generatedAt = generatedAt,
             resultRows = confirmed.map { observation ->
+                val report = reports[observation.reportId]
                 DoctorResultRow(
                     collectedAt = observation.collectedAt,
                     testName = observation.displayName,
@@ -179,22 +182,16 @@ object DoctorExportContent {
                     assessment = assessmentForExport(observation),
                     qualitativeValue = observation.qualitativeValue,
                     valueDecimals = observation.valueDecimals,
-                    sourceName = sourceName(data, observation),
-                    manualEntry = report(data, observation)?.isManual == true,
-                    laboratoryName = report(data, observation)?.laboratoryName?.takeIf { it.isNotBlank() },
-                    orderedAt = report(data, observation)?.orderedAt,
+                    sourceName = report?.sourceDocumentId?.let(documentNames::get)?.takeIf { it.isNotBlank() },
+                    manualEntry = report?.isManual == true,
+                    laboratoryName = report?.laboratoryName?.takeIf { it.isNotBlank() },
+                    orderedAt = report?.orderedAt,
                 )
             },
             medicationRows = medicationRows(data),
             language = language,
         )
     }
-
-    private fun sourceName(data: ProfileData, observation: LabObservation): String? {
-        val documentId = report(data, observation)?.sourceDocumentId ?: return null
-        return data.documents.firstOrNull { it.documentId == documentId }?.displayName?.takeIf { it.isNotBlank() }
-    }
-    private fun report(data: ProfileData, observation: LabObservation) = data.reports.firstOrNull { it.reportId == observation.reportId }
 
     private fun assessmentForExport(observation: LabObservation): RangeAssessment {
         if (observation.isQualitative) return RangeAssessment.UNKNOWN

@@ -27,6 +27,9 @@ struct NativeExportView: View {
     @State private var selectedTests: Set<String> = []
     @State private var activeMedicationsOnly = false
     @State private var includeMedicationsCsv = false
+    /// "A4" or "LETTER"; starts from the device region.
+    @State private var paper = IosRuntime.shared.defaultExportPaper()
+    @State private var grayscale = false
 
     var body: some View {
         NavigationStack {
@@ -64,6 +67,11 @@ struct NativeExportView: View {
                     }
                     Toggle(L10n.text(.export_active_medications_only), isOn: $activeMedicationsOnly)
                     Toggle(L10n.text(.export_include_medications_csv), isOn: $includeMedicationsCsv)
+                    Picker(L10n.text(.export_paper_size), selection: $paper) {
+                        Text(L10n.text(.export_paper_a4)).tag("A4")
+                        Text(L10n.text(.export_paper_letter)).tag("LETTER")
+                    }
+                    Toggle(L10n.text(.export_grayscale), isOn: $grayscale)
                 }
                 Section(L10n.text(.doctor_export)) {
                     Button { exportCSV() } label: { Label(L10n.text(.share_save_csv), systemImage: "tablecells") }
@@ -115,7 +123,7 @@ struct NativeExportView: View {
 
     private func exportPDF() {
         begin()
-        IosRuntime.shared.exportPdf(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, testCodes: Array(selectedTests).sorted(), activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv) { pdf, error in
+        IosRuntime.shared.exportPdf(languageTag: exportLanguage, fromDate: fromDate, toDate: toDate, testCodes: Array(selectedTests).sorted(), activeMedicationsOnly: activeMedicationsOnly, includeMedicationsCsv: includeMedicationsCsv, paper: paper, grayscale: grayscale) { pdf, error in
             guard let pdf else { self.fail(error); return }
             self.present(data: pdf.bytes.toData(), fileName: pdf.fileName)
         }

@@ -46,7 +46,10 @@ final class PdfExportTests: XCTestCase {
             for expected in ["Laboratory history", "Ana Silva", "13.2 g/dL", "+0.4 g/dL", "Within report range", "Page 1 of \(pdf.pageCount)"] {
                 XCTAssertTrue(text.contains(expected), "missing \(expected)")
             }
-            try data.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("vezuna-ios-lab-history-\(paper.name.lowercased()).pdf"))
+            // Kept for review only when run with TEST_RUNNER_VEZUNA_PDF_SAMPLES=1.
+            if ProcessInfo.processInfo.environment["VEZUNA_PDF_SAMPLES"] != nil {
+                try data.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("vezuna-ios-lab-history-\(paper.name.lowercased()).pdf"))
+            }
         }
         let portuguese = NativePdfExporter().export(document: document(paper: .a4, grayscale: false, language: .pt))
         let text = try XCTUnwrap(PDFDocument(data: portuguese.bytes.toData())?.string)

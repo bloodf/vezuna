@@ -1,5 +1,6 @@
 package app.vezuna.export
 
+import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.trends.ChangeSummary
 import app.vezuna.domain.trends.ComparisonStatus
 import app.vezuna.export.PdfStyle.BODY
@@ -49,11 +50,11 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     private val bottom = footerTop - 2 * MM
     private var page = 0
     private var y = 0.0
+    private val sections = DoctorExamSections.from(document)
 
     fun run() {
         newPage()
         scope()
-        val sections = DoctorExamSections.from(document)
         if (sections.any { it.trend != null && it.distinctDates >= 2 }) graphKey()
         if (sections.isEmpty() && document.hasStructuredContent) noResults()
         sections.forEach { section ->
@@ -144,7 +145,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     private fun scope() {
         if (!document.hasStructuredContent) return
-        val tests = DoctorExamSections.from(document).size
+        val tests = sections.size
         y += pen.paragraph(
             t.includedCounts.replace("{results}", document.resultRows.size.toString()).replace("{tests}", tests.toString()),
             left, y, width, BODY,
@@ -209,9 +210,14 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         y += height + 2 * MM
     }
 
+    /** Same rule as the chart: one shared numeric range prints as that range even when the reports word it differently. */
     private fun referenceText(section: DoctorExamSection): String {
         val ranges = section.history.map { DoctorExportContent.rangeText(it.referenceRange, language) }.distinct()
-        return "${t.recordedReference}: ${ranges.singleOrNull() ?: t.referenceVaries}"
+        ranges.singleOrNull()?.let { return "${t.recordedReference}: $it" }
+        val bounds = section.history.map { Triple(it.referenceRange.lower, it.referenceRange.upper, it.referenceRange.unit) }.distinct()
+        val shared = bounds.singleOrNull()?.takeIf { it.first != null || it.second != null }
+        val text = shared?.let { DoctorExportContent.rangeText(ReferenceRange(it.first, it.second, unit = it.third), language) } ?: t.referenceVaries
+        return "${t.recordedReference}: $text"
     }
 
     private fun history(section: DoctorExamSection) {
@@ -261,7 +267,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     private fun comparisons(section: DoctorExamSection) {
         val height = comparisonHeight(section)
-        if (ensure(height)) carriedTitle(section.testName, t.chartContinued)
+        if (ensure(height)) carriedTitle(section.testName, t.changesContinued)
         val column = (width - 6 * MM) / 2
         val comparison = section.comparison
         listOf(t.changeSinceFirst to comparison?.sinceFirst, t.changeSincePrevious to comparison?.sincePrevious).forEachIndexed { index, (label, change) ->

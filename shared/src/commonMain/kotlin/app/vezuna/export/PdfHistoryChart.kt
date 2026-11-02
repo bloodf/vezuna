@@ -39,7 +39,7 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
         val points = geometry.points.map { Triple(it, x(it.xFraction), y(it.point.value)) }
         points.zipWithNext().forEach { (a, b) -> pen.line(a.second, a.third, b.second, b.third, PdfStyle.PINE, 1.5) }
         points.forEach { (_, px, py) ->
-            pen.circle(px, py, 4.4, PdfStyle.PINE)
+            pen.circle(px, py, DOT, PdfStyle.PINE)
             pen.circle(px, py, 3.0, PdfStyle.LAVENDER)
         }
 
@@ -50,7 +50,8 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
             val labelTop = if (above < plotTop - 2.0) py + 7.0 else above
             Label(text, clamp(px - textWidth / 2, left, left + width - textWidth), labelTop, textWidth)
         }
-        val keptValues = place(values)
+        val dots = points.map { it.second to it.third }
+        val keptValues = place(values, dots)
         keptValues.forEach { pen.text(it.text, it.left, it.top, size, PdfStyle.INK, bold = true) }
 
         val dates = points.map { (point, px, _) ->
@@ -58,7 +59,7 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
             val textWidth = pen.measure(text, size)
             Label(text, clamp(px - textWidth / 2, left, left + width - textWidth), plotBottom + 5.0, textWidth)
         }
-        val keptDates = place(dates)
+        val keptDates = place(dates, emptyList())
         keptDates.forEach { pen.text(it.text, it.left, it.top, size, PdfStyle.MUTED) }
         return Result(height(), keptValues.size < values.size || keptDates.size < dates.size)
     }
@@ -97,8 +98,8 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
         }
     }
 
-    /** Latest first, then first, then the rest left to right; a label that would overlap a kept one is dropped. */
-    private fun place(labels: List<Label>): List<Label> {
+    /** Latest first, then first, then the rest left to right; a label that would overlap a kept label or any dot is dropped. */
+    private fun place(labels: List<Label>, dots: List<Pair<Double, Double>>): List<Label> {
         if (labels.isEmpty()) return labels
         val order = (listOf(labels.lastIndex, 0) + labels.indices.drop(1).dropLast(1)).distinct()
         val kept = mutableListOf<Label>()
@@ -108,7 +109,11 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
                 label.left < other.left + other.width + 4.0 && other.left < label.left + label.width + 4.0 &&
                     label.top < other.top + PdfStyle.LABEL * 1.2 && other.top < label.top + PdfStyle.LABEL * 1.2
             }
-            if (!overlaps) kept += label
+            val height = PdfStyle.LABEL * 1.2
+            val coversDot = dots.any { (dx, dy) ->
+                dx + DOT > label.left && dx - DOT < label.left + label.width && dy + DOT > label.top && dy - DOT < label.top + height
+            }
+            if (!overlaps && !coversDot) kept += label
         }
         return kept
     }
@@ -119,5 +124,6 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
         const val UNIT_ROW = 20.0
         const val PLOT_HEIGHT = 54.0 * PdfStyle.MM
         const val DATE_ROW = 24.0
+        const val DOT = 4.4
     }
 }

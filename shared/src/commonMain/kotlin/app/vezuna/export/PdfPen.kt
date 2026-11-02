@@ -69,8 +69,14 @@ internal class PdfPen(val canvas: PdfCanvas, private val grayscale: Boolean) {
 
     fun paragraphHeight(value: String, width: Double, size: Double, bold: Boolean = false) = wrap(value, width, size, bold).size * lineHeight(size)
 
-    /** Word wrap that never truncates: a token wider than [width] is broken across lines. */
-    fun wrap(value: String, width: Double, size: Double, bold: Boolean = false): List<String> = buildList {
+    /**
+     * Word wrap that never truncates: a token wider than [width] is broken across lines. Hard line breaks in user
+     * text (multi-line instructions, OCR references) start new lines; canvases never see a control character.
+     */
+    fun wrap(value: String, width: Double, size: Double, bold: Boolean = false): List<String> =
+        value.replace('\t', ' ').lines().flatMap { wrapLine(it, width, size, bold) }
+
+    private fun wrapLine(value: String, width: Double, size: Double, bold: Boolean): List<String> = buildList {
         var remaining = value
         while (remaining.isNotEmpty()) {
             var low = 1

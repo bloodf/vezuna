@@ -201,6 +201,27 @@ class JvmPdfExporterTest {
         assertTrue("All results share one collection date" in text, "no time trend for one date")
     }
 
+    @Test
+    fun hardLineBreaksStartNewLinesAndSharedNumericReferenceIsNotCalledVarying() {
+        val base = PdfFixtures.longHistory(60)
+        val multiLine = base.copy(medications = listOf(app.vezuna.domain.Medication(PdfFixtures.PROFILE, "m", "Iron", "65 mg", "Morning: 1 tablet\nEvening:\t1 tablet")))
+        val pages = PdfFixtures.pageTexts(PdfFixtures.pdfBytes(PdfFixtures.document(multiLine)))
+        val text = pages.joinToString("\n")
+        assertTrue("Instructions: Morning: 1 tablet\nEvening: 1 tablet" in text, "newline starts a new line, tab becomes a space")
+        assertFalse("?" in text.substringAfter("Iron"), "no replacement glyph for control characters")
+        assertTrue("Recorded reference: 12–16 g/dL" in text, "one numeric range is printed even when wording differs")
+        assertFalse("differs between reports" in text)
+    }
+
+    @Test
+    fun paperDefaultsFollowTheDeviceRegion() {
+        assertEquals(PaperSize.LETTER, PaperSize.forLanguageTag("en-US"))
+        assertEquals(PaperSize.LETTER, PaperSize.forLanguageTag("es_MX"))
+        assertEquals(PaperSize.LETTER, PaperSize.forLanguageTag("zh-Hant-CA"))
+        assertEquals(PaperSize.A4, PaperSize.forLanguageTag("pt-BR"))
+        assertEquals(PaperSize.A4, PaperSize.forLanguageTag("en"))
+    }
+
     private fun positions(bytes: ByteArray): List<Pair<Float, TextPosition>> = PdfFixtures.open(bytes) { pdf ->
         val found = mutableListOf<Pair<Float, TextPosition>>()
         object : PDFTextStripper() {

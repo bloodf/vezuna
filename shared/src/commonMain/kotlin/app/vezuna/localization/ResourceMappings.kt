@@ -455,6 +455,10 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_DATE_INVALID to Res.string.export_date_invalid,
     L10nKey.EXPORT_DATE_RANGE_REVERSED to Res.string.export_date_range_reversed,
     L10nKey.EXPORT_NO_MATCHING_RESULTS to Res.string.export_no_matching_results,
+    L10nKey.EXPORT_PAPER_SIZE to Res.string.export_paper_size,
+    L10nKey.EXPORT_PAPER_A4 to Res.string.export_paper_a4,
+    L10nKey.EXPORT_PAPER_LETTER to Res.string.export_paper_letter,
+    L10nKey.EXPORT_GRAYSCALE to Res.string.export_grayscale,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

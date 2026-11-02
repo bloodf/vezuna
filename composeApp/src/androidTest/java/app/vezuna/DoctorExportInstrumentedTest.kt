@@ -83,10 +83,11 @@ class DoctorExportInstrumentedTest {
         println("DOCTOR_LONG_EXPORT_PASSED results=${observations.size} pdfBytes=${pdf.bytes.size}")
     }
 
-    /** Sample for visual review: A4 and Letter grayscale through the real Android canvas, pulled with adb. */
+    /** A4 and Letter grayscale through the real Android canvas; files are kept for review only with `-e vezunaPdfSamples true`. */
     @Test
-    fun writesLetterGrayscaleAndA4Samples() {
+    fun rendersLetterGrayscaleAndA4() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val keep = InstrumentationRegistry.getArguments().getString("vezunaPdfSamples") == "true"
         val profile = Profile("synthetic-profile", "Ana Silva", createdAt = Instant.parse("2026-01-01T00:00:00Z"))
         val range = ReferenceRange(12.0, 16.0, text = "12.0–16.0 g/dL", unit = "g/dL")
         val data = ProfileData(
@@ -98,8 +99,9 @@ class DoctorExportInstrumentedTest {
         )
         listOf(ExportOptions() to "a4", ExportOptions(paper = PaperSize.LETTER, grayscale = true) to "letter-grayscale").forEach { (options, name) ->
             val pdf = NativePdfExporter().export(DoctorExportContent.document(data, options = options))
-            File(context.getExternalFilesDir(null), "vezuna-android-lab-history-$name.pdf").writeBytes(pdf.bytes)
             assertTrue(pdf.fileName.startsWith("vezuna-ana-silva-lab-history-"))
+            assertTrue(pdf.bytes.copyOfRange(0, 4).contentEquals(byteArrayOf(0x25, 0x50, 0x44, 0x46)))
+            if (keep) File(context.getExternalFilesDir(null), "vezuna-android-lab-history-$name.pdf").writeBytes(pdf.bytes)
         }
     }
 
