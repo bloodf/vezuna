@@ -20,7 +20,7 @@ Vezuna brings household profiles, laboratory reports, medication schedules, and 
 
 Source code is [MIT licensed](LICENSE). Paid store distribution and open-source licensing are independent. Fonts and third-party components retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
-Bundled licenses are available under **Device**, then **Third-party notices** on Android, and in the **…** menu on iPhone. Both menus also include an offline **Privacy policy**.
+Bundled licenses are available under **More**, then **Third-party notices**, on Android and iPhone. More also opens the offline **Privacy policy**.
 
 > **Release preparation.** Signed store builds, production model delivery, physical-device checks, and store review remain open. Vezuna organizes records; it does not diagnose conditions or recommend treatment. Confirm imported values against the original report.
 

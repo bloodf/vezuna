@@ -80,7 +80,7 @@ id,slug,group,status,lane,current_location,notes,image,implementation_status,ver
 079,health-importing,vitals,redesign,L5,AndroidMainActivity.kt; iosApp HealthImportView.swift,denied/unavailable/importing distinct,images/app/079-health-importing.png,not-started,,
 080,health-unavailable,vitals,redesign,L5,AndroidMainActivity.kt; iosApp HealthImportView.swift,denied/unavailable/importing distinct,images/app/080-health-unavailable.png,not-started,,
 081,health-denied,vitals,redesign,L5,AndroidMainActivity.kt; iosApp HealthImportView.swift,denied/unavailable/importing distinct,images/app/081-health-denied.png,not-started,,
-082,more,settings,redesign,L7,ui/CareScreens.kt SettingsScreen,grouped More hub; R0 ships skeleton rows,images/app/082-more.png,not-started,,
+082,more,settings,redesign,L7,ui/more/MoreRoutes.kt (R0 skeleton hub),grouped More hub; R0 ships skeleton rows,images/app/082-more.png,in-progress,"reachability of Settings, assistant, models and native actions","L7 grouped hub, preferences, about, help"
 083,privacy-storage,settings,redesign,L6,ui/CareScreens.kt SettingsScreen storage/security,"plain copy, no implementation jargon",images/app/083-privacy-storage.png,not-started,,
 084,backups,backup,redesign,L6,ui/BackupUi.kt BackupSettingsSection,last-backup date (#69),images/app/084-backups.png,not-started,,
 085,backup-create,backup,redesign,L6,ui/BackupUi.kt CreateBackupDialog,min length/strength; cannot recover passphrase; no source bytes claim; computed size,images/app/085-backup-create.png,not-started,,
@@ -142,13 +142,13 @@ id,slug,group,status,lane,current_location,notes,image,implementation_status,ver
 141,large-text,variants,redesign,L1,variant of 001,dark / large text; verified in V,images/app/141-large-text.png,not-started,,
 142,tablet-records,variants,proposed,L2,variant of 014/023,dark / tablet list-detail (proposed adaptive); verified in V,images/app/142-tablet-records.png,not-started,,
 143,tablet-review,variants,proposed,L3,variant of 025/039,dark form / PT review / tablet source+review (proposed); verified in V,images/app/143-tablet-review.png,not-started,,
-144,components,variants,proposed,R0,new: ui/components,component state board; live components only; verified in V,images/app/144-components.png,not-started,,
+144,components,variants,proposed,R0,"ui/components/{Header,Rows,Buttons,Controls,States}.kt; ui/VezunaTokens.kt; ui/Theme.kt",component state board; live components only; verified in V,images/app/144-components.png,in-progress,check_brand.py contrast (light+dark); NavigatorTest,chart point label belongs to L5 chart; on-device visual comparison of every state pending V
 145,biometric-prompt,security,system,L6,system: AppLockSupport.swift / Android BiometricPrompt,invoke OS auth; no replica,images/app/145-biometric-prompt.png,not-started,,
 146,daily-schedule,care,redesign,L4,ui/CareScreens.kt EditMedicationDialog time (fix/reminders ScheduleEditor.kt),native TimePicker; only daily time unless recurrence built + tested,images/app/146-daily-schedule.png,not-started,,
 147,last-profile,profiles,redesign,L1,ui/Screens.kt delete disabled for last profile,last profile never deletable,images/app/147-last-profile.png,not-started,,
 148,review-unavailable,import,redesign,L3,ui/AppController.kt unavailable candidate,,images/app/148-review-unavailable.png,not-started,,
 149,extraction-details,import,redesign,L3,composeApp VezunaAndroidApp.kt OCR text dialog,"optional details, not primary step",images/app/149-extraction-details.png,not-started,,
-150,global-feedback,variants,redesign,R0,ui/VezunaApp.kt:172 snackbar,"global feedback queue, announced",images/app/150-global-feedback.png,not-started,,
+150,global-feedback,variants,redesign,R0,ui/components/States.kt FeedbackHost (VezunaApp shell),"global feedback queue, announced",images/app/150-global-feedback.png,in-progress,live region polite/assertive; one host in the shell,banner position (top under header) per image left to V; notices persist until dismissed or navigation
 pdf-01,health-summary,pdf,proposed,L9,"export/DoctorExport.kt + Android/Ios/JvmPdfExporter.kt (fix/p2-ai-export: export/PdfReportLayout.kt, PdfCanvas.kt)",new family; latest values + meds,images/pdf/pdf-01-health-summary.png,not-started,,
 pdf-02,lab-history-first,pdf,redesign,L9,"export/DoctorExport.kt + Android/Ios/JvmPdfExporter.kt (fix/p2-ai-export: export/PdfReportLayout.kt, PdfCanvas.kt)",current doctor PDF evolves; 11pt min; paginate,images/pdf/pdf-02-lab-history-first.png,not-started,,
 pdf-03,lab-history-continuation,pdf,redesign,L9,"export/DoctorExport.kt + Android/Ios/JvmPdfExporter.kt (fix/p2-ai-export: export/PdfReportLayout.kt, PdfCanvas.kt)",repeated table headers,images/pdf/pdf-03-lab-history-continuation.png,not-started,,
