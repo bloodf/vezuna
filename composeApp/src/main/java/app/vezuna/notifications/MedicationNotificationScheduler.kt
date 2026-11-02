@@ -19,6 +19,7 @@ import app.vezuna.resolve
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MedicationSupplies
 import app.vezuna.domain.MissedDoses
 import app.vezuna.domain.ProfileData
 import kotlinx.coroutines.CancellationException
@@ -32,6 +33,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     private val reconciliationMutex = Mutex()
     private val preferences = ReminderPreferences(context)
     private val armedStore = context.getSharedPreferences(ARMED_PREFS, Context.MODE_PRIVATE)
+    private val supplyStore = context.getSharedPreferences(SUPPLY_PREFS, Context.MODE_PRIVATE)
 
     fun createChannel() {
         val channel = NotificationChannel(
@@ -46,6 +48,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         val zone = ZoneId.systemDefault()
         val armed = mutableSetOf<String>()
         val loaded = mutableMapOf<String, ProfileData>()
+        val supplyKeys = mutableSetOf<String>()
         var failed = false
         repository.profiles.value.forEach { profile ->
             try {
@@ -62,6 +65,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                 // The member name only disambiguates reminders when the household has more than one profile.
                 val profileName = data.profile.displayName.takeIf { repository.profiles.value.size > 1 }
                 armProfile(data, now, zone, armed, profileName)
+                armSupply(data, now, zone, supplyKeys)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -78,7 +82,87 @@ class MedicationNotificationScheduler(private val context: Context) {
         }
         cancelStale(armed)
         cancelStaleNotifications(loaded)
+        forgetSupplyKeys(supplyKeys)
     }
+
+    /**
+     * Low-supply reminders: one alarm per medication, replaced on every pass. [MedicationSupplies.fireTime] keeps a
+     * notice that already fired from repeating, using the fire time stored for its key.
+     */
+    private fun armSupply(data: ProfileData, now: Instant, zone: ZoneId, keys: MutableSet<String>) {
+        val kNow = kotlin.time.Instant.fromEpochSeconds(now.epochSecond)
+        val notices = MedicationSupplies.notices(data, kNow, kotlinx.datetime.TimeZone.of(zone.id)).associateBy { it.medicationId }
+        data.medications.forEach { medication ->
+            val notice = notices[medication.medicationId]
+            if (notice == null) {
+                cancelSupplyAlarm(medication)
+                return@forEach
+            }
+            keys += notice.key
+            val stored = supplyStore.getLong(notice.key, -1L).takeIf { it >= 0 }
+            val fireAt = MedicationSupplies.fireTime(notice, stored, kNow) ?: return@forEach
+            supplyStore.edit().putLong(notice.key, fireAt).apply()
+            supplyIntent(medication, PendingIntent.FLAG_UPDATE_CURRENT)?.let { setAlarm(fireAt * 1000, it) }
+        }
+    }
+
+    private fun forgetSupplyKeys(keep: Set<String>) {
+        val editor = supplyStore.edit()
+        supplyStore.all.keys.filterNot { it in keep }.forEach { editor.remove(it) }
+        editor.apply()
+    }
+
+    private fun supplyIntent(medication: Medication, flags: Int): PendingIntent? {
+        val intent = Intent(context, SupplyReceiver::class.java).apply {
+            action = ACTION_SUPPLY
+            data = Uri.parse("vezuna://supply/${medication.medicationId}")
+            putExtra(EXTRA_PROFILE_ID, medication.profileId)
+            putExtra(EXTRA_MEDICATION_ID, medication.medicationId)
+        }
+        return PendingIntent.getBroadcast(context, supplyNotificationId(medication.medicationId), intent, flags or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun cancelSupplyAlarm(medication: Medication) {
+        supplyIntent(medication, PendingIntent.FLAG_NO_CREATE)?.let {
+            alarms.cancel(it)
+            it.cancel()
+        }
+    }
+
+    /** Shown by [SupplyReceiver] once the alarm fires; the caller has already confirmed the medication is low. */
+    fun showLowSupply(medicationId: String, medicationName: String, remaining: Int, profileName: String? = null) {
+        val hideName = preferences.hideMedicationNames
+        val title = nativeMessage(NativeKey.SUPPLY_LOW_TITLE).resolve(context)
+        val generic = nativeMessage(NativeKey.SUPPLY_LOW_GENERIC_TEXT).resolve(context)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(if (hideName) generic else nativeMessage(NativeKey.SUPPLY_LOW_TEXT, medicationName, remaining).resolve(context))
+            .setSubText(profileName?.takeUnless { hideName }?.let { nativeMessage(NativeKey.REMINDER_FOR_PROFILE, it).resolve(context) })
+            .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
+            .apply {
+                if (hideName) {
+                    setPublicVersion(
+                        NotificationCompat.Builder(context, CHANNEL_ID).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(generic).build(),
+                    )
+                }
+            }
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    context,
+                    supplyNotificationId(medicationId),
+                    context.packageManager.getLaunchIntentForPackage(context.packageName),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+        if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            NotificationManagerCompat.from(context).notify(supplyNotificationId(medicationId), builder.build())
+        }
+    }
+
+    private fun supplyNotificationId(medicationId: String): Int = "supply:$medicationId".hashCode()
 
     /** Same rule as iOS: shared [MissedDoses] decides which past doses become MISSED; the repository keeps user actions on top. */
     private suspend fun recordMissedDoses(repository: VaultBackedRepository, data: ProfileData, now: Instant, zone: ZoneId) {
@@ -290,6 +374,8 @@ class MedicationNotificationScheduler(private val context: Context) {
         const val EXTRA_SCHEDULED_FOR = "scheduledFor"
         const val EXTRA_ORIGINAL_SCHEDULED_FOR = "originalScheduledFor"
         const val EXTRA_NOTIFICATION_ID = "notificationId"
+        const val ACTION_SUPPLY = "app.vezuna.action.LOW_SUPPLY"
+        private const val SUPPLY_PREFS = "recorded-medication-supply-notices"
         private const val ARMED_PREFS = "recorded-medication-armed-alarms"
         private const val ARMED_KEY = "armed"
         const val SNOOZE_MS = 10 * 60 * 1000L

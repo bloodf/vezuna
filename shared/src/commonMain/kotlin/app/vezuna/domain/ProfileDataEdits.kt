@@ -60,9 +60,11 @@ fun ProfileData.withMedication(updated: Medication): ProfileData {
     val current = medications.firstOrNull { it.medicationId == updated.medicationId } ?: throw IllegalArgumentException("Medication not found")
     require(updated.schedules.all { it.profileId == updated.profileId && it.medicationId == updated.medicationId })
     val removedSchedules = current.schedules.map { it.scheduleId } - updated.schedules.map { it.scheduleId }.toSet()
+    val (dropped, kept) = doseEvents.partition { it.scheduleId in removedSchedules }
+    val stored = updated.supply?.let { updated.copy(supply = MedicationSupplies.withoutEvents(it, updated.medicationId, dropped)) } ?: updated
     return copy(
-        medications = medications.map { if (it.medicationId == updated.medicationId) updated else it },
-        doseEvents = doseEvents.filterNot { it.scheduleId in removedSchedules },
+        medications = medications.map { if (it.medicationId == updated.medicationId) stored else it },
+        doseEvents = kept,
     )
 }
 
