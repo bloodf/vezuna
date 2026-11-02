@@ -1,7 +1,7 @@
 ---
 import type { Screenshot } from '../data/marketing';
 
-// Unmodified Android emulator captures (docs/images/README.md), served as resized WebP
+// Android emulator captures of the redesigned app (synthetic data), cropped of system bars, served as resized WebP
 // with the original PNG as fallback. Width/height stay on the <img> so nothing shifts on load.
 interface Props {
   screen: Screenshot;
@@ -11,7 +11,7 @@ interface Props {
 }
 
 const { screen, crop = 1, eager = false } = Astro.props;
-const visibleHeight = Math.round(2340 * Math.min(Math.max(crop, 0.3), 1));
+const visibleHeight = Math.round(2208 * Math.min(Math.max(crop, 0.3), 1));
 ---
 <figure class:list={['screen', { 'screen--cropped': crop < 1 }]} style={`--screen-ratio: 1080 / ${visibleHeight}`}>
   <div class="screen-frame">
@@ -20,7 +20,7 @@ const visibleHeight = Math.round(2340 * Math.min(Math.max(crop, 0.3), 1));
       <img
         src={`${screen.src}.png`}
         width="1080"
-        height="2340"
+        height="2208"
         alt={screen.alt}
         loading={eager ? 'eager' : 'lazy'}
         fetchpriority={eager ? 'high' : undefined}
