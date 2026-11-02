@@ -472,7 +472,13 @@ class CsvDoctorExporter {
 
     internal fun escape(raw: String): String {
         // Spreadsheets run a cell as a formula after =, +, -, @ (even behind blanks) and after a leading tab or carriage return.
-        val protected = if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
+        // A plain signed decimal (-1.5) is a number, not a formula: it stays exact so spreadsheets keep it numeric.
+        val protected = if (PLAIN_NUMBER.matches(raw)) raw
+        else if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
         return "\"${protected.replace("\"", "\"\"")}\""
+    }
+
+    private companion object {
+        val PLAIN_NUMBER = Regex("-?\\d+(\\.\\d+)?")
     }
 }

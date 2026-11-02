@@ -12,17 +12,22 @@ struct ExtractedSourceText {
 }
 
 enum SourceTextExtractor {
-    static func extract(data: Data, mediaType: String) async throws -> ExtractedSourceText {
+    /// Most PDF pages read in one import (mirrors the shared `MAX_PDF_PAGES`).
+    static let maxPDFPages = 30
+
+    /// `progress` gets (page, pageCount), 1-based, as each page starts. Cancelling the task stops between pages.
+    static func extract(data: Data, mediaType: String, progress: @escaping (Int, Int) -> Void = { _, _ in }) async throws -> ExtractedSourceText {
         if mediaType == "application/pdf" {
-            return try await extractPDF(data)
+            return try await extractPDF(data, progress: progress)
         }
         guard let image = normalizedImage(data: data) else { throw ImportError.unreadableImage }
         let result = try await recognize(image)
         return ExtractedSourceText(pages: [result.text], ocrConfidence: result.confidence, usedOfflineOCR: true)
     }
 
-    private static func extractPDF(_ data: Data) async throws -> ExtractedSourceText {
+    private static func extractPDF(_ data: Data, progress: (Int, Int) -> Void) async throws -> ExtractedSourceText {
         guard let document = PDFDocument(data: data) else { throw ImportError.unreadablePDF }
+        guard document.pageCount <= maxPDFPages else { throw ImportError.tooManyPages }
         let embedded = (0..<document.pageCount).map { document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
         if embedded.contains(where: { !$0.isEmpty }) {
             return ExtractedSourceText(pages: embedded, ocrConfidence: nil, usedOfflineOCR: false)
@@ -30,6 +35,8 @@ enum SourceTextExtractor {
         var pages: [String] = []
         var confidences: [Float] = []
         for index in 0..<document.pageCount {
+            try Task.checkCancellation()
+            progress(index + 1, document.pageCount)
             guard let page = document.page(at: index) else { continue }
             let bounds = page.bounds(for: .mediaBox).integral
             guard bounds.width > 0, bounds.height > 0 else { continue }
@@ -101,6 +108,7 @@ enum ImportError: LocalizedError {
     case noStructuredResults
     case cameraUnavailable
     case invalidSelection
+    case tooManyPages
 
     var errorDescription: String? {
         switch self {
@@ -110,6 +118,7 @@ enum ImportError: LocalizedError {
         case .noStructuredResults: return L10n.text(.no_structured_results)
         case .cameraUnavailable: return L10n.text(.camera_unavailable)
         case .invalidSelection: return L10n.text(.invalid_selection)
+        case .tooManyPages: return L10n.text(.import_too_many_pages, maxPDFPages)
         }
     }
 }

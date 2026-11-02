@@ -22,6 +22,7 @@ import app.vezuna.ui.entry.SourceKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -67,8 +68,23 @@ class AndroidSourcePicker(
         } catch (error: Exception) {
             fail(error)
         }
-        return result.await()
+        try {
+            return result.await()
+        } catch (cancelled: CancellationException) {
+            // The person stopped the import: end extraction (it deletes its own temporary copy) and keep nothing.
+            extracting?.cancel()
+            extracting = null
+            if (pending === result) {
+                pending = null
+                this.session = null
+                cameraUri = null
+                photos.clear()
+            }
+            throw cancelled
+        }
     }
+
+    private var extracting: Job? = null
 
     /** Drops an in-flight pick so a retained caller does not wait on a destroyed Activity. */
     fun close() {
@@ -125,11 +141,11 @@ class AndroidSourcePicker(
         val taken = photos.toList()
         photos.clear()
         if (taken.isEmpty()) return complete(null)
-        activity.lifecycleScope.launch { extractPhotos(taken) }
+        extracting = activity.lifecycleScope.launch { extractPhotos(taken) }
     }
 
     private fun importPhotos(uris: List<Uri>) {
-        activity.lifecycleScope.launch {
+        extracting = activity.lifecycleScope.launch {
             try {
                 val pages = withContext(Dispatchers.IO) { uris.take(MAX_PHOTOS).map { readBytes(it, displayName(it) ?: PHOTO_NAME) } }
                 extractPhotos(pages)
@@ -144,6 +160,7 @@ class AndroidSourcePicker(
         try {
             session?.reading(name)
             val pages = taken.flatMapIndexed { index, bytes ->
+                session?.progress(index + 1, taken.size)
                 extraction.extractImage(bytes).pages.map { it.copy(pageNumber = index + 1) }
             }
             complete(source(name, "image/jpeg", taken.first(), pages, taken.drop(1)))
@@ -153,7 +170,7 @@ class AndroidSourcePicker(
     }
 
     private fun importFile(uri: Uri) {
-        activity.lifecycleScope.launch {
+        extracting = activity.lifecycleScope.launch {
             var name: String? = null
             try {
                 val type = activity.contentResolver.getType(uri)
@@ -161,7 +178,7 @@ class AndroidSourcePicker(
                 name = displayName(uri) ?: if (isPdf) "lab.pdf" else PHOTO_NAME
                 val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
                 session?.reading(name)
-                val extracted = if (isPdf) extraction.extractPdf(bytes, name) else extraction.extractImage(bytes)
+                val extracted = if (isPdf) extraction.extractPdf(bytes, name) { page, count -> session?.progress(page, count) } else extraction.extractImage(bytes)
                 complete(source(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, extracted.pages, emptyList()))
             } catch (error: Throwable) {
                 fail(error, name)

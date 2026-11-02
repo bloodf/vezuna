@@ -572,6 +572,10 @@ iOS: %2$s</string>
     <string name="entry_unreadable_body">Try another copy or add the result manually.</string>
     <string name="entry_too_large_title">File is too large</string>
     <string name="entry_too_large_body">Choose a file under 64 MB, or photograph the pages you need.</string>
+    <string name="entry_too_many_pages_title">Too many pages</string>
+    <string name="entry_too_many_pages_body">This PDF has more than %1$d pages, the most Vezuna reads at once on this device. Nothing was saved. Split the file, or photograph the pages you need.</string>
+    <string name="entry_reading_progress">Reading page %1$s of %2$s</string>
+    <string name="entry_cancel_reading">Stop reading</string>
     <string name="entry_camera_unavailable_title">Camera not available</string>
     <string name="entry_camera_unavailable_body">This device has no camera Vezuna can use. Choose photos or a file instead.</string>
     <string name="entry_no_results_title">No results found</string>

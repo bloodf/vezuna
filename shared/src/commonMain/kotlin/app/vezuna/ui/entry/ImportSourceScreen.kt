@@ -23,6 +23,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Job
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,7 @@ import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.components.ListRow
 import app.vezuna.ui.components.PrimaryButton
+import app.vezuna.ui.components.ProgressState
 import app.vezuna.ui.components.SecondaryButton
 import app.vezuna.ui.components.TertiaryButton
 import app.vezuna.ui.nav.RouteContext
@@ -65,9 +70,13 @@ import vezuna.shared.generated.resources.ill_processing
 internal fun ImportSourceScreen(ctx: RouteContext) {
     val session = ctx.controller.importSession
     val phase by session.phase.collectAsState()
+    var running by remember { mutableStateOf<Job?>(null) }
     val start: (SourceKind) -> Unit = { kind ->
-        ctx.sourcePicker?.let { picker -> ctx.scope.launch { ctx.controller.importFrom(kind, picker) } }
+        ctx.sourcePicker?.let { picker -> running = ctx.scope.launch { ctx.controller.importFrom(kind, picker) } }
     }
+    // Cancelling stops extraction and deletes its temporary copies; nothing is saved because records are only
+    // written after extraction returns a source.
+    val cancel = { running?.cancel(); running = null }
     val manual = { session.idle(); ctx.navigate(AppScreen.ManualEntry) }
     FocusedTaskScaffold(title = vitaText(L10nKey.ENTRY_ADD_RECORD), onBack = ctx::back) {
         Column(
@@ -77,11 +86,11 @@ internal fun ImportSourceScreen(ctx: RouteContext) {
             when (val current = phase) {
                 ImportPhase.Idle -> SourceChoices(ctx.sourcePicker != null, true, start, manual)
                 // While the OS picker is open (no file yet) the choices stay underneath it, inactive.
-                is ImportPhase.Reading -> current.fileName?.let { Reading(it) } ?: SourceChoices(ctx.sourcePicker != null, false, start, manual)
+                is ImportPhase.Reading -> current.fileName?.let { Reading(it, current.page, current.pageCount, cancel) } ?: SourceChoices(ctx.sourcePicker != null, false, start, manual)
                 is ImportPhase.Failed -> Problem(
                     illustration = Res.drawable.ill_file_error,
                     title = vitaText(current.reason.titleKey()),
-                    body = vitaText(current.reason.bodyKey()),
+                    body = current.reason.body(),
                     fileName = current.fileName,
                     onRetry = { start(current.kind) }.takeIf { current.reason == ImportFailureReason.UNREADABLE },
                     onOther = session::idle,
@@ -106,13 +115,19 @@ private fun ImportFailureReason.titleKey(): L10nKey = when (this) {
     ImportFailureReason.UNREADABLE -> L10nKey.ENTRY_UNREADABLE_TITLE
     ImportFailureReason.CAMERA_UNAVAILABLE -> L10nKey.ENTRY_CAMERA_UNAVAILABLE_TITLE
     ImportFailureReason.CAMERA_DENIED -> L10nKey.ENTRY_CAMERA_DENIED_TITLE
+    ImportFailureReason.TOO_MANY_PAGES -> L10nKey.ENTRY_TOO_MANY_PAGES_TITLE
 }
+
+@Composable
+private fun ImportFailureReason.body(): String =
+    if (this == ImportFailureReason.TOO_MANY_PAGES) vitaText(bodyKey(), MAX_PDF_PAGES) else vitaText(bodyKey())
 
 private fun ImportFailureReason.bodyKey(): L10nKey = when (this) {
     ImportFailureReason.TOO_LARGE -> L10nKey.ENTRY_TOO_LARGE_BODY
     ImportFailureReason.UNREADABLE -> L10nKey.ENTRY_UNREADABLE_BODY
     ImportFailureReason.CAMERA_UNAVAILABLE -> L10nKey.ENTRY_CAMERA_UNAVAILABLE_BODY
     ImportFailureReason.CAMERA_DENIED -> L10nKey.ENTRY_CAMERA_DENIED_BODY
+    ImportFailureReason.TOO_MANY_PAGES -> L10nKey.ENTRY_TOO_MANY_PAGES_BODY
 }
 
 @Composable
@@ -157,7 +172,7 @@ private fun SourceOption(category: Category, icon: DrawableResource, title: Stri
 }
 
 @Composable
-private fun Reading(fileName: String) {
+private fun Reading(fileName: String, page: Int, pageCount: Int, onCancel: () -> Unit) {
     Surface(shape = RoundedCornerShape(VezunaTokens.CardRadius), color = Category.RECORDS.fill, contentColor = Category.RECORDS.onFill) {
         Column(
             Modifier.fillMaxWidth().padding(VezunaTokens.SpaceLg).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -168,8 +183,14 @@ private fun Reading(fileName: String) {
             Text(vitaText(L10nKey.ENTRY_READING_TITLE), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
             Text(fileName, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Text(vitaText(L10nKey.ENTRY_READING_BODY), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            // Indeterminate on purpose: extraction reports no reliable percentage.
-            LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
+            if (pageCount > 0) {
+                ProgressState(vitaText(L10nKey.ENTRY_READING_PROGRESS, page, pageCount))
+                LinearProgressIndicator(progress = { page.toFloat() / pageCount }, modifier = Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
+            } else {
+                // Indeterminate until the page count is known.
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = VezunaTokens.SpaceSm))
+            }
+            TertiaryButton(vitaText(L10nKey.ENTRY_CANCEL_READING), onCancel, Modifier.fillMaxWidth())
         }
     }
 }

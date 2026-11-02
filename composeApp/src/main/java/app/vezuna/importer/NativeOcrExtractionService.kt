@@ -17,7 +17,11 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import app.vezuna.ui.entry.ImportFailure
+import app.vezuna.ui.entry.ImportFailureReason
+import app.vezuna.ui.entry.MAX_PDF_PAGES
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.Closeable
@@ -60,18 +64,30 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
         }
     }
 
-    suspend fun extractPdf(bytes: ByteArray, displayName: String): OcrExtractionResult = withContext(Dispatchers.Default) {
+    /**
+     * Reads a PDF on the device. More than [MAX_PDF_PAGES] pages fails before any page is rendered. [onProgress] gets
+     * (page, pageCount) as each page starts. Cancelling stops between pages and always deletes the temporary copy.
+     */
+    suspend fun extractPdf(
+        bytes: ByteArray,
+        displayName: String,
+        onProgress: (page: Int, pageCount: Int) -> Unit = { _, _ -> },
+    ): OcrExtractionResult = withContext(Dispatchers.Default) {
         if (bytes.isEmpty()) failNative(NativeKey.PDF_EMPTY)
         PDFBoxResourceLoader.init(context.applicationContext)
-        val embedded = embeddedPages(bytes)
         // A process kill can leave an earlier decrypted copy behind; remove stale ones (own prefix, older than a minute).
         context.cacheDir.listFiles { f -> f.name.startsWith("vezuna-ocr-") && f.name.endsWith(".pdf") && f.lastModified() < System.currentTimeMillis() - 60_000L }?.forEach { it.delete() }
         val temporary = File.createTempFile("vezuna-ocr-", ".pdf", context.cacheDir).apply { writeBytes(bytes) }
         try {
             ParcelFileDescriptor.open(temporary, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
                 PdfRenderer(descriptor).use { renderer ->
+                    val pageCount = renderer.pageCount
+                    if (pageCount > MAX_PDF_PAGES) throw ImportFailure(ImportFailureReason.TOO_MANY_PAGES, displayName)
+                    val embedded = embeddedPages(bytes)
                     val pages = mutableListOf<OcrPageText>()
-                    for (index in 0 until renderer.pageCount) {
+                    for (index in 0 until pageCount) {
+                        ensureActive()
+                        onProgress(index + 1, pageCount)
                         val digital = embedded.getOrNull(index).orEmpty()
                         if (hasUsefulEmbeddedText(digital)) {
                             pages += OcrPageText(index + 1, digital.trim(), OcrPageText.Source.EMBEDDED_PDF_TEXT)
@@ -88,6 +104,8 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
                 }
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: ImportFailure) {
             throw error
         } catch (error: Exception) {
             throw NativeMessageException(nativeMessage(NativeKey.PDF_READ_FAILED, displayName))

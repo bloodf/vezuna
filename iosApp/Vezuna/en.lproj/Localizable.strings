@@ -33,6 +33,7 @@
 "model_asset_size_mismatch" = "The store asset size does not match its signed catalog metadata.";
 "model_asset_unavailable" = "The store asset %1$@ is configured but its GGUF file is unavailable.";
 "import_unreadable_pdf" = "The selected PDF could not be opened.";
+"import_too_many_pages" = "This PDF has more than %d pages, the most Vezuna reads at once on this device.";
 "import_unreadable_image" = "The selected image could not be decoded.";
 "no_text_found" = "No embedded or offline-OCR text was found in this source.";
 "no_structured_results" = "No laboratory results were recognized. You can still use manual review in the shared Import screen.";
