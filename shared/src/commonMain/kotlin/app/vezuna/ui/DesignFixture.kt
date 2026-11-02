@@ -24,8 +24,8 @@ import kotlinx.datetime.LocalDate
 /**
  * The synthetic household from docs/redesign/specs/DATA_AND_COPY.md, for screenshots and design checks only.
  * Debug builds load it into an in-memory repository when launched with the fixture flag (Android intent extra
- * `fixture`, iOS launch argument `-VezunaFixture`); it never touches the encrypted vault and release builds
- * never call it.
+ * `fixture`, iOS launch argument `-VezunaFixture`). Fixture screens never read or write the encrypted vault or
+ * model files, and release builds never call it.
  */
 object DesignFixture {
     const val PROFILE_ID = "demo-ana"
@@ -107,6 +107,16 @@ object DesignFixture {
             weights = listOf("25" to 68.8, "28" to 68.6, "31" to 68.4).map { (day, kg) -> WeightReading("weight-2026-10-$day", at("2026-10-${day}T10:30:00Z"), kg) },
             lastSync = at("2026-11-01T12:35:00Z"),
         )
+    }
+
+    /** Model storage for the fixture: empty, and nothing is ever written, so real model files stay untouched. */
+    object NoModelFiles : app.vezuna.llm.ModelFileStore {
+        override suspend fun installed(): List<app.vezuna.llm.InstalledModel> = emptyList()
+        override suspend fun install(model: app.vezuna.llm.InstalledModel, sourcePath: String) = Unit
+        override suspend fun verifyIntegrity(model: app.vezuna.llm.InstalledModel): Boolean = false
+        override suspend fun delete(model: app.vezuna.llm.InstalledModel) = Unit
+        override suspend fun saveSelection(modelId: String?) = Unit
+        override suspend fun savedSelection(): String? = null
     }
 
     /** Loads the household into [repository], which must be a throwaway in-memory repository. */

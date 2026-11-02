@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.Modifier
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
@@ -39,11 +41,28 @@ enum class NativeAction {
     NOTICES,
 }
 
-class NativeActions(val available: Set<NativeAction> = emptySet(), val perform: (NativeAction) -> Unit = {}) {
+/** [enabled] is the subset usable right now (for example Health while an import runs is listed but disabled). */
+class NativeActions(
+    val available: Set<NativeAction> = emptySet(),
+    val enabled: Set<NativeAction> = available,
+    val perform: (NativeAction) -> Unit = {},
+) {
     operator fun contains(action: NativeAction) = action in available
 }
 
-/** Everything a route needs. Built by the shell for each composition; lanes read from it, never from globals. */
+/**
+ * Focus target the shell requests on every route change, so screen readers start at the new screen. Root and
+ * focused-task scaffolds attach it to their title (or the back button when there is no title).
+ */
+val LocalRouteFocus = staticCompositionLocalOf<FocusRequester?> { null }
+
+/**
+ * Everything a route needs.
+ * Saved UI state (rememberSaveable) is kept per stack entry and dropped when the entry leaves the stack; on
+ * Android it can also land in the saved-instance Bundle, so never put health data or secrets (passphrases)
+ * in rememberSaveable: keep them in plain remember or the controller.
+ * Built by the shell for each composition; lanes read from it, never from globals.
+ */
 class RouteContext(
     val state: AppUiState,
     val controller: AppController,
