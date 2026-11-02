@@ -52,6 +52,7 @@ import app.vezuna.data.restoreMembers
 import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import app.vezuna.security.backupFileId
+import app.vezuna.ui.security.RestoreResult
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
@@ -133,6 +134,7 @@ class AppController(
      */
     private fun onProfileChanged() {
         mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        mutableRestoreResult.value = null // L6
         navigator.resetToRoots()
     }
 
@@ -774,6 +776,17 @@ class AppController(
             mutableState.value = mutableState.value.copy(loading = false, error = error.toUserText())
         }
     }
+
+    // ---- L6 security lane ----
+    private val mutableRestoreResult = MutableStateFlow<RestoreResult?>(null)
+
+    /** Outcome of the last restore started from Backups, shown there until dismissed (the restore resets navigation). */
+    val restoreResult: StateFlow<RestoreResult?> = mutableRestoreResult.asStateFlow()
+
+    fun showRestoreResult(result: RestoreResult?) {
+        mutableRestoreResult.value = result
+    }
+    // ---- end L6 ----
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
 }

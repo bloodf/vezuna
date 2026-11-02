@@ -808,7 +808,12 @@ private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(
     save = { fileName, bytes ->
         suspendCancellableCoroutine { continuation -> native.saveBackup(fileName, bytes) { saved -> if (continuation.isActive) continuation.resume(saved) } }
     },
+    // Last-backup record (#69): UserDefaults, never the vault, so it holds no health data.
+    loadHistory = { NSUserDefaults.standardUserDefaults.stringForKey(BACKUP_HISTORY_KEY) },
+    saveHistory = { NSUserDefaults.standardUserDefaults.setObject(it, BACKUP_HISTORY_KEY) },
 )
+
+private const val BACKUP_HISTORY_KEY = "vezuna.lastBackup"
 
 /** [onRestore] runs after the chosen backup is parked in [IosRuntime.pendingRestore]; the shell then resets the vault. */
 fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, onRestore: () -> Unit): UIViewController = ComposeUIViewController {
