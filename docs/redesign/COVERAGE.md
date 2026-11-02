@@ -1,4 +1,4 @@
-# Redesign coverage report (lane V, 2026-11-02, updated after the L9 merge)
+# Redesign coverage report (lane V, 2026-11-02, updated after the L9 merge and the PDF gaps lane)
 
 Verification close-out for the Living Color redesign (#121, accessibility #95). Source of truth per image is
 [ledger.csv](ledger.csv); the table at the end is generated from it. Reference images live in the local pack
@@ -8,11 +8,10 @@ Verification close-out for the Living Color redesign (#121, accessibility #95). 
 
 | Status | Count | Meaning |
 |---|---|---|
-| done | 100 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
+| done | 105 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
 | implemented | 26 | Implemented and tested in code; not reachable from the design fixture (lock, vault, restore, export transient/error states) or not shot |
-| partial | 27 | Real but incomplete; each gap is named in the table |
+| partial | 23 | Real but incomplete; each gap is named in the table |
 | system | 8 | OS-owned UI (permissions, biometric prompt, notification, share/save sheets); the real native interface is invoked |
-| not-started | 1 | pdf-09 source appendix: the section is not built |
 
 Total: 162 image IDs.
 
@@ -77,15 +76,31 @@ checked with `pdfinfo`/`pdftotext` and rendered page 1 of three samples:
 | vezuna-lab-history-sparse.pdf | 1 | A4 | Sparse period |
 | vezuna-lab-history-one-day.pdf | 1 | A4 | One collection day |
 | vezuna-lab-history-long.pdf | 16 | A4 | 120 readings, paginated with repeated headers |
-| vezuna-health-summary.pdf | 1 | A4 | Design fixture; latest results table + medication (pdf-01 charts not drawn) |
-| vezuna-medication-record.pdf | 1 | A4 | Design fixture; medication + dose history table with Taken/Skipped/Missed counts |
-| vezuna-device-measurements.pdf | 2 | A4 | Design fixture; daily steps and heart-rate tables (pdf-08 graphs not drawn) |
+| vezuna-health-summary.pdf | 2 | A4 | Design fixture; HGB/LDL summary graphs with first/previous changes, latest results table, medication |
+| vezuna-medication-record.pdf | 2 | A4 | Design fixture; medication with end date and seven-day schedule strip, dose timeline, dose table with counts |
+| vezuna-device-measurements.pdf | 3 | A4 | Design fixture; step bars, heart-rate and weight dot graphs with latest value and dated changes, plus tables |
 | vezuna-lab-history.pdf | 3 | A4 | Design fixture, lab history family |
 
 Text is selectable (pdftotext extracts it). "Marker" does not appear. Compared with `images/pdf/`: lab history
 first/continuation pages, single test, sparse period, Portuguese and Letter grayscale match the reference
-structure; health summary, medication record and device measurements carry the data as tables but not the
-reference charts, schedule strip or day timeline (partial in the ledger); the source appendix (pdf-09) is not built.
+structure.
+
+PDF gaps lane (`ExportFamiliesSampleWriterTest`, design fixture, period 25-31 Oct where the reference uses it;
+samples in scratchpad `pdf-out-gaps/`, rendered with `pdftoppm` and compared with `images/pdf/`):
+
+| File | Pages | Paper | Notes |
+|---|---|---|---|
+| pdf-01-health-summary.pdf | 2 | A4 | Two half-width graphs (HGB 13.0/12.8/13.2, LDL 146/140/132 with the dashed 130 reference), +0.2/+0.4 g/dL and -14/-8 mg/dL with baseline dates; the table continues on page 2 |
+| pdf-06-07-medication-record-dose-history.pdf | 2 | A4 | End date "Not recorded"; seven dated days 01-07 Nov at 08:00 labelled "Planned times from the schedule, not dose history"; day timeline 25-31 Oct Taken/Skipped/Missed with check/bar/cross glyphs; no percentage |
+| pdf-08-device-measurements.pdf | 3 | A4 | Step bars 5870-6240, heart-rate and weight dots (weight only on 25/28/31), +370/+140 steps, -1/-1 bpm, -0.4/-0.2 kg; "Days with device data in this export: 7" |
+| pdf-09-source-appendix.pdf | 3 | A4 | Health summary plus the appendix page: six reports with laboratory and confirmed counts, October review document under "Not included" with 3 unreviewed values and none of their values |
+| letter-grayscale-medication-record.pdf | 2 | Letter | Grayscale; timeline glyphs stay distinct at 150 dpi |
+| pt-medication-record.pdf, es-device-measurements.pdf | 2, 3 | A4 | Portuguese and Spanish |
+
+Differences from the images: summary and device pages paginate (the spec prefers more pages over smaller type,
+and device graphs keep their exact tables as the text alternative); no tinted panels; the schedule strip is dated
+from the export day instead of Mon-Sun; the fixture stores no originals, so the appendix says "Original not stored
+on this device" where the image says "Original available".
 
 ## Test results (check-all after the L9 merge, 2026-11-02)
 
@@ -104,8 +119,8 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 
 ## Remaining prerequisites (honest)
 
-- **Exports:** merged and screenshot-verified on Android. Gaps: pdf-09 source appendix not built; summary,
-  medication and device PDFs have no charts/strips; CSV numbers are written as 146.0; preview has no zoom or
+- **Exports:** merged and screenshot-verified on Android. All twelve PDF layouts are built; the source appendix
+  options toggle was not screenshotted; CSV numbers are written as 146.0; preview has no zoom or
   thumbnails; export transient/error states were not screenshotted.
 - **Model catalog:** the default catalog is empty, so assistant/model-ready states (101-112, 136) cannot be
   reached in any build. Play Asset Delivery and store packs were not exercised.
@@ -275,15 +290,15 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 148 | review-unavailable | L3 | done | none |
 | 149 | extraction-details | L3 | done | none |
 | 150 | global-feedback | R0 | partial | FeedbackHost live region in the shell (polite/assertive); banner sits at the bottom, image shows it under the header; TalkBack/VoiceOver announcement pass ow... |
-| pdf-01 | health-summary | L9 | partial | Latest-results table + medication; the two summary charts are not drawn |
+| pdf-01 | health-summary | L9 | done | Two A4 pages instead of one: graphs, graph key and the full latest-results table paginate rather than shrink (spec allows 'continued'); plain blocks instead ... |
 | pdf-02 | lab-history-first | L9 | done | none |
 | pdf-03 | lab-history-continuation | L9 | done | none |
 | pdf-04 | single-marker | L9 | done | none |
 | pdf-05 | mixed-results | L9 | implemented | No single-point reference plots |
-| pdf-06 | medication-record | L9 | partial | No seven-day schedule strip; end date not exported |
-| pdf-07 | dose-history | L9 | partial | Categorical day timeline not drawn; table only |
-| pdf-08 | device-measurements | L9 | partial | Graphs and first/previous changes not drawn |
-| pdf-09 | source-appendix | L9 | not-started | Source appendix section not built |
+| pdf-06 | medication-record | L9 | done | Strip shows the seven dated days from the export date (works for every recurrence) rather than a Mon-Sun week; details stay one labelled line, not the large ... |
+| pdf-07 | dose-history | L9 | done | Table keeps the Medication column with the recorded time under the status instead of a separate Recorded time column |
+| pdf-08 | device-measurements | L9 | done | Three A4 pages: each graph keeps its exact dated table below (text alternative for an untagged PDF); steps print as 6240 (no thousands separator) |
+| pdf-09 | source-appendix | L9 | done | Fixture has no stored originals, so rows honestly say 'Original not stored on this device' where the image says 'Original available'; page count only for pho... |
 | pdf-10 | sparse-period | L9 | done | none |
 | pdf-11 | portuguese-history | L9 | done | none |
 | pdf-12 | letter-grayscale | L9 | done | none |
