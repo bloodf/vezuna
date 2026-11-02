@@ -13,7 +13,7 @@ brand/       Supplied brand kit (separate licensing, see THIRD_PARTY_NOTICES.md)
 
 The Android application ID, Kotlin package root, and iOS bundle ID are `app.vezuna`. The shared Apple framework is `VezunaShared`; the app group is `group.app.vezuna`.
 
-The pre-release identity changed on 2026-10-31. Builds using this ID install separately from builds using an earlier ID. Renaming source does not transfer another app's sandbox or Android Keystore keys. Existing installations are not uninstalled, and their data is not moved or deleted. The same-device encrypted backup format does not provide cross-app recovery.
+The pre-release identity changed on 2026-10-31. Builds using this ID install separately from builds using an earlier ID. Renaming source does not transfer another app's sandbox or Android Keystore keys. Existing installations are not uninstalled, and their data is not moved or deleted. The same-device encrypted backup format does not provide cross-app recovery. This applies to earlier tester builds such as `com.bloodf.vitahearth`: their data stays in that app, and `app.vezuna` starts empty. See [Moving from earlier tester builds](RELEASING.md#moving-from-earlier-tester-builds).
 
 ## shared/
 

@@ -20,8 +20,11 @@ val releaseStorePassword = signingValue("VEZUNA_UPLOAD_STORE_PASSWORD")
 val releaseKeyAlias = signingValue("VEZUNA_UPLOAD_KEY_ALIAS")
 val releaseKeyPassword = signingValue("VEZUNA_UPLOAD_KEY_PASSWORD")
 val releaseSigningConfigured = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { it != null }
-val releaseVersionCode = providers.gradleProperty("VEZUNA_VERSION_CODE").orNull?.toIntOrNull() ?: 1
-val releaseVersionName = providers.gradleProperty("VEZUNA_VERSION_NAME").orNull ?: "1.0"
+// Debug and test builds fall back to 1 / 1.0; release tasks refuse to run unless both are set explicitly (verifyReleaseVersion).
+val rawVersionCode = providers.gradleProperty("VEZUNA_VERSION_CODE").orNull
+val rawVersionName = providers.gradleProperty("VEZUNA_VERSION_NAME").orNull?.takeIf { it.isNotBlank() }
+val releaseVersionCode = rawVersionCode?.toIntOrNull() ?: 1
+val releaseVersionName = rawVersionName ?: "1.0"
 
 android {
     namespace = "app.vezuna"
@@ -52,7 +55,9 @@ android {
             buildConfigField("boolean", "DEBUG_PREMIUM_BYPASS", "true")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "DEBUG_PREMIUM_BYPASS", "false")
             if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
         }
@@ -122,8 +127,20 @@ val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
         check(storeFileResolved!!.isFile) { "Keystore not found: $storeFileResolved" }
     }
 }
+val verifyReleaseVersion = tasks.register("verifyReleaseVersion") {
+    val code = rawVersionCode
+    val name = rawVersionName
+    doLast {
+        check(code != null && (code.toIntOrNull() ?: 0) > 0) {
+            "Release version code missing or not a positive integer. Pass -PVEZUNA_VERSION_CODE=<n> (see docs/RELEASING.md)."
+        }
+        check(name != null) {
+            "Release version name missing. Pass -PVEZUNA_VERSION_NAME=<x.y> (see docs/RELEASING.md)."
+        }
+    }
+}
 tasks.configureEach {
-    if (name == "packageRelease" || name == "bundleRelease") dependsOn(verifyReleaseSigning)
+    if (name == "packageRelease" || name == "bundleRelease") dependsOn(verifyReleaseSigning, verifyReleaseVersion)
 }
 
 // Proves streaming model installs never need a model-sized heap.

@@ -125,6 +125,7 @@ Android instrumentation requires a connected emulator or device and the hash-ver
 
 ## Release steps and known limits
 
+- Data does not migrate from earlier tester builds with a different application ID (such as `com.bloodf.vitahearth`). Export from the old build first; see [Releasing](docs/RELEASING.md#moving-from-earlier-tester-builds).
 - Configure Play LVL public key, App Store/Play signing, and real model-pack catalogs/assets.
 - Run Play/App Store licensing and hosted-model download tests through the stores.
 - Validate HealthKit, Health Connect, camera, notifications, OCR quality, and model performance on physical devices.

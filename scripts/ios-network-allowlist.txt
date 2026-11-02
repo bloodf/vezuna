@@ -1,0 +1,7 @@
+# Exceptions to scripts/check-ios-network.sh, one "relative/path:Symbol" per line (whitespace ignored when matching).
+# Each entry needs a comment above it explaining why the code cannot send health data off-device, and PRIVACY.md must match.
+
+# Opens the system notification settings URL (UIApplication.openNotificationSettingsURLString, a constant); no app data in the URL.
+iosApp/Vezuna/ContentView.swift:UIApplication.shared.open(url)
+# Opens the constant public About-screen links (MoreScreens LinkRow) in the system browser; the URLs are fixed strings and carry no app data.
+iosApp/SharedBridge/ComposeBridge.kt:UIApplication.sharedApplication.openURL(
