@@ -508,4 +508,15 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Introduce una fecha válida con el formato AAAA-MM-DD.</string>
     <string name="export_date_range_reversed">La fecha inicial no puede ser posterior a la fecha final.</string>
     <string name="export_no_matching_results">Ningún resultado confirmado coincide con estas opciones; la exportación no tendría resultados.</string>
+    <string name="clear_chat_history">Borrar historial del chat</string>
+    <string name="clear_chat_confirm_title">¿Borrar el historial del chat?</string>
+    <string name="clear_chat_confirm_body">Esto elimina de forma permanente todas las preguntas y respuestas del chat de este perfil. Tus resultados, medicamentos y otros registros no se ven afectados. No se puede deshacer.</string>
+    <string name="chat_history_cleared">Historial del chat borrado.</string>
+    <string name="chat_needs_model">Carga un modelo en el dispositivo para hacer una pregunta.</string>
+    <string name="cancel_model_install">Cancelar instalación</string>
+    <string name="model_installed">Instalado</string>
+    <string name="model_available">Disponible para instalar</string>
+    <string name="model_installing">Instalando y verificando el modelo</string>
+    <string name="delete_model_title">¿Eliminar %1$s?</string>
+    <string name="delete_model_body">El archivo del modelo se elimina de este dispositivo. Tus registros no se ven afectados. Puedes instalarlo de nuevo más tarde.</string>
 </resources>

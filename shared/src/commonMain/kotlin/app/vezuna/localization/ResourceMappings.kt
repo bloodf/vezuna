@@ -484,6 +484,19 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_DATE_INVALID to Res.string.export_date_invalid,
     L10nKey.EXPORT_DATE_RANGE_REVERSED to Res.string.export_date_range_reversed,
     L10nKey.EXPORT_NO_MATCHING_RESULTS to Res.string.export_no_matching_results,
+    // region L8 assistant
+    L10nKey.CLEAR_CHAT_HISTORY to Res.string.clear_chat_history,
+    L10nKey.CLEAR_CHAT_CONFIRM_TITLE to Res.string.clear_chat_confirm_title,
+    L10nKey.CLEAR_CHAT_CONFIRM_BODY to Res.string.clear_chat_confirm_body,
+    L10nKey.CHAT_HISTORY_CLEARED to Res.string.chat_history_cleared,
+    L10nKey.CHAT_NEEDS_MODEL to Res.string.chat_needs_model,
+    L10nKey.CANCEL_MODEL_INSTALL to Res.string.cancel_model_install,
+    L10nKey.MODEL_INSTALLED to Res.string.model_installed,
+    L10nKey.MODEL_AVAILABLE to Res.string.model_available,
+    L10nKey.MODEL_INSTALLING to Res.string.model_installing,
+    L10nKey.DELETE_MODEL_TITLE to Res.string.delete_model_title,
+    L10nKey.DELETE_MODEL_BODY to Res.string.delete_model_body,
+    // endregion L8 assistant
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
