@@ -22,6 +22,12 @@ actual fun formatUiDate(instant: Instant, languageTag: String): String =
 actual fun formatUiDateTime(instant: Instant, languageTag: String): String =
     formatter(languageTag, withTime = true).stringFromDate(instant.toNSDate())
 
+actual fun formatUiMonth(instant: Instant, languageTag: String): String = NSDateFormatter().apply {
+    locale = NSLocale(localeIdentifier = languageTag)
+    timeZone = NSTimeZone.timeZoneWithName("UTC") ?: NSTimeZone.localTimeZone
+    setLocalizedDateFormatFromTemplate("MMMMy")
+}.stringFromDate(instant.toNSDate())
+
 private fun formatter(languageTag: String, withTime: Boolean) = NSDateFormatter().apply {
     locale = NSLocale(localeIdentifier = languageTag)
     // Collection dates are calendar days stored as noon UTC; date-only output must not shift with the device zone.

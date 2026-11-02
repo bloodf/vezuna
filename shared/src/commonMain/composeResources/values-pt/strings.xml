@@ -490,4 +490,97 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Informe uma data válida no formato AAAA-MM-DD.</string>
     <string name="export_date_range_reversed">A data inicial não pode ser posterior à data final.</string>
     <string name="export_no_matching_results">Nenhum resultado confirmado corresponde a estas opções; a exportação ficaria sem resultados.</string>
+    <!-- region L2 records -->
+    <string name="records_search_hint">Pesquisar registros</string>
+    <string name="records_filters">Filtros</string>
+    <plurals name="records_filters_active">
+        <item quantity="one">Filtros (%1$d ativo)</item>
+        <item quantity="other">Filtros (%1$d ativos)</item>
+    </plurals>
+    <string name="records_filter_title">Filtrar registros</string>
+    <string name="records_filter_dates">Datas de coleta</string>
+    <string name="records_filter_apply">Aplicar filtros</string>
+    <string name="records_filter_reset">Limpar filtros</string>
+    <string name="records_view_reports">Laudos</string>
+    <string name="records_view_results">Resultados</string>
+    <plurals name="records_reports_count">
+        <item quantity="one">%1$d laudo confirmado</item>
+        <item quantity="other">%1$d laudos confirmados</item>
+    </plurals>
+    <plurals name="records_reports_found">
+        <item quantity="one">%1$d laudo</item>
+        <item quantity="other">%1$d laudos</item>
+    </plurals>
+    <string name="records_saved_on_device">Salvos neste aparelho</string>
+    <plurals name="records_review_banner">
+        <item quantity="one">%1$d valor para revisar</item>
+        <item quantity="other">%1$d valores para revisar</item>
+    </plurals>
+    <string name="records_add">Adicionar registro</string>
+    <string name="records_empty_title">Ainda não há registros.</string>
+    <string name="records_empty_body">Importe um PDF ou foto, ou digite um resultado.</string>
+    <string name="records_no_match_title">Nenhum registro encontrado</string>
+    <string name="records_no_match_query">Nada corresponde a “%1$s”. Limpe os filtros para ver todos os registros.</string>
+    <string name="records_no_match_filters">Nenhum registro corresponde a estes filtros. Limpe os filtros para ver todos os registros.</string>
+    <string name="records_no_confirmed_yet">Ainda sem resultados confirmados</string>
+    <string name="records_pane_hint">Escolha um laudo para ver os resultados.</string>
+    <string name="records_range_within">Dentro da faixa do laudo</string>
+    <string name="records_range_above">Acima da faixa do laudo</string>
+    <string name="records_range_below">Abaixo da faixa do laudo</string>
+    <string name="records_status_confirmed">Confirmado</string>
+    <plurals name="report_detail_confirmed">
+        <item quantity="one">Resultado confirmado (%1$d)</item>
+        <item quantity="other">Resultados confirmados (%1$d)</item>
+    </plurals>
+    <plurals name="report_detail_drafts">
+        <item quantity="one">Valor não confirmado (%1$d)</item>
+        <item quantity="other">Valores não confirmados (%1$d)</item>
+    </plurals>
+    <string name="report_detail_rejected">Rejeitado</string>
+    <string name="report_detail_view_original">Ver original</string>
+    <string name="report_detail_create_export">Criar exportação</string>
+    <string name="report_detail_unavailable">Laudo indisponível</string>
+    <string name="report_detail_unavailable_body">Ele pode ter sido excluído ou pertencer a outro perfil.</string>
+    <string name="report_delete_title">Excluir %1$s?</string>
+    <plurals name="report_delete_results">
+        <item quantity="one">%1$d resultado confirmado será excluído.</item>
+        <item quantity="other">%1$d resultados confirmados serão excluídos.</item>
+    </plurals>
+    <plurals name="report_delete_drafts">
+        <item quantity="one">%1$d valor não confirmado será excluído.</item>
+        <item quantity="other">%1$d valores não confirmados serão excluídos.</item>
+    </plurals>
+    <string name="report_delete_file">O arquivo original guardado neste aparelho será excluído.</string>
+    <string name="source_title">Laudo original</string>
+    <string name="source_opening">Abrindo o arquivo original…</string>
+    <string name="source_page_of">Página %1$d de %2$d</string>
+    <string name="source_page_label">Página %1$d</string>
+    <string name="source_page_image">Página %1$d de %2$d de %3$s</string>
+    <string name="source_zoom_in">Ampliar</string>
+    <string name="source_zoom_out">Reduzir</string>
+    <string name="source_missing_title">O arquivo original não está disponível.</string>
+    <string name="source_missing_body">Este aparelho não tem uma cópia guardada do arquivo deste laudo. Backups restaurados mantêm os resultados, não os arquivos originais. Seus resultados continuam como estão.</string>
+    <string name="source_missing_reimport_hint">Importe o mesmo arquivo de novo para vê-lo aqui. Valores já revisados não são adicionados duas vezes.</string>
+    <string name="source_reimport">Importar o arquivo de novo</string>
+    <string name="source_unreadable_body">Não foi possível abrir o arquivo guardado neste aparelho. Seus resultados continuam como estão.</string>
+    <string name="source_unsupported_body">Este tipo de arquivo não pode ser exibido neste aparelho. Seus resultados continuam como estão.</string>
+    <string name="source_return">Voltar ao laudo</string>
+    <string name="result_detail_recorded_as_text">Resultado registrado como texto.</string>
+    <string name="result_detail_report_range">Faixa do laudo</string>
+    <string name="result_detail_history">Histórico do resultado</string>
+    <string name="result_detail_change_since">%1$s desde %2$s</string>
+    <string name="result_detail_one_result">Este é o único resultado deste exame até agora.</string>
+    <string name="result_detail_open_trends">Abrir em Tendências</string>
+    <string name="result_detail_converted">convertido com um fator publicado</string>
+    <string name="result_detail_review_status">Situação da revisão</string>
+    <string name="result_detail_source">Origem</string>
+    <string name="result_detail_reference_text">Texto de referência</string>
+    <string name="result_detail_assessment">Avaliação</string>
+    <string name="result_detail_corrections">Histórico de correções</string>
+    <plurals name="result_detail_corrections_count">
+        <item quantity="one">%1$d versão anterior</item>
+        <item quantity="other">%1$d versões anteriores</item>
+    </plurals>
+    <string name="result_detail_back">Voltar aos registros</string>
+    <!-- endregion L2 records -->
 </resources>
