@@ -1,6 +1,8 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.domain.keepingOnlyAvailableSourceFiles
+import app.vezuna.domain.remappedAsNew
 import app.vezuna.domain.vaultKeys
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
@@ -170,5 +172,16 @@ class MultiPageStorageTest {
         assertEquals(store.saved, listOfNotNull(document.vaultKey) + document.pageVaultKeys)
         val profile = repository.readProfile(document.profileId)
         assertEquals(store.saved.toSet(), profile.vaultKeys())
+    }
+
+    @Test
+    fun restoreAsNewNeverSharesPageFilesWithTheOriginal() {
+        val doc = app.vezuna.domain.SourceDocument("p", "d1", "photos.jpg", "image/jpeg", "h", day, "k1", listOf("k2", "k3"))
+        val data = app.vezuna.domain.ProfileData(app.vezuna.domain.Profile("p", "Ana", createdAt = day), documents = listOf(doc))
+        var counter = 0
+        assertEquals(emptySet(), data.remappedAsNew { "NEW-${counter++}" }.vaultKeys())
+        val kept = data.keepingOnlyAvailableSourceFiles(data.copy(documents = listOf(doc.copy(pageVaultKeys = listOf("k2")))))
+        assertEquals(setOf("k1", "k2"), kept.vaultKeys())
+        assertEquals(emptySet(), data.keepingOnlyAvailableSourceFiles(null).vaultKeys())
     }
 }

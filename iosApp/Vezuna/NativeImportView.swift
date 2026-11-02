@@ -204,7 +204,7 @@ struct NativeImportView: View {
             let header = LabTextBridge.shared.parseHeader(text: extracted.text)
             if appending, sourceData != nil {
                 extraPages.append(data)
-                candidates += parsed.filter { row in !candidates.contains { $0.testCode == row.testCode && $0.rawValue == row.rawValue && $0.rawUnit == row.rawUnit } }
+                candidates += parsed.filter { row in !candidates.contains { $0.testCode == row.testCode && $0.rawValue == row.rawValue && $0.rawUnit == row.rawUnit && $0.collectedAt == row.collectedAt } }
             } else {
                 sourceData = data
                 sourceName = name

@@ -137,7 +137,7 @@ class AndroidSourcePicker(
                 val header = parseReportHeader(text)
                 val name = if (taken.size == 1) "lab-image.jpg" else "lab-photos-${taken.size}.jpg"
                 val candidates = pages.flatMap { parseExtractedCandidates(it.text) }
-                    .distinctBy { Triple(it.testCode, it.rawValue, it.rawUnit) }
+                    .distinctBy { listOf(it.testCode, it.rawValue, it.rawUnit, it.collectedAt) }
                 complete(
                     PickedSource(
                         name, "image/jpeg", taken.first(), candidates,
