@@ -64,6 +64,8 @@ class NativeOcrExtractionService(private val context: Context) : Closeable {
         if (bytes.isEmpty()) failNative(NativeKey.PDF_EMPTY)
         PDFBoxResourceLoader.init(context.applicationContext)
         val embedded = embeddedPages(bytes)
+        // A process kill can leave an earlier decrypted copy behind; remove stale ones (own prefix, older than a minute).
+        context.cacheDir.listFiles { f -> f.name.startsWith("vezuna-ocr-") && f.name.endsWith(".pdf") && f.lastModified() < System.currentTimeMillis() - 60_000L }?.forEach { it.delete() }
         val temporary = File.createTempFile("vezuna-ocr-", ".pdf", context.cacheDir).apply { writeBytes(bytes) }
         try {
             ParcelFileDescriptor.open(temporary, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->

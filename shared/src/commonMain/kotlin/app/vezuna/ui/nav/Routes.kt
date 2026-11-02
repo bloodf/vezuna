@@ -20,6 +20,7 @@ fun Route(screen: AppScreen, ctx: RouteContext) {
         AppScreen.Welcome -> TodayRoutes.Welcome(ctx)
         AppScreen.FirstProfile -> TodayRoutes.FirstProfile(ctx)
         AppScreen.Profiles -> TodayRoutes.Profiles(ctx)
+        AppScreen.AddProfile -> TodayRoutes.Profiles(ctx, focusNewName = true)
         is AppScreen.ProfileEdit -> TodayRoutes.ProfileEdit(screen, ctx)
 
         AppScreen.Labs -> RecordsRoutes.Labs(ctx)

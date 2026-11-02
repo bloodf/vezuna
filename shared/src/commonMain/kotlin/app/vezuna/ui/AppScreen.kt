@@ -12,6 +12,9 @@ sealed interface AppScreen {
     data object Welcome : AppScreen
     data object FirstProfile : AppScreen
     data object Profiles : AppScreen
+
+    /** The Profiles page with the new-name field focused (profile switcher "Add profile"). */
+    data object AddProfile : AppScreen
     data class ProfileEdit(val profileId: String) : AppScreen
 
     // Records (L2)
