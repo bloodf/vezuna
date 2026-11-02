@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -123,7 +124,7 @@ internal fun LineChart(
         }
         if (progress.value >= 1f) {
             val labelled = selected?.takeIf { it in points.indices } ?: points.lastIndex
-            drawValueLabel(measurer, "${formatValue(points[labelled].value)} $unit".trim(), valueStyle, offsets[labelled], plotLeft)
+            drawValueLabel(measurer, "${formatValue(points[labelled].value)} $unit".trim(), valueStyle, offsets[labelled], plotLeft, pointCenter)
         }
     }
 }
@@ -142,10 +143,13 @@ private fun DrawScope.drawBand(band: ReferenceBand, yOf: (Double) -> Float, left
     }
 }
 
-private fun DrawScope.drawValueLabel(measurer: TextMeasurer, text: String, style: TextStyle, at: Offset, minLeft: Float) {
+private fun DrawScope.drawValueLabel(measurer: TextMeasurer, text: String, style: TextStyle, at: Offset, minLeft: Float, backdrop: Color) {
     val label = measurer.measure(text, style)
     val x = (at.x - label.size.width / 2f).coerceIn(minLeft, (size.width - label.size.width).coerceAtLeast(minLeft))
     val y = (at.y - label.size.height - POINT_DP.dp.toPx() - 4.dp.toPx()).coerceAtLeast(0f)
+    // Opaque backdrop so the line never runs through the value text.
+    val pad = 3.dp.toPx()
+    drawRoundRect(backdrop, Offset(x - pad, y), Size(label.size.width + 2 * pad, label.size.height.toFloat()), CornerRadius(pad))
     drawText(label, topLeft = Offset(x, y))
 }
 
