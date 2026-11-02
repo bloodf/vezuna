@@ -75,4 +75,5 @@
     <string name="app_lock_prompt_title">Desbloquear o Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirme que é você para abrir seus registros de saúde</string>
     <string name="app_lock_use_passcode">Usar código do aparelho</string>
+    <string name="model_confirmation_needed">Abra o Vezuna e confirme o download do modelo na janela do Play; depois tente novamente.</string>
 </resources>

@@ -93,3 +93,11 @@
 "app_lock_reason" = "Confirma que eres tú para abrir tus registros de salud";
 "export_language" = "Idioma de la exportación";
 "export_language_device" = "Idioma de la app";
+"export_options" = "Opciones de exportación";
+"export_from_date" = "Fecha inicial (AAAA-MM-DD, opcional)";
+"export_to_date" = "Fecha final (AAAA-MM-DD, opcional)";
+"export_active_medications_only" = "Solo medicamentos activos";
+"export_include_medications_csv" = "Incluir medicamentos en el CSV";
+"export_tests" = "Pruebas a incluir (si no elige ninguna, se exportan todas)";
+"export_date_invalid" = "Introduce una fecha válida con el formato AAAA-MM-DD.";
+"export_date_range_reversed" = "La fecha inicial no puede ser posterior a la fecha final.";
