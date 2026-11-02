@@ -67,14 +67,14 @@ class IosSecureVault(private val directory: String) : SecureVault {
         core.decrypt(envelope)
     }
 
-    override suspend fun write(key: String, ciphertext: ByteArray) {
+    override suspend fun write(key: String, ciphertext: ByteArray) = lock.withLock {
         prepareDirectory()
         writeProtected(fileFor(key), ciphertext)
     }
 
-    override suspend fun read(key: String): ByteArray? {
+    override suspend fun read(key: String): ByteArray? = lock.withLock {
         relaxExistingProtection()
-        return core.readData(fileFor(key))
+        core.readData(fileFor(key))
     }
 
     override suspend fun delete(key: String) { manager.removeItemAtPath(fileFor(key), null) }
@@ -94,14 +94,14 @@ class IosSecureVault(private val directory: String) : SecureVault {
         core.deleteKey()
     }
 
-    /** Files written by older builds carry `.complete`; relax them once so lock-screen dose actions can read them. */
+    /** Files written by older builds carry `.complete`; relax them so lock-screen dose actions can read them. Retried until every file succeeded. */
     private fun relaxExistingProtection() {
         if (protectionRelaxed) return
-        protectionRelaxed = true
         val keyName = fileFor("master-key").substringAfterLast('/')
-        (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
+        protectionRelaxed = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
             .filterNot { it.startsWith(QUARANTINE) || it == keyName }
-            .forEach { manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), "$directory/$it", null) }
+            .map { manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), "$directory/$it", null) }
+            .all { it }
     }
 
     private fun randomKey(): ByteArray {

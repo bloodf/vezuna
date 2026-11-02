@@ -85,10 +85,16 @@ class KeyFileVaultCore(
         }
     }
 
-    /** Second half of a reset, after the data was moved aside. */
+    /** Second half of a reset, after the data was moved aside. Re-reads first so a key that appeared is archived, never lost. */
     fun deleteKey(): Boolean {
         cachedKey = null
-        return keyStore?.delete() ?: true
+        val store = keyStore ?: return true
+        val read = store.read()
+        return when (read.status) {
+            KeyStoreStatus.UNAVAILABLE -> false
+            KeyStoreStatus.MISSING -> true
+            KeyStoreStatus.FOUND -> (read.key?.let(store::archive) ?: false) && store.delete()
+        }
     }
 
     /**
@@ -131,12 +137,12 @@ class KeyFileVaultCore(
             if (readsBack(store, legacy) && decrypts(legacy) == true) files.delete(keyPath)
             return legacy
         }
-        return adoptStored(store) ?: legacy
+        return adoptStored(store)?.let(::reconcile) ?: legacy
     }
 
     /** Refuses to invent a key when encrypted data already exists; a store write failure falls back to the file. */
     private fun create(store: VaultKeyStore): ByteArray {
-        if (files.dataFiles().isNotEmpty()) throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
+        if (files.dataFiles().any { files.read(it) == null || envelopeOf(it) != null }) throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
         val key = randomKey()
         if (store.write(key) && readsBack(store, key)) return key
         adoptStored(store)?.let { return it }
@@ -155,6 +161,11 @@ class KeyFileVaultCore(
         }
     }
 
+    /** The vault envelope stored at [path], or null for unreadable files and other plaintext files. */
+    private fun envelopeOf(path: String): CipherEnvelope? = files.read(path)
+        ?.let { runCatching { envelopeJson.decodeFromString(CipherEnvelope.serializer(), it.decodeToString()) }.getOrNull() }
+        ?.takeIf { it.algorithm == algorithm && it.keyId == keyId }
+
     private fun readsBack(store: VaultKeyStore, key: ByteArray): Boolean {
         val back = store.read()
         return back.status == KeyStoreStatus.FOUND && back.key?.contentEquals(key) == true
@@ -164,9 +175,7 @@ class KeyFileVaultCore(
     private fun decrypts(key: ByteArray): Boolean? {
         var seen = false
         for (path in files.dataFiles()) {
-            val envelope = files.read(path)
-                ?.let { runCatching { envelopeJson.decodeFromString(CipherEnvelope.serializer(), it.decodeToString()) }.getOrNull() }
-                ?.takeIf { it.algorithm == algorithm && it.keyId == keyId } ?: continue
+            val envelope = envelopeOf(path) ?: continue
             seen = true
             if (runCatching { open(key, envelope) }.isSuccess) return true
         }

@@ -247,4 +247,44 @@ class KeychainVaultCoreTest {
         assertTrue(core.deleteKey())
         assertNull(store.key)
     }
+
+    @Test
+    fun duplicateStoredKeyThatCannotDecryptLosesToWorkingLegacyKey() {
+        files.data["key"] = fileKey
+        files.data["data"] = envelopeFile(fileKey)
+        store.raceKey = otherKey // appears between the missing read and the add
+
+        assertEquals(fileKey[0], encrypt().cipherText[0])
+        assertTrue(files.exists("key"))
+    }
+
+    @Test
+    fun deleteKeyArchivesAKeyThatAppearedAfterTheFirstArchive() {
+        assertTrue(core.archiveKey()) // store empty: nothing archived
+        store.key = otherKey
+
+        assertTrue(core.deleteKey())
+
+        assertContentEquals(otherKey, store.archived.single())
+        assertNull(store.key)
+    }
+
+    @Test
+    fun lockedStoreAtDeleteTimeKeepsTheKey() {
+        store.key = otherKey
+        store.locked = true
+
+        assertFalse(core.deleteKey())
+        assertEquals(0, store.deletes)
+    }
+
+    @Test
+    fun plaintextSidecarFilesDoNotBlockKeyCreation() {
+        files.data["selection"] = "{\"id\":1}".encodeToByteArray()
+        files.data["index"] = "[]".encodeToByteArray()
+
+        encrypt()
+
+        assertContentEquals(newKey, store.key)
+    }
 }
