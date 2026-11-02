@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MedicationSupplies
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.vitaText
@@ -55,6 +56,9 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
     var name by rememberSaveable { mutableStateOf(medication?.displayName.orEmpty()) }
     var strength by rememberSaveable { mutableStateOf(medication?.strength.orEmpty()) }
     var instructions by rememberSaveable { mutableStateOf(medication?.instructions.orEmpty()) }
+    val data = ctx.state.data
+    var supplyUnits by rememberSaveable { mutableStateOf(medication?.let { m -> data?.let { MedicationSupplies.remaining(m, it.doseEvents) } }?.toString().orEmpty()) }
+    var lowThreshold by rememberSaveable { mutableStateOf(medication?.supply?.lowThreshold?.toString().orEmpty()) }
     var drafts by remember { mutableStateOf(medication?.schedules?.map(ScheduleDraft::from)?.ifEmpty { null } ?: listOf(ScheduleDraft(startDate = today))) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
@@ -68,8 +72,8 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
             return
         }
         ctx.runThenAnnounce(UserText.Key(L10nKey.CARE_MEDICATION_SAVED, listOf(name.trim()))) {
-            if (medication == null) ctx.controller.addMedication(name, strength, instructions, drafts)
-            else ctx.controller.updateMedication(medication.medicationId, name, strength, instructions, drafts)
+            if (medication == null) ctx.controller.addMedication(name, strength, instructions, drafts, supplyUnits, lowThreshold)
+            else ctx.controller.updateMedication(medication.medicationId, name, strength, instructions, drafts, supplyUnits, lowThreshold)
             if (ctx.controller.state.value.error == null) ctx.back()
         }
     }
@@ -89,6 +93,7 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
         LabeledField(vitaText(L10nKey.STRENGTH_AS_PRESCRIBED), strength, { strength = it }, hint = vitaText(L10nKey.CARE_STRENGTH_HINT))
         LabeledField(vitaText(L10nKey.PRESCRIBER_INSTRUCTIONS), instructions, { instructions = it }, singleLine = false)
         ScheduleListEditor(drafts, today) { drafts = it }
+        SupplyFields(supplyUnits, { supplyUnits = it }, lowThreshold, { lowThreshold = it })
         Text(vitaText(L10nKey.CARE_TIME_ZONE_NOTE), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (showErrors && !medicationFormValid(name, drafts)) {
             Text(

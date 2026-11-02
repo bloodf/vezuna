@@ -1207,4 +1207,20 @@ iOS: %2$s</string>
     <string name="export_col_unit">Unidade</string>
     <string name="export_pdf_access_note">O texto do PDF continua selecionável, mas o Android e o iOS não conseguem adicionar marcações de acessibilidade. O CSV é a cópia dos mesmos resultados adequada a leitores de tela.</string>
     <string name="export_family_selected">Selecionado</string>
+    <string name="care_supply_title">Estoque</string>
+    <string name="care_supply_units_label">Unidades em mãos (opcional)</string>
+    <string name="care_supply_units_hint">Uma unidade por dose, como um comprimido</string>
+    <string name="care_supply_threshold_label">Avisar quando restarem estas unidades (opcional)</string>
+    <string name="care_supply_remaining">Unidades restantes: %1$s</string>
+    <string name="care_supply_runs_out">Estimativa de acabar em %1$s</string>
+    <string name="care_supply_no_estimate">Não há próximas doses agendadas para estimar.</string>
+    <string name="care_supply_low">Estoque baixo</string>
+    <string name="care_supply_estimate_note">Estimativa pela agenda e pelas doses registradas como tomadas. Doses puladas ou perdidas não usam uma unidade.</string>
+    <string name="care_record_refill">Registrar reposição</string>
+    <string name="care_refill_units">Unidades adicionadas</string>
+    <string name="care_refill_save">Salvar reposição</string>
+    <string name="care_refill_recorded">Reposição registrada para %1$s.</string>
+    <string name="supply_invalid">Informe números inteiros de 0 ou mais para o estoque.</string>
+    <string name="supply_refill_invalid">Informe um número inteiro de unidades, 1 ou mais.</string>
+    <string name="supply_not_tracked">Informe as unidades em mãos antes de registrar uma reposição.</string>
 </resources>

@@ -186,6 +186,8 @@ data class Medication(
     val instructions: String? = null,
     val schedules: List<DoseSchedule> = emptyList(),
     val active: Boolean = true,
+    /** Optional refill tracking; null for medications that never set a supply and for data saved before this field. */
+    val supply: MedicationSupply? = null,
 )
 
 @Serializable

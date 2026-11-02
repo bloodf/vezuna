@@ -14,6 +14,8 @@ import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MedicationSupplies
+import app.vezuna.domain.MedicationSupply
 import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
@@ -509,12 +511,13 @@ class AppController(
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) =
         addMedication(name, strength, instructions, listOf(ScheduleDraft(times = listOf(time), startDate = clock().toLocalDateTime(timeZone()).date)))
 
-    suspend fun addMedication(name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
+    suspend fun addMedication(name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>, supplyUnits: String = "", lowThreshold: String = "") = operation {
         val data = requireData()
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
         val medicationId = randomId()
         val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
-        repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, schedules))
+        val supply = parseSupply(supplyUnits, lowThreshold)?.let { (units, threshold) -> MedicationSupply(units, clock(), threshold) }
+        repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, schedules, supply = supply))
         loadProfile(data.profile.profileId)
     }
 
@@ -531,20 +534,44 @@ class AppController(
         }
     }
 
-    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
+    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>, supplyUnits: String? = null, lowThreshold: String = "") = operation {
         val data = requireData()
         val medication = findMedication(data, medicationId)
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
         val schedules = buildSchedules(data.profile.profileId, medicationId, drafts, medication.schedules)
+        // Null leaves the supply untouched (callers that do not edit it); a string, even blank, is the form's value.
+        val supply = if (supplyUnits == null) medication.supply else {
+            val parsed = parseSupply(supplyUnits, lowThreshold)
+            MedicationSupplies.edited(medication, data.doseEvents, parsed?.first, parsed?.second, clock())
+        }
         repository.updateMedication(
             medication.copy(
                 displayName = name.trim(),
                 strength = strength.trim().ifBlank { null },
                 instructions = instructions.trim().ifBlank { null },
                 schedules = schedules,
+                supply = supply,
             ),
         )
         loadProfile(data.profile.profileId)
+    }
+
+    /** Adds [added] units to what is left now and restarts the count; only a medication that tracks supply can be refilled. */
+    suspend fun recordRefill(medicationId: String, added: String) = operation {
+        val data = requireData()
+        val medication = findMedication(data, medicationId)
+        val units = added.trim().toIntOrNull()?.takeIf { it in 1..MAX_SUPPLY } ?: failMessage(L10nKey.SUPPLY_REFILL_INVALID)
+        if (medication.supply == null) failMessage(L10nKey.SUPPLY_NOT_TRACKED)
+        repository.updateMedication(medication.copy(supply = MedicationSupplies.refilled(medication, data.doseEvents, units, clock())))
+        loadProfile(data.profile.profileId)
+    }
+
+    /** Blank units means no tracking; the threshold is optional and ignored without units. */
+    private fun parseSupply(units: String, threshold: String): Pair<Int, Int?>? {
+        if (units.isBlank()) return null
+        val count = units.trim().toIntOrNull()?.takeIf { it in 0..MAX_SUPPLY } ?: failMessage(L10nKey.SUPPLY_INVALID)
+        val low = if (threshold.isBlank()) null else threshold.trim().toIntOrNull()?.takeIf { it in 0..MAX_SUPPLY } ?: failMessage(L10nKey.SUPPLY_INVALID)
+        return count to low
     }
 
     suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, time: String) = operation {
@@ -894,3 +921,4 @@ sealed interface SourceFileRead {
 }
 
 private val REMINDER_TIME = Regex("(?:[01]\\d|2[0-3]):[0-5]\\d")
+private const val MAX_SUPPLY = 100_000
