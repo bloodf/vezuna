@@ -10,6 +10,8 @@ data class ExportText(
     val clinicalReport: String,
     val generated: String,
     val reportPeriod: String,
+    val sources: String,
+    val orderedOn: String,
     val noConfirmedResults: String,
     val disclaimer: String,
     val reportNotes: String,
@@ -40,6 +42,8 @@ data class ExportText(
     val medicationsRecorded: String,
     val original: String,
     val csvHeader: String,
+    val age: String,
+    val csvMedicationsHeader: String,
 ) {
     companion object {
         fun of(language: ContentLanguage): ExportText = when (language) {
@@ -55,6 +59,8 @@ data class ExportText(
             clinicalReport = "Clinical report",
             generated = "Generated",
             reportPeriod = "Collection / report period",
+            sources = "Laboratories",
+            orderedOn = "ordered",
             noConfirmedResults = "No confirmed results",
             disclaimer = "Private health record for clinical discussion. OCR-derived values are included only after user confirmation.",
             reportNotes = "Report notes",
@@ -85,6 +91,8 @@ data class ExportText(
             medicationsRecorded = "Medications (recorded, not recommendations)",
             original = "original",
             csvHeader = "profile_id,collected_at,test_code,test_name,original_value,original_unit,normalized_value,normalized_unit,reference_lower,reference_upper,reference_unit,reference_text,qualitative_value",
+            age = "Age",
+            csvMedicationsHeader = "medication,strength,instructions,active",
         )
 
         private val PT = ExportText(
@@ -94,6 +102,8 @@ data class ExportText(
             clinicalReport = "Relatório clínico",
             generated = "Gerado em",
             reportPeriod = "Período de coleta / do relatório",
+            sources = "Laboratórios",
+            orderedOn = "pedido em",
             noConfirmedResults = "Nenhum resultado confirmado",
             disclaimer = "Registro de saúde privado para conversa clínica. Valores obtidos por OCR são incluídos somente após confirmação do usuário.",
             reportNotes = "Notas do relatório",
@@ -124,6 +134,8 @@ data class ExportText(
             medicationsRecorded = "Medicamentos (registrados, não são recomendações)",
             original = "original",
             csvHeader = "id_perfil,coletado_em,codigo_exame,nome_exame,valor_original,unidade_original,valor_normalizado,unidade_normalizada,referencia_minima,referencia_maxima,unidade_referencia,texto_referencia,valor_qualitativo",
+            age = "Idade",
+            csvMedicationsHeader = "medicamento,concentracao,instrucoes,ativo",
         )
 
         private val ES = ExportText(
@@ -133,6 +145,8 @@ data class ExportText(
             clinicalReport = "Informe clínico",
             generated = "Generado el",
             reportPeriod = "Período de recolección / del informe",
+            sources = "Laboratorios",
+            orderedOn = "pedido el",
             noConfirmedResults = "Ningún resultado confirmado",
             disclaimer = "Registro de salud privado para conversación clínica. Los valores obtenidos por OCR se incluyen solo tras la confirmación del usuario.",
             reportNotes = "Notas del informe",
@@ -163,6 +177,8 @@ data class ExportText(
             medicationsRecorded = "Medicamentos (registrados, no son recomendaciones)",
             original = "original",
             csvHeader = "id_perfil,recolectado_en,codigo_prueba,nombre_prueba,valor_original,unidad_original,valor_normalizado,unidad_normalizada,referencia_minima,referencia_maxima,unidad_referencia,texto_referencia,valor_cualitativo",
+            age = "Edad",
+            csvMedicationsHeader = "medicamento,concentracion,instrucciones,activo",
         )
     }
 }

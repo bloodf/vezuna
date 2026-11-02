@@ -80,6 +80,11 @@ data class PickedSource(
     val mediaType: String,
     val bytes: ByteArray,
     val candidates: List<ExtractedCandidate> = emptyList(),
+    /** Read from the page text; drafts for the reviewer, never confirmed facts. */
+    val laboratoryName: String? = null,
+    val orderedAt: kotlinx.datetime.Instant? = null,
+    /** Further photos of the same report. [bytes] is the first page; the hash covers every page so a re-import dedupes. */
+    val additionalPages: List<ByteArray> = emptyList(),
 )
 
 private data class Destination(val screen: AppScreen, val label: L10nKey, val icon: androidx.compose.ui.graphics.vector.ImageVector)

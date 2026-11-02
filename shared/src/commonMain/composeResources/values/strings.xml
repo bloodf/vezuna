@@ -304,8 +304,8 @@ iOS: %2$s</string>
         <item quantity="other">%1$d candidates need your confirmation before joining trends or AI.</item>
     </plurals>
     <plurals name="trend_chart_accessibility">
-        <item quantity="one">Trend chart with %1$d confirmed result, unit %2$s</item>
-        <item quantity="other">Trend chart with %1$d confirmed results, unit %2$s</item>
+        <item quantity="one">Trend chart with %1$d confirmed result, unit %2$s. Lowest %3$s, highest %4$s, latest %5$s.</item>
+        <item quantity="other">Trend chart with %1$d confirmed results, unit %2$s. Lowest %3$s, highest %4$s, latest %5$s.</item>
     </plurals>
     <plurals name="unreviewed_candidates_added">
         <item quantity="one">%1$d unreviewed candidate added; confirm each result individually</item>
@@ -367,8 +367,8 @@ iOS: %2$s</string>
     <string name="vital_unit_kg">kg</string>
     <string name="vitals_retention_note">Readings are kept for one year. Heart rate and steps older than a month are condensed into daily summaries. These are recorded values, not an assessment.</string>
     <plurals name="vitals_chart_accessibility">
-        <item quantity="one">Chart of %1$d reading, unit %2$s</item>
-        <item quantity="other">Chart of %1$d readings, unit %2$s</item>
+        <item quantity="one">Chart of %1$d reading, unit %2$s. Lowest %3$s, highest %4$s, latest %5$s.</item>
+        <item quantity="other">Chart of %1$d readings, unit %2$s. Lowest %3$s, highest %4$s, latest %5$s.</item>
     </plurals>
     <!-- App lock -->
     <string name="app_lock_title">App lock</string>
@@ -430,4 +430,46 @@ iOS: %2$s</string>
     <string name="onboarding_privacy">Nothing leaves your device unless you export or back it up yourself.</string>
     <string name="onboarding_done">Get started</string>
     <string name="onboarding_skip">Skip for now</string>
+    <string name="trend_units_dropped">Not shown: results in %1$s have no published conversion to %2$s.</string>
+    <string name="trend_converted_note">Points drawn hollow or marked ≈ were converted with published factors. Original values are listed below.</string>
+    <string name="converted_value">≈ %1$s (published factor %2$s)</string>
+    <string name="labs_empty_explanation">Import a report or add a result by hand. It appears here after you confirm it.</string>
+    <string name="trends_empty_explanation">Trends need at least one confirmed numeric result. Import a report or add a result by hand.</string>
+    <string name="labs_search_hint">Search by name or code</string>
+    <string name="labs_filter_out_of_range">Out of range only</string>
+    <string name="labs_filter_from">From: %1$s</string>
+    <string name="labs_filter_to">To: %1$s</string>
+    <string name="labs_filter_any_date">any date</string>
+    <string name="labs_group_by_report">Group by report</string>
+    <string name="labs_clear_filters">Clear filters</string>
+    <string name="labs_no_matches">No results match these filters</string>
+    <plurals name="labs_result_count">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
+    <string name="source_document_name">Source document: %1$s</string>
+    <string name="rejected_filter">Rejected</string>
+    <string name="rejected_candidates_none">No rejected candidates</string>
+    <string name="restore_candidate">Restore for review</string>
+    <string name="edit_report_details">Edit lab details</string>
+    <string name="report_laboratory_name">Laboratory name</string>
+    <string name="report_order_date">Order date: %1$s</string>
+    <string name="report_order_date_not_set">not set</string>
+    <string name="clear_date">Clear date</string>
+    <string name="chart_converted_points">%1$s points are converted values.</string>
+    <string name="generated_text_disclaimer">Generated text, may be wrong</string>
+    <string name="stop_generating">Stop</string>
+    <string name="model_insufficient_ram">This model needs at least %1$s MB of RAM; this device has %2$s MB.</string>
+    <string name="model_insufficient_storage">Not enough free storage: %1$s MB needed, %2$s MB available.</string>
+    <string name="export_options">Export options</string>
+    <string name="export_from_date">From date</string>
+    <string name="export_to_date">To date</string>
+    <string name="export_date_hint">YYYY-MM-DD, optional</string>
+    <string name="export_tests">Tests to include (none selected exports all)</string>
+    <string name="export_active_medications_only">Active medications only</string>
+    <string name="export_include_medications_csv">Include medications in CSV</string>
+    <string name="empty_model_answer">The model returned no answer. Please try again.</string>
+    <string name="export_date_invalid">Enter a valid date as YYYY-MM-DD.</string>
+    <string name="export_date_range_reversed">The start date must not be after the end date.</string>
+    <string name="export_no_matching_results">No confirmed results match these options; the export would have no results.</string>
 </resources>
