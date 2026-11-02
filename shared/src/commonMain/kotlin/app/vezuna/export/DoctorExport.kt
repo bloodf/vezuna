@@ -1,6 +1,10 @@
 package app.vezuna.export
 
 import app.vezuna.domain.ConfirmationStatus
+import app.vezuna.domain.DeviceVitals
+import app.vezuna.domain.DoseEventStatus
+import app.vezuna.domain.DoseEvents
+import app.vezuna.domain.VitalMetric
 import app.vezuna.domain.LabComparator
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.Medication
@@ -32,9 +36,26 @@ data class DoctorPdfDocument(
     /** True black and gray only; every meaning already has text, so nothing is lost. */
     val grayscale: Boolean = false,
     val scope: DoctorExportScope = DoctorExportScope(),
+    val family: ExportFamily = ExportFamily.LAB_HISTORY,
+    val doseRows: List<DoctorDoseRow> = emptyList(),
+    val deviceRows: List<DoctorDeviceRow> = emptyList(),
 ) {
-    val hasStructuredContent: Boolean get() = profileDisplayName.isNotEmpty() || resultRows.isNotEmpty() || medicationRows.isNotEmpty()
+    val hasStructuredContent: Boolean get() = profileDisplayName.isNotEmpty() || resultRows.isNotEmpty() || medicationRows.isNotEmpty() ||
+        doseRows.isNotEmpty() || deviceRows.isNotEmpty()
 }
+
+/** One recorded dose outcome; [date] and [time] are local to the device zone at export time. */
+data class DoctorDoseRow(
+    val date: LocalDate,
+    val time: String,
+    val medication: String,
+    val status: DoseEventStatus,
+    /** Local "HH:mm" the user recorded the action; null for missed doses or when not recorded. */
+    val recordedTime: String? = null,
+)
+
+/** One device reading: a day total (steps), a daily average (heart rate) or a single reading (weight, with [time]). */
+data class DoctorDeviceRow(val metric: VitalMetric, val date: LocalDate, val value: Double, val time: String? = null)
 
 data class DoctorResultRow(
     val collectedAt: Instant,
@@ -78,6 +99,11 @@ data class DoctorExportScope(
     /** Unreviewed imported values (observations and OCR candidates) inside the selection; never printed as data. */
     val excludedUnreviewed: Int = 0,
     val medicationsIncluded: Boolean = true,
+    val labsIncluded: Boolean = true,
+    val doseHistoryIncluded: Boolean = false,
+    val deviceIncluded: Boolean = false,
+    /** Last device import, printed with the device section. */
+    val deviceLastSync: Instant? = null,
 )
 
 data class DoctorTrendSeries(
@@ -105,6 +131,7 @@ object DoctorExportContent {
         title: String = ExportText.of(ContentLanguage.EN).title,
         language: ContentLanguage = ContentLanguage.EN,
         options: ExportOptions = ExportOptions(),
+        zone: TimeZone = TimeZone.currentSystemDefault(),
     ): DoctorPdfDocument {
         val generatedAt = currentInstant()
         val selected = options.apply(data)
@@ -116,23 +143,78 @@ object DoctorExportContent {
             availableLast = available.maxOfOrNull { it.collectedAt },
             excludedUnreviewed = options.unreviewedCount(data),
             medicationsIncluded = options.includeMedicationsPdf,
+            labsIncluded = options.includeLabsPdf,
+            doseHistoryIncluded = options.includeDoseHistory,
+            deviceIncluded = options.includeDeviceData,
+            deviceLastSync = data.vitals.lastSync,
         )
-        return build(selected, title, language, generatedAt, ExportOptions.ageYears(data.profile.birthDate, generatedAt)).copy(
+        val built = build(selected, title, language, generatedAt, ExportOptions.ageYears(data.profile.birthDate, generatedAt))
+        return built.copy(
             birthDate = data.profile.birthDate,
             paper = options.paper,
             grayscale = options.grayscale,
             scope = scope,
             medicationRows = if (options.includeMedicationsPdf) medicationRows(selected) else emptyList(),
+            resultRows = if (options.includeLabsPdf) built.resultRows else emptyList(),
+            family = options.family,
+            doseRows = if (options.includeDoseHistory) doseRows(data, options, zone) else emptyList(),
+            deviceRows = if (options.includeDeviceData) deviceRows(data, options, zone) else emptyList(),
         )
     }
 
+    private fun localTime(instant: Instant, zone: TimeZone): String =
+        instant.toLocalDateTime(zone).let { "${it.hour.toString().padStart(2, '0')}:${it.minute.toString().padStart(2, '0')}" }
+
+    private fun inPeriod(day: LocalDate, options: ExportOptions) = (options.from == null || day >= options.from) && (options.to == null || day <= options.to)
+
+    /** Terminal dose events of the profile inside the period, one per dose (the same collapse as the dose history screen). */
+    fun doseRows(data: ProfileData, options: ExportOptions, zone: TimeZone): List<DoctorDoseRow> {
+        val names = data.medications.filter { it.profileId == data.profile.profileId }.associate { it.medicationId to it.displayName }
+        val medications = if (options.activeMedicationsOnly) data.medications.filter { it.active }.map { it.medicationId }.toSet() else names.keys
+        return DoseEvents.collapse(data.doseEvents)
+            .filter { it.profileId == data.profile.profileId && DoseEvents.isTerminal(it.status) && it.medicationId in medications }
+            .filter { inPeriod(it.scheduledFor.toLocalDateTime(zone).date, options) }
+            .sortedWith(compareBy({ it.scheduledFor }, { names[it.medicationId].orEmpty() }))
+            .map { event ->
+                DoctorDoseRow(
+                    date = event.scheduledFor.toLocalDateTime(zone).date,
+                    time = localTime(event.scheduledFor, zone),
+                    medication = names[event.medicationId].orEmpty(),
+                    status = event.status,
+                    recordedTime = event.recordedAt?.takeIf { event.status != DoseEventStatus.MISSED }?.let { localTime(it, zone) },
+                )
+            }
+    }
+
+    /** Daily steps, daily average heart rate and every weight reading of the profile inside the period. */
+    fun deviceRows(data: ProfileData, options: ExportOptions, zone: TimeZone): List<DoctorDeviceRow> {
+        val vitals = data.vitals
+        return buildList {
+            vitals.steps.filter { inPeriod(it.date, options) }.sortedBy { it.date }.forEach { add(DoctorDeviceRow(VitalMetric.STEPS, it.date, it.count.toDouble())) }
+            DeviceVitals.series(vitals, VitalMetric.HEART_RATE_BPM, zone).forEach { (epoch, avg) ->
+                val day = Instant.fromEpochSeconds(epoch).toLocalDateTime(zone).date
+                if (inPeriod(day, options)) add(DoctorDeviceRow(VitalMetric.HEART_RATE_BPM, day, avg))
+            }
+            vitals.weights.sortedBy { it.time }.forEach { reading ->
+                val day = reading.time.toLocalDateTime(zone).date
+                if (inPeriod(day, options)) add(DoctorDeviceRow(VitalMetric.WEIGHT_KG, day, reading.kg, localTime(reading.time, zone)))
+            }
+        }
+    }
+
     /** "vezuna-ana-silva-lab-history-2026-11-01.pdf": ASCII only, no path separators. */
-    fun fileName(document: DoctorPdfDocument): String {
-        val slug = document.profileDisplayName.lowercase()
+    fun fileName(document: DoctorPdfDocument): String =
+        fileName(document.profileDisplayName, document.family.slug, document.generatedAt, "pdf")
+
+    /** "vezuna-ana-silva-lab-results-2026-11-01.csv" for the confirmed-results spreadsheet. */
+    fun csvFileName(profileName: String, generatedAt: Instant): String = fileName(profileName, "lab-results", generatedAt, "csv")
+
+    fun fileName(profileName: String, kind: String, generatedAt: Instant, extension: String): String {
+        val slug = profileName.lowercase()
             .map { FOLDED[it] ?: it }.joinToString("")
             .replace(Regex("[^a-z0-9]+"), "-").trim('-').take(40).trim('-')
-        val day = document.generatedAt.toLocalDateTime(TimeZone.UTC).date
-        return listOf("vezuna", slug, "lab-history", day.toString()).filter { it.isNotEmpty() }.joinToString("-") + ".pdf"
+        val day = generatedAt.toLocalDateTime(TimeZone.UTC).date
+        return listOf("vezuna", slug, kind, day.toString()).filter { it.isNotEmpty() }.joinToString("-") + ".$extension"
     }
 
     private val FOLDED = mapOf(

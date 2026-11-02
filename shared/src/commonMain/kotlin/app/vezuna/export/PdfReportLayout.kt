@@ -1,6 +1,8 @@
 package app.vezuna.export
 
+import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.ReferenceRange
+import app.vezuna.domain.VitalMetric
 import app.vezuna.domain.trends.ChangeSummary
 import app.vezuna.domain.trends.ComparisonStatus
 import app.vezuna.export.PdfStyle.BODY
@@ -52,11 +54,26 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     private var y = 0.0
     private val sections = DoctorExamSections.from(document)
 
+    private val s = ExportSectionText.of(language)
+
     fun run() {
         newPage()
+        if (document.scope.labsIncluded) labs()
+        // A device-only export leaves medications out entirely instead of printing "Not selected".
+        if (document.family != ExportFamily.DEVICE_MEASUREMENTS || document.scope.medicationsIncluded) medications()
+        if (document.scope.doseHistoryIncluded && document.hasStructuredContent) doseHistory()
+        if (document.scope.deviceIncluded && document.hasStructuredContent) device()
+        if (!document.hasStructuredContent && document.lines.isNotEmpty()) notes()
+    }
+
+    private fun labs() {
         scope()
-        if (sections.any { it.trend != null && it.distinctDates >= 2 }) graphKey()
         if (sections.isEmpty() && document.hasStructuredContent) noResults()
+        if (document.family == ExportFamily.HEALTH_SUMMARY) {
+            if (sections.isNotEmpty()) latestResults()
+            return
+        }
+        if (sections.any { it.trend != null && it.distinctDates >= 2 }) graphKey()
         sections.forEach { section ->
             when {
                 section.history.size == 1 -> singleResult(section)
@@ -64,8 +81,6 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             }
             y += 6 * MM
         }
-        medications()
-        if (!document.hasStructuredContent && document.lines.isNotEmpty()) notes()
     }
 
     // region pages
@@ -102,7 +117,8 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
                 if (details.isNotEmpty()) y += pen.paragraph(details, left, y, width, BODY, MUTED)
             }
         }
-        y += pen.paragraph(period(), left, y, width, BODY)
+        val bounded = document.scope.selectedFrom != null || document.scope.selectedTo != null
+        if (document.scope.labsIncluded || bounded) y += pen.paragraph(period(), left, y, width, BODY)
         DoctorReportFormat.sources(document.resultRows, language)?.let { y += pen.paragraph(it, left, y, width, BODY) }
         y += 2 * MM
     }
@@ -323,8 +339,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     private val headerLabels get() = listOf(t.date, t.result, t.recordedReference, t.source)
 
     /** Labels wrap inside their column (long PT/ES headings) instead of running into the next one. */
-    private fun tableHeaderHeight() =
-        headerLabels.mapIndexed { index, label -> pen.paragraphHeight(label, columns[index] - 2 * padX, LABEL, bold = true) }.max() + 2 * padY
+    private fun tableHeaderHeight() = gridHeaderHeight(headerLabels, columns)
 
     private fun cells(row: DoctorResultRow): List<List<Pair<String, Boolean>>> = listOf(
         listOf(DoctorReportFormat.date(row.collectedAt, language) to false),
@@ -336,48 +351,142 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         listOf(sourceText(row) to false),
     )
 
-    private fun rowHeight(row: DoctorResultRow): Double {
-        val content = cells(row).mapIndexed { index, cell ->
-            cell.sumOf { (value, secondary) -> pen.paragraphHeight(value, columns[index] - 2 * padX, if (secondary) NOTE else BODY) }
+    private fun rowHeight(row: DoctorResultRow): Double = gridRowHeight(cells(row), columns)
+
+    private fun table(section: DoctorExamSection) = grid(section.testName, headerLabels, columns, section.history.map(::cells))
+
+    private fun widths(vararg shares: Double) = shares.map { it / shares.sum() * width }
+
+    private fun gridHeaderHeight(labels: List<String>, widths: List<Double>) =
+        labels.mapIndexed { index, label -> pen.paragraphHeight(label, widths[index] - 2 * padX, LABEL, bold = true) }.max() + 2 * padY
+
+    /** Each cell is lines of (text, secondary); secondary lines print smaller and muted. */
+    private fun gridRowHeight(cells: List<List<Pair<String, Boolean>>>, widths: List<Double>): Double {
+        val content = cells.mapIndexed { index, cell ->
+            cell.sumOf { (value, secondary) -> pen.paragraphHeight(value, widths[index] - 2 * padX, if (secondary) NOTE else BODY) }
         }.max()
         return maxOf(minRow, content + 2 * padY)
     }
 
-    private fun tableHeader() {
-        val height = tableHeaderHeight()
+    private fun gridHeader(labels: List<String>, widths: List<Double>) {
+        val height = gridHeaderHeight(labels, widths)
         pen.rect(left, y, width, height, PdfStyle.PALE)
         var x = left
-        headerLabels.forEachIndexed { index, label ->
-            pen.paragraph(label, x + padX, y + padY, columns[index] - 2 * padX, LABEL, PINE, bold = true)
-            x += columns[index]
+        labels.forEachIndexed { index, label ->
+            pen.paragraph(label, x + padX, y + padY, widths[index] - 2 * padX, LABEL, PINE, bold = true)
+            x += widths[index]
         }
         y += height
         pen.line(left, y, right, y, PdfStyle.MUTED, PdfStyle.RULE)
     }
 
-    private fun table(section: DoctorExamSection) {
+    /** A table whose header repeats on every page it continues onto, under a "[carry] · continued" line. */
+    private fun grid(carry: String, labels: List<String>, widths: List<Double>, rows: List<List<List<Pair<String, Boolean>>>>) {
         // Header plus the first two rows stay together.
-        if (ensure(tableHeaderHeight() + section.history.take(2).sumOf { rowHeight(it) })) carriedTitle(section.testName, t.tableContinued)
-        tableHeader()
-        section.history.forEach { row ->
-            val height = rowHeight(row)
+        if (ensure(gridHeaderHeight(labels, widths) + rows.take(2).sumOf { gridRowHeight(it, widths) })) carriedTitle(carry, t.tableContinued)
+        gridHeader(labels, widths)
+        rows.forEach { row ->
+            val height = gridRowHeight(row, widths)
             // ponytail: a single row taller than a whole page would overflow; needs a split-row path if reference texts ever get that long.
             if (ensure(height)) {
-                carriedTitle(section.testName, t.tableContinued)
-                tableHeader()
+                carriedTitle(carry, t.tableContinued)
+                gridHeader(labels, widths)
             }
             var x = left
-            cells(row).forEachIndexed { index, cell ->
+            row.forEachIndexed { index, cell ->
                 var cellY = y + padY
                 cell.forEach { (value, secondary) ->
-                    cellY += pen.paragraph(value, x + padX, cellY, columns[index] - 2 * padX, if (secondary) NOTE else BODY, if (secondary) MUTED else PdfStyle.INK)
+                    cellY += pen.paragraph(value, x + padX, cellY, widths[index] - 2 * padX, if (secondary) NOTE else BODY, if (secondary) MUTED else PdfStyle.INK)
                 }
-                x += columns[index]
+                x += widths[index]
             }
             y += height
             pen.line(left, y, right, y, PdfStyle.BORDER, PdfStyle.RULE)
         }
         y += 2 * MM
+    }
+
+    // endregion
+
+    // region health summary, dose history, device
+
+    /** Health summary: one row per test with its latest confirmed result, recorded reference and text comparison. */
+    private fun latestResults() {
+        val labels = listOf(s.test, s.latestResult, t.recordedReference, s.comparison)
+        val shares = widths(37.0, 39.0, 43.0, 57.0)
+        val rows = sections.map { section ->
+            val latest = section.latest
+            listOf(
+                listOf(section.testName to false),
+                listOf(DoctorReportFormat.originalValue(latest, language) to false, DoctorReportFormat.date(latest.collectedAt, language) to true),
+                listOf(DoctorExportContent.rangeText(latest.referenceRange, language) to false),
+                listOf(DoctorReportFormat.assessment(latest.assessment, language) to false),
+            )
+        }
+        sectionTitle(s.latestResults, PdfStyle.MINT, extra = gridHeaderHeight(labels, shares) + rows.take(2).sumOf { gridRowHeight(it, shares) })
+        grid(s.latestResults, labels, shares, rows)
+        y += 4 * MM
+    }
+
+    private fun doseStatus(row: DoctorDoseRow): List<Pair<String, Boolean>> {
+        val status = when (row.status) {
+            DoseEventStatus.TAKEN -> s.taken
+            DoseEventStatus.SKIPPED -> s.skipped
+            else -> s.missed
+        }
+        return listOfNotNull(status to false, row.recordedTime?.let { s.recordedAt.replace("{time}", it) to true })
+    }
+
+    /** #56: every recorded dose in the period with plain counts; no percentage, no trend. */
+    private fun doseHistory() {
+        y += 4 * MM
+        val rows = document.doseRows
+        val labels = listOf(t.date, s.scheduled, s.medication, s.status)
+        val shares = widths(34.0, 26.0, 60.0, 56.0)
+        val counts = s.doseCounts.replace("{taken}", rows.count { it.status == DoseEventStatus.TAKEN }.toString())
+            .replace("{skipped}", rows.count { it.status == DoseEventStatus.SKIPPED }.toString())
+            .replace("{missed}", rows.count { it.status == DoseEventStatus.MISSED }.toString())
+        sectionTitle(s.doseHistory, PdfStyle.CORAL, extra = pen.paragraphHeight(counts, width, BODY) * 2)
+        if (rows.isEmpty()) {
+            y += pen.paragraph(s.noDoses, left, y, width, BODY)
+            return
+        }
+        y += pen.paragraph(counts, left, y, width, BODY, bold = true)
+        y += pen.paragraph(s.missedNote, left, y, width, NOTE, MUTED) + 2 * MM
+        grid(s.doseHistory, labels, shares, rows.map { row ->
+            listOf(listOf(DoctorReportFormat.date(row.date, language) to false), listOf(row.time to false), listOf(row.medication to false), doseStatus(row))
+        })
+    }
+
+    /** Daily steps, daily average heart rate and weight readings, each as its own dated table. */
+    private fun device() {
+        y += 4 * MM
+        val rows = document.deviceRows
+        sectionTitle(s.deviceMeasurements, PdfStyle.CITRON, extra = 2 * pen.lineHeight(BODY))
+        y += pen.paragraph(s.deviceNote, left, y, width, NOTE, MUTED)
+        document.scope.deviceLastSync?.let { y += pen.paragraph(s.lastImport.replace("{date}", DoctorReportFormat.dateTime(it, language)), left, y, width, NOTE, MUTED) }
+        y += 2 * MM
+        if (rows.isEmpty()) {
+            y += pen.paragraph(s.noDeviceData, left, y, width, BODY)
+            return
+        }
+        listOf(VitalMetric.STEPS to s.steps, VitalMetric.HEART_RATE_BPM to s.heartRate, VitalMetric.WEIGHT_KG to s.weight).forEach { (metric, title) ->
+            val metricRows = rows.filter { it.metric == metric }
+            if (metricRows.isEmpty()) return@forEach
+            val labels = if (metric == VitalMetric.WEIGHT_KG) listOf(t.date, s.time, s.value) else listOf(t.date, s.value)
+            val shares = if (metric == VitalMetric.WEIGHT_KG) widths(40.0, 30.0, 60.0) else widths(40.0, 90.0)
+            ensure(pen.lineHeight(LABEL) + gridHeaderHeight(labels, shares) + 2 * minRow)
+            y += pen.paragraph(title, left, y, width, LABEL, PINE, bold = true) + 1 * MM
+            grid(title, labels, shares, metricRows.map { row ->
+                val value = when (metric) {
+                    VitalMetric.STEPS -> "${row.value.toLong()} ${s.stepsUnit}"
+                    VitalMetric.HEART_RATE_BPM -> "${DoctorReportFormat.fixed(row.value, 0, language)} bpm"
+                    VitalMetric.WEIGHT_KG -> "${DoctorReportFormat.fixed(row.value, 1, language)} kg"
+                }
+                listOfNotNull(listOf(DoctorReportFormat.date(row.date, language) to false), row.time?.let { listOf(it to false) }, listOf(value to false))
+            })
+            y += 2 * MM
+        }
     }
 
     // endregion
