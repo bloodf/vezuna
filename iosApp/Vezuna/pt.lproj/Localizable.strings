@@ -3,6 +3,7 @@
 "snooze_10_minutes" = "Adiar 10 minutos";
 "notification_permission_off" = "A permissão de notificações está desativada. Os registros de medicamentos continuam disponíveis.";
 "scheduled_medication_reminder" = "Lembrete de medicamento agendado";
+"reminder_for_profile" = "Para %@";
 "medication_schedules_unavailable" = "Os horários de medicamentos não estão disponíveis";
 "native_actions" = "Ações nativas do Vezuna";
 "storage_unavailable" = "Armazenamento criptografado indisponível";

@@ -3,6 +3,7 @@
 "snooze_10_minutes" = "Snooze 10 minutes";
 "notification_permission_off" = "Notification permission is off. Medication records remain available.";
 "scheduled_medication_reminder" = "Scheduled medication reminder";
+"reminder_for_profile" = "For %@";
 "medication_schedules_unavailable" = "Medication schedules are unavailable";
 "native_actions" = "Vezuna native actions";
 "storage_unavailable" = "Encrypted storage unavailable";
