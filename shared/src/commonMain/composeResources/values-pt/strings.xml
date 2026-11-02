@@ -5,6 +5,9 @@
     <string name="add_profile">Adicionar perfil</string>
     <string name="adherence_30_day">Adesão em 30 dias</string>
     <string name="adherence_summary">%1$s% · %2$s/%3$s tomadas</string>
+    <string name="adherence_7_day">Adesão em 7 dias</string>
+    <string name="dose_history">Histórico de doses</string>
+    <string name="dose_history_counts">%1$s tomadas · %2$s puladas · %3$s perdidas · 30 dias</string>
     <string name="ai">IA</string>
     <string name="ask_on_device_model">Perguntar ao modelo no dispositivo</string>
     <string name="ask_record_education">Peça explicações sobre registros ou educação geral em saúde</string>

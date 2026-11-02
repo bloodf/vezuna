@@ -302,6 +302,25 @@ class VaultBackedRepositoryStorageTest {
     }
 
     @Test
+    fun addDoseEventsWritesOnceSkipsUnknownSchedulesAndTrackedSinceSurvives() = runTest {
+        val data = sampleProfileData("M")
+        val repository = open()
+        repository.restoreProfile(data.copy(vitals = app.vezuna.domain.ProfileVitals(), doseEvents = emptyList()))
+        val schedule = data.medications.single().schedules.single()
+        repository.updateSchedule(schedule.copy(trackedSince = t))
+        fun event(id: String, scheduleId: String) = data.doseEvents.single().copy(eventId = id, scheduleId = scheduleId, scheduledFor = Instant.parse("2026-01-02T08:00:00Z"))
+        val before = vault.current.getValue(profileKey("M-profile")).copyOf()
+
+        repository.addDoseEvents("M-profile", listOf(event("e1", schedule.scheduleId), event("e2", schedule.scheduleId).copy(scheduledFor = Instant.parse("2026-01-03T08:00:00Z")), event("gone", "no-such-schedule")))
+
+        val reopened = open().readProfile("M-profile")
+        assertEquals(2, reopened.doseEvents.size)
+        assertEquals(t, reopened.medications.single().schedules.single().trackedSince)
+        assertFalse(before.contentEquals(vault.current.getValue(profileKey("M-profile"))))
+        repository.addDoseEvents("M-profile", emptyList())
+    }
+
+    @Test
     fun reviewedResultsUnitsDosesAndCorrectionsSurviveARoundTrip() = runTest {
         val data = sampleProfileData("R")
         val confirmed = data.observations.single().copy(confirmation = ConfirmationStatus.CONFIRMED, originalUnit = "mmol/L", originalValue = 5.0)
