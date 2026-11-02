@@ -1,106 +1,104 @@
 package app.vezuna.importer
 
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import app.vezuna.NativeKey
-import app.vezuna.failNative
 import app.vezuna.nativeMessage
 import app.vezuna.resolve
 import app.vezuna.ui.PickedSource
+import app.vezuna.ui.entry.ExtractedPage
+import app.vezuna.ui.entry.ExtractionDetails
+import app.vezuna.ui.entry.ImportFailure
+import app.vezuna.ui.entry.ImportFailureReason
+import app.vezuna.ui.entry.ImportSession
+import app.vezuna.ui.entry.SourceKind
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * Opens the system camera, photo picker or document picker for the source the shared Add a record screen asked
+ * for, then extracts text on the device. Cancelling any system UI returns null; failures are [ImportFailure]s.
+ */
 class AndroidSourcePicker(
     private val activity: ComponentActivity,
     private val extraction: NativeOcrExtractionService,
 ) {
     private var pending: CompletableDeferred<PickedSource?>? = null
+    private var session: ImportSession? = null
     private var cameraUri: Uri? = null
     /** Photos of one report, in capture order; cleared whenever a pick ends. */
     private val photos = mutableListOf<ByteArray>()
-    private val mutableLastExtraction = MutableStateFlow<OcrExtractionResult?>(null)
-    val lastExtraction: StateFlow<OcrExtractionResult?> = mutableLastExtraction.asStateFlow()
 
-    private val imageLauncher = activity.registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri == null) complete(null) else importUri(uri, "image/*")
+    private val photoLauncher = activity.registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTOS)) { uris ->
+        if (uris.isEmpty()) complete(null) else importPhotos(uris)
     }
-    private val pdfLauncher = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) complete(null) else importUri(uri, "application/pdf")
+    private val fileLauncher = activity.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) complete(null) else importFile(uri)
     }
     private val cameraLauncher = activity.registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val uri = cameraUri
         if (!success || uri == null) finishPhotos() else addPhoto(uri)
     }
 
-    suspend fun pick(): PickedSource? {
-        if (pending != null) failNative(NativeKey.SOURCE_IMPORT_ACTIVE)
+    suspend fun pick(session: ImportSession): PickedSource? {
+        if (pending != null) return null
         val result = CompletableDeferred<PickedSource?>()
         pending = result
-        AlertDialog.Builder(activity)
-            .setTitle(nativeMessage(NativeKey.IMPORT_SOURCE_TITLE).resolve(activity))
-            .setMessage(nativeMessage(NativeKey.IMPORT_SOURCE_MESSAGE).resolve(activity))
-            .setItems(arrayOf(
-                nativeMessage(NativeKey.TAKE_PHOTO).resolve(activity),
-                nativeMessage(NativeKey.CHOOSE_IMAGE).resolve(activity),
-                nativeMessage(NativeKey.CHOOSE_PDF).resolve(activity),
-            )) { dialog, which ->
-                dialog.dismiss()
-                when (which) {
-                    0 -> launchCamera(result)
-                    1 -> imageLauncher.launch("image/*")
-                    2 -> pdfLauncher.launch(arrayOf("application/pdf"))
-                }
+        this.session = session
+        try {
+            when (session.requestedKind) {
+                SourceKind.CAMERA -> launchCamera()
+                SourceKind.PHOTOS -> photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                SourceKind.FILE -> fileLauncher.launch(arrayOf("application/pdf", "image/*"))
             }
-            .setOnCancelListener { complete(null) }
-            .show()
+        } catch (error: ActivityNotFoundException) {
+            fail(ImportFailure(if (session.requestedKind == SourceKind.CAMERA) ImportFailureReason.CAMERA_UNAVAILABLE else ImportFailureReason.UNREADABLE))
+        } catch (error: Exception) {
+            fail(error)
+        }
         return result.await()
     }
-
-    fun clearExtraction() { mutableLastExtraction.value = null }
 
     /** Drops an in-flight pick so a retained caller does not wait on a destroyed Activity. */
     fun close() {
         pending?.cancel()
         pending = null
+        session = null
         photos.clear()
     }
 
-    private fun launchCamera(result: CompletableDeferred<PickedSource?>) = try {
+    private fun launchCamera() {
         val directory = File(activity.cacheDir, "camera").apply { mkdirs() }
         val file = File.createTempFile("lab-", ".jpg", directory)
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
         cameraUri = uri
         cameraLauncher.launch(uri)
-    } catch (error: Throwable) {
-        pending = null
-        result.completeExceptionally(error)
     }
 
     private fun addPhoto(uri: Uri) {
-        val result = pending ?: return
+        if (pending == null) return
         activity.lifecycleScope.launch {
             try {
-                photos += withContext(Dispatchers.IO) { readBytes(uri) }
+                photos += withContext(Dispatchers.IO) { readBytes(uri, PHOTO_NAME) }
                 if (photos.size >= MAX_PHOTOS) finishPhotos() else askForAnotherPhoto()
             } catch (error: Throwable) {
-                pending = null
-                photos.clear()
-                result.completeExceptionally(error)
+                fail(error)
             }
         }
     }
 
+    /** System dialog between camera shots: another page of the same report, or done. */
     private fun askForAnotherPhoto() {
         if (activity.isFinishing || activity.isDestroyed) return finishPhotos()
         AlertDialog.Builder(activity)
@@ -108,7 +106,11 @@ class AndroidSourcePicker(
             .setMessage(nativeMessage(NativeKey.PHOTO_ADDED_MESSAGE, photos.size).resolve(activity))
             .setPositiveButton(nativeMessage(NativeKey.ADD_ANOTHER_PHOTO).resolve(activity)) { dialog, _ ->
                 dialog.dismiss()
-                pending?.let { launchCamera(it) }
+                try {
+                    launchCamera()
+                } catch (error: Throwable) {
+                    finishPhotos()
+                }
             }
             .setNegativeButton(nativeMessage(NativeKey.PHOTOS_DONE).resolve(activity)) { dialog, _ ->
                 dialog.dismiss()
@@ -120,72 +122,92 @@ class AndroidSourcePicker(
 
     /** One report from every photo taken so far; every page is stored with the document. */
     private fun finishPhotos() {
-        val result = pending ?: return
         val taken = photos.toList()
         photos.clear()
-        if (taken.isEmpty()) {
-            complete(null)
-            return
-        }
+        if (taken.isEmpty()) return complete(null)
+        activity.lifecycleScope.launch { extractPhotos(taken) }
+    }
+
+    private fun importPhotos(uris: List<Uri>) {
         activity.lifecycleScope.launch {
             try {
-                val pages = taken.flatMapIndexed { index, bytes ->
-                    extraction.extractImage(bytes).pages.map { it.copy(pageNumber = index + 1) }
-                }
-                val text = pages.joinToString("\n\n") { it.text }.trim()
-                mutableLastExtraction.value = OcrExtractionResult(text, pages, false)
-                val header = parseReportHeader(text)
-                val name = if (taken.size == 1) "lab-image.jpg" else "lab-photos-${taken.size}.jpg"
-                val candidates = pages.flatMap { parseExtractedCandidates(it.text) }
-                    .distinctBy { listOf(it.testCode, it.rawValue, it.rawUnit, it.collectedAt) }
-                complete(
-                    PickedSource(
-                        name, "image/jpeg", taken.first(), candidates,
-                        header.laboratoryName, header.orderedAt, taken.drop(1),
-                    ),
-                )
+                val pages = withContext(Dispatchers.IO) { uris.take(MAX_PHOTOS).map { readBytes(it, displayName(it) ?: PHOTO_NAME) } }
+                extractPhotos(pages)
             } catch (error: Throwable) {
-                pending = null
-                result.completeExceptionally(error)
+                fail(error)
             }
         }
     }
 
-    private fun readBytes(uri: Uri): ByteArray = activity.contentResolver.openInputStream(uri)?.use { input ->
-        val data = input.readBytes()
-        if (data.size > MAX_SOURCE_BYTES) failNative(NativeKey.SOURCE_TOO_LARGE)
-        data
-    } ?: failNative(NativeKey.SOURCE_OPEN_FAILED)
-
-    private fun importUri(uri: Uri, requestedType: String) {
-        val result = pending ?: return
-        activity.lifecycleScope.launch {
-            try {
-                val source = withContext(Dispatchers.IO) {
-                    val bytes = readBytes(uri)
-                    val name = displayName(uri) ?: if (requestedType == "application/pdf") "lab.pdf" else "lab-image.jpg"
-                    Triple(name, requestedType, bytes)
-                }
-                val (name, type, bytes) = source
-                val extracted = if (type == "application/pdf") {
-                    extraction.extractPdf(bytes, name)
-                } else {
-                    extraction.extractImage(bytes)
-                }
-                mutableLastExtraction.value = extracted
-                val candidates = extracted.pages.flatMap { page -> parseExtractedCandidates(page.text) }
-                val header = parseReportHeader(extracted.text)
-                complete(PickedSource(name, type, bytes, candidates, header.laboratoryName, header.orderedAt))
-            } catch (error: Throwable) {
-                pending = null
-                result.completeExceptionally(error)
+    private suspend fun extractPhotos(taken: List<ByteArray>) {
+        val name = if (taken.size == 1) PHOTO_NAME else "lab-photos-${taken.size}.jpg"
+        try {
+            session?.reading(name)
+            val pages = taken.flatMapIndexed { index, bytes ->
+                extraction.extractImage(bytes).pages.map { it.copy(pageNumber = index + 1) }
             }
+            complete(source(name, "image/jpeg", taken.first(), pages, taken.drop(1)))
+        } catch (error: Throwable) {
+            fail(error, name)
+        }
+    }
+
+    private fun importFile(uri: Uri) {
+        activity.lifecycleScope.launch {
+            var name: String? = null
+            try {
+                val type = activity.contentResolver.getType(uri)
+                val isPdf = type == "application/pdf"
+                name = displayName(uri) ?: if (isPdf) "lab.pdf" else PHOTO_NAME
+                val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
+                session?.reading(name)
+                val extracted = if (isPdf) extraction.extractPdf(bytes, name) else extraction.extractImage(bytes)
+                complete(source(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, extracted.pages, emptyList()))
+            } catch (error: Throwable) {
+                fail(error, name)
+            }
+        }
+    }
+
+    /** Builds the source and publishes how each page was read (optional details in review). */
+    private fun source(name: String, type: String, first: ByteArray, pages: List<OcrPageText>, more: List<ByteArray>): PickedSource {
+        val text = pages.joinToString("\n\n") { it.text }.trim()
+        val header = parseReportHeader(text)
+        val candidates = pages.flatMap { parseExtractedCandidates(it.text) }
+            .distinctBy { listOf(it.testCode, it.rawValue, it.rawUnit, it.collectedAt) }
+        session?.publish(
+            ExtractionDetails(
+                name,
+                pages.map { ExtractedPage(it.pageNumber, it.source == OcrPageText.Source.EMBEDDED_PDF_TEXT, it.text) },
+                candidates.size,
+            ),
+        )
+        return PickedSource(name, type, first, candidates, header.laboratoryName, header.orderedAt, more)
+    }
+
+    private fun readBytes(uri: Uri, name: String): ByteArray = activity.contentResolver.openInputStream(uri)?.use { input ->
+        val data = input.readBytes()
+        if (data.size > MAX_SOURCE_BYTES) throw ImportFailure(ImportFailureReason.TOO_LARGE, name)
+        data
+    } ?: throw ImportFailure(ImportFailureReason.UNREADABLE, name)
+
+    private fun fail(error: Throwable, name: String? = null) {
+        val result = pending ?: return
+        pending = null
+        session = null
+        cameraUri = null
+        photos.clear()
+        when (error) {
+            is CancellationException -> result.cancel(error)
+            is ImportFailure -> result.completeExceptionally(error)
+            else -> result.completeExceptionally(ImportFailure(ImportFailureReason.UNREADABLE, name))
         }
     }
 
     private fun complete(source: PickedSource?) {
         pending?.complete(source)
         pending = null
+        session = null
         cameraUri = null
         photos.clear()
     }
@@ -198,5 +220,6 @@ class AndroidSourcePicker(
     private companion object {
         const val MAX_SOURCE_BYTES = 64 * 1024 * 1024
         const val MAX_PHOTOS = 10
+        const val PHOTO_NAME = "lab-image.jpg"
     }
 }

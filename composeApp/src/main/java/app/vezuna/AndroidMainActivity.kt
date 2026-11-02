@@ -259,7 +259,6 @@ class AndroidMainActivity : FragmentActivity() {
     override fun onDestroy() {
         if (isFinishing) app.appLock.lockNow()
         if (app.deviceAuthenticator === deviceAuthenticator) app.deviceAuthenticator = null
-        sourcePicker.clearExtraction()
         sourcePicker.close()
         extraction.close()
         super.onDestroy()
