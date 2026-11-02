@@ -16,3 +16,8 @@ actual fun formatUiDateTime(instant: Instant, languageTag: String): String =
         .withLocale(Locale.forLanguageTag(languageTag))
         .withZone(java.time.ZoneId.systemDefault())
         .format(java.time.Instant.ofEpochMilli(instant.toEpochMilliseconds()))
+
+actual fun formatUiMonth(instant: Instant, languageTag: String): String =
+    android.icu.text.DateFormat.getInstanceForSkeleton("MMMMy", Locale.forLanguageTag(languageTag)).apply {
+        timeZone = android.icu.util.TimeZone.GMT_ZONE // calendar days are stored as noon UTC
+    }.format(java.util.Date(instant.toEpochMilliseconds()))

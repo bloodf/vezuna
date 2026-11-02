@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.Settings
+import app.vezuna.ui.more.MorePlatform
 import app.vezuna.export.NativeExport
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.llm.ModelPackLoadState
@@ -75,6 +76,7 @@ fun VezunaAndroidApp(
     }
     MaterialTheme {
         val context = LocalContext.current
+        remember(context) { installMorePlatform(context); true }
         // Followed live: turning animations off in system settings applies without restarting the app.
         val animationsEnabled by produceState(animationScale(context) > 0f, context) {
             val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
@@ -88,7 +90,7 @@ fun VezunaAndroidApp(
         // The shared shell owns the window insets: its pine header bands reach under the status bar, so the
         // status bar icons are light while the shell shows, and follow the theme again when it leaves (lock).
         val view = LocalView.current
-        val darkTheme = isSystemInDarkTheme()
+        val darkTheme = MorePlatform.themeMode.isDark(isSystemInDarkTheme())
         DisposableEffect(view, darkTheme) {
             val window = (view.context as? android.app.Activity)?.window
             val insets = window?.let { WindowCompat.getInsetsController(it, view) }

@@ -151,7 +151,7 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
             SecondaryButton(vitaText(L10nKey.SWITCH_TO_PROFILE, profile.displayName), { ctx.switchProfile(profile.profileId) }, Modifier.fillMaxWidth(), enabled = !state.loading)
         }
         val lastProfile = state.profiles.size <= 1
-        DestructiveButton(vitaText(L10nKey.DELETE_PROFILE), { confirmDelete = true }, Modifier.fillMaxWidth(), enabled = !lastProfile && !state.loading)
+        DestructiveButton(vitaText(L10nKey.DELETE_PROFILE), { ctx.controller.clearMessages(); confirmDelete = true }, Modifier.fillMaxWidth(), enabled = !lastProfile && !state.loading)
         if (lastProfile) LastProfileNotice()
     }
     if (confirmDelete) {
@@ -162,10 +162,11 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
             confirmLabel = vitaText(L10nKey.DELETE_PROFILE),
             confirmEnabled = typed.trim() == profile.displayName.trim() && !state.loading,
             onConfirm = {
-                confirmDelete = false
                 ctx.scope.launch {
                     ctx.controller.deleteProfile(profile.profileId, typed)
+                    // On failure the dialog stays open with the reason; it closes only once the profile is gone.
                     if (ctx.controller.state.value.error == null) {
+                        confirmDelete = false
                         // Deleting the active profile already reset the stacks; otherwise leave the deleted profile's page.
                         if (!isCurrent) ctx.back()
                         ctx.controller.announce(message(L10nKey.PROFILE_DELETED, profile.displayName))
@@ -173,7 +174,9 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
                 }
             },
             onDismiss = { confirmDelete = false },
-            extra = { LabeledField(vitaText(L10nKey.PROFILE_DELETE_TYPE_NAME, profile.displayName), typed, { typed = it }) },
+            extra = {
+                LabeledField(vitaText(L10nKey.PROFILE_DELETE_TYPE_NAME, profile.displayName), typed, { typed = it }, error = state.error?.resolve())
+            },
         )
     }
 }

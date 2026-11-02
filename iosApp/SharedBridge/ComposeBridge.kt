@@ -260,7 +260,19 @@ object IosRuntime {
     internal val reminderState = ReminderPlatformState(
         hideMedicationNames = NSUserDefaults.standardUserDefaults.boolForKey(HIDE_NAMES_KEY),
         persistHideMedicationNames = { NSUserDefaults.standardUserDefaults.setBool(it, HIDE_NAMES_KEY) },
+        openNotificationSettings = { nativeActionHandler?.perform("NOTIFICATION_SETTINGS") },
     )
+
+    /** Called by the notification coordinator with the system authorization; "notDetermined" is asked for automatically. */
+    fun setNotificationAuthorization(allowed: Boolean, denied: Boolean) {
+        reminderState.setNotificationAccess(
+            when {
+                allowed -> app.vezuna.ui.NotificationAccess.ALLOWED
+                denied -> app.vezuna.ui.NotificationAccess.DENIED
+                else -> app.vezuna.ui.NotificationAccess.UNKNOWN
+            },
+        )
+    }
 
     /** Called by the notification coordinator after planning; a negative value clears the "scheduled until" line. */
     fun setReminderCoverage(untilEpochSeconds: Long) {
@@ -447,12 +459,17 @@ object IosRuntime {
         CsvDoctorExporter().export(data, exportLanguage(languageTag), options)
     }
 
+    /** "A4" or "LETTER" from the device region, for the export paper picker's initial value. */
+    fun defaultExportPaper(): String = app.vezuna.export.PaperSize.forLanguageTag(app.vezuna.localization.deviceLanguageTag()).name
+
     fun exportPdf(
         languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        paper: String, grayscale: Boolean,
         completion: (ExportedPdf?, NativeMessage?) -> Unit,
     ) = withProfile(completion) { data ->
         val language = exportLanguage(languageTag)
-        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
+        val size = app.vezuna.export.PaperSize.entries.firstOrNull { it.name == paper } ?: app.vezuna.export.PaperSize.A4
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv).copy(paper = size, grayscale = grayscale)
         NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language, options))
     }
 
@@ -715,6 +732,7 @@ object IosRuntime {
 
 /** [route] is a debug deep link (launch argument `-VezunaRoute <Name>`); Swift passes it only in debug builds. */
 fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewController {
+    installMorePlatformIos()
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
@@ -770,6 +788,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
         controller.initialize()
     }
     return ComposeUIViewController {
+        installMorePlatformIos()
         VezunaApp(
             controller = controller,
             scope = IosRuntime.scope,
@@ -778,6 +797,45 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
             startRoute = route?.let(::routeFromName),
         )
     }
+}
+
+private var morePlatformInstalled = false
+
+/** Fills the shared More hooks: saved theme (also applied to native sheets), app version, Settings app and browser. */
+private fun installMorePlatformIos() {
+    if (morePlatformInstalled) return
+    morePlatformInstalled = true
+    val defaults = platform.Foundation.NSUserDefaults.standardUserDefaults
+    fun applyToWindows(mode: app.vezuna.ui.more.ThemeMode) {
+        val style = when (mode) {
+            app.vezuna.ui.more.ThemeMode.SYSTEM -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified
+            app.vezuna.ui.more.ThemeMode.LIGHT -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleLight
+            app.vezuna.ui.more.ThemeMode.DARK -> platform.UIKit.UIUserInterfaceStyle.UIUserInterfaceStyleDark
+        }
+        platform.UIKit.UIApplication.sharedApplication.connectedScenes.forEach { scene ->
+            (scene as? platform.UIKit.UIWindowScene)?.windows?.forEach { (it as? platform.UIKit.UIWindow)?.overrideUserInterfaceStyle = style }
+        }
+    }
+    val saved = defaults.stringForKey("vezuna-theme-mode")
+        ?.let { name -> app.vezuna.ui.more.ThemeMode.entries.firstOrNull { it.name == name } }
+        ?: app.vezuna.ui.more.ThemeMode.SYSTEM
+    app.vezuna.ui.more.MorePlatform.restoreTheme(saved)
+    app.vezuna.ui.more.MorePlatform.persistTheme = {
+        defaults.setObject(it.name, forKey = "vezuna-theme-mode")
+        applyToWindows(it)
+    }
+    applyToWindows(saved)
+    platform.darwin.dispatch_async(platform.darwin.dispatch_get_main_queue()) { applyToWindows(saved) }
+    val bundle = platform.Foundation.NSBundle.mainBundle
+    app.vezuna.ui.more.MorePlatform.versionName = bundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
+    app.vezuna.ui.more.MorePlatform.buildNumber = bundle.objectForInfoDictionaryKey("CFBundleVersion") as? String
+    fun open(url: String) {
+        platform.Foundation.NSURL.URLWithString(url)?.let {
+            platform.UIKit.UIApplication.sharedApplication.openURL(it, emptyMap<Any?, Any?>(), null)
+        }
+    }
+    app.vezuna.ui.more.MorePlatform.openUrl = ::open
+    app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
 }
 
 /** Reduce Motion, followed live through its change notification. */
@@ -808,7 +866,12 @@ private fun composeBackupFiles(native: NativeBackupFiles) = BackupFileAccess(
     save = { fileName, bytes ->
         suspendCancellableCoroutine { continuation -> native.saveBackup(fileName, bytes) { saved -> if (continuation.isActive) continuation.resume(saved) } }
     },
+    // Last-backup record (#69): UserDefaults, never the vault, so it holds no health data.
+    loadHistory = { NSUserDefaults.standardUserDefaults.stringForKey(BACKUP_HISTORY_KEY) },
+    saveHistory = { NSUserDefaults.standardUserDefaults.setObject(it, BACKUP_HISTORY_KEY) },
 )
+
+private const val BACKUP_HISTORY_KEY = "vezuna.lastBackup"
 
 /** [onRestore] runs after the chosen backup is parked in [IosRuntime.pendingRestore]; the shell then resets the vault. */
 fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, onRestore: () -> Unit): UIViewController = ComposeUIViewController {

@@ -16,6 +16,7 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 - English, Portuguese, and Spanish localization.
 - Vezuna brand kit integration (logo, icons, tokens, Noto Sans).
 - Reference lab-text importer, synthetic fixtures, and localization/brand check scripts under `tools/`.
+- Laboratory-history PDF rebuilt to the print spec: vector logo, 11 pt minimum text, paginated tables with repeated headers, charts at real date spacing with labelled values, first/previous changes, A4/Letter and grayscale options, EN/PT/ES. Known limit: the PDF is untagged on Android and iOS (no structure tree); the value tables are the charts' text alternative.
 - Open-source documentation: CONTRIBUTING, SECURITY, PRIVACY, THIRD_PARTY_NOTICES, architecture and development guides, and the MIT `LICENSE` for source code (fonts, brand, and dependencies keep their own terms).
 
 ### Changed

@@ -104,6 +104,12 @@
 "export_to_date" = "Fecha final (AAAA-MM-DD, opcional)";
 "export_active_medications_only" = "Solo medicamentos activos";
 "export_include_medications_csv" = "Incluir medicamentos en el CSV";
+"export_paper_size" = "Tamaño del papel";
+"export_paper_a4" = "A4";
+"export_paper_letter" = "Carta (EE. UU.)";
+"export_grayscale" = "PDF en escala de grises";
 "export_tests" = "Pruebas a incluir (si no elige ninguna, se exportan todas)";
 "export_date_invalid" = "Introduce una fecha válida con el formato AAAA-MM-DD.";
 "export_date_range_reversed" = "La fecha inicial no puede ser posterior a la fecha final.";
+"health_no_readings" = "No se devolvió ninguna lectura. Si desactivaste el acceso, cámbialo en Ajustes > Salud > Acceso a datos y dispositivos > Vezuna.";
+"health_revoke_ios" = "Para que Vezuna deje de leer datos nuevos, abre Ajustes > Salud > Acceso a datos y dispositivos > Vezuna. Las mediciones ya guardadas se quedan en el perfil vinculado.";

@@ -24,7 +24,7 @@ class AppExportInstrumentedTest {
             assertTrue("Prepare PDF not reachable", swipeTo(device, "Prepare PDF"))
             device.findObject(By.text("Prepare PDF")).click()
             assertTrue("PDF export dialog did not appear", device.wait(Until.hasObject(By.text("Export ready")), 5_000))
-            assertTrue(device.wait(Until.hasObject(By.textContains("vezuna-doctor-export.pdf")), 3_000))
+            assertTrue(device.wait(Until.hasObject(By.textContains("-lab-history-")), 3_000))
             device.findObject(By.text("Close")).click()
 
             assertTrue("Prepare CSV not reachable", swipeTo(device, "Prepare CSV"))

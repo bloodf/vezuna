@@ -1,5 +1,6 @@
 package app.vezuna
 
+import androidx.compose.runtime.snapshotFlow
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -12,6 +13,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import androidx.fragment.app.FragmentActivity
 import android.view.WindowManager
+import app.vezuna.ui.more.MorePlatform
 import app.vezuna.ui.AppLockHost
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -49,6 +51,8 @@ import app.vezuna.ui.DesignFixture
 import app.vezuna.ui.nav.routeFromName
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.notifications.ReminderPreferences
+import app.vezuna.ui.NotificationAccess
+import androidx.core.app.NotificationManagerCompat
 import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
@@ -92,12 +96,14 @@ class AndroidMainActivity : FragmentActivity() {
     private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
     private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
+    private val reminderPreferences by lazy { ReminderPreferences(this) }
+
     private val reminders by lazy {
-        val preferences = ReminderPreferences(this)
         ReminderPlatformState(
-            hideMedicationNames = preferences.hideMedicationNames,
-            persistHideMedicationNames = { preferences.hideMedicationNames = it },
+            hideMedicationNames = reminderPreferences.hideMedicationNames,
+            persistHideMedicationNames = { reminderPreferences.hideMedicationNames = it },
             openExactAlarmSettings = ::openExactAlarmSettings,
+            openNotificationSettings = ::openNotificationSettings,
         )
     }
 
@@ -106,14 +112,15 @@ class AndroidMainActivity : FragmentActivity() {
     private val mutableBusy = MutableStateFlow(false)
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        reminderPreferences.notificationPermissionRequested = true
+        refreshNotificationAccess()
         mutableMessage.value = nativeMessage(
             if (granted || Build.VERSION.SDK_INT < 33) NativeKey.REMINDERS_ENABLED else NativeKey.NOTIFICATION_PERMISSION_DENIED,
         )
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        val darkTheme = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+    /** Status and navigation bars follow the app theme (System, Light or Dark), not only the OS night mode. */
+    private fun applySystemBars(darkTheme: Boolean) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme },
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkTheme },
@@ -124,6 +131,15 @@ class AndroidMainActivity : FragmentActivity() {
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        installMorePlatform(this)
+        val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        lifecycleScope.launch {
+            snapshotFlow { MorePlatform.themeMode }.collect { applySystemBars(it.isDark(systemDark)) }
         }
         // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
         deviceAuthenticator = AndroidDeviceAuthenticator(this)
@@ -191,8 +207,31 @@ class AndroidMainActivity : FragmentActivity() {
         val wasDenied = reminders.exactAlarmsDenied.value
         val denied = !app.notifications.canScheduleExactAlarms()
         reminders.setExactAlarmsDenied(denied)
+        refreshNotificationAccess()
         // Returning from the system screen with the permission now granted: re-arm alarms as exact.
         if (wasDenied && !denied) lifecycleScope.launch { app.notifications.rescheduleAll(app.repository) }
+    }
+
+    /** Allowed, never asked (Android 13+ only), or denied: what Care shows about reminders appearing. */
+    private fun refreshNotificationAccess() {
+        val enabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
+        val neverAsked = Build.VERSION.SDK_INT >= 33 && !reminderPreferences.notificationPermissionRequested &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        reminders.setNotificationAccess(
+            when {
+                enabled -> NotificationAccess.ALLOWED
+                neverAsked -> NotificationAccess.NOT_REQUESTED
+                else -> NotificationAccess.DENIED
+            },
+        )
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+        } catch (missing: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
     }
 
     private fun openExactAlarmSettings() {
@@ -231,9 +270,21 @@ class AndroidMainActivity : FragmentActivity() {
             HealthConnectClient.SDK_AVAILABLE -> lifecycleScope.launch {
                 if (app.healthConnect.hasPermissions()) synchronizeHealthConnect() else healthPermissions.request()
             }
-            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
                 mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_UPDATE_REQUIRED)
+                openHealthConnectUpdate()
+            }
             else -> mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_UNAVAILABLE)
+        }
+    }
+
+    /** Hands off to the store page that installs or updates the Health Connect provider (system-owned UI). */
+    private fun openHealthConnectUpdate() {
+        val uri = Uri.parse("market://details?id=$HEALTH_CONNECT_PROVIDER&url=healthconnect%3A%2F%2Fonboarding")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage("com.android.vending").putExtra("overlay", true).putExtra("callerId", packageName))
+        } catch (missing: ActivityNotFoundException) {
+            // No store app: the message already explains how to update from the device.
         }
     }
 
@@ -284,3 +335,5 @@ class AndroidMainActivity : FragmentActivity() {
 
     private fun String.safeFilePart(): String = map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
 }
+
+private const val HEALTH_CONNECT_PROVIDER = "com.google.android.apps.healthdata"

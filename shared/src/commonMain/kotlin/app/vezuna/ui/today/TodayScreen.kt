@@ -54,6 +54,7 @@ import app.vezuna.ui.nav.RouteContext
 import app.vezuna.ui.reportDate
 import app.vezuna.ui.reportDisplayName
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
@@ -122,7 +123,7 @@ private fun DoseSection(ctx: RouteContext, data: ProfileData, snapshot: Dashboar
     snapshot.adherence.fraction?.let { fraction ->
         Text(
             vitaText(L10nKey.ADHERENCE_30_DAY) + ": " +
-                vitaText(L10nKey.ADHERENCE_SUMMARY, (fraction * 100).toInt(), snapshot.adherence.taken, snapshot.adherence.completed),
+                vitaText(L10nKey.ADHERENCE_SUMMARY, (fraction * 100).roundToInt(), snapshot.adherence.taken, snapshot.adherence.completed),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
