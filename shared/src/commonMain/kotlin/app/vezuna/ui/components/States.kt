@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.VezunaTokens
+import app.vezuna.ui.vezuna
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
@@ -141,8 +143,10 @@ fun VezunaSheet(title: String, onDismiss: () -> Unit, content: @Composable Colum
 }
 
 /**
- * Detail and form screens: a back button and optional title, no bottom navigation. The back button is
- * always visible (iOS has no system back key); Android system back does the same through the shell.
+ * Detail and form screens: a pine band with a back button and optional title, no bottom navigation. The band
+ * reaches under the status bar like RootHeader. The back button is always visible (iOS has no system back
+ * key); Android system back does the same through the shell. Screen-reader focus starts at the title, or at
+ * the back button when there is no title.
  */
 @Composable
 fun FocusedTaskScaffold(
@@ -152,15 +156,20 @@ fun FocusedTaskScaffold(
     content: @Composable () -> Unit,
 ) {
     Column(modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
-                Icon(painterResource(Res.drawable.ic_back), contentDescription = vitaText(L10nKey.NAVIGATE_BACK))
-            }
-            title?.let {
-                Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).semantics { heading() })
+        Surface(color = MaterialTheme.vezuna.header, contentColor = MaterialTheme.vezuna.onHeader) {
+            Row(
+                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(VezunaTokens.TouchTarget).then(if (title == null) Modifier.routeFocus(focusable = false) else Modifier),
+                ) {
+                    Icon(painterResource(Res.drawable.ic_back), contentDescription = vitaText(L10nKey.NAVIGATE_BACK))
+                }
+                title?.let {
+                    Text(it, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).routeFocus().semantics { heading() })
+                }
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }
@@ -170,29 +179,37 @@ fun FocusedTaskScaffold(
 /**
  * The one place global feedback appears (image 150). Notices are announced politely, errors assertively;
  * neither steals focus. A blocking error must also be shown next to its field, not only here.
+ * The live-region node stays composed while empty: Compose on iOS announces a live region when its label
+ * changes, not when a new node appears (see docs/redesign/A11Y_SPIKE.md).
  */
 @Composable
 fun FeedbackHost(notice: String?, error: String?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    val text = error ?: notice ?: return
+    val text = error ?: notice
     val isError = error != null
-    Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceMd, vertical = VezunaTokens.SpaceSm)
-            .semantics { liveRegion = if (isError) LiveRegionMode.Assertive else LiveRegionMode.Polite },
-        shape = RoundedCornerShape(VezunaTokens.CardRadius),
-        color = if (isError) MaterialTheme.colorScheme.surface else VezunaTokens.Mint,
-        contentColor = if (isError) MaterialTheme.colorScheme.error else VezunaTokens.OnCategory,
-        border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
-        shadowElevation = 2.dp,
+    Box(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            liveRegion = if (isError) LiveRegionMode.Assertive else LiveRegionMode.Polite
+        },
     ) {
-        Row(
-            Modifier.padding(start = VezunaTokens.SpaceMd, end = VezunaTokens.SpaceXs, top = VezunaTokens.SpaceXs, bottom = VezunaTokens.SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
+        if (text == null) return@Box
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceMd, vertical = VezunaTokens.SpaceSm),
+            shape = RoundedCornerShape(VezunaTokens.CardRadius),
+            color = if (isError) MaterialTheme.colorScheme.surface else VezunaTokens.Mint,
+            contentColor = if (isError) MaterialTheme.colorScheme.error else VezunaTokens.OnCategory,
+            border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
+            shadowElevation = 2.dp,
         ) {
-            Icon(painterResource(if (isError) Res.drawable.ic_error else Res.drawable.ic_check_circle), contentDescription = null, modifier = Modifier.size(24.dp))
-            Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(vertical = VezunaTokens.SpaceSmd))
-            IconButton(onClick = onDismiss, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
-                Icon(painterResource(Res.drawable.ic_close), contentDescription = vitaText(L10nKey.DISMISS))
+            Row(
+                Modifier.padding(start = VezunaTokens.SpaceMd, end = VezunaTokens.SpaceXs, top = VezunaTokens.SpaceXs, bottom = VezunaTokens.SpaceXs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
+            ) {
+                Icon(painterResource(if (isError) Res.drawable.ic_error else Res.drawable.ic_check_circle), contentDescription = null, modifier = Modifier.size(24.dp))
+                Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(vertical = VezunaTokens.SpaceSmd))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
+                    Icon(painterResource(Res.drawable.ic_close), contentDescription = vitaText(L10nKey.DISMISS))
+                }
             }
         }
     }

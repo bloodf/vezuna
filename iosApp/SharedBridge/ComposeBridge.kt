@@ -1,11 +1,14 @@
 package app.vezuna.ios
 
 import androidx.compose.ui.window.ComposeUIViewController
-import app.vezuna.data.restoreWithVitals
+import app.vezuna.data.VaultBackedRepository
+import app.vezuna.data.VaultSourceFileStore
+import app.vezuna.data.restoreMembers
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.Medication
+import app.vezuna.domain.MissedDoses
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.HeartRateBucket
 import app.vezuna.domain.StepsDay
@@ -40,7 +43,6 @@ import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultState
-import app.vezuna.security.VaultSourceFileStore
 import app.vezuna.security.VaultUnreadableException
 import app.vezuna.security.createPlatformVault
 import app.vezuna.ui.AppController
@@ -60,6 +62,7 @@ import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
@@ -84,6 +87,10 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.serializer
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
@@ -207,7 +214,7 @@ object IosRuntime {
     private val json = Json { encodeDefaults = true }
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var vault: SecureVault
-    private lateinit var repository: PersistentVezunaRepository
+    private lateinit var repository: VaultBackedRepository
     internal lateinit var controller: AppController
     private lateinit var llm: LocalLlm
     private var initialized = false
@@ -261,7 +268,7 @@ object IosRuntime {
     }
 
     /** Backup chosen on the recovery screen; stored into the fresh vault by the reset that follows. */
-    internal var pendingRestore: app.vezuna.domain.ProfileData? = null
+    internal var pendingRestore: List<app.vezuna.security.BackupMember>? = null
 
     fun isVaultRecoveryNeeded(): Boolean = vaultState.value is VaultState.Recovery
 
@@ -310,10 +317,10 @@ object IosRuntime {
                 check(vault.quarantineAll()) { "Vault cannot preserve unreadable files" }
                 vault.discardUnusableKey()
             }
-            repository = PersistentVezunaRepository.open(vault, json)
+            repository = VaultBackedRepository.open(vault, json)
             if (reset && restore != null) {
                 restoreStarted = true
-                repository.restoreWithVitals(restore)
+                repository.restoreMembers(restore, app.vezuna.ui.RestoreMode.REPLACE_EXISTING, VaultSourceFileStore(vault), ::randomId)
             }
         } catch (error: CancellationException) {
             throw error
@@ -333,7 +340,7 @@ object IosRuntime {
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
             val manager = InstalledModelManager(catalog, files, llm, IosDeviceCapacity())
-            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault, json))
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault))
             initialized = true
             controller.initialize()
             // Edits and deletes made in Compose reload the controller after the repository commit; notify native
@@ -481,8 +488,116 @@ object IosRuntime {
         }
         scope.launch {
             try {
-                val active = repository.profiles.value.flatMap { repository.peekProfile(it.profileId).medications.filter { m -> m.active } }
-                completion(json.encodeToString(ListSerializer(Medication.serializer()), active), null)
+                val profiles = repository.profiles.value
+                val active = profiles.flatMap { profile ->
+                    repository.peekProfile(profile.profileId).medications.filter { m -> m.active }.map { medication ->
+                        val element = json.encodeToJsonElement(Medication.serializer(), medication).jsonObject
+                        // The member name only disambiguates reminders when the household has more than one profile.
+                        if (profiles.size > 1) JsonObject(element + ("profileName" to JsonPrimitive(profile.displayName))) else element
+                    }
+                }
+                completion(JsonArray(active).toString(), null)
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
+    /** Records MISSED for every overdue dose using the same shared rule as Android. */
+    fun recordMissedDoses(completion: (NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val now = currentInstant()
+                var wrote = false
+                repository.profiles.value.forEach { profile ->
+                    val data = repository.peekProfile(profile.profileId)
+                    MissedDoses.stampLegacy(data, now).forEach { repository.updateSchedule(it) }
+                    val missed = MissedDoses.pending(data, now, TimeZone.currentSystemDefault())
+                    if (missed.isNotEmpty()) {
+                        repository.addDoseEvents(profile.profileId, missed)
+                        wrote = true
+                    }
+                }
+                if (wrote) repositoryObserver?.repositoryDidChange()
+                completion(null)
+            } catch (error: Throwable) {
+                completion(nativeMessage("dose_record_failed"))
+            }
+        }
+    }
+
+    /** Stores the same snooze event as the in-app snooze, so the dashboard and reconcile see one snoozed dose. */
+    fun recordSnooze(
+        profileId: String,
+        medicationId: String,
+        scheduleId: String,
+        shownEpochSeconds: Long,
+        snoozedEpochSeconds: Long,
+        completion: (NativeMessage?) -> Unit,
+    ) {
+        if (!initialized) {
+            completion(nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val data = repository.peekProfile(profileId)
+                if (data.medications.none { it.medicationId == medicationId && it.schedules.any { s -> s.scheduleId == scheduleId } }) {
+                    completion(nativeMessage("medication_schedule_missing"))
+                    return@launch
+                }
+                val snoozedAt = Instant.fromEpochSeconds(snoozedEpochSeconds)
+                val eventId = DoseEvents.snoozeIdFor(scheduleId, snoozedAt)
+                if (data.doseEvents.none { it.eventId == eventId }) {
+                    repository.addDoseEvent(
+                        DoseEvent(profileId, eventId, medicationId, scheduleId, snoozedAt, DoseEventStatus.SCHEDULED, currentInstant(), Instant.fromEpochSeconds(shownEpochSeconds)),
+                    )
+                    repositoryObserver?.repositoryDidChange()
+                }
+                completion(null)
+            } catch (error: Throwable) {
+                completion(nativeMessage("dose_record_failed"))
+            }
+        }
+    }
+
+    /** Future snoozes (from any path) whose dose is still open, as JSON for the native scheduler. */
+    fun listPendingSnoozes(completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val now = currentInstant()
+                val pending = repository.profiles.value.flatMap { profile ->
+                    val data = repository.peekProfile(profile.profileId)
+                    val snoozes = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
+                    snoozes.filter { snooze ->
+                        snooze.scheduledFor > now &&
+                            data.doseEvents.none { DoseEvents.isTerminal(it.status) && it.scheduleId == snooze.scheduleId && it.scheduledFor == snooze.scheduledFor } &&
+                            snoozes.none { it.scheduleId == snooze.scheduleId && it.replacesScheduledFor == snooze.scheduledFor }
+                    }
+                }
+                completion(
+                    JsonArray(
+                        pending.map {
+                            JsonObject(
+                                mapOf(
+                                    "profileId" to JsonPrimitive(it.profileId),
+                                    "medicationId" to JsonPrimitive(it.medicationId),
+                                    "scheduleId" to JsonPrimitive(it.scheduleId),
+                                    "scheduledEpochSeconds" to JsonPrimitive(it.scheduledFor.epochSeconds),
+                                ),
+                            )
+                        },
+                    ).toString(),
+                    null,
+                )
             } catch (error: Throwable) {
                 completion(null, nativeMessage("action_failed"))
             }
@@ -634,7 +749,7 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
                 }
             }
         },
-        animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+        animationsEnabled = !rememberReduceMotion(),
         reminders = IosRuntime.reminderState,
         nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
         startRoute = route?.let(::routeFromName),
@@ -644,12 +759,12 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
 
 /**
  * Debug only (`-VezunaFixture`): the synthetic DATA_AND_COPY household in an in-memory repository, for the
- * screenshot harness. The vault is never opened, read or written.
+ * screenshot harness. Swift skips opening the vault in this mode, and model files are never touched.
  */
 fun makeDesignFixtureViewController(route: String?): UIViewController {
     val repository = InMemoryVezunaRepository()
     val llm = llamatikLocalLlm()
-    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModelFiles, llm), LocalHealthChat(repository, llm))
+    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
         DesignFixture.install(repository)
         controller.initialize()
@@ -658,21 +773,27 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
         VezunaApp(
             controller = controller,
             scope = IosRuntime.scope,
-            animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+            animationsEnabled = !rememberReduceMotion(),
             nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
             startRoute = route?.let(::routeFromName),
         )
     }
 }
 
-private object NoModelFiles : app.vezuna.llm.ModelFileStore {
-    override suspend fun installed(): List<app.vezuna.llm.InstalledModel> = emptyList()
-    override suspend fun install(model: app.vezuna.llm.InstalledModel, sourcePath: String) = Unit
-    override suspend fun verifyIntegrity(model: app.vezuna.llm.InstalledModel): Boolean = false
-    override suspend fun delete(model: app.vezuna.llm.InstalledModel) = Unit
-    override suspend fun saveSelection(modelId: String?) = Unit
-    override suspend fun savedSelection(): String? = null
+/** Reduce Motion, followed live through its change notification. */
+@androidx.compose.runtime.Composable
+private fun rememberReduceMotion(): Boolean {
+    var reduce by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(platform.UIKit.UIAccessibilityIsReduceMotionEnabled()) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val center = platform.Foundation.NSNotificationCenter.defaultCenter
+        val token = center.addObserverForName(platform.UIKit.UIAccessibilityReduceMotionStatusDidChangeNotification, null, platform.Foundation.NSOperationQueue.mainQueue) { _ ->
+            reduce = platform.UIKit.UIAccessibilityIsReduceMotionEnabled()
+        }
+        onDispose { center.removeObserver(token) }
+    }
+    return reduce
 }
+
 
 /** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */
 @OptIn(ExperimentalForeignApi::class)
@@ -694,8 +815,8 @@ fun makeVaultRecoveryViewController(onRetry: () -> Unit, onReset: () -> Unit, on
     val state by IosRuntime.vaultState.collectAsState()
     val files = IosRuntime.backupFiles?.let(::composeBackupFiles)
     val recovery = files?.let {
-        BackupRecovery(BackupService(), it) { data ->
-            IosRuntime.pendingRestore = data
+        BackupRecovery(BackupService(), it) { members ->
+            IosRuntime.pendingRestore = members
             onRestore()
         }
     }

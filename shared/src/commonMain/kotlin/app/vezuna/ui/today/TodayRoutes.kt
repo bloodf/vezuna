@@ -4,7 +4,12 @@ import androidx.compose.runtime.Composable
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.AppScreen
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import app.vezuna.ui.DashboardScreen
+import app.vezuna.ui.OnboardingScreen
 import app.vezuna.ui.nav.LegacyPushed
 import app.vezuna.ui.nav.RootScaffold
 import app.vezuna.ui.nav.RouteContext
@@ -15,9 +20,14 @@ import app.vezuna.ui.nav.RouteContext
  * Profile management currently lives on the dashboard, so the profile routes show it.
  */
 object TodayRoutes {
+    /** Fresh installs see the first-run screen here (no tabs) until they finish or skip it; it never gates records. */
     @Composable
-    fun Dashboard(ctx: RouteContext) = RootScaffold(ctx, vitaText(L10nKey.NAV_TODAY)) {
-        DashboardScreen(ctx.state, ctx.controller, ctx.scope)
+    fun Dashboard(ctx: RouteContext) {
+        if (ctx.state.onboarding && ctx.state.data != null) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { OnboardingScreen(ctx.state, ctx.controller, ctx.scope) }
+            return
+        }
+        RootScaffold(ctx, vitaText(L10nKey.NAV_TODAY)) { DashboardScreen(ctx.state, ctx.controller, ctx.scope) }
     }
 
     @Composable

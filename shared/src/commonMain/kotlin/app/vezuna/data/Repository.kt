@@ -42,6 +42,9 @@ interface VezunaRepository {
     val profiles: StateFlow<List<Profile>>
     suspend fun createProfile(profile: Profile)
     suspend fun readProfile(profileId: String): ProfileData
+
+    /** Like [readProfile] but never changes which profile the repository treats as selected. */
+    suspend fun peekProfile(profileId: String): ProfileData = readProfile(profileId)
     suspend fun addDocument(document: SourceDocument)
     suspend fun addReport(report: LabReport)
     suspend fun addCandidate(candidate: OcrCandidate)
@@ -49,6 +52,7 @@ interface VezunaRepository {
     suspend fun addObservation(observation: LabObservation): Boolean
     suspend fun addMedication(medication: Medication)
     suspend fun addDoseEvent(event: DoseEvent)
+    suspend fun addDoseEvents(profileId: String, events: List<DoseEvent>)
     suspend fun addChatMessage(message: ChatMessage)
 
     /** Deleting a profile removes all its records and stored source files. */
@@ -188,6 +192,18 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun addDoseEvent(event: DoseEvent) = mutate(event.profileId) { data ->
         require(data.medications.any { medication -> medication.medicationId == event.medicationId && medication.schedules.any { it.scheduleId == event.scheduleId } })
         data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
+    }
+
+    /** One write for many events (e.g. MISSED bookkeeping); events whose schedule no longer exists are skipped. */
+    override suspend fun addDoseEvents(profileId: String, events: List<DoseEvent>) {
+        if (events.isEmpty()) return
+        mutate(profileId) { data ->
+            data.copy(
+                doseEvents = events.filter { event ->
+                    data.medications.any { m -> m.medicationId == event.medicationId && m.schedules.any { it.scheduleId == event.scheduleId } }
+                }.fold(data.doseEvents) { acc, event -> DoseEvents.merge(acc, event) },
+            )
+        }
     }
 
     override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->

@@ -77,7 +77,12 @@ fun ListRow(
     showChevron: Boolean = onClick != null,
     enabled: Boolean = true,
 ) {
-    val clickable = if (onClick != null) Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick) else Modifier
+    // One focus stop per row: clickable merges its children; a static row merges explicitly.
+    val clickable = if (onClick != null) {
+        Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+    } else {
+        Modifier.semantics(mergeDescendants = true) {}
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -97,7 +102,7 @@ fun ListRow(
             leadingIcon != null -> Icon(painterResource(leadingIcon), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(title, style = MaterialTheme.typography.titleMedium, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
             supporting?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         trailing?.invoke()

@@ -5,6 +5,9 @@
     <string name="add_profile">Añadir perfil</string>
     <string name="adherence_30_day">Adherencia de 30 días</string>
     <string name="adherence_summary">%1$s% · %2$s/%3$s tomadas</string>
+    <string name="adherence_7_day">Adherencia de 7 días</string>
+    <string name="dose_history">Historial de dosis</string>
+    <string name="dose_history_counts">%1$s tomadas · %2$s omitidas · %3$s perdidas · 30 días</string>
     <string name="ai">IA</string>
     <string name="ask_on_device_model">Preguntar al modelo en el dispositivo</string>
     <string name="ask_record_education">Pide explicaciones de registros o educación general de salud</string>
@@ -200,6 +203,7 @@ iOS: %2$s</string>
     <string name="vault_recovery_body_key_invalidated">La clave de seguridad del dispositivo que protege tus registros ya no es válida. Esto puede ocurrir tras cambiar el bloqueo de pantalla o la biometría.</string>
     <string name="vault_recovery_body_key_unavailable">La clave que protege tus registros falta o no se puede leer en este dispositivo.</string>
     <string name="vault_recovery_body_unavailable">Tus registros no están disponibles temporalmente. El dispositivo puede estar bloqueado o su almacenamiento seguro ocupado. Inténtalo de nuevo en un momento.</string>
+    <string name="vault_recovery_body_schema_newer">Tus registros fueron guardados por una versión más nueva de Vezuna. Actualiza la app para abrirlos. No se cambió ni se borró nada.</string>
     <string name="vault_recovery_cancel">Cancelar</string>
     <string name="vault_recovery_kept_note">No se borra nada automáticamente. Los archivos ilegibles permanecen en este dispositivo en una carpeta aparte.</string>
     <string name="vault_recovery_reset">Empezar con un almacén vacío</string>
@@ -330,6 +334,9 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta fuerte</string>
     <string name="backup_create_action">Crear copia</string>
     <string name="backup_saved">Copia guardada. Conserva bien la frase secreta</string>
+    <string name="backup_too_large">Esta copia es demasiado grande (más de 24 MB con los archivos originales). Haz la copia de un perfil a la vez.</string>
+    <string name="backup_include_household">Copiar todos los perfiles con sus archivos originales</string>
+    <string name="backup_household_contents">Copia de %1$d perfiles: %2$s</string>
     <string name="backup_enter_passphrase_title">Introduce la frase secreta de la copia</string>
     <string name="backup_unlock">Abrir copia</string>
     <string name="backup_same_device_label">Copia del mismo dispositivo: solo se restaura en el dispositivo que la creó</string>
@@ -448,6 +455,17 @@ iOS: %2$s</string>
     <string name="more_export_share">Exportar y compartir</string>
     <string name="more_section_records">Registros y asistente</string>
     <string name="more_section_device">Dispositivo y app</string>
+    <string name="birth_date">Fecha de nacimiento</string>
+    <string name="birth_date_not_set">Sin definir</string>
+    <string name="birth_date_invalid">La fecha de nacimiento no puede ser futura ni de hace más de 130 años</string>
+    <string name="birth_date_clear">Borrar fecha de nacimiento</string>
+    <string name="profile_age">Edad: %1$s</string>
+    <string name="onboarding_title">Te damos la bienvenida a Vezuna</string>
+    <string name="onboarding_body">Tus registros de salud se quedan en este dispositivo. Ponle nombre al primer perfil; puedes cambiarlo después.</string>
+    <string name="onboarding_name">Nombre</string>
+    <string name="onboarding_privacy">Nada sale de tu dispositivo a menos que lo exportes o hagas una copia.</string>
+    <string name="onboarding_done">Empezar</string>
+    <string name="onboarding_skip">Omitir por ahora</string>
     <string name="trend_units_dropped">No se muestran: los resultados en %1$s no tienen conversión publicada a %2$s.</string>
     <string name="trend_converted_note">Los puntos huecos o marcados con ≈ se convirtieron con factores publicados. Los valores originales aparecen en la lista de abajo.</string>
     <string name="converted_value">≈ %1$s (factor publicado %2$s)</string>

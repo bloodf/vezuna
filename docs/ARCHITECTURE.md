@@ -47,7 +47,7 @@ The manifest removes `INTERNET`, disables backup, and excludes all data from clo
 
 ## iOS (iosApp/)
 
-SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin compiled into the framework (injected by `iosApp/SharedBridge.gradle` through `scripts/build-ios.sh`). Swift pieces: `CryptoKitAesGcm`, `AppFileStorage` (complete file protection, excluded from backup), `HealthKitImporter`, `SourceTextExtractor` (PDFKit/Vision), `MedicationNotificationCoordinator`, `LicenseManager`/`LicenseView` (StoreKit), `StoreModelPackLoader`.
+SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin compiled into the framework (injected by `iosApp/SharedBridge.gradle` through `scripts/build-ios.sh`). Swift pieces: `CryptoKitAesGcm`, `KeychainKeyStore` (vault master key, `AfterFirstUnlockThisDeviceOnly`; `KeyFileVaultCore` migrates the legacy key file (deleted only once data decrypts with the Keychain key; Keychain add is add-only) and returns `KEY_UNAVAILABLE`, never a new key, while the item is unreadable), `AppFileStorage` (complete protection for models/exports; vault files use `completeUntilFirstUserAuthentication` for lock-screen dose actions, data still AES-GCM encrypted; all excluded from backup), `HealthKitImporter`, `SourceTextExtractor` (PDFKit/Vision), `MedicationNotificationCoordinator`, `LicenseManager`/`LicenseView` (StoreKit), `StoreModelPackLoader`.
 
 ## Data flow
 
@@ -55,9 +55,21 @@ SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin comp
 2. Importer produces **unconfirmed** candidates (test, value, unit, reference range, date). Duplicates are fingerprinted.
 3. User reviews and confirms. Only confirmed results appear in trends and doctor exports.
 4. Records are serialized and encrypted by the platform `SecureVault`, scoped to a profile.
-5. Export builds PDF/CSV from confirmed data and hands it to the OS share sheet. Backup wraps one profile in an AES-GCM envelope with the profile ID as associated data.
+5. Export builds PDF/CSV from confirmed data and hands it to the OS share sheet. Backup is a passphrase-sealed file (see Storage and backup).
 
 Records, backup, and export never depend on the licensing gate or on a model being installed.
+
+## Storage and backup
+
+`VaultBackedRepository` (`shared/.../data/`) is the one repository on both platforms. Vault keys: one encrypted file per profile (`repository-profile-<id>-v1`), an encrypted profile index written last (`repository-profile-index-v1`), per-profile vitals (`repository-vitals-<id>-v1`), and original source files (`source-document-<documentId>`, deleted with their document). A commit rewrites only the touched profile. A missing profile record is skipped on load; a corrupt one falls back to the vault's `.prev` generation and the damaged file is quarantined.
+
+On-disk formats and migration:
+
+- Files are `CipherEnvelopeCodec` binary envelopes (version byte 2). Version 1, the JSON envelope with int-array bytes, is still read; each file is rewritten in the new form the next time it is written.
+- Plaintext documents carry `schemaVersion` (`StorageSchema.CURRENT`). Unversioned documents are version 1. Add a migration step in `StorageSchema.steps` for every bump. Data from a newer schema fails with `VaultFailure.SCHEMA_NEWER` and is never rewritten or quarantined.
+- Older Android builds kept one `repository-v1` blob. On first load it is split into per-profile files, the index is written last, and the blob is deleted only after the new files load. An interrupted migration restarts from the untouched blob.
+
+Backup payload `SCHEMA_VERSION` is 4 (versions 1-4 open). `BackupService.create` still writes the single-profile version 3 shape. `createHousehold` writes version 4: every profile with its vitals and original source files (Base64 inside the sealed payload). A new file must stay under `MAX_BACKUP_WRITE_BYTES` (24 MiB, because the payload is held in memory several times over); files up to `MAX_BACKUP_READ_BYTES` (64 MiB, the limit of released builds) still open; a household whose originals exceed roughly 18 MiB of raw files is refused with a clear message, and profiles are then backed up one at a time. Multi-photo documents keep page 1 in `vaultKey` and the rest in `pageVaultKeys`; a backup accepts up to 10 extra pages per document (11 in total, matching the 10-photo import screens) and refuses document IDs that end in `-page-<number>`, which would collide with page file IDs.
 
 ## Local AI
 

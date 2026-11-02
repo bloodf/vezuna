@@ -11,21 +11,21 @@ struct ContentView: View {
             if DebugLaunch.fixture {
                 DesignFixtureHostView().ignoresSafeArea(.container, edges: .bottom)
             } else if model.ready {
-                NavigationStack {
-                    ComposeHostView()
-                        .ignoresSafeArea(.container, edges: .bottom)
-                        .toolbar(.hidden, for: .navigationBar)
-                        .safeAreaInset(edge: .top) {
-                            if let error = model.catalogError ?? model.modelLoader.lastError {
-                                Text(error)
-                                    .font(.footnote)
-                                    .foregroundStyle(Color.vezunaDanger)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(8)
-                                    .background(.regularMaterial)
-                            }
+                ComposeHostView()
+                    .ignoresSafeArea(.container, edges: .bottom)
+                    .safeAreaInset(edge: .top) {
+                        if let error = model.catalogError ?? model.modelLoader.lastError {
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(Color.vezunaDanger)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(.regularMaterial)
+                                // VoiceOver hears the banner when it appears or changes, without moving focus.
+                                .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
+                                .onChange(of: error) { UIAccessibility.post(notification: .announcement, argument: $0) }
                         }
-                }
+                    }
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
                     onRetry: { model.recoverVault(reset: false) },
@@ -34,15 +34,21 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
             } else if let error = model.startupError {
-                VStack(spacing: 12) {
-                    Image(systemName: "lock.trianglebadge.exclamationmark").font(.largeTitle)
-                    Text(L10n.text(.storage_unavailable)).font(.headline)
-                    Text(error).multilineTextAlignment(.center)
-                }.padding()
+                // Scrolls so the message never clips at the largest accessibility text sizes.
+                ScrollView {
+                    VStack(spacing: 12) {
+                        Image(systemName: "lock.trianglebadge.exclamationmark").font(.largeTitle).accessibilityHidden(true)
+                        Text(L10n.text(.storage_unavailable)).font(.headline).accessibilityAddTraits(.isHeader)
+                        Text(error).multilineTextAlignment(.center)
+                    }.padding()
+                }
             } else {
                 ProgressView(L10n.text(.opening_storage))
             }
         }
+        // The status bar always sits on pine, continuing the root and task headers, so its text is light
+        // (UIStatusBarStyleLightContent in Vezuna-Info.plist). A zero-height band grows into the top safe area.
+        .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
         .task {
             IosRuntime.shared.nativeActionHandler = nativeActions
             if !DebugLaunch.fixture { model.configure() }

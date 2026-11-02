@@ -109,6 +109,16 @@ class NavigatorTest {
     }
 
     @Test
+    fun finishingATaskElsewhereDoesNotLeaveItOnTheOriginTab() {
+        val navigator = Navigator()
+        navigator.navigate(AppScreen.ImportReview)
+        navigator.finishAndGo(AppScreen.Labs)
+        assertEquals(AppScreen.Labs, navigator.current)
+        navigator.selectRoot(Destination.TODAY)
+        assertEquals(AppScreen.Dashboard, navigator.current)
+    }
+
+    @Test
     fun deepLinkNamesParse() {
         assertEquals(AppScreen.More, routeFromName("More"))
         assertEquals(AppScreen.ResultDetail("hgb-2026-10"), routeFromName("ResultDetail:hgb-2026-10"))

@@ -1,5 +1,6 @@
 package app.vezuna.export
 
+import app.vezuna.domain.ProfileAge
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.UnitNormalizer
@@ -44,12 +45,6 @@ data class ExportOptions(
         }
 
         /** Completed years on [on]; null when no birth date is recorded or it lies in the future. */
-        fun ageYears(birthDate: LocalDate?, on: Instant): Int? {
-            if (birthDate == null) return null
-            val today = on.toLocalDateTime(TimeZone.UTC).date
-            if (birthDate > today) return null
-            val hadBirthday = today.monthNumber * 100 + today.dayOfMonth >= birthDate.monthNumber * 100 + birthDate.dayOfMonth
-            return today.year - birthDate.year - if (hadBirthday) 0 else 1
-        }
+        fun ageYears(birthDate: LocalDate?, on: Instant): Int? = ProfileAge.years(birthDate, on.toLocalDateTime(TimeZone.UTC).date)
     }
 }

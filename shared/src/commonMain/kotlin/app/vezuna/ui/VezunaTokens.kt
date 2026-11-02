@@ -40,6 +40,8 @@ object VezunaTokens {
         /** Decorative divider; never the only boundary of a control. */
         val divider: Color,
         val focus: Color,
+        /** Teal for text and links; #087F8C stays a fill (4.41:1 as text on paper). */
+        val link: Color,
         val warning: Color,
         val danger: Color,
         val success: Color,
@@ -47,11 +49,16 @@ object VezunaTokens {
         /** Pine upper band of root screens and its content. */
         val header: Color,
         val onHeader: Color,
+        /** Secondary text on the pine band; never textMuted or teal there. */
+        val onHeaderMuted: Color,
         /** Filled action placed on the header: mint with dark label. */
         val headerAction: Color,
         val onHeaderAction: Color,
         val accent: Color,
         val onAccent: Color,
+        /** Selected-tab indicator on the bottom bar: 3:1 or more against the bar surface. */
+        val navIndicator: Color,
+        val onNavIndicator: Color,
     )
 
     val Light = Roles(
@@ -65,16 +72,20 @@ object VezunaTokens {
         border = Color(0xFF6C878F),
         divider = Color(0xFFDCE3DF),
         focus = Color(0xFF086A78),
+        link = Color(0xFF076F7B),
         warning = Color(0xFF805500),
         danger = Color(0xFFB3263B),
         success = Color(0xFF176B50),
         info = Color(0xFF245DA8),
         header = Pine,
         onHeader = Color(0xFFFFFFFF),
+        onHeaderMuted = Color(0xFFADC7CE),
         headerAction = Mint,
         onHeaderAction = Pine,
         accent = Mint,
         onAccent = Pine,
+        navIndicator = Pine,
+        onNavIndicator = Color(0xFFFFFFFF),
     )
 
     val Dark = Roles(
@@ -85,19 +96,23 @@ object VezunaTokens {
         textMuted = Color(0xFFADC7CE),
         primary = Mint,
         onPrimary = Deep,
-        border = Color(0xFF668992),
+        border = Color(0xFF72969F),
         divider = Color(0xFF35545D),
         focus = Mint,
+        link = Mint,
         warning = Color(0xFFF5CB73),
         danger = Color(0xFFFF9AAA),
         success = Color(0xFF87DEB4),
         info = Color(0xFF9DC4FF),
         header = Pine,
         onHeader = Mist,
+        onHeaderMuted = Color(0xFFADC7CE),
         headerAction = Mint,
         onHeaderAction = Deep,
         accent = Color(0xFF35B7B8),
         onAccent = Deep,
+        navIndicator = Mint,
+        onNavIndicator = Deep,
     )
 
     val SpaceXs = 4.dp
@@ -134,13 +149,19 @@ object VezunaTokens {
     const val MotionReducedMs = 0
 }
 
-/** Content identity colors. They name a destination or kind of content, never a health status. */
-enum class Category(val fill: Color) {
-    RECORDS(VezunaTokens.Mint),
-    CARE(VezunaTokens.Coral),
-    TRENDS(VezunaTokens.Lavender),
-    ACTIVITY(VezunaTokens.Citron),
+/**
+ * Content identity colors. They name a destination or kind of content, never a health status.
+ * [fill] is a background for ink text only. Lines, marks and informative icons use [series]: the fills are
+ * too light on paper (1.1 to 2.2:1), so light theme uses darker variants that reach 3:1.
+ */
+enum class Category(val fill: Color, private val seriesLight: Color) {
+    RECORDS(VezunaTokens.Mint, Color(0xFF0B6B5C)),
+    CARE(VezunaTokens.Coral, Color(0xFFC0552F)),
+    TRENDS(VezunaTokens.Lavender, Color(0xFF6F5FD6)),
+    ACTIVITY(VezunaTokens.Citron, Color(0xFF5E7A00)),
     ;
 
     val onFill: Color get() = VezunaTokens.OnCategory
+
+    fun series(darkTheme: Boolean): Color = if (darkTheme) fill else seriesLight
 }

@@ -31,10 +31,11 @@ class SourceFileReadTest {
             files.remove(key)
         }
 
-        override suspend fun read(profileId: String, key: String): ByteArray? {
+        override suspend fun load(profileId: String, documentId: String, key: String): ByteArray? {
             check(!failReads) { "vault unavailable" }
             val (owner, bytes) = files[key] ?: return null
             check(owner == profileId) { "other profile" }
+            check(key == "source-document-$documentId") { "other document" }
             return bytes
         }
     }

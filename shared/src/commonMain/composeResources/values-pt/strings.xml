@@ -5,6 +5,9 @@
     <string name="add_profile">Adicionar perfil</string>
     <string name="adherence_30_day">Adesão em 30 dias</string>
     <string name="adherence_summary">%1$s% · %2$s/%3$s tomadas</string>
+    <string name="adherence_7_day">Adesão em 7 dias</string>
+    <string name="dose_history">Histórico de doses</string>
+    <string name="dose_history_counts">%1$s tomadas · %2$s puladas · %3$s perdidas · 30 dias</string>
     <string name="ai">IA</string>
     <string name="ask_on_device_model">Perguntar ao modelo no dispositivo</string>
     <string name="ask_record_education">Peça explicações sobre registros ou educação geral em saúde</string>
@@ -200,6 +203,7 @@ iOS: %2$s</string>
     <string name="vault_recovery_body_key_invalidated">A chave de segurança do dispositivo que protege seus registros não é mais válida. Isso pode ocorrer após alterar o bloqueio de tela ou a biometria.</string>
     <string name="vault_recovery_body_key_unavailable">A chave que protege seus registros está ausente ou ilegível neste dispositivo.</string>
     <string name="vault_recovery_body_unavailable">Seus registros estão temporariamente indisponíveis. O dispositivo pode estar bloqueado ou o armazenamento seguro ocupado. Tente novamente em instantes.</string>
+    <string name="vault_recovery_body_schema_newer">Seus registros foram salvos por uma versão mais nova do Vezuna. Atualize o app para abri-los. Nada foi alterado ou apagado.</string>
     <string name="vault_recovery_cancel">Cancelar</string>
     <string name="vault_recovery_kept_note">Nada é apagado automaticamente. Os arquivos ilegíveis permanecem neste dispositivo em uma pasta separada.</string>
     <string name="vault_recovery_reset">Começar com um cofre vazio</string>
@@ -330,6 +334,9 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta forte</string>
     <string name="backup_create_action">Criar backup</string>
     <string name="backup_saved">Backup salvo. Guarde bem a frase secreta</string>
+    <string name="backup_too_large">Este backup é grande demais (mais de 24 MB com os arquivos originais). Faça o backup de um perfil por vez.</string>
+    <string name="backup_include_household">Fazer backup de todos os perfis com os arquivos originais</string>
+    <string name="backup_household_contents">Backup de %1$d perfis: %2$s</string>
     <string name="backup_enter_passphrase_title">Digite a frase secreta do backup</string>
     <string name="backup_unlock">Abrir backup</string>
     <string name="backup_same_device_label">Backup do mesmo aparelho: só restaura no aparelho que o criou</string>
@@ -448,6 +455,17 @@ iOS: %2$s</string>
     <string name="more_export_share">Exportar e compartilhar</string>
     <string name="more_section_records">Registros e assistente</string>
     <string name="more_section_device">Dispositivo e app</string>
+    <string name="birth_date">Data de nascimento</string>
+    <string name="birth_date_not_set">Não definida</string>
+    <string name="birth_date_invalid">A data de nascimento não pode ser futura nem anterior a 130 anos</string>
+    <string name="birth_date_clear">Limpar data de nascimento</string>
+    <string name="profile_age">Idade: %1$s</string>
+    <string name="onboarding_title">Bem-vindo ao Vezuna</string>
+    <string name="onboarding_body">Seus registros de saúde ficam neste dispositivo. Dê um nome ao primeiro perfil; você pode mudar depois.</string>
+    <string name="onboarding_name">Nome</string>
+    <string name="onboarding_privacy">Nada sai do seu dispositivo, a menos que você exporte ou faça backup.</string>
+    <string name="onboarding_done">Começar</string>
+    <string name="onboarding_skip">Pular por agora</string>
     <string name="trend_units_dropped">Não exibidos: resultados em %1$s não têm conversão publicada para %2$s.</string>
     <string name="trend_converted_note">Pontos ocos ou marcados com ≈ foram convertidos com fatores publicados. Os valores originais aparecem na lista abaixo.</string>
     <string name="converted_value">≈ %1$s (fator publicado %2$s)</string>

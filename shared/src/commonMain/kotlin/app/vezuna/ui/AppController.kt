@@ -18,12 +18,13 @@ import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.Profile
+import app.vezuna.domain.DefaultProfileName
+import app.vezuna.domain.ProfileAge
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
-import app.vezuna.importer.OcrTextParser
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -41,66 +42,26 @@ import app.vezuna.localization.failMessage
 import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.message
-import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
-import app.vezuna.data.restoreWithVitals
-import app.vezuna.domain.keepingOnlyAvailableSourceFiles
-import app.vezuna.domain.remappedAsNew
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
 import app.vezuna.platform.sha256
 import app.vezuna.platform.toHex
+import app.vezuna.data.restoreMembers
+import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
+import app.vezuna.security.backupFileId
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-
-enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
-
-/** Where a platform keeps the imported source file (encrypted). Optional: a platform without one stores no file. */
-interface SourceFileStore {
-    /** Stores [bytes] for the document and returns the key to record on it. */
-    suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String
-
-    /** Removes a stored file when the import that owned it could not be recorded. */
-    suspend fun discard(key: String)
-
-    /** The decrypted file, or null when nothing is stored under [key]. Throws when it cannot be read for [profileId]. */
-    suspend fun read(profileId: String, key: String): ByteArray? = null
-}
-
-data class AppUiState(
-    val loading: Boolean = true,
-    val error: UserText? = null,
-    val notice: UserText? = null,
-    val profiles: List<Profile> = emptyList(),
-    val data: ProfileData? = null,
-    val dashboard: DashboardSnapshot? = null,
-    val selectedObservationIds: Set<String> = emptySet(),
-    val csvExport: String? = null,
-    val pdfExport: ExportedPdf? = null,
-    val healthLinkedProfileId: String? = null,
-    /** Assistant text received so far while an answer is being generated; null when idle. */
-    val streamingAnswer: String? = null,
-)
-
-object DashboardRefreshSignal {
-    private val mutableChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val changes = mutableChanges.asSharedFlow()
-
-    fun notifyRepositoryChanged() {
-        mutableChanges.tryEmit(Unit)
-    }
-}
 
 class AppController(
     private val repository: VezunaRepository,
@@ -120,12 +81,19 @@ class AppController(
     val navigator = Navigator()
 
     suspend fun initialize() = operation {
-        if (repository.profiles.value.isEmpty()) {
-            repository.createProfile(Profile(randomId(), "Me", createdAt = currentInstant()))
+        // A profile only exists once the first run began, so an existing profile means onboarding is done (or not needed).
+        val freshInstall = repository.profiles.value.isEmpty()
+        if (freshInstall) {
+            repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
-        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || mutableState.value.onboarding)
         val profileId = mutableState.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
         loadProfile(profileId)
+        // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
+        val loaded = mutableState.value.data
+        if (mutableState.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty())) {
+            mutableState.value = mutableState.value.copy(onboarding = false)
+        }
         modelManager.refresh()
     }
 
@@ -174,6 +142,28 @@ class AppController(
         repository.createProfile(profile)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
         switchProfile(profile.profileId)
+    }
+
+    /** Sets or clears (null) the birth date. Rejects future dates and ages above [ProfileAge.MAX_YEARS]. */
+    suspend fun setBirthDate(profileId: String, birthDate: LocalDate?) = operation {
+        val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        if (birthDate != null && !ProfileAge.isValid(birthDate, ProfileAge.today(clock(), timeZone()))) failMessage(L10nKey.BIRTH_DATE_INVALID)
+        repository.updateProfile(profile.copy(birthDate = birthDate))
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        reloadCurrentProfile()
+    }
+
+    /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) {
+        val profile = repository.profiles.value.firstOrNull() ?: return skipOnboarding()
+        clearMessages()
+        if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
+        if (birthDate != null) setBirthDate(profile.profileId, birthDate)
+        if (mutableState.value.error == null) skipOnboarding()
+    }
+
+    fun skipOnboarding() {
+        mutableState.value = mutableState.value.copy(onboarding = false)
     }
 
     suspend fun renameProfile(profileId: String, displayName: String) = operation {
@@ -285,13 +275,6 @@ class AppController(
         return inserted
     }
 
-    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
-    private fun sourceIdentity(source: PickedSource): String {
-        val first = sha256(source.bytes).toHex()
-        if (source.additionalPages.isEmpty()) return first
-        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
-    }
-
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
         val store = sourceStore
@@ -319,24 +302,6 @@ class AppController(
         }
     }
 
-    private fun candidateFingerprint(
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        range: ReferenceRange,
-        collectedAt: kotlinx.datetime.Instant,
-    ): String = listOf(
-        testCode.trim().uppercase(),
-        displayName.trim().lowercase(),
-        rawValue.trim(),
-        rawUnit.trim(),
-        range.lower?.toString().orEmpty(),
-        range.upper?.toString().orEmpty(),
-        range.text.orEmpty(),
-        range.unit.orEmpty(),
-        collectedAt.toString(),
-    ).joinToString("|")
 
     suspend fun confirmCandidate(
         candidateId: String,
@@ -447,7 +412,7 @@ class AppController(
             throw error
         }
         loadProfile(data.profile.profileId)
-        navigator.navigate(AppScreen.Labs)
+        navigator.finishAndGo(AppScreen.Labs)
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
 
@@ -550,17 +515,24 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
-    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>): List<DoseSchedule> {
+    private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>, previous: List<DoseSchedule> = emptyList()): List<DoseSchedule> {
         if (drafts.isEmpty()) failMessage(L10nKey.SCHEDULE_TIMES_REQUIRED)
         drafts.firstNotNullOfOrNull { it.errors().firstOrNull() }?.let { failMessage(it) }
-        return drafts.map { it.toSchedule(profileId, medicationId, ::randomId) }
+        val now = clock()
+        return drafts.map { draft ->
+            val schedule = draft.toSchedule(profileId, medicationId, ::randomId)
+            val old = previous.firstOrNull { it.scheduleId == schedule.scheduleId }
+            // Doses count from the moment the schedule was created or its times/recurrence last changed.
+            val unchanged = old != null && old.copy(trackedSince = null) == schedule
+            schedule.copy(trackedSince = if (unchanged) old?.trackedSince else now)
+        }
     }
 
     suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>) = operation {
         val data = requireData()
         val medication = findMedication(data, medicationId)
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
-        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
+        val schedules = buildSchedules(data.profile.profileId, medicationId, drafts, medication.schedules)
         repository.updateMedication(
             medication.copy(
                 displayName = name.trim(),
@@ -580,7 +552,11 @@ class AppController(
         if (!REMINDER_TIME.matches(canonicalTime)) failMessage(L10nKey.INVALID_REMINDER_TIME)
         // The editor exposes one reminder time; it replaces the first time of the first schedule.
         val schedules = medication.schedules.mapIndexed { index, schedule ->
-            if (index == 0) schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1)) else schedule
+            if (index == 0 && schedule.timesLocal.firstOrNull() != canonicalTime) {
+                schedule.copy(timesLocal = listOf(canonicalTime) + schedule.timesLocal.drop(1), trackedSince = clock())
+            } else {
+                schedule
+            }
         }
         repository.updateMedication(
             medication.copy(
@@ -599,7 +575,8 @@ class AppController(
         val medication = findMedication(data, medicationId)
         val today = clock().toLocalDateTime(timeZone()).date
         val schedules = if (active) {
-            medication.schedules.map { if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it }
+            // Paused or stopped days are not due: doses count again only from the moment of resuming.
+            medication.schedules.map { (if (it.endDate != null && it.endDate <= today) it.copy(endDate = null) else it).copy(trackedSince = clock()) }
         } else {
             medication.schedules
         }
@@ -744,20 +721,45 @@ class AppController(
     }
 
     /** Backup restore. A profile that already exists is either replaced or the backup is stored under fresh IDs. */
-    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = operation {
-        val exists = repository.profiles.value.any { it.profileId == data.profile.profileId }
-        val toStore = when {
-            !exists -> data.keepingOnlyAvailableSourceFiles(null)
-            mode == RestoreMode.RESTORE_AS_NEW -> data.remappedAsNew(::randomId)
-            else -> data.keepingOnlyAvailableSourceFiles(repository.readProfile(data.profile.profileId))
-        }
-        val vitalsRestored = repository.restoreWithVitals(toStore)
+    suspend fun restoreBackup(data: ProfileData, mode: RestoreMode) = restoreHousehold(listOf(BackupMember(data)), mode)
+
+    /** Restores every profile of a backup, with the original files it carries. */
+    suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = operation {
+        val outcome = repository.restoreMembers(members, mode, sourceStore, ::randomId)
         mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
-        switchProfile(toStore.profile.profileId)
+        switchProfile(outcome.profileIds.first())
         DashboardRefreshSignal.notifyRepositoryChanged()
         mutableState.value = mutableState.value.copy(
-            notice = message(if (vitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
+            notice = message(if (outcome.allVitalsRestored) L10nKey.BACKUP_RESTORED else L10nKey.BACKUP_RESTORED_WITHOUT_VITALS),
         )
+    }
+
+    /**
+     * Every profile with its vitals and original source files, for a household backup. A missing or unreadable file is
+     * left out; loading stops with BACKUP_TOO_LARGE as soon as the originals cannot fit in a backup.
+     */
+    suspend fun householdForBackup(): List<BackupMember> {
+        var encoded = 0L
+        return repository.profiles.value.map { profile ->
+            val data = repository.peekProfile(profile.profileId)
+            val files = mutableMapOf<String, ByteArray>()
+            data.documents.forEach { document ->
+                (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEachIndexed { index, key ->
+                    val fileId = backupFileId(document.documentId, index + 1)
+                    val bytes = try {
+                        sourceStore?.load(document.profileId, fileId, key)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (unreadable: Exception) {
+                        null
+                    } ?: return@forEachIndexed
+                    encoded += (bytes.size + 2L) / 3 * 4
+                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    files[fileId] = bytes
+                }
+            }
+            BackupMember(data, files)
+        }
     }
 
     private suspend fun operation(block: suspend () -> Unit) {
@@ -775,42 +777,6 @@ class AppController(
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
 
-    /**
-     * Bounds come from the reviewer's fields. Reference text and bounds must never disagree:
-     * - edited bounds with unchanged text clear the stale text (the earlier text stays in the revision);
-     * - edited text with untouched bounds recomputes the bounds from it, which only succeeds for exactly one range
-     *   or one-sided `<`, `>`, `≤`, `≥` threshold, and otherwise clears them;
-     * - both edited: the reviewer's bounds and text are kept as typed.
-     * Nothing else is inferred, so a range is never invented.
-     */
-    private fun reviewedRange(
-        original: ReferenceRange,
-        editedText: String?,
-        lowerInput: String,
-        upperInput: String,
-        unit: String,
-        textResult: Boolean,
-    ): ReferenceRange {
-        var text = (editedText ?: original.text)?.trim()?.takeIf { it.isNotEmpty() }
-        if (textResult) return ReferenceRange(text = text)
-        var lower = optionalDouble(lowerInput)
-        var upper = optionalDouble(upperInput)
-        val textChanged = text != original.text
-        val boundsChanged = lower != original.lower || upper != original.upper
-        if (textChanged && !boundsChanged) {
-            val derived = text?.let { OcrTextParser.referenceFromText(it, unit) }
-            lower = derived?.lower
-            upper = derived?.upper
-        } else if (boundsChanged && !textChanged) {
-            text = null
-        }
-        return ReferenceRange(lower, upper, text, unit)
-    }
-
-    private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
-        parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)
-    }
-
     // region L2 records
     /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
     suspend fun readSourceFile(documentId: String): SourceFileRead {
@@ -819,7 +785,7 @@ class AppController(
         val store = sourceStore
         if (keys.isEmpty() || store == null) return SourceFileRead.Missing
         return try {
-            SourceFileRead.Available(document.mediaType, keys.map { store.read(document.profileId, it) ?: return SourceFileRead.Missing })
+            SourceFileRead.Available(document.mediaType, keys.mapIndexed { index, key -> store.load(document.profileId, backupFileId(documentId, index + 1), key) ?: return SourceFileRead.Missing })
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
             throw cancellation
         } catch (error: Throwable) {
@@ -829,13 +795,15 @@ class AppController(
 
     /** Importing the same file again stores it for a document that lost its file (portable restore keeps no files). */
     private suspend fun reattachMissingSourceFile(document: SourceDocument, source: PickedSource) {
-        if (document.vaultKey != null || sourceStore == null) return
-        val stored = newSourceDocument(document.profileId, source, document.sha256)
-        val updated = document.copy(vaultKey = stored.vaultKey, pageVaultKeys = stored.pageVaultKeys)
+        val store = sourceStore
+        if (document.vaultKey != null || store == null) return
+        val saved = mutableListOf<String>()
         try {
-            repository.updateDocument(updated)
+            saved += store.save(document.profileId, document.documentId, source.bytes)
+            source.additionalPages.forEachIndexed { index, page -> saved += store.save(document.profileId, backupFileId(document.documentId, index + 2), page) }
+            repository.updateDocument(document.copy(vaultKey = saved.first(), pageVaultKeys = saved.drop(1)))
         } catch (error: Throwable) {
-            withContext(NonCancellable) { (listOfNotNull(updated.vaultKey) + updated.pageVaultKeys).forEach { sourceStore.discard(it) } }
+            withContext(NonCancellable) { saved.forEach { store.discard(it) } }
             throw error
         }
     }
