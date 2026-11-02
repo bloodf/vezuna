@@ -32,12 +32,12 @@ extension Color {
     static let vezunaTextMuted = adaptive(light: 0x526C74, dark: 0xADC7CE)
     /// Tint for native controls and links: link teal on light (#087F8C fails 4.5:1 as text on paper).
     static let vezunaAction = adaptive(light: 0x076F7B, dark: 0x71E2CC)
+    /// Brand teal as a fill (white label on it); never as text on paper.
+    static let vezunaPrimary = adaptive(light: 0x087F8C, dark: 0x71E2CC)
     static let vezunaOnAction = adaptive(light: 0xFFFFFF, dark: 0x0C2027)
     static let vezunaBorder = adaptive(light: 0x6C878F, dark: 0x72969F)
     static let vezunaDivider = adaptive(light: 0xDCE3DF, dark: 0x35545D)
     static let vezunaFocus = adaptive(light: 0x086A78, dark: 0x71E2CC)
-    /// Teal for text and links (#087F8C is a fill only).
-    static let vezunaLink = adaptive(light: 0x076F7B, dark: 0x71E2CC)
     static let vezunaWarning = adaptive(light: 0x805500, dark: 0xF5CB73)
     static let vezunaDanger = adaptive(light: 0xB3263B, dark: 0xFF9AAA)
     static let vezunaSuccess = adaptive(light: 0x176B50, dark: 0x87DEB4)

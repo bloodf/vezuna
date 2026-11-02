@@ -73,7 +73,8 @@ def kotlin_roles(token_text):
 
 def swift_roles(swift):
     """Role values from VezunaStyle.swift: `vezunaX = adaptive(light:, dark:)` or a single `Color(hex())`."""
-    rename = {"action": "primary", "onAction": "onPrimary"}
+    # vezunaAction tints native controls and links, so it mirrors the link role.
+    rename = {"action": "link", "onAction": "onPrimary"}
     roles = {"light": {}, "dark": {}}
     for name, light, dark in re.findall(r"static let vezuna(\w+) = adaptive\(light: 0x([0-9A-Fa-f]{6}), dark: 0x([0-9A-Fa-f]{6})\)", swift):
         role = rename.get(name[0].lower() + name[1:], name[0].lower() + name[1:])
