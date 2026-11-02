@@ -106,3 +106,5 @@
 "export_tests" = "Tests to include (none selected exports all)";
 "export_date_invalid" = "Enter a valid date as YYYY-MM-DD.";
 "export_date_range_reversed" = "The start date must not be after the end date.";
+"health_no_readings" = "No readings were returned. If you turned off access, change it in Settings > Health > Data Access & Devices > Vezuna.";
+"health_revoke_ios" = "To stop Vezuna reading new data, open Settings > Health > Data Access & Devices > Vezuna. Measurements already saved stay in the linked profile.";
