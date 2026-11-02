@@ -170,29 +170,37 @@ fun FocusedTaskScaffold(
 /**
  * The one place global feedback appears (image 150). Notices are announced politely, errors assertively;
  * neither steals focus. A blocking error must also be shown next to its field, not only here.
+ * The live-region node stays composed while empty: Compose on iOS announces a live region when its label
+ * changes, not when a new node appears (see docs/redesign/A11Y_SPIKE.md).
  */
 @Composable
 fun FeedbackHost(notice: String?, error: String?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    val text = error ?: notice ?: return
+    val text = error ?: notice
     val isError = error != null
-    Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceMd, vertical = VezunaTokens.SpaceSm)
-            .semantics { liveRegion = if (isError) LiveRegionMode.Assertive else LiveRegionMode.Polite },
-        shape = RoundedCornerShape(VezunaTokens.CardRadius),
-        color = if (isError) MaterialTheme.colorScheme.surface else VezunaTokens.Mint,
-        contentColor = if (isError) MaterialTheme.colorScheme.error else VezunaTokens.OnCategory,
-        border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
-        shadowElevation = 2.dp,
+    Box(
+        modifier.fillMaxWidth().semantics(mergeDescendants = true) {
+            liveRegion = if (isError) LiveRegionMode.Assertive else LiveRegionMode.Polite
+        },
     ) {
-        Row(
-            Modifier.padding(start = VezunaTokens.SpaceMd, end = VezunaTokens.SpaceXs, top = VezunaTokens.SpaceXs, bottom = VezunaTokens.SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
+        if (text == null) return@Box
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.SpaceMd, vertical = VezunaTokens.SpaceSm),
+            shape = RoundedCornerShape(VezunaTokens.CardRadius),
+            color = if (isError) MaterialTheme.colorScheme.surface else VezunaTokens.Mint,
+            contentColor = if (isError) MaterialTheme.colorScheme.error else VezunaTokens.OnCategory,
+            border = if (isError) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
+            shadowElevation = 2.dp,
         ) {
-            Icon(painterResource(if (isError) Res.drawable.ic_error else Res.drawable.ic_check_circle), contentDescription = null, modifier = Modifier.size(24.dp))
-            Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(vertical = VezunaTokens.SpaceSmd))
-            IconButton(onClick = onDismiss, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
-                Icon(painterResource(Res.drawable.ic_close), contentDescription = vitaText(L10nKey.DISMISS))
+            Row(
+                Modifier.padding(start = VezunaTokens.SpaceMd, end = VezunaTokens.SpaceXs, top = VezunaTokens.SpaceXs, bottom = VezunaTokens.SpaceXs),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
+            ) {
+                Icon(painterResource(if (isError) Res.drawable.ic_error else Res.drawable.ic_check_circle), contentDescription = null, modifier = Modifier.size(24.dp))
+                Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(vertical = VezunaTokens.SpaceSmd))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
+                    Icon(painterResource(Res.drawable.ic_close), contentDescription = vitaText(L10nKey.DISMISS))
+                }
             }
         }
     }

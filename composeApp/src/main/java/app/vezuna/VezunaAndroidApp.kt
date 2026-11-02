@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
 import androidx.compose.ui.Modifier
@@ -70,8 +71,15 @@ fun VezunaAndroidApp(
     }
     MaterialTheme {
         val context = LocalContext.current
-        val animationsEnabled = remember(context) {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+        // Followed live: turning animations off in system settings applies without restarting the app.
+        val animationsEnabled by produceState(animationScale(context) > 0f, context) {
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    value = animationScale(context) > 0f
+                }
+            }
+            context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+            awaitDispose { context.contentResolver.unregisterContentObserver(observer) }
         }
         // The shared shell owns the window insets: its header and background reach under the status bar.
         VezunaApp(
@@ -159,3 +167,6 @@ fun VezunaAndroidApp(
         }
     }
 }
+
+private fun animationScale(context: android.content.Context): Float =
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)

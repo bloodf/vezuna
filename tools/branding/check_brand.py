@@ -62,8 +62,9 @@ def check_living_color(living, token_text):
         ("onPrimary", "primary"), ("primary", "surface"), ("onPrimary", "focus"),
         # Teal on paper is 4.41:1, so text actions on the page background use the focus teal (Theme.kt primary).
         ("focus", "background"), ("focus", "surface"), ("focus", "surfaceSubtle"),
+        ("link", "background"), ("link", "surface"), ("link", "surfaceSubtle"),
         ("danger", "surface"), ("danger", "background"), ("warning", "surface"), ("success", "surface"), ("info", "surface"),
-        ("onHeader", "header"), ("onHeaderAction", "headerAction"), ("headerAction", "header"),
+        ("onHeader", "header"), ("onHeaderMuted", "header"), ("onHeaderAction", "headerAction"), ("headerAction", "header"),
     ]
     for theme in ("light", "dark"):
         roles = living[theme]
@@ -72,7 +73,7 @@ def check_living_color(living, token_text):
             print(f"CONTRAST living {theme} {foreground}/{background}={measured:.2f}:1")
             assert measured >= 4.5, f"Insufficient text contrast: living {theme} {foreground}/{background} {measured:.2f}"
         for control in ("border", "focus"):
-            for background in ("surface", "background"):
+            for background in ("surface", "background", "surfaceSubtle"):
                 measured = ratio(roles[control], roles[background])
                 print(f"CONTRAST living {theme} {control}/{background}={measured:.2f}:1")
                 assert measured >= 3, f"Insufficient control contrast: living {theme} {control}/{background} {measured:.2f}"
@@ -84,6 +85,14 @@ def check_living_color(living, token_text):
     for background in (living["light"]["header"], living["dark"]["background"]):
         measured = ratio(category["mint"], background)
         assert measured >= 4.5, f"Mint selection on {background} too low: {measured:.2f}"
+    # Chart lines, markers and informative icons are graphics: 3:1 against every surface they sit on.
+    for theme in ("light", "dark"):
+        for name, value in living["series"][theme].items():
+            for background in ("background", "surface"):
+                measured = ratio(value, living[theme][background])
+                print(f"CONTRAST living series {theme} {name}/{background}={measured:.2f}:1")
+                assert measured >= 3, f"Series color too faint: {theme} {name} on {background} {measured:.2f}"
+    # Not measured because they are banned by rule: muted, status or teal text on category fills or the pine band.
 
 
 def main():

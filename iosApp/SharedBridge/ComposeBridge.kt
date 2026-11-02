@@ -59,6 +59,7 @@ import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
@@ -633,7 +634,7 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
                 }
             }
         },
-        animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+        animationsEnabled = !rememberReduceMotion(),
         reminders = IosRuntime.reminderState,
         nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
         startRoute = route?.let(::routeFromName),
@@ -657,11 +658,25 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
         VezunaApp(
             controller = controller,
             scope = IosRuntime.scope,
-            animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+            animationsEnabled = !rememberReduceMotion(),
             nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
             startRoute = route?.let(::routeFromName),
         )
     }
+}
+
+/** Reduce Motion, followed live through its change notification. */
+@androidx.compose.runtime.Composable
+private fun rememberReduceMotion(): Boolean {
+    var reduce by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(platform.UIKit.UIAccessibilityIsReduceMotionEnabled()) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val center = platform.Foundation.NSNotificationCenter.defaultCenter
+        val token = center.addObserverForName(platform.UIKit.UIAccessibilityReduceMotionStatusDidChangeNotification, null, platform.Foundation.NSOperationQueue.mainQueue) { _ ->
+            reduce = platform.UIKit.UIAccessibilityIsReduceMotionEnabled()
+        }
+        onDispose { center.removeObserver(token) }
+    }
+    return reduce
 }
 
 private object NoModelFiles : app.vezuna.llm.ModelFileStore {
