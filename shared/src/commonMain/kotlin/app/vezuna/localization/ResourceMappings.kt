@@ -379,6 +379,9 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.LABS_CLEAR_FILTERS to Res.string.labs_clear_filters,
     L10nKey.LABS_NO_MATCHES to Res.string.labs_no_matches,
     L10nKey.SOURCE_DOCUMENT_NAME to Res.string.source_document_name,
+    L10nKey.REJECTED_FILTER to Res.string.rejected_filter,
+    L10nKey.REJECTED_CANDIDATES_NONE to Res.string.rejected_candidates_none,
+    L10nKey.RESTORE_CANDIDATE to Res.string.restore_candidate,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(

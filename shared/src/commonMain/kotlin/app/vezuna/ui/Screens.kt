@@ -352,6 +352,15 @@ fun ImportReviewScreen(state: AppUiState, controller: AppController, scope: Coro
         }
         ManualResultForm(controller, scope)
         val pending = data.ocrCandidates.filter { it.status == ConfirmationStatus.UNREVIEWED }
+        val rejected = data.ocrCandidates.filter { it.status == ConfirmationStatus.REJECTED }
+        var showRejected by remember { mutableStateOf(false) }
+        if (rejected.isNotEmpty() || showRejected) {
+            FilterChip(selected = showRejected, onClick = { showRejected = !showRejected }, label = { Text("${vitaText(L10nKey.REJECTED_FILTER)} (${rejected.size})") })
+        }
+        if (showRejected) {
+            RejectedCandidates(rejected, controller, scope)
+            return@ScreenColumn
+        }
         SectionHeading(vitaPlural(L10nKey.PENDING_CANDIDATES, pending.size))
         if (pending.isEmpty()) EmptyState(vitaText(L10nKey.NOTHING_AWAITING_REVIEW), vitaText(L10nKey.REVIEW_TRACKING), Icons.Rounded.FactCheck)
         var chosenDates by remember { mutableStateOf(emptyMap<String, kotlinx.datetime.Instant>()) }
@@ -475,5 +484,23 @@ fun ResultDetailScreen(state: AppUiState, observationId: String, controller: App
         VitaButton(vitaText(L10nKey.EDIT_RESULT), Icons.Rounded.Edit, { editing = true }, outlined = true)
         ResultHistory(observation)
         LinkRow(vitaText(L10nKey.BACK_TO_LAB_RECORDS)) { controller.navigate(AppScreen.Labs) }
+    }
+}
+
+@Composable
+private fun RejectedCandidates(rejected: List<app.vezuna.domain.OcrCandidate>, controller: AppController, scope: CoroutineScope) {
+    if (rejected.isEmpty()) InlineNotice(vitaText(L10nKey.REJECTED_CANDIDATES_NONE))
+    rejected.forEach { candidate ->
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(candidate.displayName, style = MaterialTheme.typography.titleMedium)
+                    Text("${candidate.rawValue} ${candidate.rawUnit}".trim(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton({ scope.launch { controller.restoreCandidate(candidate.candidateId) } }, Modifier.defaultMinSize(minHeight = 48.dp)) {
+                    Text(vitaText(L10nKey.RESTORE_CANDIDATE))
+                }
+            }
+        }
     }
 }

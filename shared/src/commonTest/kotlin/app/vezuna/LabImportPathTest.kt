@@ -54,3 +54,33 @@ class LabImportPathTest {
         assertTrue(store.saved.isEmpty())
     }
 }
+
+class RestoreRejectedCandidateTest {
+    private val day = Instant.parse("2026-03-10T12:00:00Z")
+
+    @Test
+    fun rejectedCandidateReturnsToReviewButConfirmedOnesDoNot() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = labController(repository)
+        controller.initialize()
+        controller.importSource(PickedSource("lab.pdf", "application/pdf", "x".encodeToByteArray(), listOf(
+            ExtractedCandidate("HGB", "Hemoglobin", "13.2", "g/dL", collectedAt = day),
+            ExtractedCandidate("K", "Potassium", "4.4", "mmol/L", collectedAt = day),
+        )))
+        val profileId = repository.profiles.value.single().profileId
+        val (first, second) = repository.readProfile(profileId).ocrCandidates
+
+        controller.rejectCandidate(first.candidateId)
+        assertEquals(app.vezuna.domain.ConfirmationStatus.REJECTED, repository.readProfile(profileId).ocrCandidates.first { it.candidateId == first.candidateId }.status)
+
+        controller.restoreCandidate(first.candidateId)
+        assertNull(controller.state.value.error)
+        assertEquals(app.vezuna.domain.ConfirmationStatus.UNREVIEWED, repository.readProfile(profileId).ocrCandidates.first { it.candidateId == first.candidateId }.status)
+
+        controller.restoreCandidate(first.candidateId)
+        assertEquals(L10nKey.CANDIDATE_ALREADY_REVIEWED, (controller.state.value.error as UserText.Key).key)
+        controller.restoreCandidate("missing")
+        assertEquals(L10nKey.CANDIDATE_UNAVAILABLE, (controller.state.value.error as UserText.Key).key)
+        assertEquals(app.vezuna.domain.ConfirmationStatus.UNREVIEWED, repository.readProfile(profileId).ocrCandidates.first { it.candidateId == second.candidateId }.status)
+    }
+}

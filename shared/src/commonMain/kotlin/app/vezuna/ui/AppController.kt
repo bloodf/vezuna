@@ -477,6 +477,16 @@ class AppController(
         loadProfile(data.profile.profileId)
     }
 
+    /** Returns a rejected candidate to review. Only a rejected candidate can be restored; a confirmed one never. */
+    suspend fun restoreCandidate(candidateId: String) = operation {
+        val data = requireData()
+        val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
+            ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
+        if (candidate.status != ConfirmationStatus.REJECTED) failMessage(L10nKey.CANDIDATE_ALREADY_REVIEWED)
+        repository.updateCandidate(candidate.copy(status = ConfirmationStatus.UNREVIEWED))
+        loadProfile(data.profile.profileId)
+    }
+
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) = operation {
         val data = requireData()
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)

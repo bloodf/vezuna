@@ -403,4 +403,7 @@ iOS: %2$s</string>
         <item quantity="other">%1$d resultados</item>
     </plurals>
     <string name="source_document_name">Documento de origem: %1$s</string>
+    <string name="rejected_filter">Rejeitados</string>
+    <string name="rejected_candidates_none">Nenhum candidato rejeitado</string>
+    <string name="restore_candidate">Restaurar para revisão</string>
 </resources>
