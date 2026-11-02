@@ -166,7 +166,10 @@ class SupplyReceiver : BroadcastReceiver() {
             }
             val now = Instant.fromEpochMilliseconds(System.currentTimeMillis())
             val notice = MedicationSupplies.notices(data, now, kotlinx.datetime.TimeZone.currentSystemDefault()).firstOrNull { it.medicationId == medicationId }
-            if (notice != null && notice.lowNow) app.notifications.showLowSupply(medicationId, notice.medicationName, notice.remaining)
+            if (notice != null && notice.lowNow) app.notifications.showLowSupply(
+                medicationId, notice.medicationName, notice.remaining,
+                data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
+            )
             app.notifications.rescheduleAll(app.repository)
         }
     }

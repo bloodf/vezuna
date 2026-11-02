@@ -11,6 +11,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     static let category = "VEZUNA_DOSE_REMINDER"
     static let refreshTaskIdentifier = "app.vezuna.reminders.refresh"
     static let hideNamesKey = "vezuna.hideMedicationNames"
+    static let lowSupplyKey = "vezuna.lowSupplyFireTimes"
     /// Re-plan well before the 60-request budget (about 6 days at 9 doses a day) runs out.
     static let refreshInterval: TimeInterval = 12 * 60 * 60
 
@@ -103,6 +104,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             guard !medications.isEmpty else {
                 let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.dose.") }
                 center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier))
+                await clearLowSupply()
                 IosRuntime.shared.setReminderCoverage(untilEpochSeconds: -1)
                 return
             }
@@ -115,6 +117,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
             guard allowed else {
                 lastError = L10n.text(.notification_permission_off)
+                await clearLowSupply()
                 IosRuntime.shared.setReminderCoverage(untilEpochSeconds: -1)
                 return
             }
@@ -156,7 +159,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
 
     /// Low-supply reminders: the schedule comes from shared code; the fire time stored per key keeps a delivered one from repeating.
     private func planLowSupply(hidden: Bool) async {
-        let storeKey = "vezuna.lowSupplyFireTimes"
+        let storeKey = Self.lowSupplyKey
         let previous = defaults.dictionary(forKey: storeKey) as? [String: Int64] ?? [:]
         do {
             let previousJSON = String(decoding: try JSONSerialization.data(withJSONObject: previous), as: UTF8.self)
@@ -183,10 +186,22 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
+    /// No active medication or no permission: nothing may fire later for a medication that is gone or paused.
+    private func clearLowSupply() async {
+        let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.supply.") }
+        center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier))
+        defaults.removeObject(forKey: Self.lowSupplyKey)
+    }
+
     static func supplyRequest(for notice: LowSupplyNotice, at date: Date, hidingName: Bool, calendar: Calendar) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = L10n.text(.supply_low_title)
-        content.body = hidingName ? L10n.text(.supply_low_generic_text) : L10n.text(.supply_low_text, notice.medicationName, notice.remaining)
+        if hidingName {
+            content.body = L10n.text(.supply_low_generic_text)
+        } else {
+            content.body = notice.lowNow ? L10n.text(.supply_low_text, notice.medicationName, notice.remaining) : L10n.text(.supply_low_soon_text, notice.medicationName)
+            if let profileName = notice.profileName { content.subtitle = L10n.text(.reminder_for_profile, profileName) }
+        }
         content.sound = .default
         content.userInfo = ["medicationId": notice.medicationId, "supplyKey": notice.key]
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)

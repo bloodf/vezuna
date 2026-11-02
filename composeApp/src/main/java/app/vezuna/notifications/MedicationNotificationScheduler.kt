@@ -130,7 +130,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     }
 
     /** Shown by [SupplyReceiver] once the alarm fires; the caller has already confirmed the medication is low. */
-    fun showLowSupply(medicationId: String, medicationName: String, remaining: Int) {
+    fun showLowSupply(medicationId: String, medicationName: String, remaining: Int, profileName: String? = null) {
         val hideName = preferences.hideMedicationNames
         val title = nativeMessage(NativeKey.SUPPLY_LOW_TITLE).resolve(context)
         val generic = nativeMessage(NativeKey.SUPPLY_LOW_GENERIC_TEXT).resolve(context)
@@ -138,6 +138,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(if (hideName) generic else nativeMessage(NativeKey.SUPPLY_LOW_TEXT, medicationName, remaining).resolve(context))
+            .setSubText(profileName?.takeUnless { hideName }?.let { nativeMessage(NativeKey.REMINDER_FOR_PROFILE, it).resolve(context) })
             .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .apply {
                 if (hideName) {

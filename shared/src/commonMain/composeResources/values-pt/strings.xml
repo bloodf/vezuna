@@ -1213,7 +1213,6 @@ iOS: %2$s</string>
     <string name="care_supply_threshold_label">Avisar quando restarem estas unidades (opcional)</string>
     <string name="care_supply_remaining">Unidades restantes: %1$s</string>
     <string name="care_supply_runs_out">Estimativa de acabar em %1$s</string>
-    <string name="care_supply_no_estimate">Não há próximas doses agendadas para estimar.</string>
     <string name="care_supply_low">Estoque baixo</string>
     <string name="care_supply_estimate_note">Estimativa pela agenda e pelas doses registradas como tomadas. Doses puladas ou perdidas não usam uma unidade.</string>
     <string name="care_record_refill">Registrar reposição</string>

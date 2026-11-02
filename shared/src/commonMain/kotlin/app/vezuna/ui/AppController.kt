@@ -534,7 +534,7 @@ class AppController(
         }
     }
 
-    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>, supplyUnits: String? = null, lowThreshold: String = "") = operation {
+    suspend fun updateMedication(medicationId: String, name: String, strength: String, instructions: String, drafts: List<ScheduleDraft>, supplyUnits: String? = null, lowThreshold: String = "", unitsShown: String? = null) = operation {
         val data = requireData()
         val medication = findMedication(data, medicationId)
         if (name.isBlank()) failMessage(L10nKey.MEDICATION_NAME_REQUIRED)
@@ -542,7 +542,7 @@ class AppController(
         // Null leaves the supply untouched (callers that do not edit it); a string, even blank, is the form's value.
         val supply = if (supplyUnits == null) medication.supply else {
             val parsed = parseSupply(supplyUnits, lowThreshold)
-            MedicationSupplies.edited(medication, data.doseEvents, parsed?.first, parsed?.second, clock())
+            MedicationSupplies.edited(medication, data.doseEvents, parsed?.first, parsed?.second, clock(), unitsShown?.trim()?.toIntOrNull())
         }
         repository.updateMedication(
             medication.copy(
@@ -562,6 +562,7 @@ class AppController(
         val medication = findMedication(data, medicationId)
         val units = added.trim().toIntOrNull()?.takeIf { it in 1..MAX_SUPPLY } ?: failMessage(L10nKey.SUPPLY_REFILL_INVALID)
         if (medication.supply == null) failMessage(L10nKey.SUPPLY_NOT_TRACKED)
+        if ((MedicationSupplies.remaining(medication, data.doseEvents) ?: 0) + units > MAX_SUPPLY) failMessage(L10nKey.SUPPLY_REFILL_INVALID)
         repository.updateMedication(medication.copy(supply = MedicationSupplies.refilled(medication, data.doseEvents, units, clock())))
         loadProfile(data.profile.profileId)
     }

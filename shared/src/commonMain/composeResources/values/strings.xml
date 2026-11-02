@@ -1213,7 +1213,6 @@ iOS: %2$s</string>
     <string name="care_supply_threshold_label">Remind me when this many are left (optional)</string>
     <string name="care_supply_remaining">Units left: %1$s</string>
     <string name="care_supply_runs_out">Estimated to run out on %1$s</string>
-    <string name="care_supply_no_estimate">No upcoming scheduled doses to estimate from.</string>
     <string name="care_supply_low">Low supply</string>
     <string name="care_supply_estimate_note">Estimate from the schedule and the doses you record as taken. Skipped and missed doses do not use a unit.</string>
     <string name="care_record_refill">Record refill</string>

@@ -11,6 +11,7 @@ import app.vezuna.domain.MedicationSupply
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
+import app.vezuna.domain.withMedication
 import app.vezuna.llm.InstalledModel
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LlmGenerationSettings
@@ -39,6 +40,7 @@ class MedicationSupplyTest {
     private val counted = Instant.parse("2026-11-01T08:00:00Z")
     private val now = Instant.parse("2026-11-02T10:00:00Z")
     private val today = LocalDate(2026, 11, 2)
+    private val early = Instant.parse("2026-11-02T06:00:00Z") // before the 08:00 dose
 
     private fun schedule(recurrence: Recurrence = Recurrence.DAILY, times: List<String> = listOf("08:00"), interval: Int = 1, days: Set<DayOfWeek> = emptySet()) =
         DoseSchedule("p", "s", "m", recurrence, interval, days, LocalDate(2026, 10, 1), null, times)
@@ -79,18 +81,58 @@ class MedicationSupplyTest {
 
     @Test
     fun runOutDateFollowsTheScheduleRecurrence() {
-        assertEquals(LocalDate(2026, 11, 7), MedicationSupplies.runOutDate(medication(), 6, today))
-        assertEquals(LocalDate(2026, 11, 4), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(times = listOf("08:00", "20:00")))), 6, today))
-        assertEquals(LocalDate(2026, 11, 6), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(Recurrence.EVERY_N_DAYS, interval = 2))), 3, today))
+        assertEquals(LocalDate(2026, 11, 7), MedicationSupplies.runOutDate(medication(), 6, early, zone))
+        assertEquals(LocalDate(2026, 11, 4), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(times = listOf("08:00", "20:00")))), 6, early, zone))
+        assertEquals(LocalDate(2026, 11, 6), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(Recurrence.EVERY_N_DAYS, interval = 2))), 3, early, zone))
         // Mondays only: 2026-11-02 is a Monday, so 2 units last through the following Monday.
-        assertEquals(LocalDate(2026, 11, 9), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(Recurrence.WEEKLY, days = setOf(DayOfWeek.MONDAY)))), 2, today))
+        assertEquals(LocalDate(2026, 11, 9), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(Recurrence.WEEKLY, days = setOf(DayOfWeek.MONDAY)))), 2, early, zone))
+    }
+
+    @Test
+    fun todaysDosesAlreadyPastAreNotCountedAhead() {
+        // 10:00: the 08:00 dose is behind, so 6 units last through the dose on 2026-11-08.
+        assertEquals(LocalDate(2026, 11, 8), MedicationSupplies.runOutDate(medication(), 6, now, zone))
+        assertEquals(LocalDate(2026, 11, 5), MedicationSupplies.runOutDate(medication(schedules = listOf(schedule(times = listOf("08:00", "20:00")))), 6, now, zone))
+        // Dose taken this morning (remaining 3 of 4, threshold 2): not low yet, notice waits for tomorrow.
+        val taken = ProfileData(
+            Profile("p", "Me", createdAt = counted),
+            medications = listOf(medication(units = 4, threshold = 2)),
+            doseEvents = listOf(event("t", DoseEventStatus.TAKEN, at = Instant.parse("2026-11-02T08:00:00Z"))),
+        )
+        val notice = MedicationSupplies.notices(taken, now, zone).single()
+        assertEquals(3, notice.remaining)
+        assertEquals(false, notice.lowNow)
+        assertEquals(Instant.parse("2026-11-03T09:00:00Z"), notice.fireAt)
+    }
+
+    @Test
+    fun removingAScheduleKeepsItsTakenDosesCountedAsUsed() {
+        val extra = schedule().copy(scheduleId = "s2")
+        val m = medication(units = 10, schedules = listOf(schedule(), extra))
+        val data = ProfileData(
+            Profile("p", "Me", createdAt = counted),
+            medications = listOf(m),
+            doseEvents = listOf(event("a", DoseEventStatus.TAKEN), event("b", DoseEventStatus.TAKEN).copy(scheduleId = "s2")),
+        )
+        assertEquals(8, MedicationSupplies.remaining(m, data.doseEvents))
+        val after = data.withMedication(m.copy(schedules = listOf(schedule())))
+        assertEquals(8, MedicationSupplies.remaining(after.medications.single(), after.doseEvents))
+    }
+
+    @Test
+    fun unchangedUnitsAreComparedWithWhatTheFormShowed() {
+        val m = medication(units = 10)
+        val takenWhileOpen = listOf(event("t", DoseEventStatus.TAKEN))
+        // The form showed 10; a dose was taken meanwhile; saving "10" keeps the count start, so the dose stays counted.
+        val saved = MedicationSupplies.edited(m, takenWhileOpen, 10, null, now, shown = 10)
+        assertEquals(counted, saved?.countedAt)
     }
 
     @Test
     fun noEstimateWhenPausedUnscheduledOrEnded() {
-        assertNull(MedicationSupplies.runOutDate(medication(active = false), 5, today))
-        assertNull(MedicationSupplies.runOutDate(medication(schedules = emptyList()), 5, today))
-        assertNull(MedicationSupplies.runOutDate(medication(schedules = listOf(schedule().copy(endDate = LocalDate(2026, 11, 3)))), 5, today))
+        assertNull(MedicationSupplies.runOutDate(medication(active = false), 5, now, zone))
+        assertNull(MedicationSupplies.runOutDate(medication(schedules = emptyList()), 5, now, zone))
+        assertNull(MedicationSupplies.runOutDate(medication(schedules = listOf(schedule().copy(endDate = LocalDate(2026, 11, 3)))), 5, now, zone))
     }
 
     @Test
@@ -99,7 +141,7 @@ class MedicationSupplyTest {
         val notice = MedicationSupplies.notices(data, now, zone).single()
         assertEquals(false, notice.lowNow)
         // 10 units, daily at 08:00: the 7th dose from 2026-11-02 brings it to 3 on 2026-11-08; 09:00 local.
-        assertEquals(Instant.parse("2026-11-08T09:00:00Z"), notice.fireAt)
+        assertEquals(Instant.parse("2026-11-09T09:00:00Z"), notice.fireAt)
         assertEquals(now.epochSeconds + 60, MedicationSupplies.fireTime(notice.copy(lowNow = true, fireAt = now), null, now))
 
         val low = ProfileData(Profile("p", "Me", createdAt = counted), medications = listOf(medication(units = 3, threshold = 3)))
@@ -181,6 +223,14 @@ class MedicationSupplyTest {
         controller.recordRefill(id, "5")
         assertEquals(L10nKey.SUPPLY_NOT_TRACKED, (controller.state.value.error as? UserText.Key)?.key)
         assertNotNull(repository.readProfile("p").medications.single())
+    }
+
+    @Test
+    fun refillAboveTheLimitIsRejected() = runTest {
+        val (repository, controller, id) = controllerWithMedication()
+        controller.recordRefill(id, "100000")
+        assertEquals(L10nKey.SUPPLY_REFILL_INVALID, (controller.state.value.error as? UserText.Key)?.key)
+        assertEquals(20, repository.readProfile("p").medications.single().supply?.unitsOnHand)
     }
 
     private object NoModels : ModelFileStore {

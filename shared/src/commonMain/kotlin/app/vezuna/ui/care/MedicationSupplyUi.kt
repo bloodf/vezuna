@@ -29,20 +29,18 @@ import app.vezuna.ui.components.SecondaryButton
 import app.vezuna.ui.components.SectionHeading
 import app.vezuna.ui.components.TertiaryButton
 import app.vezuna.ui.nav.RouteContext
-import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
 
 /** Supply count, estimated run-out date and the refill action. Shown only for a medication that tracks supply. */
 @Composable
 internal fun SupplySection(ctx: RouteContext, medication: Medication) {
     val data = ctx.state.data ?: return
-    val supply = medication.supply ?: return
+    if (medication.supply == null) return
     val remaining = MedicationSupplies.remaining(medication, data.doseEvents) ?: return
-    val today = currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date
-    val runOut = MedicationSupplies.runOutDate(medication, remaining, today)
+    val zone = TimeZone.currentSystemDefault()
+    val runOut = MedicationSupplies.runOutDate(medication, remaining, currentInstant(), zone)
     var refilling by remember { mutableStateOf(false) }
     var added by remember { mutableStateOf("") }
     val busy = ctx.state.loading
@@ -52,11 +50,7 @@ internal fun SupplySection(ctx: RouteContext, medication: Medication) {
         GroupedRows {
             val left = vitaText(L10nKey.CARE_SUPPLY_REMAINING, remaining)
             ListRow(left, supporting = if (low) vitaText(L10nKey.CARE_SUPPLY_LOW) else null, category = Category.CARE)
-            ListRow(
-                runOut?.let { vitaText(L10nKey.CARE_SUPPLY_RUNS_OUT, formatUiDate(it.atTime(12, 0).toInstant(TimeZone.UTC))) }
-                    ?: vitaText(L10nKey.CARE_SUPPLY_NO_ESTIMATE),
-                category = Category.CARE,
-            )
+            runOut?.let { ListRow(vitaText(L10nKey.CARE_SUPPLY_RUNS_OUT, formatUiDate(it.atTime(12, 0).toInstant(zone))), category = Category.CARE) }
         }
         Text(vitaText(L10nKey.CARE_SUPPLY_ESTIMATE_NOTE), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (refilling) {

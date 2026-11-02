@@ -495,6 +495,7 @@ object IosRuntime {
                                     "medicationId" to JsonPrimitive(notice.medicationId),
                                     "medicationName" to JsonPrimitive(notice.medicationName),
                                     "remaining" to JsonPrimitive(notice.remaining),
+                                    "lowNow" to JsonPrimitive(notice.lowNow),
                                     "fireEpochSeconds" to (MedicationSupplies.fireTime(notice, previous[notice.key], now)?.let { JsonPrimitive(it) } ?: JsonNull),
                                     "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
                                 ),

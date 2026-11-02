@@ -121,7 +121,7 @@ final class ReminderPlanningTests: XCTestCase {
     }
 
     func testLowSupplyNoticeDecodesAndSchedulesOneRequestPerMedication() throws {
-        let json = #"[{"key":"m|1|3","profileId":"p","medicationId":"m","medicationName":"Vitamin D","remaining":3,"fireEpochSeconds":1793610000,"profileName":null},{"key":"n|1|3","profileId":"p","medicationId":"n","medicationName":"X","remaining":2,"fireEpochSeconds":null,"profileName":null}]"#
+        let json = #"[{"key":"m|1|3","profileId":"p","medicationId":"m","medicationName":"Vitamin D","remaining":3,"lowNow":true,"fireEpochSeconds":1793610000,"profileName":null},{"key":"n|1|3","profileId":"p","medicationId":"n","medicationName":"X","remaining":2,"lowNow":false,"fireEpochSeconds":null,"profileName":null}]"#
         let notices = try JSONDecoder().decode([LowSupplyNotice].self, from: Data(json.utf8))
         XCTAssertEqual(notices.map(\.identifier), ["vezuna.supply.m", "vezuna.supply.n"])
         XCTAssertNil(notices[1].fireEpochSeconds)

@@ -751,7 +751,6 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.CARE_SUPPLY_THRESHOLD_LABEL to Res.string.care_supply_threshold_label,
     L10nKey.CARE_SUPPLY_REMAINING to Res.string.care_supply_remaining,
     L10nKey.CARE_SUPPLY_RUNS_OUT to Res.string.care_supply_runs_out,
-    L10nKey.CARE_SUPPLY_NO_ESTIMATE to Res.string.care_supply_no_estimate,
     L10nKey.CARE_SUPPLY_LOW to Res.string.care_supply_low,
     L10nKey.CARE_SUPPLY_ESTIMATE_NOTE to Res.string.care_supply_estimate_note,
     L10nKey.CARE_RECORD_REFILL to Res.string.care_record_refill,

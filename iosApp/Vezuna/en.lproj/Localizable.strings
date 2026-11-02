@@ -59,3 +59,4 @@
 "supply_low_title" = "Low supply";
 "supply_low_text" = "%1$@: %2$d left";
 "supply_low_generic_text" = "A medication is running low";
+"supply_low_soon_text" = "%@ is running low";

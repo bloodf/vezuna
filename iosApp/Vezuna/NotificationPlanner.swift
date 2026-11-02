@@ -149,6 +149,8 @@ struct LowSupplyNotice: Codable, Equatable {
     let medicationId: String
     let medicationName: String
     let remaining: Int
+    /// False for a projected notice: its count may be stale by delivery time, so the wording carries none.
+    let lowNow: Bool
     let fireEpochSeconds: Int64?
     let profileName: String?
 

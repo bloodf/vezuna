@@ -57,7 +57,8 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
     var strength by rememberSaveable { mutableStateOf(medication?.strength.orEmpty()) }
     var instructions by rememberSaveable { mutableStateOf(medication?.instructions.orEmpty()) }
     val data = ctx.state.data
-    var supplyUnits by rememberSaveable { mutableStateOf(medication?.let { m -> data?.let { MedicationSupplies.remaining(m, it.doseEvents) } }?.toString().orEmpty()) }
+    val unitsShown = remember { medication?.let { m -> data?.let { MedicationSupplies.remaining(m, it.doseEvents) } }?.toString() }
+    var supplyUnits by rememberSaveable { mutableStateOf(unitsShown.orEmpty()) }
     var lowThreshold by rememberSaveable { mutableStateOf(medication?.supply?.lowThreshold?.toString().orEmpty()) }
     var drafts by remember { mutableStateOf(medication?.schedules?.map(ScheduleDraft::from)?.ifEmpty { null } ?: listOf(ScheduleDraft(startDate = today))) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
@@ -73,7 +74,7 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
         }
         ctx.runThenAnnounce(UserText.Key(L10nKey.CARE_MEDICATION_SAVED, listOf(name.trim()))) {
             if (medication == null) ctx.controller.addMedication(name, strength, instructions, drafts, supplyUnits, lowThreshold)
-            else ctx.controller.updateMedication(medication.medicationId, name, strength, instructions, drafts, supplyUnits, lowThreshold)
+            else ctx.controller.updateMedication(medication.medicationId, name, strength, instructions, drafts, supplyUnits, lowThreshold, unitsShown)
             if (ctx.controller.state.value.error == null) ctx.back()
         }
     }
