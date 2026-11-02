@@ -484,6 +484,43 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_DATE_INVALID to Res.string.export_date_invalid,
     L10nKey.EXPORT_DATE_RANGE_REVERSED to Res.string.export_date_range_reversed,
     L10nKey.EXPORT_NO_MATCHING_RESULTS to Res.string.export_no_matching_results,
+    // region L1 Today, onboarding, profiles
+    L10nKey.TODAY_SCHEDULED_FOR to Res.string.today_scheduled_for,
+    L10nKey.TODAY_MARK_TAKEN to Res.string.today_mark_taken,
+    L10nKey.TODAY_DOSE_TAKEN to Res.string.today_dose_taken,
+    L10nKey.TODAY_DOSE_SKIPPED to Res.string.today_dose_skipped,
+    L10nKey.TODAY_DOSE_SNOOZED to Res.string.today_dose_snoozed,
+    L10nKey.TODAY_NO_UPCOMING_DOSE to Res.string.today_no_upcoming_dose,
+    L10nKey.TODAY_RECENT_RECORDS to Res.string.today_recent_records,
+    L10nKey.TODAY_REPORT_CONFIRMED to Res.string.today_report_confirmed,
+    L10nKey.TODAY_ADD_RECORD to Res.string.today_add_record,
+    L10nKey.TODAY_SAVED_ON_DEVICE to Res.string.today_saved_on_device,
+    L10nKey.TODAY_EMPTY_TITLE to Res.string.today_empty_title,
+    L10nKey.TODAY_EMPTY_BODY to Res.string.today_empty_body,
+    L10nKey.TODAY_IMPORT_REPORT to Res.string.today_import_report,
+    L10nKey.WELCOME_TITLE to Res.string.welcome_title,
+    L10nKey.WELCOME_BODY to Res.string.welcome_body,
+    L10nKey.WELCOME_RESTORE to Res.string.welcome_restore,
+    L10nKey.FIRST_PROFILE_TITLE to Res.string.first_profile_title,
+    L10nKey.FIRST_PROFILE_SUBTITLE to Res.string.first_profile_subtitle,
+    L10nKey.FIRST_PROFILE_QUESTION to Res.string.first_profile_question,
+    L10nKey.FIRST_PROFILE_HINT to Res.string.first_profile_hint,
+    L10nKey.FIRST_PROFILE_CREATE to Res.string.first_profile_create,
+    L10nKey.BIRTH_DATE_OPTIONAL to Res.string.birth_date_optional,
+    L10nKey.BIRTH_DATE_SELECT to Res.string.birth_date_select,
+    L10nKey.PROFILES_TITLE to Res.string.profiles_title,
+    L10nKey.PROFILES_SUBTITLE to Res.string.profiles_subtitle,
+    L10nKey.PROFILE_CURRENT to Res.string.profile_current,
+    L10nKey.PROFILE_EDIT_TITLE to Res.string.profile_edit_title,
+    L10nKey.PROFILE_SAVE to Res.string.profile_save,
+    L10nKey.PROFILE_SAVED to Res.string.profile_saved,
+    L10nKey.PROFILE_CREATED to Res.string.profile_created,
+    L10nKey.PROFILE_DELETED to Res.string.profile_deleted,
+    L10nKey.PROFILE_DELETE_TITLE to Res.string.profile_delete_title,
+    L10nKey.PROFILE_DELETE_TYPE_NAME to Res.string.profile_delete_type_name,
+    L10nKey.PROFILE_LAST_TITLE to Res.string.profile_last_title,
+    L10nKey.PROFILE_LAST_BODY to Res.string.profile_last_body,
+    // endregion L1
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
@@ -494,6 +531,9 @@ private val pluralResources = mapOf<L10nKey, PluralStringResource>(
     L10nKey.UNREVIEWED_CANDIDATES_ADDED to Res.plurals.unreviewed_candidates_added,
     L10nKey.VITALS_CHART_ACCESSIBILITY to Res.plurals.vitals_chart_accessibility,
     L10nKey.LABS_RESULT_COUNT to Res.plurals.labs_result_count,
+    // region L1
+    L10nKey.TODAY_VALUES_TO_REVIEW to Res.plurals.today_values_to_review,
+    // endregion L1
 )
 
 @Composable

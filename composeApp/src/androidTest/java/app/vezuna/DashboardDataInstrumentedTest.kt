@@ -155,7 +155,7 @@ class DashboardDataInstrumentedTest {
             assertTrue(snoozed.scheduledFor.epochSeconds - snoozed.recordedAt!!.epochSeconds == 600L)
             await("real snooze alarm") { findAlarm(context, medicationId, scheduleId, snoozed.scheduledFor.epochSeconds) != null }
 
-            clickText(device, "Taken")
+            clickText(device, "Mark as taken")
             await("taken snoozed dose") {
                 repository.readProfile(profileId).doseEvents.any {
                     it.scheduleId == scheduleId && it.scheduledFor == snoozed.scheduledFor && it.status == DoseEventStatus.TAKEN
@@ -171,7 +171,7 @@ class DashboardDataInstrumentedTest {
                 kotlinx.datetime.Instant.fromEpochMilliseconds(nextDose.toEpochMilli()),
             )
             assertTrue("Home did not advance to the next dose", scrollTo(device, nextDoseLabel))
-            assertTrue(device.wait(Until.hasObject(By.text(nextDoseLabel)), 5_000))
+            assertTrue(device.wait(Until.hasObject(By.textContains(nextDoseLabel)), 5_000))
 
             clickText(device, "Skip")
             await("skipped next dose") {
@@ -179,20 +179,10 @@ class DashboardDataInstrumentedTest {
             }
             scrollTo(device, "30-day adherence")
             assertTrue(device.wait(Until.hasObject(By.textContains("50%")), 5_000))
-            scrollTo(device, "Recent lab results")
-            repeat(3) {
-                if (device.hasObject(By.text("Hemoglobin"))) return@repeat
-                device.swipe(device.displayWidth / 2, (device.displayHeight * 0.62).toInt(), device.displayWidth / 2, (device.displayHeight * 0.42).toInt(), 100)
-                device.waitForIdle()
-            }
+            scrollTo(device, "Recent records")
             device.takeScreenshot(java.io.File(directory, "dashboard-labs.png"))
-            assertTrue(device.wait(Until.hasObject(By.text("Hemoglobin")), 3_000))
-            assertTrue("Reference row not found", swipeTo(device, "Reference:"))
-            assertTrue(device.wait(Until.hasObject(By.textContains("Reference:")), 3_000))
-            assertTrue("Trend action not found", swipeTo(device, "Increase"))
-            assertTrue(device.wait(Until.hasObject(By.textContains("Increase")), 3_000))
-            assertTrue("Review notice not found", swipeTo(device, "1 candidate needs your confirmation"))
-            assertTrue(device.wait(Until.hasObject(By.textContains("1 candidate needs your confirmation")), 3_000))
+            assertTrue("Confirmed report not listed", swipeTo(device, "Confirmed"))
+            assertTrue("Review panel not found", scrollTo(device, "1 value to review"))
             device.takeScreenshot(java.io.File(directory, "dashboard-labs.png"))
 
             repository.createProfile(Profile("dashboard-empty-$suffix", emptyName, createdAt = nowKotlin))

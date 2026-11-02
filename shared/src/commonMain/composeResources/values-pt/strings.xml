@@ -508,4 +508,45 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Informe uma data válida no formato AAAA-MM-DD.</string>
     <string name="export_date_range_reversed">A data inicial não pode ser posterior à data final.</string>
     <string name="export_no_matching_results">Nenhum resultado confirmado corresponde a estas opções; a exportação ficaria sem resultados.</string>
+    <!-- region L1 Today, onboarding, profiles -->
+    <string name="today_scheduled_for">Agendada para %1$s</string>
+    <string name="today_mark_taken">Marcar como tomada</string>
+    <string name="today_dose_taken">%1$s marcada como tomada</string>
+    <string name="today_dose_skipped">%1$s pulada</string>
+    <string name="today_dose_snoozed">%1$s adiada por 10 minutos</string>
+    <string name="today_no_upcoming_dose">Nenhuma dose agendada</string>
+    <plurals name="today_values_to_review">
+        <item quantity="one">%1$d valor para revisar</item>
+        <item quantity="other">%1$d valores para revisar</item>
+    </plurals>
+    <string name="today_recent_records">Registros recentes</string>
+    <string name="today_report_confirmed">%1$s · Confirmado</string>
+    <string name="today_add_record">Adicionar registro</string>
+    <string name="today_saved_on_device">Salvo neste dispositivo</string>
+    <string name="today_empty_title">Comece com um registro</string>
+    <string name="today_empty_body">Mantenha as informações de saúde da sua casa em um só lugar, offline.</string>
+    <string name="today_import_report">Importar um laudo</string>
+    <string name="welcome_title">Sua saúde, em um só lugar.</string>
+    <string name="welcome_body">Registros, rotinas e perfis da família, guardados no seu dispositivo.</string>
+    <string name="welcome_restore">Restaurar um backup</string>
+    <string name="first_profile_title">Crie seu primeiro perfil</string>
+    <string name="first_profile_subtitle">Mantenha a saúde da sua casa organizada, offline e em um só lugar.</string>
+    <string name="first_profile_question">Para quem são estes registros?</string>
+    <string name="first_profile_hint">Registros separados para cada pessoa.</string>
+    <string name="first_profile_create">Criar perfil</string>
+    <string name="birth_date_optional">Data de nascimento (opcional)</string>
+    <string name="birth_date_select">Selecionar data</string>
+    <string name="profiles_title">Perfis</string>
+    <string name="profiles_subtitle">Adicione e gerencie perfis para todos da sua casa.</string>
+    <string name="profile_current">Atual</string>
+    <string name="profile_edit_title">Editar perfil</string>
+    <string name="profile_save">Salvar alterações</string>
+    <string name="profile_saved">Perfil salvo</string>
+    <string name="profile_created">%1$s adicionado</string>
+    <string name="profile_deleted">%1$s excluído</string>
+    <string name="profile_delete_title">Excluir o perfil de %1$s?</string>
+    <string name="profile_delete_type_name">Digite %1$s para confirmar</string>
+    <string name="profile_last_title">Mantenha pelo menos um perfil.</string>
+    <string name="profile_last_body">Adicione outro perfil antes de excluir este.</string>
+    <!-- endregion L1 -->
 </resources>
