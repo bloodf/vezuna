@@ -48,7 +48,7 @@ class ExportModelAndPromptTest {
             observations = listOf(observation("one"), observation("other").copy(profileId = "other", displayName = "Other profile secret")),
         )
         val content = DoctorExportContent.lines(data).joinToString("\n")
-        assertTrue(content.contains("130.0 g/L"))
+        assertTrue(content.contains("130 g/L"))
         assertTrue(content.contains("120–140"))
         assertTrue(content.contains("Confirmed laboratory results"))
         assertFalse(content.contains("Other profile secret"))
