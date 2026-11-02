@@ -7,13 +7,16 @@ import app.vezuna.localization.ContentLanguage
  * value when the label fits at 11 pt, the source reference as a band/dashed line (shared bounds) or per-reading bars.
  */
 internal class PdfHistoryChart(private val pen: PdfPen, private val language: ContentLanguage) {
+    private val referenceLabel = ExportText.of(language).recordedReference
+
     data class Result(val height: Double, val labelsOmitted: Boolean)
 
     private data class Label(val text: String, val left: Double, val top: Double, val width: Double)
 
     fun height(): Double = UNIT_ROW + PLOT_HEIGHT + DATE_ROW
 
-    fun draw(series: DoctorTrendSeries, left: Double, top: Double, width: Double): Result {
+    /** [decimals] prints each dot as recorded (13.0, not 13); null prints the shortest exact value. */
+    fun draw(series: DoctorTrendSeries, left: Double, top: Double, width: Double, decimals: Int? = null): Result {
         val geometry = DoctorChartGeometryFactory.create(series)
         val size = PdfStyle.LABEL
         val tickLabels = geometry.ticks.map { DoctorReportFormat.value(it, language) }
@@ -41,7 +44,7 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
         }
 
         val values = points.map { (point, px, py) ->
-            val text = DoctorReportFormat.value(point.point.value, language)
+            val text = DoctorReportFormat.recorded(point.point.value, decimals, language)
             val textWidth = pen.measure(text, size, bold = true)
             val above = py - 7.0 - size * 1.15
             val labelTop = if (above < plotTop - 2.0) py + 7.0 else above
@@ -79,6 +82,7 @@ internal class PdfHistoryChart(private val pen: PdfPen, private val language: Co
             val bandBottom = lower?.let(y) ?: plotBottom
             if (lower != null && upper != null) pen.rect(plotLeft, bandTop, plotRight - plotLeft, bandBottom - bandTop, PdfStyle.BAND)
             listOfNotNull(lower, upper).forEach { pen.dashed(plotLeft, plotRight, y(it), PdfStyle.MUTED, 1.0) }
+            pen.text(referenceLabel, plotLeft + 6.0, (upper ?: lower!!).let(y) + 3.0, PdfStyle.LABEL, PdfStyle.MUTED)
             return
         }
         // Reports disagree: a bar per reading at its own date, never one misleading band.

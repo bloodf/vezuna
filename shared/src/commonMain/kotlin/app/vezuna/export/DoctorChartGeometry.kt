@@ -53,8 +53,13 @@ object DoctorChartGeometryFactory {
         val rawMaximum = values.maxOrNull()!!
         val padding = if (rawMinimum == rawMaximum) max(1.0, abs(rawMinimum) * 0.05) else 0.0
         val step = niceStep((rawMaximum + padding) - (rawMinimum - padding))
-        val low = floor((rawMinimum - padding) / step) * step
-        val high = ceil((rawMaximum + padding) / step) * step
+        val dataMinimum = points.minOf { it.point.value }
+        val dataMaximum = points.maxOf { it.point.value }
+        var low = floor((rawMinimum - padding) / step) * step
+        var high = ceil((rawMaximum + padding) / step) * step
+        // A reference line exactly on the frame would vanish into the axis: give it one step of room.
+        if (low == rawMinimum && rawMinimum < dataMinimum) low -= step
+        if (high == rawMaximum && rawMaximum > dataMaximum) high += step
         val ticks = generateSequence(low) { it + step }.takeWhile { it <= high + step / 2 }.map { round(it, step) }.toList()
         return DoctorChartGeometry(low, high, points, ticks)
     }

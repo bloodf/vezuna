@@ -24,7 +24,8 @@ class JvmPdfExporterTest {
 
     @Test
     fun canonicalHistoryPrintsEveryValueComparisonAndScopeAsText() {
-        val text = PdfFixtures.pageTexts(canonical).joinToString("\n")
+        // Wrapped cells break lines; compare on single-spaced text.
+        val text = PdfFixtures.pageTexts(canonical).joinToString(" ").replace(Regex("\\s+"), " ")
         listOf(
             "Laboratory history", "Ana Silva", "Date of birth: 18 May 1988",
             "Collection period: 12 Apr 2026 – 28 Oct 2026",
@@ -187,6 +188,19 @@ class JvmPdfExporterTest {
         assertTrue("Por encima del rango del informe" in text(ContentLanguage.ES))
     }
 
+    @Test
+    fun comparisonsComeFromTheTrendsEngineAndSameDayIsNamed() {
+        val hgb = DoctorExamSections.from(PdfFixtures.document()).single { it.testCode == "HGB" }
+        val comparison = hgb.comparison!!
+        assertEquals(app.vezuna.domain.trends.ComparisonStatus.COMPARABLE, comparison.status)
+        assertEquals(0.2, comparison.sinceFirst!!.delta, 1e-9)
+        assertEquals(LocalDate(2026, 7, 15), comparison.sincePrevious!!.fromDate)
+        val base = PdfFixtures.canonical()
+        val sameDay = base.copy(observations = base.observations + base.observations.first { it.observationId == "tsh-2026-10" }.copy(observationId = "tsh-repeat", originalValue = 2.3, normalizedValue = 2.3))
+        val text = PdfFixtures.pageTexts(PdfFixtures.pdfBytes(PdfFixtures.document(sameDay))).joinToString("\n")
+        assertTrue("All results share one collection date" in text, "no time trend for one date")
+    }
+
     private fun positions(bytes: ByteArray): List<Pair<Float, TextPosition>> = PdfFixtures.open(bytes) { pdf ->
         val found = mutableListOf<Pair<Float, TextPosition>>()
         object : PDFTextStripper() {
@@ -218,5 +232,20 @@ class PdfSampleWriterTest {
             "vezuna-lab-history-long.pdf" to PdfFixtures.document(PdfFixtures.longHistory(120)),
         )
         samples.forEach { (name, document) -> File(directory, name).writeBytes(PdfFixtures.pdfBytes(document)) }
+    }
+}
+
+class JvmPdfExporterSourceTest {
+    @Test
+    fun headerNamesTheLaboratoryAndOrderDate() {
+        val row = DoctorResultRow(
+            Instant.parse("2026-03-05T08:30:00Z"), "Hemoglobina", "HGB", 17.5, "g/dL", 175.0, "g/L", ReferenceRange(12.0, 15.5, unit = "g/dL"),
+            app.vezuna.domain.RangeAssessment.ABOVE, laboratoryName = "Lab Central", orderedAt = Instant.parse("2026-03-01T12:00:00Z"),
+        )
+        val document = DoctorPdfDocument("Report", emptyList(), profileDisplayName = "Ana", resultRows = listOf(row))
+        val pdf = PdfFixtures.pageTexts(NativePdfExporter().export(document).bytes).joinToString("\n")
+        assertTrue(pdf.contains("Laboratories: Lab Central") && pdf.contains("ordered 01 Mar 2026"), "lab name missing from PDF")
+        assertEquals("Laboratories: Lab Central (ordered 01 Mar 2026)", app.vezuna.export.DoctorReportFormat.sources(listOf(row)))
+        assertEquals(null, app.vezuna.export.DoctorReportFormat.sources(listOf(row.copy(laboratoryName = null, orderedAt = null))))
     }
 }

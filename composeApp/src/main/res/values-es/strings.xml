@@ -47,6 +47,9 @@
     <string name="import_source_title">Importar una fuente de laboratorio</string>
     <string name="import_source_message">El reconocimiento de texto de cámara, imágenes y PDF se procesa en este dispositivo.</string>
     <string name="take_photo">Tomar foto</string>
+    <string name="add_another_photo">Añadir página</string>
+    <string name="photos_done">Usar estas fotos</string>
+    <string name="photo_added_message">Fotos en este informe: %1$d. ¿Añadir otra página?</string>
     <string name="choose_image">Elegir imagen</string>
     <string name="choose_pdf">Elegir PDF</string>
     <string name="source_too_large">La fuente supera el límite de importación de 64 MB.</string>

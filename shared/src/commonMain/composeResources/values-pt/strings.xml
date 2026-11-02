@@ -304,8 +304,8 @@ iOS: %2$s</string>
         <item quantity="other">%1$d candidatos precisam da sua confirmação antes de entrar nas tendências ou na IA.</item>
     </plurals>
     <plurals name="trend_chart_accessibility">
-        <item quantity="one">Gráfico de tendência com %1$d resultado confirmado, unidade %2$s</item>
-        <item quantity="other">Gráfico de tendência com %1$d resultados confirmados, unidade %2$s</item>
+        <item quantity="one">Gráfico de tendência com %1$d resultado confirmado, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico de tendência com %1$d resultados confirmados, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <plurals name="unreviewed_candidates_added">
         <item quantity="one">%1$d candidato não revisado adicionado; confirme cada resultado individualmente</item>
@@ -367,8 +367,8 @@ iOS: %2$s</string>
     <string name="vital_unit_kg">kg</string>
     <string name="vitals_retention_note">As leituras ficam guardadas por um ano. Frequência cardíaca e passos com mais de um mês são resumidos por dia. São valores registrados, não uma avaliação.</string>
     <plurals name="vitals_chart_accessibility">
-        <item quantity="one">Gráfico com %1$d leitura, unidade %2$s</item>
-        <item quantity="other">Gráfico com %1$d leituras, unidade %2$s</item>
+        <item quantity="one">Gráfico com %1$d leitura, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
+        <item quantity="other">Gráfico com %1$d leituras, unidade %2$s. Mínimo %3$s, máximo %4$s, último %5$s.</item>
     </plurals>
     <!-- App lock -->
     <string name="app_lock_title">Bloqueio do app</string>
@@ -419,6 +419,33 @@ iOS: %2$s</string>
     <string name="export_language_device">Idioma do app</string>
     <string name="export_language_explanation">Escolha o idioma dos títulos, status e números da exportação. Valores clínicos e unidades nunca mudam.</string>
     <string name="model_catalog_unreadable">Não foi possível ler o catálogo de modelos incluído no app. Os modelos de IA estão indisponíveis.</string>
+    <string name="trend_units_dropped">Não exibidos: resultados em %1$s não têm conversão publicada para %2$s.</string>
+    <string name="trend_converted_note">Pontos ocos ou marcados com ≈ foram convertidos com fatores publicados. Os valores originais aparecem na lista abaixo.</string>
+    <string name="converted_value">≈ %1$s (fator publicado %2$s)</string>
+    <string name="labs_empty_explanation">Importe um laudo ou adicione um resultado manualmente. Ele aparece aqui depois que você confirmar.</string>
+    <string name="trends_empty_explanation">As tendências precisam de pelo menos um resultado numérico confirmado. Importe um laudo ou adicione um resultado manualmente.</string>
+    <string name="labs_search_hint">Buscar por nome ou código</string>
+    <string name="labs_filter_out_of_range">Somente fora da referência</string>
+    <string name="labs_filter_from">De: %1$s</string>
+    <string name="labs_filter_to">Até: %1$s</string>
+    <string name="labs_filter_any_date">qualquer data</string>
+    <string name="labs_group_by_report">Agrupar por laudo</string>
+    <string name="labs_clear_filters">Limpar filtros</string>
+    <string name="labs_no_matches">Nenhum resultado corresponde aos filtros</string>
+    <plurals name="labs_result_count">
+        <item quantity="one">%1$d resultado</item>
+        <item quantity="other">%1$d resultados</item>
+    </plurals>
+    <string name="source_document_name">Documento de origem: %1$s</string>
+    <string name="rejected_filter">Rejeitados</string>
+    <string name="rejected_candidates_none">Nenhum candidato rejeitado</string>
+    <string name="restore_candidate">Restaurar para revisão</string>
+    <string name="edit_report_details">Editar dados do laboratório</string>
+    <string name="report_laboratory_name">Nome do laboratório</string>
+    <string name="report_order_date">Data do pedido: %1$s</string>
+    <string name="report_order_date_not_set">não informada</string>
+    <string name="clear_date">Limpar data</string>
+    <string name="chart_converted_points">%1$s pontos são valores convertidos.</string>
     <string name="generated_text_disclaimer">Texto gerado, pode estar errado</string>
     <string name="stop_generating">Parar</string>
     <string name="model_insufficient_ram">Este modelo precisa de pelo menos %1$s MB de RAM; este dispositivo tem %2$s MB.</string>

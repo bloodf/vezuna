@@ -14,6 +14,11 @@
 "source" = "Source";
 "photo_library" = "Photo library";
 "camera" = "Camera";
+"add_page" = "Add another page";
+"pages_in_report" = "Pages in this report: %1$d";
+"laboratory_name" = "Laboratory name";
+"order_date" = "Order date";
+"clear_date" = "Clear date";
 "pdf_or_image" = "PDF or image file";
 "extracting_text" = "Extracting text on this device…";
 "review_extracted_results" = "Review extracted results";

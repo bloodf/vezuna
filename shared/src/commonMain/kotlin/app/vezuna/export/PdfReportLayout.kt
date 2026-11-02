@@ -1,5 +1,7 @@
 package app.vezuna.export
 
+import app.vezuna.domain.trends.ChangeSummary
+import app.vezuna.domain.trends.ComparisonStatus
 import app.vezuna.export.PdfStyle.BODY
 import app.vezuna.export.PdfStyle.LABEL
 import app.vezuna.export.PdfStyle.MM
@@ -100,6 +102,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             }
         }
         y += pen.paragraph(period(), left, y, width, BODY)
+        DoctorReportFormat.sources(document.resultRows, language)?.let { y += pen.paragraph(it, left, y, width, BODY) }
         y += 2 * MM
     }
 
@@ -224,7 +227,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         when {
             drawChart -> {
                 if (section.usesNormalizedUnit) y += pen.paragraph(t.chartUnitNote.replace("{unit}", section.unit), left, y, width, NOTE, MUTED) + 1 * MM
-                val result = chart.draw(section.trend!!, left, y, width)
+                val result = chart.draw(section.trend!!, left, y, width, section.decimals)
                 y += result.height
                 if (result.labelsOmitted) y += pen.paragraph(t.labelsOmitted, left, y, width, NOTE, MUTED)
                 y += 2 * MM
@@ -238,22 +241,33 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     private fun comparisonHeight(section: DoctorExamSection): Double {
         val column = (width - 6 * MM) / 2
-        val values = listOf(changeText(section.sinceFirst), changeText(section.sincePrevious))
+        val comparison = section.comparison
+        val values = listOf(changeText(section, comparison?.sinceFirst), changeText(section, comparison?.sincePrevious))
         return pen.lineHeight(LABEL) + values.maxOf { pen.paragraphHeight(it, column, BODY) } + 4 * MM
     }
 
-    private fun changeText(change: DoctorChange?): String = change?.let {
-        "${DoctorReportFormat.signedChange(it.delta, it.decimals, it.unit, language)} (${t.fromDate} ${DoctorReportFormat.date(it.baseline.timestamp, language)})"
-    } ?: t.notAvailable
+    /** A signed difference with its baseline date, or the localized reason it is unavailable; never zero. */
+    private fun changeText(section: DoctorExamSection, change: ChangeSummary?): String {
+        if (change == null) {
+            return when (section.comparison?.status) {
+                ComparisonStatus.NOT_ENOUGH_READINGS -> t.notEnoughReadings
+                ComparisonStatus.NO_READING -> t.noReading
+                else -> t.notAvailable
+            }
+        }
+        val baseline = if (change.sameDay) t.sameCollectionDate else "${t.fromDate} ${DoctorReportFormat.date(change.fromDate, language)}"
+        return "${DoctorReportFormat.signedChange(change.delta, section.decimals, change.unit, language)} ($baseline)"
+    }
 
     private fun comparisons(section: DoctorExamSection) {
         val height = comparisonHeight(section)
         if (ensure(height)) carriedTitle(section.testName, t.chartContinued)
         val column = (width - 6 * MM) / 2
-        listOf(t.changeSinceFirst to section.sinceFirst, t.changeSincePrevious to section.sincePrevious).forEachIndexed { index, (label, change) ->
+        val comparison = section.comparison
+        listOf(t.changeSinceFirst to comparison?.sinceFirst, t.changeSincePrevious to comparison?.sincePrevious).forEachIndexed { index, (label, change) ->
             val x = left + index * (column + 6 * MM)
             pen.text(label, x, y, LABEL, PINE, bold = true)
-            pen.paragraph(changeText(change), x, y + pen.lineHeight(LABEL), column, BODY)
+            pen.paragraph(changeText(section, change), x, y + pen.lineHeight(LABEL), column, BODY)
         }
         y += height
     }
@@ -287,19 +301,24 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         y += pen.paragraph(note, indent, y, width - 4 * MM, NOTE, MUTED)
     }
 
-    private fun sourceText(row: DoctorResultRow): String = row.sourceName ?: if (row.manualEntry) t.enteredManually else t.notRecorded
+    private fun sourceText(row: DoctorResultRow): String =
+        listOfNotNull(row.laboratoryName, row.sourceName).distinct().joinToString(" · ").ifEmpty { if (row.manualEntry) t.enteredManually else t.notRecorded }
 
     // endregion
 
     // region history table
 
-    private val columnShares = listOf(28.0, 36.0, 46.0, 66.0)
+    private val columnShares = listOf(32.0, 34.0, 44.0, 66.0)
     private val columns get() = columnShares.map { it / columnShares.sum() * width }
     private val padX = 2 * MM
     private val padY = 3 * MM
     private val minRow = 10 * MM
 
-    private fun tableHeaderHeight() = pen.lineHeight(LABEL) + 2 * padY
+    private val headerLabels get() = listOf(t.date, t.result, t.recordedReference, t.source)
+
+    /** Labels wrap inside their column (long PT/ES headings) instead of running into the next one. */
+    private fun tableHeaderHeight() =
+        headerLabels.mapIndexed { index, label -> pen.paragraphHeight(label, columns[index] - 2 * padX, LABEL, bold = true) }.max() + 2 * padY
 
     private fun cells(row: DoctorResultRow): List<List<Pair<String, Boolean>>> = listOf(
         listOf(DoctorReportFormat.date(row.collectedAt, language) to false),
@@ -322,8 +341,8 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         val height = tableHeaderHeight()
         pen.rect(left, y, width, height, PdfStyle.PALE)
         var x = left
-        listOf(t.date, t.result, t.recordedReference, t.source).forEachIndexed { index, label ->
-            pen.text(label, x + padX, y + padY, LABEL, PINE, bold = true)
+        headerLabels.forEachIndexed { index, label ->
+            pen.paragraph(label, x + padX, y + padY, columns[index] - 2 * padX, LABEL, PINE, bold = true)
             x += columns[index]
         }
         y += height
@@ -331,7 +350,8 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     }
 
     private fun table(section: DoctorExamSection) {
-        if (ensure(tableHeaderHeight() + rowHeight(section.history.first()))) carriedTitle(section.testName, t.tableContinued)
+        // Header plus the first two rows stay together.
+        if (ensure(tableHeaderHeight() + section.history.take(2).sumOf { rowHeight(it) })) carriedTitle(section.testName, t.tableContinued)
         tableHeader()
         section.history.forEach { row ->
             val height = rowHeight(row)

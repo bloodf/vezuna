@@ -53,6 +53,9 @@ data class DoctorResultRow(
     /** Name of the source report file, or null when not recorded. */
     val sourceName: String? = null,
     val manualEntry: Boolean = false,
+    /** Laboratory and order date of the source report, when known; platform exporters decide how to show them. */
+    val laboratoryName: String? = null,
+    val orderedAt: Instant? = null,
 )
 
 data class DoctorMedicationRow(
@@ -177,7 +180,9 @@ object DoctorExportContent {
                     qualitativeValue = observation.qualitativeValue,
                     valueDecimals = observation.valueDecimals,
                     sourceName = sourceName(data, observation),
-                    manualEntry = data.reports.firstOrNull { it.reportId == observation.reportId }?.isManual == true,
+                    manualEntry = report(data, observation)?.isManual == true,
+                    laboratoryName = report(data, observation)?.laboratoryName?.takeIf { it.isNotBlank() },
+                    orderedAt = report(data, observation)?.orderedAt,
                 )
             },
             medicationRows = medicationRows(data),
@@ -186,9 +191,10 @@ object DoctorExportContent {
     }
 
     private fun sourceName(data: ProfileData, observation: LabObservation): String? {
-        val documentId = data.reports.firstOrNull { it.reportId == observation.reportId }?.sourceDocumentId ?: return null
+        val documentId = report(data, observation)?.sourceDocumentId ?: return null
         return data.documents.firstOrNull { it.documentId == documentId }?.displayName?.takeIf { it.isNotBlank() }
     }
+    private fun report(data: ProfileData, observation: LabObservation) = data.reports.firstOrNull { it.reportId == observation.reportId }
 
     private fun assessmentForExport(observation: LabObservation): RangeAssessment {
         if (observation.isQualitative) return RangeAssessment.UNKNOWN
