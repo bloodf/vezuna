@@ -21,16 +21,16 @@ class PrivacyPolicyInstrumentedTest {
     private val device = UiDevice.getInstance(instrumentation)
 
     @Test
-    fun policyOpensFromDeviceMenuAndReturnsToRecords() {
+    fun policyOpensFromMoreAndReturns() {
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales en-US")
         ActivityScenario.launch(AndroidMainActivity::class.java).use {
             assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            device.findObject(By.text("Device")).click()
+            device.findObject(By.text("More").clickable(true)).click()
             assertTrue(device.wait(Until.hasObject(By.text("Privacy policy")), 5_000))
-            device.findObject(By.text("Privacy policy")).click()
+            device.findObject(By.text("Privacy policy").clickable(true)).click()
             assertPolicyVisible()
             device.findObject(By.text("Close")).click()
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 5_000))
+            assertTrue(device.wait(Until.hasObject(By.text("Privacy policy")), 5_000))
         }
     }
 

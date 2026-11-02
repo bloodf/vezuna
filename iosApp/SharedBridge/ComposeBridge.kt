@@ -54,9 +54,15 @@ import app.vezuna.ui.ExtractedValueKind
 import app.vezuna.ui.PickedSource
 import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
+import app.vezuna.ui.DesignFixture
+import app.vezuna.ui.nav.NativeAction
+import app.vezuna.ui.nav.NativeActions
+import app.vezuna.ui.nav.routeFromName
+import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.ui.VezunaApp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
@@ -140,6 +146,17 @@ interface NativeRepositoryObserver {
     fun repositoryDidChange()
 }
 
+/** Opens a native SwiftUI sheet for a shared More row; [action] is a [NativeAction] name. */
+interface NativeActionHandler {
+    fun perform(action: String)
+}
+
+/** Native screens iOS offers from More (they used to sit in the toolbar menu). */
+private val iosNativeActions = setOf(
+    NativeAction.IMPORT_SOURCE, NativeAction.EXPORT, NativeAction.HEALTH,
+    NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
+)
+
 /** One HealthKit sync as encoded by Swift. Values are validated here, not in Swift. */
 @Serializable
 private data class NativeHealthBatch(
@@ -207,6 +224,7 @@ object IosRuntime {
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
+    var nativeActionHandler: NativeActionHandler? = null
 
     /** Must be installed before the first Compose view controller is made. */
     var deviceAuthenticator: NativeDeviceAuthenticator? = null
@@ -695,7 +713,8 @@ object IosRuntime {
     }
 }
 
-fun makeComposeViewController(): UIViewController = ComposeUIViewController {
+/** [route] is a debug deep link (launch argument `-VezunaRoute <Name>`); Swift passes it only in debug builds. */
+fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewController {
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
@@ -730,11 +749,51 @@ fun makeComposeViewController(): UIViewController = ComposeUIViewController {
                 }
             }
         },
-        animationsEnabled = !platform.UIKit.UIAccessibilityIsReduceMotionEnabled(),
+        animationsEnabled = !rememberReduceMotion(),
         reminders = IosRuntime.reminderState,
+        nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+        startRoute = route?.let(::routeFromName),
     )
     }
 }
+
+/**
+ * Debug only (`-VezunaFixture`): the synthetic DATA_AND_COPY household in an in-memory repository, for the
+ * screenshot harness. Swift skips opening the vault in this mode, and model files are never touched.
+ */
+fun makeDesignFixtureViewController(route: String?): UIViewController {
+    val repository = InMemoryVezunaRepository()
+    val llm = llamatikLocalLlm()
+    val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
+    IosRuntime.scope.launch {
+        DesignFixture.install(repository)
+        controller.initialize()
+    }
+    return ComposeUIViewController {
+        VezunaApp(
+            controller = controller,
+            scope = IosRuntime.scope,
+            animationsEnabled = !rememberReduceMotion(),
+            nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+            startRoute = route?.let(::routeFromName),
+        )
+    }
+}
+
+/** Reduce Motion, followed live through its change notification. */
+@androidx.compose.runtime.Composable
+private fun rememberReduceMotion(): Boolean {
+    var reduce by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(platform.UIKit.UIAccessibilityIsReduceMotionEnabled()) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val center = platform.Foundation.NSNotificationCenter.defaultCenter
+        val token = center.addObserverForName(platform.UIKit.UIAccessibilityReduceMotionStatusDidChangeNotification, null, platform.Foundation.NSOperationQueue.mainQueue) { _ ->
+            reduce = platform.UIKit.UIAccessibilityIsReduceMotionEnabled()
+        }
+        onDispose { center.removeObserver(token) }
+    }
+    return reduce
+}
+
 
 /** CLOCK_MONOTONIC on Darwin keeps counting while the device sleeps and ignores wall-clock changes. */
 @OptIn(ExperimentalForeignApi::class)

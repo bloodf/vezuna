@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" role="img" aria-labelledby="heart-rate-title heart-rate-desc">
+  <title id="heart-rate-title">Heart rate motif</title>
+  <desc id="heart-rate-desc">Original editable Vezuna Living Color illustration. The pulse line is decorative and must never substitute for clinical ECG or measured data.</desc>
+  <g id="organic-backdrop"><path d="M42 137C29 95 59 49 104 37C152 24 167 49 209 43C257 35 291 62 289 106C287 145 276 185 239 202C202 219 176 199 135 209C88 221 55 186 42 137Z" fill="#FF8A65" opacity="0.32"/></g><ellipse cx="160" cy="204" rx="86" ry="10" fill="#123B46" opacity="0.09"/><g id="heart" transform="translate(160 124) scale(1.4)"><path d="M0 42C-11 32-53 2-49-25C-44-55-11-58 0-35C11-58 44-55 49-25C53 2 11 32 0 42Z" fill="#FF8A65" /></g><path d="M88 126H122L140 103L160 151L179 115L194 126H231" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /><g transform="translate(267 58) scale(0.7857142857142857)"><path d="M0-14C2-4 4-2 14 0C4 2 2 4 0 14C-2 4-4 2-14 0C-4-2-2-4 0-14Z" fill="#FF8A65" /></g>
+</svg>

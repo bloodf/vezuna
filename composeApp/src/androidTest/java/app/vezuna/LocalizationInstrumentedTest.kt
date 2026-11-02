@@ -44,9 +44,9 @@ class LocalizationInstrumentedTest {
     fun portugueseSpanishEnglishFallbackRecreationAndLargeTextNavigate() {
         var scenario: ActivityScenario<AndroidMainActivity>? = null
         try {
-            verifyLanguage("pt-BR", "Família", "Ajustes", "Ajustes e exportação", "Medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("es-ES", "Hogar", "Ajustes", "Ajustes y exportación", "Medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("fr-FR", "Household", "Settings", "Settings & export", "Medications", scenario = null) { scenario = it }
+            verifyLanguage("pt-BR", "Família", "Ajustes", "Ajustes e exportação", "Cuidados", "Medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("es-ES", "Hogar", "Ajustes", "Ajustes y exportación", "Cuidados", "Medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("fr-FR", "Household", "Settings", "Settings & export", "Care", "Medications", scenario = null) { scenario = it }
             println("LOCALE_NAVIGATION_RECREATION_LARGE_TEXT_PASSED")
         } finally {
             scenario?.close()
@@ -60,6 +60,7 @@ class LocalizationInstrumentedTest {
         homeMarker: String,
         settings: String,
         settingsTitle: String,
+        careTab: String,
         medicationsTitle: String,
         scenario: ActivityScenario<AndroidMainActivity>?,
         assign: (ActivityScenario<AndroidMainActivity>) -> Unit,
@@ -75,12 +76,12 @@ class LocalizationInstrumentedTest {
         assertTrue("Recreation lost $tag", device.wait(Until.hasObject(By.text(settingsTitle)), 10_000))
         device.findObjects(By.desc(settings)).first().click()
         assertTrue(device.wait(Until.hasObject(By.text(settingsTitle)), 5_000))
-        device.findObject(By.desc("Meds")).click()
+        device.findObject(By.text(careTab).clickable(true)).click()
         assertTrue(device.wait(Until.hasObject(By.text(medicationsTitle)), 5_000))
         device.executeShellCommand("settings put system font_scale 1.3")
         device.waitForIdle()
         assertTrue("Large text broke $tag", device.wait(Until.hasObject(By.text(medicationsTitle)), 10_000))
-        device.findObject(By.desc("Meds")).click()
+        device.findObject(By.text(careTab).clickable(true)).click()
         assertTrue(device.wait(Until.hasObject(By.text(medicationsTitle)), 5_000))
         capture("localization-$tag-large-text.png")
         device.executeShellCommand("settings put system font_scale 1.0")

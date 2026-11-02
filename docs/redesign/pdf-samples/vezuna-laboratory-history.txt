@@ -1,0 +1,55 @@
+VEZUNA - LABORATORY HISTORY
+Synthetic example. Not a clinical document.
+
+Profile: Ana Silva
+Birth date: 18 May 1988
+Collection period: 12 Apr 2026 to 28 Oct 2026
+Document generated: 01 Nov 2026, 09:41 UTC-03:00
+
+HEMOGLOBIN
+Recorded reference for all three results: 12.0-16.0 g/dL.
+12 Apr 2026: 13.0 g/dL. Source: April blood work.
+15 Jul 2026: 12.8 g/dL. Source: July blood work.
+28 Oct 2026: 13.2 g/dL. Source: Blood count.
+Latest comparison with the source reference: Within report range.
+Change since first result (12 Apr): +0.2 g/dL.
+Change since previous result (15 Jul): +0.4 g/dL.
+
+LDL CHOLESTEROL
+Recorded source reference: Under 130 mg/dL.
+12 Apr 2026: 146 mg/dL. Source: April blood work.
+15 Jul 2026: 140 mg/dL. Source: July blood work.
+14 Oct 2026: 132 mg/dL. Source: Lipid panel.
+Latest comparison with the source reference: Above report range.
+Change since first result (12 Apr): -14 mg/dL.
+Change since previous result (15 Jul): -8 mg/dL.
+
+HOW TO READ THE GRAPHS
+Dots are actual recorded results. Lines connect observations but do not add
+measurements between their collection dates. References come from source
+reports. Changes are arithmetic differences, not a clinical assessment.
+
+TSH
+Collected 28 Oct 2026: 2.1 mIU/L.
+Recorded reference: 0.4-4.0 mIU/L.
+Comparison with reference: Within report range.
+Source: Thyroid function.
+One recorded result. A change comparison is not available.
+
+HEPATITIS B SURFACE ANTIGEN (HBsAg)
+Collected 28 Oct 2026: Not detected.
+Recorded reference: Not detected.
+Reference not assessed.
+Source: Hepatitis B screening.
+Text result shown as recorded. No numerical trend is calculated.
+
+RECORDED MEDICATION
+Vitamin D. Strength: 1,000 IU. Instructions: 1 capsule.
+Daily schedule: 08:00. Active. Start date: 01 Apr 2026.
+Details are recorded by the user and are not treatment recommendations.
+
+SCOPE
+Eight confirmed results across four tests are included.
+Three unreviewed imported values are excluded.
+The available laboratory history is 12 Apr 2026 to 28 Oct 2026.
+This sample does not include original report attachments.

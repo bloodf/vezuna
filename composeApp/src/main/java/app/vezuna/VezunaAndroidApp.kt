@@ -1,28 +1,27 @@
 package app.vezuna
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -34,7 +33,10 @@ import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupFileAccess
 import app.vezuna.ui.ReminderPlatformState
+import app.vezuna.ui.AppScreen
 import app.vezuna.ui.VezunaApp
+import app.vezuna.ui.nav.NativeAction
+import app.vezuna.ui.nav.NativeActions
 import kotlinx.coroutines.flow.StateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +58,7 @@ fun VezunaAndroidApp(
     onShareExport: (NativeExport) -> Unit,
     onSaveExport: (NativeExport) -> Unit,
     onDismissMessage: () -> Unit,
+    startRoute: AppScreen? = null,
 ) {
     val state by controller.state.collectAsState()
     val message by messageFlow.collectAsState()
@@ -63,7 +66,6 @@ fun VezunaAndroidApp(
     val nativeBusy by busyFlow.collectAsState()
     val extraction by sourcePicker.lastExtraction.collectAsState()
     val modelLoadState by modelLoader.state.collectAsState()
-    var deviceMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.csvExport) {
         state.csvExport?.let { onPresentExport(NativeExport("vezuna-doctor-export.csv", "text/csv", it.encodeToByteArray())) }
@@ -73,41 +75,49 @@ fun VezunaAndroidApp(
     }
     MaterialTheme {
         val context = LocalContext.current
-        val animationsEnabled = remember(context) {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
-        }
-        Scaffold { padding ->
-            androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().padding(padding)) {
-                VezunaApp(
-                    controller = controller,
-                    scope = scope,
-                    sourcePicker = sourcePicker::pick,
-                    modelPackLoader = modelLoader::load,
-                    onDevice = { deviceMenu = true },
-                    animationsEnabled = animationsEnabled,
-                    backupFiles = backupFiles,
-                    reminders = reminders,
-                )
-                DropdownMenu(expanded = deviceMenu, onDismissRequest = { deviceMenu = false }) {
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_MENU).resolve(context)) }, onClick = { deviceMenu = false; onHealthConnect() }, enabled = !nativeBusy)
-                    DropdownMenuItem(
-                        text = { Text(nativeMessage(NativeKey.PRIVACY_POLICY).resolve(context)) },
-                        onClick = {
-                            deviceMenu = false
-                            context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
-                        },
-                    )
-                    DropdownMenuItem(text = { Text(nativeMessage(NativeKey.MEDICATION_REMINDERS_MENU).resolve(context)) }, onClick = { deviceMenu = false; onReminders() })
-                    DropdownMenuItem(
-                        text = { Text(nativeMessage(NativeKey.THIRD_PARTY_NOTICES).resolve(context)) },
-                        onClick = {
-                            deviceMenu = false
-                            context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))
-                        },
-                    )
+        // Followed live: turning animations off in system settings applies without restarting the app.
+        val animationsEnabled by produceState(animationScale(context) > 0f, context) {
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    value = animationScale(context) > 0f
                 }
             }
+            context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer)
+            awaitDispose { context.contentResolver.unregisterContentObserver(observer) }
         }
+        // The shared shell owns the window insets: its pine header bands reach under the status bar, so the
+        // status bar icons are light while the shell shows, and follow the theme again when it leaves (lock).
+        val view = LocalView.current
+        val darkTheme = isSystemInDarkTheme()
+        DisposableEffect(view, darkTheme) {
+            val window = (view.context as? android.app.Activity)?.window
+            val insets = window?.let { WindowCompat.getInsetsController(it, view) }
+            insets?.isAppearanceLightStatusBars = false
+            onDispose { insets?.isAppearanceLightStatusBars = !darkTheme }
+        }
+        VezunaApp(
+            controller = controller,
+            scope = scope,
+            sourcePicker = sourcePicker::pick,
+            modelPackLoader = modelLoader::load,
+            animationsEnabled = animationsEnabled,
+            backupFiles = backupFiles,
+            reminders = reminders,
+            nativeActions = NativeActions(
+                available = androidNativeActions,
+                // Health stays listed but disabled while a device import runs, as the old menu item was.
+                enabled = if (nativeBusy) androidNativeActions - NativeAction.HEALTH else androidNativeActions,
+            ) { action ->
+                when (action) {
+                    NativeAction.HEALTH -> onHealthConnect()
+                    NativeAction.REMINDERS -> onReminders()
+                    NativeAction.PRIVACY -> context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
+                    NativeAction.NOTICES -> context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))
+                    else -> Unit
+                }
+            },
+            startRoute = startRoute,
+        )
 
         when (val current = modelLoadState) {
             is ModelPackLoadState.Failed,
@@ -172,3 +182,8 @@ fun VezunaAndroidApp(
         }
     }
 }
+
+private fun animationScale(context: android.content.Context): Float =
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+
+private val androidNativeActions = setOf(NativeAction.HEALTH, NativeAction.REMINDERS, NativeAction.PRIVACY, NativeAction.NOTICES)

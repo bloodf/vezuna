@@ -25,7 +25,6 @@ import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
-import app.vezuna.importer.OcrTextParser
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -43,7 +42,6 @@ import app.vezuna.localization.failMessage
 import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.message
-import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
 import app.vezuna.platform.currentInstant
@@ -54,70 +52,16 @@ import app.vezuna.data.restoreMembers
 import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import app.vezuna.security.backupFileId
+import app.vezuna.ui.nav.Destination
+import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-
-enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
-
-/** Where a platform keeps the imported source file (encrypted). Optional: a platform without one stores no file. */
-interface SourceFileStore {
-    /** Stores [bytes] for the document and returns the key to record on it. */
-    suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String
-
-    /** Removes a stored file when the import that owned it could not be recorded. */
-    suspend fun discard(key: String)
-
-    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
-    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
-}
-
-sealed interface AppScreen {
-    data object Dashboard : AppScreen
-    data object Labs : AppScreen
-    data object ImportReview : AppScreen
-    data class ResultDetail(val observationId: String) : AppScreen
-    data object Trends : AppScreen
-    data object Medications : AppScreen
-    data object AiChat : AppScreen
-    data object Models : AppScreen
-    data object Settings : AppScreen
-    data object Vitals : AppScreen
-}
-
-data class AppUiState(
-    val loading: Boolean = true,
-    val error: UserText? = null,
-    val notice: UserText? = null,
-    val profiles: List<Profile> = emptyList(),
-    val data: ProfileData? = null,
-    val dashboard: DashboardSnapshot? = null,
-    val screen: AppScreen = AppScreen.Dashboard,
-    val selectedObservationIds: Set<String> = emptySet(),
-    val csvExport: String? = null,
-    val pdfExport: ExportedPdf? = null,
-    val healthLinkedProfileId: String? = null,
-    /** True only on a fresh install, until the user finishes or skips the first-run screen. Never gates records. */
-    val onboarding: Boolean = false,
-    /** Assistant text received so far while an answer is being generated; null when idle. */
-    val streamingAnswer: String? = null,
-)
-
-object DashboardRefreshSignal {
-    private val mutableChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val changes = mutableChanges.asSharedFlow()
-
-    fun notifyRepositoryChanged() {
-        mutableChanges.tryEmit(Unit)
-    }
-}
 
 class AppController(
     private val repository: VezunaRepository,
@@ -132,6 +76,9 @@ class AppController(
 ) {
     private val mutableState = MutableStateFlow(AppUiState())
     val state: StateFlow<AppUiState> = mutableState.asStateFlow()
+
+    /** Back stacks for the five root destinations; the shell renders [Navigator.state]. */
+    val navigator = Navigator()
 
     suspend fun initialize() = operation {
         // A profile only exists once the first run began, so an existing profile means onboarding is done (or not needed).
@@ -160,13 +107,33 @@ class AppController(
     }
 
     fun navigate(screen: AppScreen) {
-        mutableState.value = mutableState.value.copy(screen = screen, error = null, notice = null)
+        navigator.navigate(screen)
+        clearMessages()
     }
+
+    fun selectRoot(destination: Destination) {
+        navigator.selectRoot(destination)
+        clearMessages()
+    }
+
+    /** False when there is nothing to go back to inside the app. */
+    fun back(): Boolean = navigator.back().also { if (it) clearMessages() }
 
     suspend fun switchProfile(profileId: String) = operation {
         if (repository.profiles.value.none { it.profileId == profileId }) failMessage(L10nKey.SELECT_PROFILE_FIRST)
-        mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        onProfileChanged()
         loadProfile(profileId)
+    }
+
+    /**
+     * Clears everything bound to the previous profile before another one loads: its data, the chat record
+     * selection, prepared exports and every pushed route (routes carry that profile's IDs). The shell also
+     * keys saved UI state (filters, drafts, scroll) by profile, so those are dropped with it.
+     * Lanes that add profile-bound state clear it here.
+     */
+    private fun onProfileChanged() {
+        mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        navigator.resetToRoots()
     }
 
     suspend fun createProfile(displayName: String) = operation {
@@ -216,7 +183,7 @@ class AppController(
         val remaining = repository.profiles.value
         val currentId = mutableState.value.data?.profile?.profileId
         if (currentId == null || currentId == profileId) {
-            mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+            onProfileChanged()
             loadProfile(remaining.first().profileId)
         } else {
             loadProfile(currentId)
@@ -236,8 +203,8 @@ class AppController(
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
+        navigator.navigate(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
-            screen = AppScreen.ImportReview,
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
             else pluralMessage(L10nKey.UNREVIEWED_CANDIDATES_ADDED, inserted),
         )
@@ -308,13 +275,6 @@ class AppController(
         return inserted
     }
 
-    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
-    private fun sourceIdentity(source: PickedSource): String {
-        val first = sha256(source.bytes).toHex()
-        if (source.additionalPages.isEmpty()) return first
-        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
-    }
-
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
         val store = sourceStore
@@ -342,24 +302,6 @@ class AppController(
         }
     }
 
-    private fun candidateFingerprint(
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        range: ReferenceRange,
-        collectedAt: kotlinx.datetime.Instant,
-    ): String = listOf(
-        testCode.trim().uppercase(),
-        displayName.trim().lowercase(),
-        rawValue.trim(),
-        rawUnit.trim(),
-        range.lower?.toString().orEmpty(),
-        range.upper?.toString().orEmpty(),
-        range.text.orEmpty(),
-        range.unit.orEmpty(),
-        collectedAt.toString(),
-    ).joinToString("|")
 
     suspend fun confirmCandidate(
         candidateId: String,
@@ -470,7 +412,8 @@ class AppController(
             throw error
         }
         loadProfile(data.profile.profileId)
-        mutableState.value = mutableState.value.copy(screen = AppScreen.Labs, notice = message(L10nKey.MANUAL_RESULT_SAVED))
+        navigator.finishAndGo(AppScreen.Labs)
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
 
     /**
@@ -833,42 +776,6 @@ class AppController(
     }
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
-
-    /**
-     * Bounds come from the reviewer's fields. Reference text and bounds must never disagree:
-     * - edited bounds with unchanged text clear the stale text (the earlier text stays in the revision);
-     * - edited text with untouched bounds recomputes the bounds from it, which only succeeds for exactly one range
-     *   or one-sided `<`, `>`, `≤`, `≥` threshold, and otherwise clears them;
-     * - both edited: the reviewer's bounds and text are kept as typed.
-     * Nothing else is inferred, so a range is never invented.
-     */
-    private fun reviewedRange(
-        original: ReferenceRange,
-        editedText: String?,
-        lowerInput: String,
-        upperInput: String,
-        unit: String,
-        textResult: Boolean,
-    ): ReferenceRange {
-        var text = (editedText ?: original.text)?.trim()?.takeIf { it.isNotEmpty() }
-        if (textResult) return ReferenceRange(text = text)
-        var lower = optionalDouble(lowerInput)
-        var upper = optionalDouble(upperInput)
-        val textChanged = text != original.text
-        val boundsChanged = lower != original.lower || upper != original.upper
-        if (textChanged && !boundsChanged) {
-            val derived = text?.let { OcrTextParser.referenceFromText(it, unit) }
-            lower = derived?.lower
-            upper = derived?.upper
-        } else if (boundsChanged && !textChanged) {
-            text = null
-        }
-        return ReferenceRange(lower, upper, text, unit)
-    }
-
-    private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
-        parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)
-    }
 }
 
 private val REMINDER_TIME = Regex("(?:[01]\\d|2[0-3]):[0-5]\\d")
