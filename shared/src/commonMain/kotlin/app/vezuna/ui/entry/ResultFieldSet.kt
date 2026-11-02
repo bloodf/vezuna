@@ -92,7 +92,7 @@ fun ResultFieldSet(
             },
             error = errors.date?.text(),
             applyToAllLabel = applyDateToAllLabel,
-            modifier = Modifier.focusRequester(focus[6]),
+            focusRequester = focus[6],
         )
     }
 }

@@ -27,10 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -136,7 +134,7 @@ private fun SourceOption(category: Category, icon: DrawableResource, title: Stri
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().semantics { role = Role.Button },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(VezunaTokens.CardRadius),
         color = if (enabled) category.fill else MaterialTheme.colorScheme.surfaceVariant,
         contentColor = if (enabled) category.onFill else MaterialTheme.colorScheme.onSurfaceVariant,

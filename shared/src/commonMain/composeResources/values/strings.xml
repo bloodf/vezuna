@@ -641,5 +641,6 @@ iOS: %2$s</string>
     <string name="entry_error_date">Choose the collection date</string>
     <string name="entry_camera_denied_title">Camera access is off</string>
     <string name="entry_camera_denied_body">Allow camera access for Vezuna in Settings, or choose photos or a file instead.</string>
+    <string name="entry_profile_changed">The profile changed while the file was being read, so nothing was imported. Add the record again for this profile.</string>
     <!-- endregion L3 import and entry -->
 </resources>

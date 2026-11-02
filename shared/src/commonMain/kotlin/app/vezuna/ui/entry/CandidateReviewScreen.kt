@@ -21,14 +21,18 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -91,8 +95,9 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
         return
     }
     val initial = remember(candidateId) { candidate.toDraft(chosenDates[candidateId]) }
-    var draft by remember(candidateId) { mutableStateOf(initial) }
-    var choice by remember(candidateId) { mutableStateOf<NumberChoice?>(null) }
+    var draft by rememberSaveable(candidateId, stateSaver = ResultDraftSaver) { mutableStateOf(initial) }
+    var choiceName by rememberSaveable(candidateId) { mutableStateOf<String?>(null) }
+    val choice = choiceName?.let(NumberChoice::valueOf)
     var showErrors by remember(candidateId) { mutableStateOf(false) }
     var focusTick by remember(candidateId) { mutableIntStateOf(0) }
     var duplicate by remember(candidateId) { mutableStateOf(false) }
@@ -158,8 +163,8 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
             ) {
                 SourceLine(ctx, data, candidate)
                 if (needsChoice && token != null) {
-                    AmbiguousNumber(token, choice, showErrors && choiceMissing) { picked ->
-                        choice = picked
+                    AmbiguousNumber(token, choice, showErrors && choiceMissing, focusTick) { picked ->
+                        choiceName = picked.name
                         draft = when (picked) {
                             NumberChoice.WHOLE -> draft.copy(value = readingLabel(token, NumberReading.WHOLE))
                             NumberChoice.DECIMAL -> draft.copy(value = readingLabel(token, NumberReading.DECIMAL))
@@ -234,7 +239,9 @@ private fun SourceLine(ctx: RouteContext, data: ProfileData, candidate: OcrCandi
 
 /** Image 042: the printed token and both readings; nothing is chosen for the person. */
 @Composable
-private fun AmbiguousNumber(token: String, choice: NumberChoice?, showError: Boolean, onChoose: (NumberChoice) -> Unit) {
+private fun AmbiguousNumber(token: String, choice: NumberChoice?, showError: Boolean, focusTick: Int, onChoose: (NumberChoice) -> Unit) {
+    val firstOption = remember { FocusRequester() }
+    LaunchedEffect(focusTick) { if (showError) runCatching { firstOption.requestFocus() } }
     Surface(shape = RoundedCornerShape(VezunaTokens.CardRadius), color = Category.CARE.fill, contentColor = Category.CARE.onFill) {
         Column(Modifier.fillMaxWidth().padding(VezunaTokens.SpaceMd), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd)) {
@@ -252,9 +259,10 @@ private fun AmbiguousNumber(token: String, choice: NumberChoice?, showError: Boo
             NumberChoice.WHOLE to vitaText(L10nKey.ENTRY_READING_WHOLE, readingLabel(token, NumberReading.WHOLE)),
             NumberChoice.DECIMAL to vitaText(L10nKey.ENTRY_READING_DECIMAL, readingLabel(token, NumberReading.DECIMAL)),
             NumberChoice.OTHER to vitaText(L10nKey.ENTRY_READING_OTHER),
-        ).forEach { (option, label) ->
+        ).forEachIndexed { index, (option, label) ->
             Row(
                 Modifier.fillMaxWidth()
+                    .then(if (index == 0) Modifier.focusRequester(firstOption) else Modifier)
                     .heightIn(min = VezunaTokens.RowHeight)
                     .selectable(selected = choice == option, role = Role.RadioButton) { onChoose(option) }
                     .padding(horizontal = VezunaTokens.SpaceSm),
@@ -267,7 +275,12 @@ private fun AmbiguousNumber(token: String, choice: NumberChoice?, showError: Boo
         }
     }
     if (showError) {
-        Text(vitaText(L10nKey.ENTRY_CHOOSE_READING), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            vitaText(L10nKey.ENTRY_CHOOSE_READING),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+        )
     }
 }
 

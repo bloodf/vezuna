@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,7 +71,7 @@ private fun FixFieldsNotice(visible: Boolean) {
 /** Manual entry (047 numeric, 048 text): a result typed from a paper report, saved as confirmed by its author. */
 @Composable
 internal fun ManualEntryScreen(ctx: RouteContext) {
-    var draft by remember { mutableStateOf(ResultDraft()) }
+    var draft by rememberSaveable(stateSaver = ResultDraftSaver) { mutableStateOf(ResultDraft()) }
     var showErrors by remember { mutableStateOf(false) }
     var focusTick by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
@@ -118,7 +119,7 @@ internal fun ResultEditScreen(ctx: RouteContext, observationId: String) {
         return
     }
     val initial = remember(observationId) { observation.toDraft() }
-    var draft by remember(observationId) { mutableStateOf(initial) }
+    var draft by rememberSaveable(observationId, stateSaver = ResultDraftSaver) { mutableStateOf(initial) }
     var showErrors by remember(observationId) { mutableStateOf(false) }
     var focusTick by remember(observationId) { mutableIntStateOf(0) }
     var busy by remember(observationId) { mutableStateOf(false) }

@@ -111,6 +111,8 @@ internal fun ReviewQueueScreen(ctx: RouteContext) {
             }
             val rejected = groups.flatMap { it.rejected }
             if (rejected.isNotEmpty()) RejectedSection(ctx, rejected)
+            // Another file or a typed result stays one tap away while drafts wait for review.
+            if (pendingTotal > 0) SecondaryButton(vitaText(L10nKey.ENTRY_ADD_RECORD), { ctx.navigate(AppScreen.ImportSource) }, Modifier.fillMaxWidth())
         }
         if (showDetails) details?.let { ProcessingDetailsSheet(it) { showDetails = false } }
         editing?.let { report -> ReportDetailsSheet(report, onDismiss = { editing = null }) { name, date ->

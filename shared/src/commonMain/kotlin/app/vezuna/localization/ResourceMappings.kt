@@ -585,6 +585,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.ENTRY_ERROR_DATE to Res.string.entry_error_date,
     L10nKey.ENTRY_CAMERA_DENIED_TITLE to Res.string.entry_camera_denied_title,
     L10nKey.ENTRY_CAMERA_DENIED_BODY to Res.string.entry_camera_denied_body,
+    L10nKey.ENTRY_PROFILE_CHANGED to Res.string.entry_profile_changed,
     // endregion L3 import and entry
 )
 

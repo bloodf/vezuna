@@ -204,10 +204,7 @@ class AppController(
     suspend fun importSource(source: PickedSource) = operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
         val inserted = importExtracted(source, source.candidates)
-        // The source and extraction steps are done; back from review returns to where the import began.
-        val current = navigator.current
-        if (current == AppScreen.ImportSource || current == AppScreen.ImportExtract) navigator.finishAndGo(AppScreen.ImportReview)
-        else navigator.navigate(AppScreen.ImportReview)
+        navigator.navigate(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
             else pluralMessage(L10nKey.UNREVIEWED_CANDIDATES_ADDED, inserted),
@@ -792,6 +789,7 @@ class AppController(
     suspend fun importFrom(kind: app.vezuna.ui.entry.SourceKind, picker: suspend () -> PickedSource?) {
         val session = importSession
         session.start(kind)
+        val profileId = mutableState.value.data?.profile?.profileId
         val source = try {
             picker()
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
@@ -802,8 +800,19 @@ class AppController(
         } catch (error: Throwable) {
             return session.fail(app.vezuna.ui.entry.ImportFailureReason.UNREADABLE, null)
         } ?: return session.idle()
+        // A source picked for one profile never lands in another: switching while the picker was open drops it.
+        if (profileId == null || mutableState.value.data?.profile?.profileId != profileId) {
+            session.idle()
+            return announce(message(L10nKey.ENTRY_PROFILE_CHANGED))
+        }
         if (source.candidates.isEmpty()) return session.noResults(source.fileName)
+        val onSourceScreen = navigator.current == AppScreen.ImportSource || navigator.current == AppScreen.ImportExtract
         importSource(source)
+        // The source step is finished: back from the review returns to where the import began, not to the picker.
+        if (onSourceScreen && mutableState.value.error == null && navigator.current == AppScreen.ImportReview) {
+            navigator.back()
+            navigator.finishAndGo(AppScreen.ImportReview)
+        }
         session.idle()
     }
 

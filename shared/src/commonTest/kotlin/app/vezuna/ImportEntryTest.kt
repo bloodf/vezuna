@@ -151,6 +151,20 @@ class ImportEntryTest {
     }
 
     @Test
+    fun aSourcePickedBeforeAProfileSwitchIsDroppedNotFiledUnderTheNewProfile() = runTest {
+        val (repository, controller) = started()
+        controller.importFrom(SourceKind.FILE) {
+            controller.createProfile("Bruno")
+            source(ExtractedCandidate("GLU", "Fasting glucose", "96", "mg/dL", collectedAt = day))
+        }
+        assertEquals(ImportPhase.Idle, controller.importSession.phase.value)
+        assertEquals(app.vezuna.localization.L10nKey.ENTRY_PROFILE_CHANGED, (controller.state.value.notice as app.vezuna.localization.UserText.Key).key)
+        repository.profiles.value.forEach { profile ->
+            assertTrue(repository.readProfile(profile.profileId).documents.isEmpty(), "nothing imported for ${profile.displayName}")
+        }
+    }
+
+    @Test
     fun switchingProfileClearsTheImportSession() = runTest {
         val (repository, controller) = started()
         controller.importSession.chooseDate(listOf("c1"), day)

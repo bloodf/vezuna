@@ -6,6 +6,7 @@ import app.vezuna.domain.OcrCandidate
 import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.parseDecimalInput
+import androidx.compose.runtime.saveable.listSaver
 import kotlinx.datetime.Instant
 
 /**
@@ -22,6 +23,17 @@ data class ResultDraft(
     val upper: String = "",
     val rangeText: String = "",
     val date: Instant? = null,
+)
+
+/** Keeps a draft across leaving and returning to its screen (for example to open the original report). */
+val ResultDraftSaver = listSaver<ResultDraft, Any>(
+    save = { listOf(it.name, it.code, it.asText, it.value, it.unit, it.lower, it.upper, it.rangeText, it.date?.toString().orEmpty()) },
+    restore = {
+        ResultDraft(
+            it[0] as String, it[1] as String, it[2] as Boolean, it[3] as String, it[4] as String, it[5] as String,
+            it[6] as String, it[7] as String, (it[8] as String).takeIf { date -> date.isNotEmpty() }?.let(Instant::parse),
+        )
+    },
 )
 
 enum class FieldError { REQUIRED, NOT_A_NUMBER, AMBIGUOUS, UNIT_REQUIRED, RANGE_REVERSED, DATE_REQUIRED }

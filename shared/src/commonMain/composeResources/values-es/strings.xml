@@ -641,5 +641,6 @@ iOS: %2$s</string>
     <string name="entry_error_date">Elige la fecha de recolección</string>
     <string name="entry_camera_denied_title">El acceso a la cámara está desactivado</string>
     <string name="entry_camera_denied_body">Permite el acceso a la cámara para Vezuna en Ajustes, o elige fotos o un archivo.</string>
+    <string name="entry_profile_changed">El perfil cambió mientras se leía el archivo, así que no se importó nada. Vuelve a añadir el registro para este perfil.</string>
     <!-- endregion L3 import and entry -->
 </resources>

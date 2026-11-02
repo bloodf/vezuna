@@ -175,8 +175,9 @@ extension ComposeSourcePicker: PHPickerViewControllerDelegate {
                         continuation.resume(returning: data)
                     }
                 }
-                guard let raw, let page = Self.jpeg(raw) else { return fail("UNREADABLE") }
-                guard page.count <= Self.maxBytes else { return fail("TOO_LARGE") }
+                let name = result.itemProvider.suggestedName ?? "lab-image.jpg"
+                guard let raw, let page = Self.jpeg(raw) else { return fail("UNREADABLE", name) }
+                guard page.count <= Self.maxBytes else { return fail("TOO_LARGE", name) }
                 pages.append(page)
             }
             extractPhotos(pages)
@@ -191,6 +192,8 @@ extension ComposeSourcePicker: UIDocumentPickerDelegate {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= Self.maxBytes else { return fail("TOO_LARGE", name) }
         guard let data = try? Data(contentsOf: url) else { return fail("UNREADABLE", name) }
+        // The size attribute can be missing; the read itself is checked too.
+        guard data.count <= Self.maxBytes else { return fail("TOO_LARGE", name) }
         let type = UTType(filenameExtension: url.pathExtension)
         if type?.conforms(to: .pdf) == true {
             extract(name: name, mediaType: "application/pdf", files: [data]) {

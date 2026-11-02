@@ -26,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -40,6 +42,9 @@ import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.components.TertiaryButton
 import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_calendar
@@ -47,12 +52,11 @@ import vezuna.shared.generated.resources.ic_error
 
 private const val HALF_DAY_MILLIS = 12L * 60 * 60 * 1000
 
-private const val MAX_UTC_OFFSET_MILLIS = 14L * 60 * 60 * 1000
-
-/** A collection date cannot be in the future; the 14h allowance covers the UTC+14 calendar day. */
+/** A collection date cannot be after today's local calendar day (the picker works in UTC calendar days). */
 @OptIn(ExperimentalMaterial3Api::class)
 private object NoFutureDates : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= currentInstant().toEpochMilliseconds() + MAX_UTC_OFFSET_MILLIS
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+        utcTimeMillis <= currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
 }
 
 /**
@@ -74,6 +78,7 @@ internal fun CollectionDateField(
     modifier: Modifier = Modifier,
     error: String? = null,
     applyToAllLabel: String? = null,
+    focusRequester: FocusRequester? = null,
     label: String = vitaText(L10nKey.COLLECTION_DATE),
     help: String = vitaText(L10nKey.ENTRY_COLLECTION_DATE_HELP),
 ) {
@@ -110,7 +115,7 @@ internal fun CollectionDateField(
             modifier = Modifier.fillMaxWidth(),
         )
         // The read-only field is only the visual; the whole area opens the picker.
-        Box(Modifier.matchParentSize().clickable(role = Role.Button) { open = true })
+        Box(Modifier.matchParentSize().then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier).clickable(role = Role.Button) { open = true })
     }
     if (open) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date?.toEpochMilliseconds(), selectableDates = NoFutureDates)
