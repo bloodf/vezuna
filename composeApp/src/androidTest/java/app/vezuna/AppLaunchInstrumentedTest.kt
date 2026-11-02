@@ -20,7 +20,7 @@ class AppLaunchInstrumentedTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
-            assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.textContains("Household")), 15_000))
+            assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.text("Today")), 15_000))
             lateinit var first: AppController
             scenario.onActivity { first = it.controller }
 
@@ -40,25 +40,22 @@ class AppLaunchInstrumentedTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
-            assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.textContains("Household")), 15_000))
+            assertTrue("Dashboard did not initialize", device.wait(Until.hasObject(By.text("Today")), 15_000))
 
-            device.findObject(By.text("Manage profiles")).click()
-            androidx.test.uiautomator.UiScrollable(androidx.test.uiautomator.UiSelector().scrollable(true)).scrollTextIntoView("New profile name")
+            openManageProfiles(device)
             val editor = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5_000)
             editor.click()
             assertTrue("Profile editor did not receive focus", device.wait(Until.hasObject(By.focused(true)), 3_000))
             val inputMethod = device.executeShellCommand("dumpsys input_method")
             assertTrue("Full software keyboard was not shown", inputMethod.contains("mInputShown=true") || inputMethod.contains("mShowRequested=true"))
             editor.text = "Child"
-            device.findObject(By.text("Add")).click()
-            assertTrue("Created profile did not appear", device.wait(Until.hasObject(By.textContains("Child")), 5_000))
+            device.findObject(By.text("Add profile")).click()
+            // Adding switches to the new profile and returns to Today, whose profile chip names it.
+            assertTrue("Created profile did not become active", device.wait(Until.hasObject(By.descContains("Child")), 5_000))
 
             scenario.recreate()
-            androidx.test.uiautomator.UiScrollable(androidx.test.uiautomator.UiSelector().scrollable(true)).scrollToBeginning(5)
-            assertTrue("Household did not restore", device.wait(Until.hasObject(By.textContains("Household")), 10_000))
-            device.findObject(By.text("Manage profiles")).click()
-            val restoredProfile = androidx.test.uiautomator.UiScrollable(androidx.test.uiautomator.UiSelector().scrollable(true))
-                .scrollTextIntoView("Switch to Child")
+            assertTrue("Today did not restore", device.wait(Until.hasObject(By.text("Today")), 10_000))
+            val restoredProfile = device.wait(Until.findObject(By.descContains("Child")), 5_000)
             val evidenceDir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
             device.takeScreenshot(java.io.File(evidenceDir, "recreation.png"))
             device.dumpWindowHierarchy(java.io.File(evidenceDir, "recreation.xml"))
@@ -67,5 +64,12 @@ class AppLaunchInstrumentedTest {
         } finally {
             scenario.close()
         }
+    }
+
+    /** Today's profile chip opens the switcher sheet; its last row leads to More > Profiles. */
+    private fun openManageProfiles(device: UiDevice) {
+        device.wait(Until.findObject(By.descContains("Switch profile")), 5_000).click()
+        device.wait(Until.findObject(By.text("Manage profiles")), 5_000).click()
+        assertTrue("Profiles page did not open", device.wait(Until.hasObject(By.text("New profile name")), 5_000))
     }
 }

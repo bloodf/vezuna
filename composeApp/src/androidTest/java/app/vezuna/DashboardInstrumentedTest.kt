@@ -13,17 +13,17 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class DashboardInstrumentedTest {
     @Test
-    fun settingsGearOpensSettingsAndTodayIsVisible() {
+    fun todayHasNoSettingsGearAndMoreIsTheWayToSettings() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            assertTrue(device.wait(Until.hasObject(By.text("Today")), 5_000))
-            val settingsButtons = device.findObjects(By.desc("Settings"))
-            assertTrue(settingsButtons.isNotEmpty())
-            settingsButtons.first().click()
-            assertTrue(device.wait(Until.hasObject(By.text("Settings & export")), 5_000))
-            println("DASHBOARD_GEAR_NAVIGATION_VERIFIED")
+            assertTrue(device.wait(Until.hasObject(By.text("Today")), 15_000))
+            // One profile control in the header and no gear: settings live under More only.
+            assertTrue(device.findObjects(By.desc("Settings")).isEmpty())
+            assertTrue(device.findObjects(By.descContains("Switch profile")).size == 1)
+            device.findObject(By.text("More")).click()
+            assertTrue(device.wait(Until.hasObject(By.text("More")), 5_000))
+            println("TODAY_HEADER_WITHOUT_GEAR_VERIFIED")
         } finally {
             scenario.close()
         }

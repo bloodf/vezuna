@@ -5,7 +5,7 @@ import VezunaShared
 
 final class AppShellModel: ObservableObject {
     enum Sheet: Identifiable {
-        case importSource, health, license, notices, privacy
+        case health, license, notices, privacy
         var id: Self { self }
     }
 

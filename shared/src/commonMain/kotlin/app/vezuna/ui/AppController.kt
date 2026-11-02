@@ -134,6 +134,7 @@ class AppController(
      */
     private fun onProfileChanged() {
         mutableState.value = mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        importSession.clear()
         mutableRestoreResult.value = null // L6
         navigator.resetToRoots()
     }
@@ -707,6 +708,19 @@ class AppController(
         modelManager.select(pack.modelId)
     }
 
+    // region L8 assistant
+    /** Permanently deletes every chat message of the current profile through the repository. Records are untouched. */
+    suspend fun clearChatHistory() = operation {
+        val data = requireData()
+        try {
+            data.chat.forEach { repository.deleteChatMessage(data.profile.profileId, it.messageId) }
+        } finally {
+            withContext(NonCancellable) { loadProfile(data.profile.profileId) }
+        }
+        mutableState.value = mutableState.value.copy(notice = message(L10nKey.CHAT_HISTORY_CLEARED))
+    }
+    // endregion L8 assistant
+
     fun clearMessages() { mutableState.value = mutableState.value.copy(error = null, notice = null) }
 
     private suspend fun loadProfile(profileId: String) {
@@ -790,6 +804,48 @@ class AppController(
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
 
+    // region L3 import and entry
+    /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */
+    val importSession = app.vezuna.ui.entry.ImportSession()
+
+    /**
+     * Opens the platform picker for [kind] and imports what it extracts. A cancelled picker returns silently;
+     * a failure or a source without results stays on the source screen with its own explanation.
+     */
+    suspend fun importFrom(kind: app.vezuna.ui.entry.SourceKind, picker: suspend () -> PickedSource?) {
+        val session = importSession
+        session.start(kind)
+        val profileId = mutableState.value.data?.profile?.profileId
+        val source = try {
+            picker()
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            session.idle()
+            throw cancellation
+        } catch (failure: app.vezuna.ui.entry.ImportFailure) {
+            return session.fail(failure.reason, failure.fileName)
+        } catch (error: Throwable) {
+            return session.fail(app.vezuna.ui.entry.ImportFailureReason.UNREADABLE, null)
+        } ?: return session.idle()
+        // A source picked for one profile never lands in another: switching while the picker was open drops it.
+        if (profileId == null || mutableState.value.data?.profile?.profileId != profileId) {
+            session.idle()
+            return announce(message(L10nKey.ENTRY_PROFILE_CHANGED))
+        }
+        if (source.candidates.isEmpty()) return session.noResults(source.fileName)
+        val onSourceScreen = navigator.current == AppScreen.ImportSource || navigator.current == AppScreen.ImportExtract
+        importSource(source)
+        // The source step is finished: back from the review returns to where the import began, not to the picker.
+        if (onSourceScreen && mutableState.value.error == null && navigator.current == AppScreen.ImportReview) {
+            navigator.back()
+            navigator.finishAndGo(AppScreen.ImportReview)
+        }
+        session.idle()
+    }
+
+    /** True when the last operation failed because the result is already recorded (the draft stays editable). */
+    val lastErrorWasDuplicate: Boolean
+        get() = (mutableState.value.error as? UserText.Key)?.key == L10nKey.DUPLICATE_CLINICAL_RESULT
+    // endregion L3 import and entry
     // region L2 records
     /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
     suspend fun readSourceFile(documentId: String): SourceFileRead {
