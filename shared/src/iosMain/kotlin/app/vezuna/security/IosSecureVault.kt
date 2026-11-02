@@ -79,6 +79,16 @@ class IosSecureVault(private val directory: String) : SecureVault {
 
     override suspend fun delete(key: String) { manager.removeItemAtPath(fileFor(key), null) }
 
+    /** File names are hashes, so recovery learns what a file holds from the cleartext associated data of its envelope. */
+    override suspend fun storedAssociatedData(): List<ByteArray>? = lock.withLock {
+        relaxExistingProtection()
+        IosFileOps().dataFiles().mapNotNull { path ->
+            // A locked or unreadable file throws instead of silently shortening the list.
+            val bytes = core.readData(path) ?: return@mapNotNull null
+            runCatching { CipherEnvelopeCodec.decode(bytes).associatedData }.getOrNull()
+        }
+    }
+
     /** All-or-nothing: the Keychain key is archived first, files are moved only then, the key is deleted last. */
     override suspend fun quarantineAll(): Boolean = lock.withLock {
         prepareDirectory()
@@ -146,13 +156,12 @@ class IosSecureVault(private val directory: String) : SecureVault {
     private fun sha256FileName(key: String): String = app.vezuna.platform.sha256(key.encodeToByteArray())
         .joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-    private fun ByteArray.toNSData(): NSData = usePinned {
-        NSData.create(bytes = it.addressOf(0), length = size.toULong())
-    }
+    // addressOf(0) throws on an empty array, and a zero-length file is a valid (truncated) file, not a crash.
+    private fun ByteArray.toNSData(): NSData =
+        if (isEmpty()) NSData() else usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }
 
-    private fun NSData.toByteArray(): ByteArray = ByteArray(length.toInt()).apply {
-        usePinned { platform.posix.memcpy(it.addressOf(0), bytes, length) }
-    }
+    private fun NSData.toByteArray(): ByteArray =
+        if (length == 0uL) ByteArray(0) else ByteArray(length.toInt()).apply { usePinned { platform.posix.memcpy(it.addressOf(0), bytes, length) } }
 
     private companion object {
         const val QUARANTINE = "unreadable-"

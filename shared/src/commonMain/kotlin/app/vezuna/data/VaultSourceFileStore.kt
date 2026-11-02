@@ -23,8 +23,7 @@ class VaultSourceFileStore(private val vault: SecureVault) : SourceFileStore {
     override suspend fun load(profileId: String, documentId: String, key: String): ByteArray? {
         val stored = vault.read(key) ?: return null
         val envelope = CipherEnvelopeCodec.decode(stored)
-        require(envelope.associatedData.contentEquals(associatedData(profileId, documentId))) { "Source file belongs to another document" }
-        return vault.decrypt(envelope)
+        return vault.decrypt(envelope, associatedData(profileId, documentId))
     }
 
     private fun keyFor(documentId: String) = "source-document-$documentId"

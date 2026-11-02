@@ -134,7 +134,7 @@ object CsvPreview {
         .filter { it.size >= 13 }
         .map { cells ->
             val value = cells[12].ifEmpty { cells[4] }
-            CsvPreviewRow(cells[1], cells[3], value.removePrefix("'"), if (cells[12].isEmpty()) cells[5] else "")
+            CsvPreviewRow(cells[1], cells[3].removePrefix("'"), value.removePrefix("'"), (if (cells[12].isEmpty()) cells[5] else "").removePrefix("'"))
         }.toList()
 
     /** Splits one CSV line; quotes may contain commas and doubled quotes. */
