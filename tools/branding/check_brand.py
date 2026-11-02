@@ -6,6 +6,9 @@ import plistlib
 import sys
 import xml.etree.ElementTree as ET
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sync_assets import DRAWABLE, NOTES, converted_outputs, vector_masters  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 BRAND = ROOT / "brand"
 
@@ -30,9 +33,61 @@ def ratio(foreground, background):
     return (max(first, second) + 0.05) / (min(first, second) + 0.05)
 
 
+def check_vectors():
+    """Every SVG master has its committed vector drawable, byte-identical to a fresh conversion."""
+    masters = vector_masters()
+    assert len(masters) >= 8 + 86 + 30, f"Vector masters missing: {len(masters)}"
+    for master, _ in masters:
+        text = master.read_text()
+        assert "<image" not in text and "data:" not in text and "<script" not in text, f"Raster or script in vector master: {master}"
+    outputs, notes = converted_outputs()
+    for path, text in outputs.items():
+        assert path.is_file(), f"Missing vector drawable {path.name}; run tools/branding/sync_assets.py"
+        assert path.read_text() == text, f"Vector drawable drifted from its master: {path.name}; run tools/branding/sync_assets.py"
+    stray = sorted(path.name for path in DRAWABLE.glob("*") if path not in outputs)
+    assert not stray, f"Drawables without a vector master (no raster UI assets): {stray}"
+    assert NOTES.read_text() == notes, "brand/vectors/conversion-notes.txt is stale; run tools/branding/sync_assets.py"
+    print(f"VECTOR_DRAWABLES={len(outputs)}")
+
+
+def check_living_color(living, token_text):
+    swift = (ROOT / "iosApp/Vezuna/VezunaStyle.swift").read_text()
+    for group in ("category", "light", "dark"):
+        for name, value in living[group].items():
+            assert value.removeprefix("#") in token_text, f"Missing livingColor {group}/{name} {value} in VezunaTokens.kt"
+            assert value.removeprefix("#") in swift, f"Missing livingColor {group}/{name} {value} in VezunaStyle.swift"
+    text_pairs = [
+        ("text", "background"), ("text", "surface"), ("text", "surfaceSubtle"),
+        ("textMuted", "background"), ("textMuted", "surface"), ("textMuted", "surfaceSubtle"),
+        ("onPrimary", "primary"), ("primary", "surface"), ("onPrimary", "focus"),
+        # Teal on paper is 4.41:1, so text actions on the page background use the focus teal (Theme.kt primary).
+        ("focus", "background"), ("focus", "surface"), ("focus", "surfaceSubtle"),
+        ("danger", "surface"), ("danger", "background"), ("warning", "surface"), ("success", "surface"), ("info", "surface"),
+        ("onHeader", "header"), ("onHeaderAction", "headerAction"), ("headerAction", "header"),
+    ]
+    for theme in ("light", "dark"):
+        roles = living[theme]
+        for foreground, background in text_pairs:
+            measured = ratio(roles[foreground], roles[background])
+            print(f"CONTRAST living {theme} {foreground}/{background}={measured:.2f}:1")
+            assert measured >= 4.5, f"Insufficient text contrast: living {theme} {foreground}/{background} {measured:.2f}"
+        for control in ("border", "focus"):
+            for background in ("surface", "background"):
+                measured = ratio(roles[control], roles[background])
+                print(f"CONTRAST living {theme} {control}/{background}={measured:.2f}:1")
+                assert measured >= 3, f"Insufficient control contrast: living {theme} {control}/{background} {measured:.2f}"
+    category = living["category"]
+    for fill in ("mint", "coral", "lavender", "citron"):
+        measured = ratio(category["onCategory"], category[fill])
+        print(f"CONTRAST living onCategory/{fill}={measured:.2f}:1")
+        assert measured >= 4.5, f"Insufficient category ink contrast on {fill}: {measured:.2f}"
+    for background in (living["light"]["header"], living["dark"]["background"]):
+        measured = ratio(category["mint"], background)
+        assert measured >= 4.5, f"Mint selection on {background} too low: {measured:.2f}"
+
+
 def main():
-    for name in ("lockup-color", "lockup-dark", "mark-color", "mark-dark"):
-        assert_same(BRAND / f"logos/{name}.png", ROOT / f"shared/src/commonMain/composeResources/drawable/vezuna_{name.replace('-', '_')}.png")
+    check_vectors()
     for name in ("NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "NOTO-LICENSE.txt"):
         assert_same(BRAND / f"fonts/{name}", ROOT / f"iosApp/Vezuna/Fonts/{name}")
     assert_same(BRAND / "fonts/NOTO-LICENSE.txt", ROOT / "shared/src/commonMain/composeResources/files/NOTO-LICENSE.txt")
@@ -46,11 +101,10 @@ def main():
 
     token_text = (ROOT / "shared/src/commonMain/kotlin/app/vezuna/ui/VezunaTokens.kt").read_text()
     tokens = json.loads((BRAND / "tokens/tokens.json").read_text())
-    for group in ("light", "dark"):
-        for name, value in tokens["color"][group].items():
-            assert value.removeprefix("#") in token_text, f"Missing {group}/{name} token {value}"
+    # tokens["color"] is the website palette; the app follows tokens["livingColor"] (checked below).
     for value in ("#123B46", "#087F8C", "#71E2CC", "#F5FAF9", "#152E35", "#0C2027", "#E7F5F2"):
         assert value.removeprefix("#") in token_text, f"Missing brand primitive {value}"
+    check_living_color(tokens["livingColor"], token_text)
 
     android_build = (ROOT / "composeApp/build.gradle.kts").read_text()
     assert 'applicationId = "app.vezuna"' in android_build
