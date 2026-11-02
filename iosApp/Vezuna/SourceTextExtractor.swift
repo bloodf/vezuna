@@ -118,7 +118,7 @@ enum ImportError: LocalizedError {
         case .noStructuredResults: return L10n.text(.no_structured_results)
         case .cameraUnavailable: return L10n.text(.camera_unavailable)
         case .invalidSelection: return L10n.text(.invalid_selection)
-        case .tooManyPages: return L10n.text(.import_too_many_pages, maxPDFPages)
+        case .tooManyPages: return L10n.text(.import_too_many_pages, SourceTextExtractor.maxPDFPages)
         }
     }
 }
