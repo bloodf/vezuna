@@ -13,9 +13,15 @@ Before submitting any build, complete the [physical-device validation](DEVICE_VA
 | Android | `-PVEZUNA_VERSION_NAME=1.0` | `-PVEZUNA_VERSION_CODE=2` (integer, must increase every upload) | Gradle properties |
 | iOS | `VEZUNA_VERSION_NAME=1.0` | `VEZUNA_BUILD_NUMBER=2` (must increase per version) | env for `scripts/build-ios.sh` |
 
-Defaults are `1.0` / `1`. `eas.json` uses `appVersionSource: local`.
+Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fail when `VEZUNA_VERSION_CODE` (positive integer) or `VEZUNA_VERSION_NAME` is not passed, so a build can never ship as `1` / `1.0` by accident. Debug and test builds still use `1` / `1.0`. `scripts/build-android.sh` passes both (defaulting to `1` / `1.0` only for that script). `eas.json` uses `appVersionSource: local`.
+
+## Moving from earlier tester builds
+
+Earlier tester builds used a different application ID (for example `com.bloodf.vitahearth`). Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, or its passphrase-sealed portable backup if it has one, and re-enter or re-import the records in Vezuna. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
 
 ## Android: signed release
+
+Release builds run R8 (minify) and resource shrinking with the rules in `composeApp/proguard-rules.pro` (kotlinx.serialization, Llamatik JNI, Play LVL/AIDL, PDFBox). After changing dependencies, inspect the build's `composeApp/build/outputs/mapping/release/` output and run the instrumented smoke tests against the release-signed build before uploading.
 
 Create a new upload key in your own terminal, or set `VEZUNA_UPLOAD_STORE_FILE` and `VEZUNA_UPLOAD_KEY_ALIAS` to an existing key. Never replace a registered upload key without following Play's key-reset process.
 
