@@ -512,4 +512,97 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Enter a valid date as YYYY-MM-DD.</string>
     <string name="export_date_range_reversed">The start date must not be after the end date.</string>
     <string name="export_no_matching_results">No confirmed results match these options; the export would have no results.</string>
+    <!-- region L2 records -->
+    <string name="records_search_hint">Search records</string>
+    <string name="records_filters">Filters</string>
+    <plurals name="records_filters_active">
+        <item quantity="one">Filters (%1$d active)</item>
+        <item quantity="other">Filters (%1$d active)</item>
+    </plurals>
+    <string name="records_filter_title">Filter records</string>
+    <string name="records_filter_dates">Collection dates</string>
+    <string name="records_filter_apply">Apply filters</string>
+    <string name="records_filter_reset">Reset filters</string>
+    <string name="records_view_reports">Reports</string>
+    <string name="records_view_results">Results</string>
+    <plurals name="records_reports_count">
+        <item quantity="one">%1$d confirmed report</item>
+        <item quantity="other">%1$d confirmed reports</item>
+    </plurals>
+    <plurals name="records_reports_found">
+        <item quantity="one">%1$d report</item>
+        <item quantity="other">%1$d reports</item>
+    </plurals>
+    <string name="records_saved_on_device">Saved on this device</string>
+    <plurals name="records_review_banner">
+        <item quantity="one">%1$d value to review</item>
+        <item quantity="other">%1$d values to review</item>
+    </plurals>
+    <string name="records_add">Add record</string>
+    <string name="records_empty_title">No records yet.</string>
+    <string name="records_empty_body">Import a PDF or photo, or enter a result.</string>
+    <string name="records_no_match_title">No matching records</string>
+    <string name="records_no_match_query">Nothing matches “%1$s”. Clear filters to see every record.</string>
+    <string name="records_no_match_filters">No records match these filters. Clear filters to see every record.</string>
+    <string name="records_no_confirmed_yet">No confirmed results yet</string>
+    <string name="records_pane_hint">Choose a report to see its results.</string>
+    <string name="records_range_within">Within report range</string>
+    <string name="records_range_above">Above report range</string>
+    <string name="records_range_below">Below report range</string>
+    <string name="records_status_confirmed">Confirmed</string>
+    <plurals name="report_detail_confirmed">
+        <item quantity="one">Confirmed result (%1$d)</item>
+        <item quantity="other">Confirmed results (%1$d)</item>
+    </plurals>
+    <plurals name="report_detail_drafts">
+        <item quantity="one">Unconfirmed value (%1$d)</item>
+        <item quantity="other">Unconfirmed values (%1$d)</item>
+    </plurals>
+    <string name="report_detail_rejected">Rejected</string>
+    <string name="report_detail_view_original">View original</string>
+    <string name="report_detail_create_export">Create export</string>
+    <string name="report_detail_unavailable">Report unavailable</string>
+    <string name="report_detail_unavailable_body">It may have been deleted or may belong to another profile.</string>
+    <string name="report_delete_title">Delete %1$s?</string>
+    <plurals name="report_delete_results">
+        <item quantity="one">%1$d confirmed result will be deleted.</item>
+        <item quantity="other">%1$d confirmed results will be deleted.</item>
+    </plurals>
+    <plurals name="report_delete_drafts">
+        <item quantity="one">%1$d unconfirmed value will be deleted.</item>
+        <item quantity="other">%1$d unconfirmed values will be deleted.</item>
+    </plurals>
+    <string name="report_delete_file">The original file stored on this device will be deleted.</string>
+    <string name="source_title">Original report</string>
+    <string name="source_opening">Opening the original file…</string>
+    <string name="source_page_of">Page %1$d of %2$d</string>
+    <string name="source_page_label">Page %1$d</string>
+    <string name="source_page_image">Page %1$d of %2$d of %3$s</string>
+    <string name="source_zoom_in">Zoom in</string>
+    <string name="source_zoom_out">Zoom out</string>
+    <string name="source_missing_title">Original file is not available.</string>
+    <string name="source_missing_body">This device has no stored copy of this report\'s file. Restored backups keep the results, not the original files. Your results stay as they are.</string>
+    <string name="source_missing_reimport_hint">Import the same file again to view it here. Values already reviewed are not added twice.</string>
+    <string name="source_reimport">Import the file again</string>
+    <string name="source_unreadable_body">The stored file could not be opened on this device. Your results stay as they are.</string>
+    <string name="source_unsupported_body">This file type cannot be shown on this device. Your results stay as they are.</string>
+    <string name="source_return">Return to report</string>
+    <string name="result_detail_recorded_as_text">Result recorded as text.</string>
+    <string name="result_detail_report_range">Report range</string>
+    <string name="result_detail_history">Result history</string>
+    <string name="result_detail_change_since">%1$s since %2$s</string>
+    <string name="result_detail_one_result">This is the only result for this test so far.</string>
+    <string name="result_detail_open_trends">Open in Trends</string>
+    <string name="result_detail_converted">converted with a published factor</string>
+    <string name="result_detail_review_status">Review status</string>
+    <string name="result_detail_source">Source</string>
+    <string name="result_detail_reference_text">Reference text</string>
+    <string name="result_detail_assessment">Assessment</string>
+    <string name="result_detail_corrections">Correction history</string>
+    <plurals name="result_detail_corrections_count">
+        <item quantity="one">%1$d earlier version</item>
+        <item quantity="other">%1$d earlier versions</item>
+    </plurals>
+    <string name="result_detail_back">Back to records</string>
+    <!-- endregion L2 records -->
 </resources>

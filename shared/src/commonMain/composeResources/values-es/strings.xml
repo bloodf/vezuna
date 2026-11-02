@@ -512,4 +512,97 @@ iOS: %2$s</string>
     <string name="export_date_invalid">Introduce una fecha válida con el formato AAAA-MM-DD.</string>
     <string name="export_date_range_reversed">La fecha inicial no puede ser posterior a la fecha final.</string>
     <string name="export_no_matching_results">Ningún resultado confirmado coincide con estas opciones; la exportación no tendría resultados.</string>
+    <!-- region L2 records -->
+    <string name="records_search_hint">Buscar registros</string>
+    <string name="records_filters">Filtros</string>
+    <plurals name="records_filters_active">
+        <item quantity="one">Filtros (%1$d activo)</item>
+        <item quantity="other">Filtros (%1$d activos)</item>
+    </plurals>
+    <string name="records_filter_title">Filtrar registros</string>
+    <string name="records_filter_dates">Fechas de recolección</string>
+    <string name="records_filter_apply">Aplicar filtros</string>
+    <string name="records_filter_reset">Restablecer filtros</string>
+    <string name="records_view_reports">Informes</string>
+    <string name="records_view_results">Resultados</string>
+    <plurals name="records_reports_count">
+        <item quantity="one">%1$d informe confirmado</item>
+        <item quantity="other">%1$d informes confirmados</item>
+    </plurals>
+    <plurals name="records_reports_found">
+        <item quantity="one">%1$d informe</item>
+        <item quantity="other">%1$d informes</item>
+    </plurals>
+    <string name="records_saved_on_device">Guardados en este dispositivo</string>
+    <plurals name="records_review_banner">
+        <item quantity="one">%1$d valor para revisar</item>
+        <item quantity="other">%1$d valores para revisar</item>
+    </plurals>
+    <string name="records_add">Añadir registro</string>
+    <string name="records_empty_title">Todavía no hay registros.</string>
+    <string name="records_empty_body">Importa un PDF o una foto, o introduce un resultado.</string>
+    <string name="records_no_match_title">Ningún registro coincide</string>
+    <string name="records_no_match_query">Nada coincide con «%1$s». Borra los filtros para ver todos los registros.</string>
+    <string name="records_no_match_filters">Ningún registro coincide con estos filtros. Borra los filtros para ver todos los registros.</string>
+    <string name="records_no_confirmed_yet">Aún sin resultados confirmados</string>
+    <string name="records_pane_hint">Elige un informe para ver sus resultados.</string>
+    <string name="records_range_within">Dentro del rango del informe</string>
+    <string name="records_range_above">Por encima del rango del informe</string>
+    <string name="records_range_below">Por debajo del rango del informe</string>
+    <string name="records_status_confirmed">Confirmado</string>
+    <plurals name="report_detail_confirmed">
+        <item quantity="one">Resultado confirmado (%1$d)</item>
+        <item quantity="other">Resultados confirmados (%1$d)</item>
+    </plurals>
+    <plurals name="report_detail_drafts">
+        <item quantity="one">Valor sin confirmar (%1$d)</item>
+        <item quantity="other">Valores sin confirmar (%1$d)</item>
+    </plurals>
+    <string name="report_detail_rejected">Rechazado</string>
+    <string name="report_detail_view_original">Ver original</string>
+    <string name="report_detail_create_export">Crear exportación</string>
+    <string name="report_detail_unavailable">Informe no disponible</string>
+    <string name="report_detail_unavailable_body">Puede que se haya eliminado o que pertenezca a otro perfil.</string>
+    <string name="report_delete_title">¿Eliminar %1$s?</string>
+    <plurals name="report_delete_results">
+        <item quantity="one">Se eliminará %1$d resultado confirmado.</item>
+        <item quantity="other">Se eliminarán %1$d resultados confirmados.</item>
+    </plurals>
+    <plurals name="report_delete_drafts">
+        <item quantity="one">Se eliminará %1$d valor sin confirmar.</item>
+        <item quantity="other">Se eliminarán %1$d valores sin confirmar.</item>
+    </plurals>
+    <string name="report_delete_file">Se eliminará el archivo original guardado en este dispositivo.</string>
+    <string name="source_title">Informe original</string>
+    <string name="source_opening">Abriendo el archivo original…</string>
+    <string name="source_page_of">Página %1$d de %2$d</string>
+    <string name="source_page_label">Página %1$d</string>
+    <string name="source_page_image">Página %1$d de %2$d de %3$s</string>
+    <string name="source_zoom_in">Ampliar</string>
+    <string name="source_zoom_out">Reducir</string>
+    <string name="source_missing_title">El archivo original no está disponible.</string>
+    <string name="source_missing_body">Este dispositivo no tiene una copia guardada del archivo de este informe. Las copias de seguridad restauradas conservan los resultados, no los archivos originales. Tus resultados siguen como están.</string>
+    <string name="source_missing_reimport_hint">Vuelve a importar el mismo archivo para verlo aquí. Los valores ya revisados no se añaden dos veces.</string>
+    <string name="source_reimport">Importar el archivo de nuevo</string>
+    <string name="source_unreadable_body">No se pudo abrir el archivo guardado en este dispositivo. Tus resultados siguen como están.</string>
+    <string name="source_unsupported_body">Este tipo de archivo no se puede mostrar en este dispositivo. Tus resultados siguen como están.</string>
+    <string name="source_return">Volver al informe</string>
+    <string name="result_detail_recorded_as_text">Resultado registrado como texto.</string>
+    <string name="result_detail_report_range">Rango del informe</string>
+    <string name="result_detail_history">Historial del resultado</string>
+    <string name="result_detail_change_since">%1$s desde %2$s</string>
+    <string name="result_detail_one_result">Este es el único resultado de esta prueba por ahora.</string>
+    <string name="result_detail_open_trends">Abrir en Tendencias</string>
+    <string name="result_detail_converted">convertido con un factor publicado</string>
+    <string name="result_detail_review_status">Estado de revisión</string>
+    <string name="result_detail_source">Origen</string>
+    <string name="result_detail_reference_text">Texto de referencia</string>
+    <string name="result_detail_assessment">Evaluación</string>
+    <string name="result_detail_corrections">Historial de correcciones</string>
+    <plurals name="result_detail_corrections_count">
+        <item quantity="one">%1$d versión anterior</item>
+        <item quantity="other">%1$d versiones anteriores</item>
+    </plurals>
+    <string name="result_detail_back">Volver a los registros</string>
+    <!-- endregion L2 records -->
 </resources>

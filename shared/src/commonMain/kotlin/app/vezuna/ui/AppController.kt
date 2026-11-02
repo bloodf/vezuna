@@ -225,7 +225,7 @@ class AppController(
         val sourceHash = sourceIdentity(source)
         val existingDocument = data.documents.firstOrNull { it.sha256 == sourceHash }
         val document = existingDocument ?: newSourceDocument(data.profile.profileId, source, sourceHash)
-        if (existingDocument == null) addDocumentKeepingFile(document)
+        if (existingDocument == null) addDocumentKeepingFile(document) else reattachMissingSourceFile(existingDocument, source)
         if (data.reports.none { it.sourceDocumentId == document.documentId }) {
             repository.addReport(
                 LabReport(
@@ -776,6 +776,45 @@ class AppController(
     }
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+
+    // region L2 records
+    /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
+    suspend fun readSourceFile(documentId: String): SourceFileRead {
+        val document = mutableState.value.data?.documents?.firstOrNull { it.documentId == documentId } ?: return SourceFileRead.Missing
+        val keys = listOfNotNull(document.vaultKey) + document.pageVaultKeys
+        val store = sourceStore
+        if (keys.isEmpty() || store == null) return SourceFileRead.Missing
+        return try {
+            SourceFileRead.Available(document.mediaType, keys.mapIndexed { index, key -> store.load(document.profileId, backupFileId(documentId, index + 1), key) ?: return SourceFileRead.Missing })
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            throw cancellation
+        } catch (error: Throwable) {
+            SourceFileRead.Unreadable
+        }
+    }
+
+    /** Importing the same file again stores it for a document that lost its file (portable restore keeps no files). */
+    private suspend fun reattachMissingSourceFile(document: SourceDocument, source: PickedSource) {
+        val store = sourceStore
+        if (document.vaultKey != null || store == null) return
+        val saved = mutableListOf<String>()
+        try {
+            saved += store.save(document.profileId, document.documentId, source.bytes)
+            source.additionalPages.forEachIndexed { index, page -> saved += store.save(document.profileId, backupFileId(document.documentId, index + 2), page) }
+            repository.updateDocument(document.copy(vaultKey = saved.first(), pageVaultKeys = saved.drop(1)))
+        } catch (error: Throwable) {
+            withContext(NonCancellable) { saved.forEach { store.discard(it) } }
+            throw error
+        }
+    }
+    // endregion L2 records
+}
+
+/** Result of opening a report's original file: the decrypted pages, no stored file, or a file that failed to decrypt. */
+sealed interface SourceFileRead {
+    data class Available(val mediaType: String, val pages: List<ByteArray>) : SourceFileRead
+    data object Missing : SourceFileRead
+    data object Unreadable : SourceFileRead
 }
 
 private val REMINDER_TIME = Regex("(?:[01]\\d|2[0-3]):[0-5]\\d")
