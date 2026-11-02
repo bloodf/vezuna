@@ -66,6 +66,17 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(hidden.userInfo["medicationName"] as? String, "Aspirin")
     }
 
+    func testProfileNameIsShownOnlyWhenNamesAreNotHidden() {
+        let reminder = DoseReminder(profileId: "p", medicationId: "m", medicationName: "Aspirin", scheduleId: "s", scheduledAt: now, profileName: "Ana")
+        XCTAssertTrue(MedicationNotificationCoordinator.content(for: reminder, hidingName: false).body.contains("Ana"))
+        let hidden = MedicationNotificationCoordinator.content(for: reminder, hidingName: true)
+        XCTAssertFalse(hidden.title.contains("Ana"))
+        XCTAssertFalse(hidden.body.contains("Ana"))
+        let snoozed = NotificationPlanner(calendar: calendar).snooze(reminder, from: now)
+        XCTAssertEqual(snoozed.profileName, "Ana")
+        XCTAssertEqual(snoozed.scheduledAt.timeIntervalSince1970, snoozed.scheduledAt.timeIntervalSince1970.rounded(.down))
+    }
+
     func testPendingResponsesSurviveARestartAndAreNotDuplicated() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("responses.json")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

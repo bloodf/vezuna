@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kover)
     id("org.jetbrains.compose") version libs.versions.composeMultiplatform.get()
 }
 
@@ -69,5 +70,32 @@ afterEvaluate {
     }
     tasks.named("syncComposeResourcesForIos").configure {
         (property("outputDir") as DirectoryProperty).set(rootProject.file("iosApp/.ios-build/compose-resources"))
+    }
+}
+
+// Coverage gate: domain/data logic only (parsing, backup, storage, units). UI, generated and platform glue excluded.
+kover {
+    reports {
+        filters {
+            includes {
+                packages(
+                    "app.vezuna.domain",
+                    "app.vezuna.data",
+                    "app.vezuna.importer",
+                    "app.vezuna.export",
+                    "app.vezuna.health",
+                    "app.vezuna.security",
+                )
+            }
+            excludes {
+                annotatedBy("androidx.compose.runtime.Composable")
+                classes("*.generated.*", "*\$\$serializer", "*ComposableSingletons*", "app.vezuna.export.Android*",
+                    // Android-only security glue (Keystore vault, generational store); not reachable from jvm tests
+                    "app.vezuna.security.Android*", "app.vezuna.security.GenerationalFileStore*", "app.vezuna.security.BackupCrypto_androidKt")
+            }
+        }
+        verify {
+            rule { minBound(80) }
+        }
     }
 }
