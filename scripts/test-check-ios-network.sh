@@ -37,10 +37,14 @@ done
 
 # A "/*" or "//" inside a string or line comment must not hide the code after it.
 for bad in $'let g = "/*"\nlet s = URLSession.shared\nlet h = "*/"' $'// path /*\nlet s = URLSession.shared\n/* note */' 'let a = "x//y"; URLSession.shared' \
+  $'val r = """\n/*\n"""\nURLSession.shared\n/* note */' 'val r = """a"//b"""; URLSession.shared' $'val q = \'"\'; val p = "a//b"; URLSession.shared' \
   'Stream.getStreamsToHostWithName(h)' 'let w = UIWebView()' 'import CloudKit' 'let c = CKContainer.default()'; do
   expect_caught "$SW" "$bad"
 done
 expect_caught iosApp/Vezuna/D.cpp 'int fd = socket(AF_INET, SOCK_STREAM, 0);'
+
+# Only the build-output folder is skipped, not any folder that happens to be called Frameworks.
+mkdir -p "$T/iosApp/Vezuna/Frameworks"; expect_caught iosApp/Vezuna/Frameworks/F.swift 'let s = URLSession.shared'; rm -r "$T/iosApp/Vezuna/Frameworks"
 
 # Build output is not scanned, so results do not depend on local build state.
 mkdir -p "$T/iosApp/Frameworks"; printf 'let s = URLSession.shared\n' > "$T/iosApp/Frameworks/G.swift"

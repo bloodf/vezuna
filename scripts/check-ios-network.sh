@@ -20,7 +20,7 @@ for d in iosApp shared/src/iosMain shared/src/commonMain; do
 done
 
 # Strip /* */ (keeping newlines so line numbers hold) and // comments (not the // in a URL), then print matching lines.
-hits="$(cd "$ROOT" && find "${DIRS[@]}" \( -name build -o -name .build -o -name DerivedData -o -name Frameworks -o -name '*.xcodeproj' \) -prune -o \
+hits="$(cd "$ROOT" && find "${DIRS[@]}" \( -name build -o -name .build -o -name DerivedData -o -path iosApp/Frameworks -o -name '*.xcodeproj' \) -prune -o \
   -type f \( -name '*.swift' -o -name '*.m' -o -name '*.mm' -o -name '*.h' -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.kt' \) -print0 \
   | xargs -0 perl -e '
       $re = qr/$ENV{PATTERN}/;
@@ -28,7 +28,7 @@ hits="$(cd "$ROOT" && find "${DIRS[@]}" \( -name build -o -name .build -o -name 
         open(my $h, "<", $f) or do { print STDERR "unreadable: $f\n"; exit 3 };
         local $/; my $s = <$h>; close $h;
         # One pass so a "/*" or "//" inside a string is not read as a comment. Strings stay, so a name in one is flagged.
-        $s =~ s{("(?:\\.|[^"\\\n])*")|/\*.*?\*/|//[^\n]*}{defined $1 ? $1 : ($& =~ tr/\n//cdr)}gse;
+        $s =~ s{("""(?s:.*?)"""|"(?:\\.|[^"\\\n])*"|\x27(?:\\.|[^\x27\\\n])\x27)|/\*.*?\*/|//[^\n]*}{defined $1 ? $1 : ($& =~ tr/\n//cdr)}gse;
         my $n = 0;
         for my $l (split /\n/, $s, -1) { $n++; print "$f:$n:$l\n" if $l =~ $re; }
       }' )"
