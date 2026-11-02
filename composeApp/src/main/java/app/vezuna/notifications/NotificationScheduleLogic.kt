@@ -14,6 +14,19 @@ import java.time.temporal.ChronoUnit
 data class ShownReminder(val notificationId: Int, val profileId: String, val medicationId: String, val scheduleId: String)
 
 object NotificationScheduleLogic {
+    private const val ARMED_SEPARATOR = "|"
+
+    /** Stable identity of one dose alarm: schedule plus its scheduled instant. */
+    fun alarmId(scheduleId: String, at: Instant): String = "$scheduleId:${at.epochSecond}"
+
+    fun armedKey(medicationId: String, alarmId: String): String = "$medicationId$ARMED_SEPARATOR$alarmId"
+
+    fun splitArmedKey(key: String): Pair<String, String>? =
+        key.split(ARMED_SEPARATOR, limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] }
+
+    /** Alarms armed by an earlier pass that the latest pass no longer produces (zone/time change, pause, delete). */
+    fun staleArmedKeys(previous: Set<String>, armed: Set<String>): Set<String> = previous - armed
+
     /** Delivered reminders whose medication was paused, stopped or deleted, or whose profile was removed. */
     fun staleNotificationIds(shown: List<ShownReminder>, profiles: Map<String, ProfileData>): List<Int> =
         shown.filterNot { isReminderCurrent(profiles[it.profileId], it.medicationId, it.scheduleId) }.map { it.notificationId }

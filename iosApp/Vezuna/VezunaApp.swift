@@ -3,7 +3,8 @@ import VezunaShared
 
 @main
 struct VezunaApp: App {
-    @StateObject private var model = AppShellModel()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var model = AppDelegate.model
     @StateObject private var lock = AppLockObserver()
     @Environment(\.scenePhase) private var scenePhase
 

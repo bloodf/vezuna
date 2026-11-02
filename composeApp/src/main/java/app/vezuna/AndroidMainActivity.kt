@@ -1,7 +1,11 @@
 package app.vezuna
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import android.content.res.Configuration
@@ -36,7 +40,9 @@ import app.vezuna.llm.PlayAssetPackLoader
 import app.vezuna.security.BackupService
 import app.vezuna.ui.AppController
 import app.vezuna.ui.BackupRecovery
+import app.vezuna.notifications.ReminderPreferences
 import app.vezuna.ui.PreviousGenerationNotice
+import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +61,15 @@ class AndroidMainActivity : FragmentActivity() {
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
     private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
+
+    private val reminders by lazy {
+        val preferences = ReminderPreferences(this)
+        ReminderPlatformState(
+            hideMedicationNames = preferences.hideMedicationNames,
+            persistHideMedicationNames = { preferences.hideMedicationNames = it },
+            openExactAlarmSettings = ::openExactAlarmSettings,
+        )
+    }
 
     private val mutableMessage = MutableStateFlow<NativeText?>(null)
     private val mutableExport = MutableStateFlow<NativeExport?>(null)
@@ -121,6 +136,7 @@ class AndroidMainActivity : FragmentActivity() {
                 onHealthConnect = ::openHealthConnect,
                 onReminders = ::requestReminders,
                 backupFiles = backupFiles.access,
+                reminders = reminders,
                 onPresentExport = { mutableExport.value = it },
                 onDismissExport = { mutableExport.value = null },
                 onShareExport = ::shareExport,
@@ -129,6 +145,24 @@ class AndroidMainActivity : FragmentActivity() {
             )
             }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val wasDenied = reminders.exactAlarmsDenied.value
+        val denied = !app.notifications.canScheduleExactAlarms()
+        reminders.setExactAlarmsDenied(denied)
+        // Returning from the system screen with the permission now granted: re-arm alarms as exact.
+        if (wasDenied && !denied) lifecycleScope.launch { app.notifications.rescheduleAll(app.repository) }
+    }
+
+    private fun openExactAlarmSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")))
+        } catch (missing: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
     }
 
