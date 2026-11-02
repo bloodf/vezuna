@@ -1,6 +1,7 @@
 package app.vezuna.ios
 
 import app.vezuna.importer.parseExtractedCandidates
+import app.vezuna.importer.parseReportHeader
 import app.vezuna.ui.ExtractedValueKind
 
 /** One parsed row for the native review list; bounds are strings so the reviewer can edit them. */
@@ -19,6 +20,9 @@ data class NativeParsedCandidate(
     val confidence: Float?,
     val rawToken: String?,
 )
+
+/** Laboratory name and order date read from the page text (noon-UTC epoch seconds), or null when none was found. */
+data class NativeParsedHeader(val laboratoryName: String?, val orderedEpochSeconds: Long?)
 
 /** The shared commonMain parser, exposed to Swift: iOS has no parser of its own. */
 object LabTextBridge {
@@ -39,4 +43,7 @@ object LabTextBridge {
                 rawToken = candidate.rawToken,
             )
         }
+
+    fun parseHeader(text: String): NativeParsedHeader =
+        parseReportHeader(text).let { NativeParsedHeader(it.laboratoryName, it.orderedAt?.epochSeconds) }
 }

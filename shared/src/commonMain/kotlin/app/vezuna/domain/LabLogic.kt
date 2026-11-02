@@ -124,22 +124,62 @@ object ClinicalDuplicateDetector {
         first.profileId == second.profileId && fingerprint(first) == fingerprint(second)
 }
 
-data class TrendPoint(val observation: LabObservation, val xEpochSeconds: Long, val y: Double)
-data class TrendSeries(val profileId: String, val testCode: String, val unit: String, val points: List<TrendPoint>)
+data class TrendPoint(val observation: LabObservation, val xEpochSeconds: Long, val y: Double, val converted: Boolean = false)
+
+/**
+ * [droppedUnits] lists the display units of confirmed results left out because no cited factor links them to [unit];
+ * they are surfaced, never silently dropped.
+ */
+data class TrendSeries(
+    val profileId: String,
+    val testCode: String,
+    val unit: String,
+    val points: List<TrendPoint>,
+    val droppedUnits: List<String> = emptyList(),
+)
+
+/** One trend chip: [code] is the canonical grouping key, [displayName] the most recent spelling. */
+data class TrendChoice(val code: String, val displayName: String)
 
 object TrendPreparation {
+    /** Confirmed numeric tests of the profile grouped by canonical code, labelled with the latest display name. */
+    fun choices(observations: List<LabObservation>): List<TrendChoice> = observations
+        .filter { it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative }
+        .groupBy { UnitNormalizer.canonicalTestCode(it.testCode) }
+        .map { (code, rows) -> TrendChoice(code, rows.maxWith(compareBy({ it.collectedAt }, { it.observationId })).displayName) }
+        .sortedWith(compareBy({ it.displayName.lowercase() }, { it.code }))
+
     fun forTest(profileId: String, testCode: String, observations: List<LabObservation>): TrendSeries? {
+        val code = UnitNormalizer.canonicalTestCode(testCode)
         val matching = observations.filter {
             it.profileId == profileId &&
                 it.confirmation == ConfirmationStatus.CONFIRMED && !it.isQualitative &&
-                UnitNormalizer.canonicalTestCode(it.testCode) == UnitNormalizer.canonicalTestCode(testCode)
+                UnitNormalizer.canonicalTestCode(it.testCode) == code
         }
-        val unit = matching.firstOrNull()?.normalizedUnit ?: return null
-        val points = matching.filter { it.normalizedUnit.equals(unit, ignoreCase = true) }
-            .sortedBy { it.collectedAt }
-            .map { TrendPoint(it, it.collectedAt.epochSeconds, it.normalizedValue) }
-        return TrendSeries(profileId, UnitNormalizer.canonicalTestCode(testCode), unit, points)
+        // The newest result decides the series unit: it is the one the reader compares against.
+        val anchor = matching.maxWithOrNull(compareBy({ it.collectedAt }, { it.observationId })) ?: return null
+        val points = mutableListOf<TrendPoint>()
+        val dropped = linkedSetOf<String>()
+        matching.sortedBy { it.collectedAt }.forEach { observation ->
+            val y = alignedValue(code, observation, anchor)
+            if (y == null) dropped += observation.originalUnit
+            else points += TrendPoint(observation, observation.collectedAt.epochSeconds, y, converted = !sameUnit(observation.originalUnit, anchor.originalUnit))
+        }
+        return TrendSeries(profileId, code, anchor.originalUnit, points, dropped.toList())
     }
+
+    /** The result expressed in the anchor's own unit, or null when neither unit scaling nor a cited factor links them. */
+    private fun alignedValue(code: String, observation: LabObservation, anchor: LabObservation): Double? {
+        if (sameUnit(observation.originalUnit, anchor.originalUnit)) return observation.originalValue
+        if (observation.normalizedUnit.equals(anchor.normalizedUnit, ignoreCase = true)) {
+            return observation.normalizedValue / UnitNormalizer.normalize(1.0, anchor.originalUnit).value
+        }
+        val factor = AnalyteConversions.factor(code, observation.originalUnit, anchor.originalUnit) ?: return null
+        return observation.originalValue * factor
+    }
+
+    private fun sameUnit(first: String, second: String): Boolean =
+        first.trim().replace('μ', 'µ').equals(second.trim().replace('μ', 'µ'), ignoreCase = true)
 }
 
 /** Plain-text history of qualitative results for one test, oldest first. */

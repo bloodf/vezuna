@@ -37,6 +37,7 @@ class PdfReportLayout(private val canvas: PdfCanvas) {
         y += 13.0
         text("${t.reportPeriod}: ${DoctorReportFormat.period(document.resultRows, language)}", MARGIN, y, 7.5, MUTED)
         y += 13.0
+        DoctorReportFormat.sources(document.resultRows, language)?.let { y += wrapped(it, MARGIN, y, CONTENT_WIDTH, 7.5, MUTED) + 4.0 }
         y += wrapped(t.disclaimer, MARGIN, y, CONTENT_WIDTH, 7.5, MUTED)
         y += 8.0
         line(MARGIN, y, RIGHT, y, NAVY, 1.6)

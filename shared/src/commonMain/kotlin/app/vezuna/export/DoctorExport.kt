@@ -40,6 +40,9 @@ data class DoctorResultRow(
     val referenceRange: ReferenceRange,
     val assessment: RangeAssessment,
     val qualitativeValue: String? = null,
+    /** Laboratory and order date of the source report, when known; platform exporters decide how to show them. */
+    val laboratoryName: String? = null,
+    val orderedAt: Instant? = null,
 )
 
 data class DoctorMedicationRow(
@@ -101,6 +104,8 @@ object DoctorExportContent {
                     referenceRange = observation.referenceRange,
                     assessment = assessmentForExport(observation),
                     qualitativeValue = observation.qualitativeValue,
+                    laboratoryName = report(data, observation)?.laboratoryName?.takeIf { it.isNotBlank() },
+                    orderedAt = report(data, observation)?.orderedAt,
                 )
             },
             medicationRows = data.medications
@@ -110,6 +115,8 @@ object DoctorExportContent {
             language = language,
         )
     }
+
+    private fun report(data: ProfileData, observation: LabObservation) = data.reports.firstOrNull { it.reportId == observation.reportId }
 
     private fun assessmentForExport(observation: LabObservation): RangeAssessment {
         if (observation.isQualitative) return RangeAssessment.UNKNOWN

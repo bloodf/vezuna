@@ -80,10 +80,15 @@ private fun MetricCard(data: ProfileData, metric: VitalMetric) {
             Text(vitaText(copy.title), style = MaterialTheme.typography.titleMedium)
             copy.aggregate?.let { Text(vitaText(it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(vitaText(L10nKey.VITAL_LATEST, "${formatVital(points.last().second)} $unit"), style = MaterialTheme.typography.bodyMedium)
+            val values = points.map { it.second }
             LineChart(
                 points, "${data.profile.profileId}|$metric",
-                vitaPlural(L10nKey.VITALS_CHART_ACCESSIBILITY, points.size, unit),
+                vitaPlural(
+                    L10nKey.VITALS_CHART_ACCESSIBILITY, points.size, unit,
+                    formatVital(values.min()), formatVital(values.max()), formatVital(values.last()),
+                ),
                 Modifier.fillMaxWidth().height(160.dp),
+                unit = unit,
             )
         }
     }
