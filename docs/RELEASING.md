@@ -13,15 +13,15 @@ Before submitting any build, complete the [physical-device validation](DEVICE_VA
 | Android | `-PVEZUNA_VERSION_NAME=1.0` | `-PVEZUNA_VERSION_CODE=2` (integer, must increase every upload) | Gradle properties |
 | iOS | `VEZUNA_VERSION_NAME=1.0` | `VEZUNA_BUILD_NUMBER=2` (must increase per version) | env for `scripts/build-ios.sh` |
 
-Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fail when `VEZUNA_VERSION_CODE` (positive integer) or `VEZUNA_VERSION_NAME` is not passed, so a build can never ship as `1` / `1.0` by accident. Debug and test builds still use `1` / `1.0`. `scripts/build-android.sh` passes both (defaulting to `1` / `1.0` only for that script). `eas.json` uses `appVersionSource: local`.
+Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fail when `VEZUNA_VERSION_CODE` (positive integer) or `VEZUNA_VERSION_NAME` is not passed, so a build can never ship as `1` / `1.0` by accident. Debug and test builds still use `1` / `1.0`. `scripts/build-android.sh` requires `VEZUNA_VERSION_CODE` and `VEZUNA_VERSION_NAME` in the environment and exits before any password prompt when either is unset. `eas.json` uses `appVersionSource: local`.
 
 ## Moving from earlier tester builds
 
-Earlier tester builds used a different application ID (for example `com.bloodf.vitahearth`). Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, or its passphrase-sealed portable backup if it has one, and re-enter or re-import the records in Vezuna. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
+Earlier tester builds used a different application ID (for example `com.bloodf.vitahearth`). Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, which is for manual re-entry only (Vezuna does not import those files as records). Only a passphrase-sealed portable backup in Vezuna's own format can be restored in Vezuna; a backup from an earlier build is restorable only if that build wrote this format. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
 
 ## Android: signed release
 
-Release builds run R8 (minify) and resource shrinking with the rules in `composeApp/proguard-rules.pro` (kotlinx.serialization, Llamatik JNI, Play LVL/AIDL, PDFBox). After changing dependencies, install the release APK on an emulator (uninstall any build signed with another key first) and walk Get started, Create profile and Today. Check `adb logcat` for `FATAL EXCEPTION`; reflective loads (Room, ML Kit registrars, WorkManager) are what R8 breaks first, and the mapping output is in `composeApp/build/outputs/mapping/release/`.
+Release builds run R8 (minify) and resource shrinking with the rules in `composeApp/proguard-rules.pro` (kotlinx.serialization, Llamatik JNI, Play LVL/AIDL, PDFBox). After changing dependencies, install the release APK on an emulator (uninstall any build signed with another key first) and walk Get started, Create profile and Today. Check `adb logcat` for `FATAL EXCEPTION`; reflective loads (Room, ML Kit registrars, WorkManager) are what R8 breaks first, and the mapping output is in `composeApp/build/outputs/mapping/release/`. Archive `mapping.txt` per `versionCode`: AABs embed it for Play, sideloaded APKs do not, and without it release crash traces cannot be de-obfuscated.
 
 Create a new upload key in your own terminal, or set `VEZUNA_UPLOAD_STORE_FILE` and `VEZUNA_UPLOAD_KEY_ALIAS` to an existing key. Never replace a registered upload key without following Play's key-reset process.
 
@@ -35,14 +35,14 @@ Build the signed AAB and APK in your terminal:
 
 ```sh
 export VEZUNA_LVL_PUBLIC_KEY='<Play licensing public key>'
-VEZUNA_VERSION_CODE=1 bash scripts/build-android.sh
+VEZUNA_VERSION_NAME=1.0 VEZUNA_VERSION_CODE=1 bash scripts/build-android.sh
 ```
 
 The script asks for signing passwords without echoing them. Passwords go to child processes through environment variables, never command arguments or repository files. It disables Gradle's configuration cache and daemon for the signing build. The Play licensing key is read from a Gradle property or the same-named environment variable. An empty key disables paid AI access in release builds.
 
 If the environment variable is unset, the script also reads `~/.local/share/vezuna/release/play-licensing-public-key.txt` when present. This local file was populated from Vezuna's Play Console on 2026-10-31. Keep it outside Git.
 
-For automation, supply all four `VEZUNA_UPLOAD_STORE_FILE`, `VEZUNA_UPLOAD_STORE_PASSWORD`, `VEZUNA_UPLOAD_KEY_ALIAS`, and `VEZUNA_UPLOAD_KEY_PASSWORD` values through the local secret store or CI secret environment. Do not place passwords directly in shell commands. `VEZUNA_VERSION_NAME` defaults to `1.0`; `VEZUNA_VERSION_CODE` defaults to `1` and must increase after the first accepted upload.
+For automation, supply all four `VEZUNA_UPLOAD_STORE_FILE`, `VEZUNA_UPLOAD_STORE_PASSWORD`, `VEZUNA_UPLOAD_KEY_ALIAS`, and `VEZUNA_UPLOAD_KEY_PASSWORD` values through the local secret store or CI secret environment. Do not place passwords directly in shell commands. `VEZUNA_VERSION_NAME` and `VEZUNA_VERSION_CODE` have no defaults; the code must increase with every accepted upload.
 
 Outputs: `composeApp/build/outputs/bundle/release/composeApp-release.aab`, `composeApp/build/outputs/apk/release/composeApp-release.apk`.
 

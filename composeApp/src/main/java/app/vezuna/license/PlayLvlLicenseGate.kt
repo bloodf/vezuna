@@ -34,7 +34,8 @@ internal class LicenseCheckRunner(
     private val mutex = Mutex()
 
     suspend fun check(): Boolean = mutex.withLock {
-        val probe = newProbe()
+        // A malformed public key makes the checker constructor throw; deny instead of escaping premiumAllowed().
+        val probe = try { newProbe() } catch (_: Throwable) { return@withLock false }
         // finally covers result, cancellation and failure, so the probe never outlives its check.
         try {
             suspendCancellableCoroutine { continuation ->

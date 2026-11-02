@@ -4,6 +4,7 @@
 # Attributes needed by kotlinx.serialization and readable crash reports.
 -keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod, RuntimeVisibleAnnotations
 -keepattributes SourceFile, LineNumberTable
+-renamesourcefileattribute SourceFile
 
 # kotlinx.serialization: generated serializers are found through Companion.serializer() and $$serializer.
 -keepclassmembers @kotlinx.serialization.Serializable class ** {
@@ -20,9 +21,9 @@
 -keep class com.llamatik.** { *; }
 -keepclasseswithmembernames class * { native <methods>; }
 
-# Play licensing (LVL): AIDL stubs and the vendored client are bound by name over Binder.
+# Play licensing (LVL): the AIDL stubs in com.android.vending.licensing are bound by name over Binder.
+# The vendored client (com.google.android.vending.licensing) uses no reflection and needs no keep.
 -keep class com.android.vending.licensing.** { *; }
--keep class app.vezuna.license.** { *; }
 
 # PDFBox-Android loads fonts, filters and glyph lists reflectively and optionally references JP2/AWT classes.
 -keep class com.tom_roush.pdfbox.** { *; }

@@ -41,7 +41,7 @@ class LicenseCheckRunnerTest {
     }
 
     @Test
-    fun cachedPolicyDecidesAllowEvenWhenPolicyRefuses() = runTest {
+    fun allowCallbackDeniedWhenPolicyRefuses() = runTest {
         val probes = mutableListOf<FakeProbe>()
         val r = runner(FakePolicy(false), probes) { it.allow(Policy.LICENSED) }
         assertFalse(r.check())
@@ -84,5 +84,10 @@ class LicenseCheckRunnerTest {
         advanceUntilIdle()
         assertEquals(1, probes.size)
         assertEquals(1, probes[0].destroyed)
+    }
+
+    @Test
+    fun probeConstructionFailureDenies() = runTest {
+        assertFalse(LicenseCheckRunner(FakePolicy(true)) { error("bad key") }.check())
     }
 }

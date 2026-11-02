@@ -3,17 +3,50 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-mkdir -p "$T/scripts" "$T/iosApp/Vezuna" "$T/shared/src/iosMain/kotlin"
+mkdir -p "$T/scripts" "$T/iosApp/Vezuna" "$T/iosApp/SharedBridge" "$T/shared/src/iosMain/kotlin" "$T/shared/src/commonMain/kotlin"
 : > "$T/scripts/ios-network-allowlist.txt"
-printf 'import SwiftUI\n// URLSession mention in a comment is fine\nstruct A {}\n' > "$T/iosApp/Vezuna/A.swift"
-bash "$HERE/check-ios-network.sh" "$T" >/dev/null || { echo "FAIL: clean tree rejected"; exit 1; }
-for bad in 'let s = URLSession.shared' 'import Network' 'let c = NWConnection(host: h, port: p, using: .tcp)'; do
-  printf '%s\n' "$bad" > "$T/iosApp/Vezuna/B.swift"
-  bash "$HERE/check-ios-network.sh" "$T" >/dev/null 2>&1 && { echo "FAIL: not caught: $bad"; exit 1; }
+run() { bash "$HERE/check-ios-network.sh" "$T" >/dev/null 2>&1; }
+printf 'import SwiftUI\n// URLSession mention in a comment is fine\n/* multi\n   line URLSession */\nlet d = try? Data(contentsOf: fileURL)\nstruct A {}\n' > "$T/iosApp/Vezuna/A.swift"
+run || { echo "FAIL: clean tree rejected"; exit 1; }
+
+expect_caught() { # file, content
+  printf '%s\n' "$2" > "$T/$1"
+  run && { echo "FAIL: not caught in $1: $2"; exit 1; }
+  rm "$T/$1"
+}
+SW=iosApp/Vezuna/B.swift
+for bad in \
+  'let s = URLSession.shared' 'import Network' '@preconcurrency import Network' 'let c = NWConnection(host: h, port: p, using: .tcp)' \
+  'let d = try Data(contentsOf: URL(string: "https://x.test")!)' 'let s = try String(contentsOf: URL(string: "http://x.test")!)' \
+  'let i = InputStream(url: u)' 'Stream.getStreamsToHost(withName: h, port: 80, inputStream: &a, outputStream: &b)' \
+  'let r = CFReadStreamCreateWithFTPURL(nil, u)' 'let w = CFWriteStreamCreateWithBuffer(nil, b, 1)' 'CFStreamCreatePairWithSocketToHost(nil, h, 80, &a, &b)' \
+  'let fd = socket(AF_INET, SOCK_STREAM, 0)' 'getaddrinfo(h, nil, nil, &res)' 'let c = nw_connection_create(e, p)' \
+  'AsyncImage(url: u)' 'let p = AVPlayer(url: u)' 'UIApplication.shared.open(u)' 'Link("x", destination: u)' 'Environment(\.openURL) var openURL' \
+  'let w = WKWebView(frame: .zero)' '/* x */ let s = URLSession.shared' 'let a = 1 /* c */ ; URLSession.shared' 'let s = "http://a"; URLSession.shared'; do
+  expect_caught "$SW" "$bad"
 done
-rm "$T/iosApp/Vezuna/B.swift"
+for bad in '@import Network;' '#import <Network/Network.h>' '[NSData dataWithContentsOfURL:u];' '[NSString stringWithContentsOfURL:u encoding:1 error:nil];' 'int fd = socket(AF_INET, SOCK_STREAM, 0);'; do
+  expect_caught iosApp/Vezuna/C.m "$bad"
+done
+for bad in 'import platform.Foundation.NSURLSession' 'import platform.posix.socket' 'import io.ktor.client.HttpClient' 'import platform.Network.nw_connection_create'; do
+  expect_caught shared/src/iosMain/kotlin/K.kt "$bad"
+  expect_caught shared/src/commonMain/kotlin/K.kt "$bad"
+  expect_caught iosApp/SharedBridge/K.kt "$bad"
+done
+
+# Networking dependency in build files.
+printf 'implementation("io.ktor:ktor-client-darwin:3.0.0")\n' > "$T/shared/build.gradle.kts"
+run && { echo "FAIL: ktor dependency not caught"; exit 1; }
+rm "$T/shared/build.gradle.kts"
+
+# Unreadable file must fail the check, not pass it.
+printf 'struct Z {}\n' > "$T/iosApp/Vezuna/Z.swift"; chmod 000 "$T/iosApp/Vezuna/Z.swift"
+if [[ "$(id -u)" -ne 0 ]]; then
+  run && { echo "FAIL: unreadable file passed"; exit 1; }
+fi
+chmod 644 "$T/iosApp/Vezuna/Z.swift"; rm "$T/iosApp/Vezuna/Z.swift"
+
 printf 'import platform.Foundation.NSURLSession\n' > "$T/shared/src/iosMain/kotlin/K.kt"
-bash "$HERE/check-ios-network.sh" "$T" >/dev/null 2>&1 && { echo "FAIL: Kotlin iosMain not caught"; exit 1; }
 printf 'shared/src/iosMain/kotlin/K.kt:NSURLSession\n' > "$T/scripts/ios-network-allowlist.txt"
-bash "$HERE/check-ios-network.sh" "$T" >/dev/null 2>&1 || { echo "FAIL: allowlist ignored"; exit 1; }
+run || { echo "FAIL: allowlist ignored"; exit 1; }
 echo "check-ios-network self-test passed"
