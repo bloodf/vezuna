@@ -40,7 +40,7 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.vezuna.data.VezunaRepository
 import app.vezuna.llm.InstalledModelManager
@@ -239,7 +239,8 @@ private fun VezunaNavigationBar(current: Destination, onSelect: (Destination) ->
                 selected = destination == current,
                 onClick = { onSelect(destination) },
                 icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                label = { Text(vitaText(destination.label()), maxLines = 1, overflow = TextOverflow.Visible) },
+                // Labels never truncate: at large text they wrap to a second line instead.
+                label = { Text(vitaText(destination.label()), maxLines = 2, textAlign = TextAlign.Center) },
                 alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = VezunaTokens.OnCategory,
@@ -271,7 +272,7 @@ private fun VezunaRail(current: Destination, onSelect: (Destination) -> Unit) {
                     selected = destination == current,
                     onClick = { onSelect(destination) },
                     icon = { Icon(painterResource(destination.icon()), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                    label = { Text(vitaText(destination.label()), maxLines = 1) },
+                    label = { Text(vitaText(destination.label()), maxLines = 2, textAlign = TextAlign.Center) },
                     alwaysShowLabel = true,
                     colors = NavigationRailItemDefaults.colors(
                         selectedIconColor = VezunaTokens.OnCategory,

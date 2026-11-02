@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -97,12 +96,12 @@ fun RootHeader(
                 )
             }
             Column(Modifier.padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceSm, bottom = VezunaTokens.SpaceLg)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     val current = profiles.firstOrNull { it.profileId == currentProfileId }
+                    // The name may take the whole row at large text sizes; actions keep their own width.
                     if (current != null) {
                         ProfileSwitcher(profiles, current, onSwitchProfile, onManageProfiles, Modifier.weight(1f, fill = false))
                     }
-                    Spacer(Modifier.weight(1f))
                     actions()
                 }
                 Text(
