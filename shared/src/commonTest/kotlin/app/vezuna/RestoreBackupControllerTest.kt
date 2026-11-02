@@ -82,6 +82,17 @@ class RestoreBackupControllerTest {
         assertEquals(data.medications, inner.readProfile(data.profile.profileId).medications)
     }
 
+    @Test
+    fun completingOnboardingRenamesTheLoadedProfileNotTheFirstInTheList() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        val loadedId = repository.ids().single()
+        repository.createProfile(app.vezuna.domain.Profile("aaa", "Aaa", createdAt = data.profile.createdAt))
+        controller.completeOnboarding("Bob", null)
+        assertEquals("Bob", repository.peekProfile(loadedId).profile.displayName)
+        assertEquals("Aaa", repository.peekProfile("aaa").profile.displayName)
+    }
+
     // ---- first-run restore removes the untouched default profile ----
 
     private fun VezunaRepository.ids() = profiles.value.map { it.profileId }

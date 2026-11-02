@@ -1,11 +1,18 @@
 package app.vezuna
 
 import app.vezuna.data.VaultBackedRepository
-import app.vezuna.domain.HealthLink
+import app.vezuna.domain.StepsDay
+import app.vezuna.domain.VitalsBatch
+import app.vezuna.health.DeviceVitalsSource
+import app.vezuna.health.DeviceVitalsSync
+import app.vezuna.health.VitalsReadRequest
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import app.vezuna.domain.Profile
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class PersistedSelectionTest {
@@ -24,16 +31,6 @@ class PersistedSelectionTest {
         first.readProfile("z")
 
         assertEquals(listOf("z", "a"), open().ids())
-    }
-
-    @Test
-    fun restoredProfileIsFirstAfterReopeningEvenWhenItSortsAfterMe() = runTest {
-        val first = open()
-        first.createProfile(Profile("me", "Me", createdAt = created))
-        first.createProfile(Profile("restored", "Zoe", createdAt = created))
-        first.readProfile("restored")
-
-        assertEquals("restored", open().profiles.value.first().profileId)
     }
 
     @Test
@@ -60,16 +57,40 @@ class PersistedSelectionTest {
         assertEquals(listOf("a", "z"), open().ids())
     }
 
+    private class FakeSource : DeviceVitalsSource {
+        override suspend fun read(request: VitalsReadRequest) =
+            VitalsBatch(request.replaceFrom, steps = listOf(StepsDay(LocalDate(2026, 10, 31), 100)))
+    }
+
     @Test
-    fun healthLinkDoesNotFollowSelectionOrListOrder() = runTest {
-        val old = Instant.fromEpochSeconds(1_600_000_000)
+    fun deviceVitalsSyncKeepsTheSelectionAndFillsOnlyTheLinkedProfile() = runTest {
         val first = open()
-        first.createProfile(Profile("me", "Me", createdAt = old))
+        first.createProfile(Profile("me", "Me", createdAt = Instant.fromEpochSeconds(1_600_000_000)))
         first.createProfile(Profile("z", "Zed", createdAt = created))
         first.readProfile("z")
 
+        val repository = open()
+        assertEquals("me", repository.linkedHealthProfileId())
+        val now = Instant.parse("2026-11-01T12:00:00Z")
+        DeviceVitalsSync(FakeSource(), repository, { now }, { TimeZone.UTC }).synchronize()
+
         val reopened = open()
-        assertEquals("z", reopened.profiles.value.first().profileId)
-        assertEquals("me", HealthLink.resolve(null, reopened.profiles.value))
+        assertEquals("z", reopened.ids().first())
+        assertEquals("me", reopened.linkedHealthProfileId())
+        assertEquals(1, reopened.peekProfile("me").vitals.steps.size)
+        assertTrue(reopened.peekProfile("z").vitals.isEmpty)
+    }
+
+    @Test
+    fun failedSelectionWriteWarnsAndStillOpensTheProfile() = runTest {
+        val first = open()
+        first.createProfile(Profile("a", "Ana", createdAt = created))
+        first.createProfile(Profile("z", "Zed", createdAt = created))
+        val warnings = mutableListOf<String>()
+        val repository = VaultBackedRepository(vault, persistSelection = true, warn = { m, _ -> warnings += m }).also { it.load() }
+        vault.failingWrites += "repository-selected-profile-v1"
+
+        assertEquals("z", repository.readProfile("z").profile.profileId)
+        assertEquals(1, warnings.size)
     }
 }

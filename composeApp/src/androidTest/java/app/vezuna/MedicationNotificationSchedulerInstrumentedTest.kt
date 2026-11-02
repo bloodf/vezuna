@@ -24,6 +24,7 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -33,6 +34,22 @@ import org.junit.runner.RunWith
 class MedicationNotificationSchedulerInstrumentedTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val app = context.applicationContext as VezunaApplication
+
+    @Test
+    fun reschedulingNeverChangesTheSelectedProfile() = runBlocking {
+        val ids = listOf("sel-a-${UUID.randomUUID()}", "sel-z-${UUID.randomUUID()}")
+        try {
+            app.repository.createProfile(Profile(ids[0], "AAA-selection-test", createdAt = kotlin.time.Instant.fromEpochSeconds(1)))
+            app.repository.createProfile(Profile(ids[1], "ZZZ-selection-test", createdAt = kotlin.time.Instant.fromEpochSeconds(2)))
+            app.repository.readProfile(ids[1])
+            val before = app.repository.profiles.value.map { it.profileId }
+            assertEquals(ids[1], before.first())
+            repeat(2) { app.notifications.rescheduleAll(app.repository, Instant.now()) }
+            assertEquals(before, app.repository.profiles.value.map { it.profileId })
+        } finally {
+            ids.forEach { runCatching { app.repository.deleteProfile(it) } }
+        }
+    }
 
     @Test
     fun takenCancelsScheduledAlarm() = terminalStatusCancelsScheduledAlarm(DoseEventStatus.TAKEN)
