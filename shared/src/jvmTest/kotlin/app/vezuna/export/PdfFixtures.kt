@@ -100,7 +100,7 @@ object PdfFixtures {
     }
 
     fun document(data: ProfileData = canonical(), language: ContentLanguage = ContentLanguage.EN, options: ExportOptions = ExportOptions()) =
-        DoctorExportContent.document(data, ExportText.of(language).title, language, options).copy(generatedAt = generatedAt)
+        DoctorExportContent.document(data, ExportText.of(language).title, language, options, generatedAt = generatedAt)
 
     fun pdfBytes(document: DoctorPdfDocument): ByteArray = NativePdfExporter().export(document).bytes
 

@@ -8,6 +8,8 @@ import platform.Foundation.NSDateFormatterNoStyle
 import platform.Foundation.NSDateFormatterShortStyle
 import platform.Foundation.NSLocale
 import platform.Foundation.NSTimeZone
+import platform.Foundation.countryCode
+import platform.Foundation.currentLocale
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.Foundation.localTimeZone
 import platform.Foundation.timeZoneWithName
@@ -15,6 +17,9 @@ import platform.Foundation.preferredLanguages
 
 actual fun deviceLanguageTag(): String =
     (NSLocale.preferredLanguages.firstOrNull() as? String) ?: "en"
+
+/** Region from the locale (Settings > Region), which can differ from the preferred language's region ("en-GB" in the US). */
+actual fun devicePaperTag(): String = NSLocale.currentLocale.countryCode?.let { "und-$it" } ?: deviceLanguageTag()
 
 actual fun formatUiDate(instant: Instant, languageTag: String): String =
     formatter(languageTag, withTime = false).stringFromDate(instant.toNSDate())

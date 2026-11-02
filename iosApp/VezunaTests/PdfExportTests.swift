@@ -27,13 +27,13 @@ final class PdfExportTests: XCTestCase {
                 row("2026-07-15T11:00:00Z", 12.8, 1, source: "July blood work"),
                 row("2026-10-28T11:00:00Z", 13.2, 1, source: "Blood count"),
             ],
-            medicationRows: [DoctorMedicationRow(displayName: "Vitamin D", strength: "1,000 IU", instructions: "1 capsule", active: true, times: ["08:00"], startDate: nil)],
+            medicationRows: [DoctorMedicationRow(displayName: "Vitamin D", strength: "1,000 IU", instructions: "1 capsule", active: true, times: ["08:00"], startDate: nil, endDate: nil, week: [])],
             language: language, birthDate: nil, paper: paper, grayscale: grayscale,
             scope: DoctorExportScope(
                 selectedFrom: nil, selectedTo: nil, availableFirst: nil, availableLast: nil, excludedUnreviewed: 3, medicationsIncluded: true,
-                labsIncluded: true, doseHistoryIncluded: false, deviceIncluded: false, deviceLastSync: nil
+                labsIncluded: true, doseHistoryIncluded: false, deviceIncluded: false, deviceLastSync: nil, sourceAppendixIncluded: false
             ),
-            family: .labHistory, doseRows: [], deviceRows: []
+            family: .labHistory, doseRows: [], deviceRows: [], sourceRows: []
         )
     }
 

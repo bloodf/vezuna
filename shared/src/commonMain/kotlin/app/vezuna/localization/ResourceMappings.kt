@@ -1020,6 +1020,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EXPORT_SECTION_MEDS to Res.string.export_section_meds,
     L10nKey.EXPORT_SECTION_DOSES to Res.string.export_section_doses,
     L10nKey.EXPORT_SECTION_DEVICE to Res.string.export_section_device,
+    L10nKey.EXPORT_SECTION_SOURCES to Res.string.export_section_sources,
     L10nKey.EXPORT_SECTION_DEVICE_NONE to Res.string.export_section_device_none,
     L10nKey.EXPORT_TESTS_ROW to Res.string.export_tests_row,
     L10nKey.EXPORT_TESTS_ALL to Res.string.export_tests_all,

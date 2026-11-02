@@ -65,7 +65,7 @@ object DoctorChartGeometryFactory {
     }
 
     /** 1, 2, 2.5 or 5 times a power of ten, giving four to six intervals. */
-    private fun niceStep(span: Double): Double {
+    internal fun niceStep(span: Double): Double {
         val raw = span / 4.0
         val magnitude = 10.0.pow(floor(log10(raw)))
         return listOf(1.0, 2.0, 2.5, 5.0, 10.0).map { it * magnitude }.first { it >= raw }

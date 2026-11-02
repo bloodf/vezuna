@@ -87,8 +87,10 @@ object DoctorReportFormat {
         return "${date.dayOfMonth.toString().padStart(2, '0')} ${ExportText.of(language).months[date.monthNumber - 1]} ${date.year}"
     }
 
-    fun shortDate(instant: Instant, language: ContentLanguage = ContentLanguage.EN): String {
-        val date = instant.toLocalDateTime(TimeZone.UTC).date
+    fun shortDate(instant: Instant, language: ContentLanguage = ContentLanguage.EN): String =
+        shortDate(instant.toLocalDateTime(TimeZone.UTC).date, language)
+
+    fun shortDate(date: LocalDate, language: ContentLanguage = ContentLanguage.EN): String {
         return "${date.dayOfMonth.toString().padStart(2, '0')} ${ExportText.of(language).months[date.monthNumber - 1]}"
     }
 

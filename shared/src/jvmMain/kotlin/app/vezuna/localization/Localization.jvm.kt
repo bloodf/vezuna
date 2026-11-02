@@ -5,6 +5,8 @@ import kotlin.time.Instant
 
 actual fun deviceLanguageTag(): String = Locale.getDefault().toLanguageTag()
 
+actual fun devicePaperTag(): String = deviceLanguageTag()
+
 actual fun formatUiDate(instant: Instant, languageTag: String): String =
     java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)
         .withLocale(Locale.forLanguageTag(languageTag))

@@ -40,6 +40,7 @@ class ExportDraft(val profileId: String, val kind: String, paper: PaperSize) {
     var includeMedications by mutableStateOf(defaults.includeMedicationsPdf)
     var includeDoses by mutableStateOf(defaults.includeDoseHistory)
     var includeDevice by mutableStateOf(defaults.includeDeviceData)
+    var includeSources by mutableStateOf(defaults.includeSourceAppendix)
     var activeMedicationsOnly by mutableStateOf(false)
     var medicationsInCsv by mutableStateOf(false)
     var paper by mutableStateOf(paper)
@@ -79,6 +80,7 @@ class ExportDraft(val profileId: String, val kind: String, paper: PaperSize) {
             includeLabsPdf = includeLabs,
             includeDoseHistory = includeDoses,
             includeDeviceData = includeDevice,
+            includeSourceAppendix = includeSources,
         )
     }
 }
