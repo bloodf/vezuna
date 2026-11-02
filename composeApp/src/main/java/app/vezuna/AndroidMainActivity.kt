@@ -13,6 +13,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import androidx.fragment.app.FragmentActivity
 import android.view.WindowManager
+import app.vezuna.ui.more.MorePlatform
 import app.vezuna.ui.AppLockHost
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -132,7 +133,7 @@ class AndroidMainActivity : FragmentActivity() {
         installMorePlatform(this)
         val systemDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         lifecycleScope.launch {
-            snapshotFlow { app.vezuna.ui.more.MorePlatform.themeMode }.collect { applySystemBars(it.isDark(systemDark)) }
+            snapshotFlow { MorePlatform.themeMode }.collect { applySystemBars(it.isDark(systemDark)) }
         }
         // App lock: the prompt needs this activity; FLAG_SECURE (app switcher, screenshots) follows the setting.
         deviceAuthenticator = AndroidDeviceAuthenticator(this)
