@@ -143,7 +143,7 @@ class ExportGapsPdfTest {
             }.sortedBy { it.date })
         }
         val text = text(PdfFixtures.pdfBytes(one))
-        assertTrue("Some dot labels are left out for space" in text, "crowded labels are dropped and said so")
+        assertTrue("Some labels are left out for space; every value and date is in the table." in text, "crowded labels are dropped and said so")
         assertTrue("100009 steps" in text, "the table keeps every value")
         val single = ExportFamily.DEVICE_MEASUREMENTS.defaults().copy(from = LocalDate(2026, 10, 31), to = LocalDate(2026, 10, 31))
         val singleText = text(PdfFixtures.pdfBytes(document(ExportFamily.DEVICE_MEASUREMENTS, options = single)))
@@ -230,6 +230,62 @@ class ExportGapsPdfTest {
             positions(bytes).forEach { (pageHeight, position) ->
                 if (pageHeight - position.yDirAdj > 25 * PdfStyle.MM) assertTrue(position.fontSizeInPt >= 11f, "'${position.unicode}' at ${position.fontSizeInPt}pt in ${document.family}")
             }
+        }
+    }
+
+    @Test
+    fun mixedUnitNotesStayWithTheirGraphAndNeverRunIntoTheFooter() {
+        val base = PdfFixtures.canonical()
+        // Crowded daily readings in two units: normalized-unit note plus omitted-labels note under the graph.
+        val albumin = (0 until 40).map { index ->
+            val grams = index % 2 == 1 // latest in g/dL, so the g/L graph needs its unit note
+            LabObservation(
+                PdfFixtures.PROFILE, "alb-$index", "report-apr", "ALB", "Albumin", if (grams) 4.0 + index / 100.0 else 40.0 + index / 10.0,
+                if (grams) "g/dL" else "g/L", 40.0 + index / 10.0, "g/L", ReferenceRange(35.0, 50.0, unit = "g/L"),
+                Instant.fromEpochSeconds(Instant.parse("2026-01-01T10:00:00Z").epochSeconds + index * 86_400L), ConfirmationStatus.CONFIRMED, valueDecimals = 1,
+            )
+        }
+        // Fillers move the section start in uneven steps; a hard-wrapped reference moves it one body line at a time.
+        // Content must end above the content bottom (footer band 25 mm + 2 mm gap); a baseline below it overflowed.
+        val contentBottom = 27 * PdfStyle.MM - 1.0
+        listOf(ContentLanguage.EN, ContentLanguage.PT).forEach { language -> (1..3).forEach { fillers ->
+            (0..30).forEach { lines ->
+                val singles = (0 until fillers).map { index ->
+                    val range = if (index == 0 && lines > 0) ReferenceRange(0.5, 2.0, text = (1..lines).joinToString("\n") { "note $it" }, unit = "U/L") else ReferenceRange(0.5, 2.0, unit = "U/L")
+                    LabObservation(
+                        PdfFixtures.PROFILE, "a-$index", "report-apr", "A$index", "Aa test $index", 1.0, "U/L", 1.0, "U/L",
+                        range, Instant.parse("2026-02-01T10:00:00Z"), ConfirmationStatus.CONFIRMED, valueDecimals = 1,
+                    )
+                }
+                val bytes = PdfFixtures.pdfBytes(PdfFixtures.document(base.copy(observations = singles + albumin), language))
+                // The kept height covers both notes, so the graph's changes never get pushed onto the next page.
+                assertFalse("Albumin · ${ExportText.of(language).changesContinued}" in text(bytes), "changes split from their graph ($language, $fillers fillers, $lines lines)")
+                positions(bytes).forEach { (pageHeight, position) ->
+                    if (position.fontSizeInPt >= 11f) {
+                        assertTrue(pageHeight - position.yDirAdj > contentBottom, "'${position.unicode}' below the content area ($language, $fillers fillers, $lines lines)")
+                    }
+                }
+            }
+        } }
+        val sample = PdfFixtures.pdfBytes(PdfFixtures.document(base.copy(observations = albumin)))
+        assertTrue("The graph uses g/L because" in text(sample), "mixed units draw the normalized series with its note")
+        assertTrue("Some labels are left out for space" in text(sample))
+    }
+
+    @Test
+    fun medicationListBrokenAcrossPagesCarriesItsTitle() {
+        val base = PdfFixtures.canonical()
+        val many = (1..40).map { Medication(PdfFixtures.PROFILE, "m$it", "Medication ${it.toString().padStart(2, '0')}", "10 mg", "1 tablet") }
+        val text = PdfFixtures.pageTexts(PdfFixtures.pdfBytes(PdfFixtures.document(base.copy(medications = many)))).joinToString(" ").replace(Regex("\\s+"), " ")
+        assertTrue("Recorded medication · continued" in text)
+        assertTrue((1..40).all { "Medication ${it.toString().padStart(2, '0')}" in text }, "no medication lost at the break")
+    }
+
+    @Test
+    fun graphKeyNamesPerDateReferenceBars() {
+        listOf(ContentLanguage.EN to "a bar at each date", ContentLanguage.PT to "uma barra em cada data", ContentLanguage.ES to "una barra en cada fecha").forEach { (language, phrase) ->
+            assertTrue(phrase in ExportText.of(language).graphKey, "$language")
+            assertTrue("Some labels" in ExportText.of(ContentLanguage.EN).labelsOmitted)
         }
     }
 

@@ -35,7 +35,7 @@ import app.vezuna.export.ExportOptions
 import app.vezuna.export.PaperSize
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
-import app.vezuna.localization.deviceLanguageTag
+import app.vezuna.localization.devicePaperTag
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
@@ -68,7 +68,7 @@ internal fun today() = currentInstant().toLocalDateTime(TimeZone.currentSystemDe
 
 internal fun RouteContext.draft(kind: String): ExportDraft? {
     val data = state.data ?: return null
-    return ExportSession.draft(data.profile.profileId, kind, PaperSize.forLanguageTag(deviceLanguageTag()))
+    return ExportSession.draft(data.profile.profileId, kind, PaperSize.forLanguageTag(devicePaperTag()))
 }
 
 /** Image 116: profile, period, sections, tests, language, paper; confirmed and excluded counts before the preview. */

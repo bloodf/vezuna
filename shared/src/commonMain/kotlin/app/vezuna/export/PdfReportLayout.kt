@@ -238,12 +238,19 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     /** Same rule as the chart: one shared numeric range prints as that range even when the reports word it differently. */
     private fun referenceText(section: DoctorExamSection): String {
-        val ranges = section.history.map { DoctorExportContent.rangeText(it.referenceRange, language) }.distinct()
+        val ranges = section.history.map { DoctorExportContent.rangeText(it.referenceRange, language, rangeDecimals(section)) }.distinct()
         ranges.singleOrNull()?.let { return "${t.recordedReference}: $it" }
         val bounds = section.history.map { Triple(it.referenceRange.lower, it.referenceRange.upper, it.referenceRange.unit) }.distinct()
         val shared = bounds.singleOrNull()?.takeIf { it.first != null || it.second != null }
-        val text = shared?.let { DoctorExportContent.rangeText(ReferenceRange(it.first, it.second, unit = it.third), language) } ?: t.referenceVaries
+        // Shared bounds keep the precision the reports print (12.0–16.0), not the shortest number (12–16).
+        val text = shared?.let { DoctorExportContent.rangeText(ReferenceRange(it.first, it.second, unit = it.third), language, rangeDecimals(section)) } ?: t.referenceVaries
         return "${t.recordedReference}: $text"
+    }
+
+    /** Fraction digits the reports print for this section's bounds: from the range text when present, else the values'. */
+    private fun rangeDecimals(section: DoctorExamSection): Int {
+        val printed = section.history.mapNotNull { it.referenceRange.text }.flatMap { Regex("\\d+[.,](\\d+)").findAll(it).map { m -> m.groupValues[1].length }.toList() }
+        return printed.maxOrNull() ?: section.decimals
     }
 
     private fun history(section: DoctorExamSection) {
@@ -253,7 +260,10 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         val status = DoctorReportFormat.assessment(section.latest.assessment, language)
         val referenceHeight = pen.paragraphHeight(reference, width * 0.55, BODY) + 2 * MM
         val drawChart = section.trend != null && section.distinctDates >= 2
-        val keep = referenceHeight + if (drawChart) chart.height() + comparisonHeight(section) else tableHeaderHeight() + 2 * rowHeight(section.history.first())
+        // The unit note and a possible omitted-labels note sit between title and comparisons, so they count too.
+        val notes = if (!drawChart) 0.0 else pen.paragraphHeight(t.labelsOmitted, width, NOTE) +
+            (if (section.usesNormalizedUnit) pen.paragraphHeight(t.chartUnitNote.replace("{unit}", section.unit), width, NOTE) + 1 * MM else 0.0)
+        val keep = referenceHeight + notes + if (drawChart) chart.height() + comparisonHeight(section) else tableHeaderHeight() + 2 * rowHeight(section.history.first())
         sectionTitle(section.testName, PdfStyle.MINT, trailing, extra = keep)
         referenceLine(reference, status)
         when {
@@ -359,7 +369,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             DoctorReportFormat.originalValue(row, language) to false,
             DoctorReportFormat.normalizedValue(row, language)?.let { it to true },
         ),
-        listOf(DoctorExportContent.rangeText(row.referenceRange, language) to false, DoctorReportFormat.assessment(row.assessment, language) to true),
+        listOf(DoctorExportContent.rangeText(row.referenceRange, language, row.valueDecimals) to false, DoctorReportFormat.assessment(row.assessment, language) to true),
         listOf(sourceText(row) to false),
     )
 
@@ -431,7 +441,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             listOf(
                 listOf(section.testName to false),
                 listOf(DoctorReportFormat.originalValue(latest, language) to false, DoctorReportFormat.date(latest.collectedAt, language) to true),
-                listOf(DoctorExportContent.rangeText(latest.referenceRange, language) to false),
+                listOf(DoctorExportContent.rangeText(latest.referenceRange, language, latest.valueDecimals) to false),
                 listOf(DoctorReportFormat.assessment(latest.assessment, language) to false),
             )
         }
@@ -461,15 +471,14 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     )
 
     private fun summaryHeight(section: DoctorExamSection, column: Double): Double =
-        pen.paragraphHeight(section.testName, column, PdfStyle.SECTION, bold = true) + summaryChart.height() + pen.lineHeight(LABEL) +
+        pen.paragraphHeight(section.testName, column, PdfStyle.SECTION, bold = true) + summaryChart.height() + pen.paragraphHeight(t.labelsOmitted, column, NOTE) +
             summaryChanges(section).sumOf { (label, value) -> pen.paragraphHeight(label, column, LABEL, bold = true) + pen.paragraphHeight(value, column, BODY) }
 
     private fun summaryBlock(section: DoctorExamSection, x: Double, top: Double, column: Double) {
         var cursor = top + pen.paragraph(section.testName, x, top, column, PdfStyle.SECTION, PINE, bold = true)
         val result = summaryChart.draw(section.trend!!, x, cursor, column, section.decimals)
         cursor += result.height
-        if (result.labelsOmitted) pen.text(t.labelsOmitted.substringBefore(';'), x, cursor, LABEL, MUTED)
-        cursor += pen.lineHeight(LABEL)
+        cursor += if (result.labelsOmitted) pen.paragraph(t.labelsOmitted, x, cursor, column, NOTE, MUTED) else pen.paragraphHeight(t.labelsOmitted, column, NOTE)
         summaryChanges(section).forEach { (label, value) ->
             cursor += pen.paragraph(label, x, cursor, column, LABEL, PINE, bold = true)
             cursor += pen.paragraph(value, x, cursor, column, BODY)
@@ -623,7 +632,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             return
         }
         rows.forEach { row ->
-            ensure(medicationHeight(row))
+            if (ensure(medicationHeight(row))) carriedTitle(t.recordedMedication, s.continued)
             y += pen.paragraph(row.displayName, left, y, width, BODY, bold = true)
             y += pen.paragraph(medicationDetails(row), left, y, width, BODY) + 1 * MM
             // The strip's table ends with its own rule.

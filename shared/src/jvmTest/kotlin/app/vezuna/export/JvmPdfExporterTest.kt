@@ -79,7 +79,7 @@ class JvmPdfExporterTest {
         val all = pages.joinToString("\n")
         assertEquals(120, Regex("\\d\\d \\w{3} 20\\d\\d\\s+1[2-3]\\.\\d g/dL").findAll(all).count(), "every reading is a table row")
         assertTrue("Very long medication name that wraps" in all && "who recorded it" in all, "long text wraps instead of truncating")
-        assertTrue("Some dot labels are left out for space; every value is in the table." in all)
+        assertTrue("Some labels are left out for space; every value and date is in the table." in all)
     }
 
     @Test
@@ -209,7 +209,7 @@ class JvmPdfExporterTest {
         val text = pages.joinToString("\n")
         assertTrue("Instructions: Morning: 1 tablet\nEvening: 1 tablet" in text, "newline starts a new line, tab becomes a space")
         assertFalse("?" in text.substringAfter("Iron"), "no replacement glyph for control characters")
-        assertTrue("Recorded reference: 12–16 g/dL" in text, "one numeric range is printed even when wording differs")
+        assertTrue("Recorded reference: 12.0–16.0 g/dL" in text, "one numeric range is printed at source precision even when wording differs")
         assertFalse("differs between reports" in text)
     }
 

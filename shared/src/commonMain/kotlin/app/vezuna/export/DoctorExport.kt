@@ -404,8 +404,9 @@ object DoctorExportContent {
         }
     }
 
-    fun rangeText(range: app.vezuna.domain.ReferenceRange, language: ContentLanguage = ContentLanguage.EN): String {
-        fun v(value: Double) = DoctorReportFormat.value(value, language)
+    /** [decimals] prints numeric bounds at that precision (12.0–16.0); null prints the shortest exact value. */
+    fun rangeText(range: app.vezuna.domain.ReferenceRange, language: ContentLanguage = ContentLanguage.EN, decimals: Int? = null): String {
+        fun v(value: Double) = DoctorReportFormat.recorded(value, decimals, language)
         return when {
             range.text != null -> range.text
             range.lower == null && range.upper == null -> ExportText.of(language).notProvided

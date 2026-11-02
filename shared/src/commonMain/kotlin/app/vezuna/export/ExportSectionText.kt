@@ -58,6 +58,7 @@ data class ExportSectionText(
     /** {count}: unreviewed values of a document, never printed. */
     val unreviewedInSource: String,
     val noSources: String,
+    val continued: String,
 ) {
     fun title(family: ExportFamily, language: ContentLanguage): String = when (family) {
         ExportFamily.HEALTH_SUMMARY -> healthSummary
@@ -123,6 +124,7 @@ data class ExportSectionText(
             notIncludedNote = "Not included because its values are unreviewed.",
             unreviewedInSource = "Unreviewed values: {count}",
             noSources = "No source reports: no confirmed results are included.",
+            continued = "continued",
         )
 
         private val PT = ExportSectionText(
@@ -172,6 +174,7 @@ data class ExportSectionText(
             notIncludedNote = "Não incluído porque seus valores não foram revisados.",
             unreviewedInSource = "Valores não revisados: {count}",
             noSources = "Nenhum laudo de origem: nenhum resultado confirmado foi incluído.",
+            continued = "continuação",
         )
 
         private val ES = ExportSectionText(
@@ -221,6 +224,7 @@ data class ExportSectionText(
             notIncludedNote = "No se incluye porque sus valores no están revisados.",
             unreviewedInSource = "Valores sin revisar: {count}",
             noSources = "No hay informes de origen: no se incluye ningún resultado confirmado.",
+            continued = "continuación",
         )
     }
 }

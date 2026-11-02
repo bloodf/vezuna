@@ -235,6 +235,9 @@ fun failMessage(key: L10nKey, vararg args: Any?): Nothing = throw VitaMessageExc
 
 expect fun deviceLanguageTag(): String
 
+/** A BCP-47 tag whose region is the device region (not the first preferred language's), for the paper default. */
+expect fun devicePaperTag(): String
+
 fun Throwable.toUserText(fallback: L10nKey = L10nKey.ACTION_FAILED): UserText = when (this) {
     is VitaMessageException -> userText
     else -> UserText.Key(fallback)
