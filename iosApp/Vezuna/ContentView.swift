@@ -9,10 +9,10 @@ struct ContentView: View {
     var body: some View {
         Group {
             if DebugLaunch.fixture {
-                DesignFixtureHostView().ignoresSafeArea(.container, edges: .bottom)
+                DesignFixtureHostView().ignoresSafeArea(.container)
             } else if model.ready {
                 ComposeHostView()
-                    .ignoresSafeArea(.container, edges: .bottom)
+                    .ignoresSafeArea(.container)
                     .safeAreaInset(edge: .top) {
                         if let error = model.catalogError ?? model.modelLoader.lastError {
                             Text(error)
