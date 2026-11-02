@@ -688,6 +688,17 @@ iOS: %2$s</string>
     <string name="entry_camera_denied_body">Permita o acesso à câmera para o Vezuna nos Ajustes ou escolha fotos ou um arquivo.</string>
     <string name="entry_profile_changed">O perfil mudou enquanto o arquivo era lido, então nada foi importado. Adicione o registro de novo para este perfil.</string>
     <!-- endregion L3 import and entry -->
+    <string name="clear_chat_history">Limpar histórico do chat</string>
+    <string name="clear_chat_confirm_title">Limpar o histórico do chat?</string>
+    <string name="clear_chat_confirm_body">Isso exclui permanentemente todas as perguntas e respostas do chat deste perfil. Seus resultados, medicamentos e outros registros não são afetados. Não é possível desfazer.</string>
+    <string name="chat_history_cleared">Histórico do chat limpo.</string>
+    <string name="chat_needs_model">Carregue um modelo no aparelho para fazer uma pergunta.</string>
+    <string name="cancel_model_install">Cancelar instalação</string>
+    <string name="model_installed">Instalado</string>
+    <string name="model_available">Disponível para instalar</string>
+    <string name="model_installing">Instalando e verificando o modelo</string>
+    <string name="delete_model_title">Excluir %1$s?</string>
+    <string name="delete_model_body">O arquivo do modelo é removido deste aparelho. Seus registros não são afetados. Você pode instalá-lo novamente depois.</string>
     <!-- region L2 records -->
     <string name="records_search_hint">Pesquisar registros</string>
     <string name="records_filters">Filtros</string>

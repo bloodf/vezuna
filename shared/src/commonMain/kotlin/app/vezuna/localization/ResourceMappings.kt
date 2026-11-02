@@ -624,6 +624,19 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.ENTRY_CAMERA_DENIED_BODY to Res.string.entry_camera_denied_body,
     L10nKey.ENTRY_PROFILE_CHANGED to Res.string.entry_profile_changed,
     // endregion L3 import and entry
+    // region L8 assistant
+    L10nKey.CLEAR_CHAT_HISTORY to Res.string.clear_chat_history,
+    L10nKey.CLEAR_CHAT_CONFIRM_TITLE to Res.string.clear_chat_confirm_title,
+    L10nKey.CLEAR_CHAT_CONFIRM_BODY to Res.string.clear_chat_confirm_body,
+    L10nKey.CHAT_HISTORY_CLEARED to Res.string.chat_history_cleared,
+    L10nKey.CHAT_NEEDS_MODEL to Res.string.chat_needs_model,
+    L10nKey.CANCEL_MODEL_INSTALL to Res.string.cancel_model_install,
+    L10nKey.MODEL_INSTALLED to Res.string.model_installed,
+    L10nKey.MODEL_AVAILABLE to Res.string.model_available,
+    L10nKey.MODEL_INSTALLING to Res.string.model_installing,
+    L10nKey.DELETE_MODEL_TITLE to Res.string.delete_model_title,
+    L10nKey.DELETE_MODEL_BODY to Res.string.delete_model_body,
+    // endregion L8 assistant
     L10nKey.EXPORT_PAPER_SIZE to Res.string.export_paper_size,
     L10nKey.EXPORT_PAPER_A4 to Res.string.export_paper_a4,
     L10nKey.EXPORT_PAPER_LETTER to Res.string.export_paper_letter,

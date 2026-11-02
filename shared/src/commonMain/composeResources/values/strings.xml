@@ -688,6 +688,17 @@ iOS: %2$s</string>
     <string name="entry_camera_denied_body">Allow camera access for Vezuna in Settings, or choose photos or a file instead.</string>
     <string name="entry_profile_changed">The profile changed while the file was being read, so nothing was imported. Add the record again for this profile.</string>
     <!-- endregion L3 import and entry -->
+    <string name="clear_chat_history">Clear chat history</string>
+    <string name="clear_chat_confirm_title">Clear chat history?</string>
+    <string name="clear_chat_confirm_body">This permanently deletes every question and answer in this profile's chat. Your lab results, medications and other records are not affected. This cannot be undone.</string>
+    <string name="chat_history_cleared">Chat history cleared.</string>
+    <string name="chat_needs_model">Load an on-device model to ask a question.</string>
+    <string name="cancel_model_install">Cancel installation</string>
+    <string name="model_installed">Installed</string>
+    <string name="model_available">Available to install</string>
+    <string name="model_installing">Installing and verifying model</string>
+    <string name="delete_model_title">Delete %1$s?</string>
+    <string name="delete_model_body">The model file is removed from this device. Your records are not affected. You can install it again later.</string>
     <!-- region L2 records -->
     <string name="records_search_hint">Search records</string>
     <string name="records_filters">Filters</string>
