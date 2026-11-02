@@ -1,30 +1,50 @@
 package app.vezuna.ui.care
 
 import androidx.compose.runtime.Composable
+import app.vezuna.domain.Medication
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.AppScreen
-import app.vezuna.ui.MedicationsScreen
-import app.vezuna.ui.nav.LegacyPushed
+import app.vezuna.ui.components.EmptyState
+import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.nav.RootScaffold
 import app.vezuna.ui.nav.RouteContext
+import vezuna.shared.generated.resources.Res
+import vezuna.shared.generated.resources.ill_capsule
 
-/** Lane L4 (Care). R0 stubs render the current medications screen; L4 replaces the bodies. */
+/** Lane L4 (Care): medications, schedules, doses, reminders and dose history. */
 object CareRoutes {
     @Composable
-    fun Medications(ctx: RouteContext) = RootScaffold(ctx, vitaText(L10nKey.NAV_CARE)) {
-        MedicationsScreen(ctx.state, ctx.controller, ctx.scope, ctx.reminders)
+    fun Medications(ctx: RouteContext) = RootScaffold(ctx, vitaText(L10nKey.NAV_CARE), vitaText(L10nKey.CARE_SUBTITLE)) {
+        CareHome(ctx)
     }
 
     @Composable
-    private fun Legacy(ctx: RouteContext) = LegacyPushed(ctx) { MedicationsScreen(ctx.state, ctx.controller, ctx.scope, ctx.reminders) }
+    fun MedicationDetail(screen: AppScreen.MedicationDetail, ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) {
+        withMedication(ctx, screen.medicationId) { MedicationDetailBody(ctx, it) }
+    }
 
     @Composable
-    fun MedicationDetail(@Suppress("UNUSED_PARAMETER") screen: AppScreen.MedicationDetail, ctx: RouteContext) = Legacy(ctx)
+    fun MedicationForm(screen: AppScreen.MedicationForm, ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) {
+        val id = screen.medicationId
+        if (id == null) MedicationFormBody(ctx, null) else withMedication(ctx, id) { MedicationFormBody(ctx, it) }
+    }
 
     @Composable
-    fun MedicationForm(@Suppress("UNUSED_PARAMETER") screen: AppScreen.MedicationForm, ctx: RouteContext) = Legacy(ctx)
+    fun DoseHistory(screen: AppScreen.DoseHistory, ctx: RouteContext) = FocusedTaskScaffold(title = null, onBack = ctx::back) {
+        val id = screen.medicationId
+        if (id == null) DoseHistoryBody(ctx, null) else withMedication(ctx, id) { DoseHistoryBody(ctx, it) }
+    }
 
+    /** Routes carry IDs of the current profile; a medication deleted meanwhile says so instead of showing stale data. */
     @Composable
-    fun DoseHistory(@Suppress("UNUSED_PARAMETER") screen: AppScreen.DoseHistory, ctx: RouteContext) = Legacy(ctx)
+    private fun withMedication(ctx: RouteContext, medicationId: String, content: @Composable (Medication) -> Unit) {
+        val data = ctx.state.data ?: return
+        val medication = data.medications.firstOrNull { it.medicationId == medicationId }
+        if (medication == null) {
+            EmptyState(Res.drawable.ill_capsule, vitaText(L10nKey.MEDICATION_NOT_FOUND), vitaText(L10nKey.CARE_EMPTY_BODY))
+        } else {
+            content(medication)
+        }
+    }
 }

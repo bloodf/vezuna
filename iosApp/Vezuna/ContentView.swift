@@ -92,6 +92,12 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
         case "LICENSE": sheet = .license
         case "PRIVACY": sheet = .privacy
         case "NOTICES": sheet = .notices
+        case "NOTIFICATION_SETTINGS":
+            // System-owned screen: Care offers it only when notifications are denied.
+            DispatchQueue.main.async {
+                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            return
         default: sheet = nil
         }
         DispatchQueue.main.async { [weak self] in self?.model?.sheet = sheet }

@@ -111,7 +111,9 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             if authorization == .notDetermined {
                 authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
             }
-            guard authorization == .authorized || authorization == .provisional || authorization == .ephemeral else {
+            let allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
+            IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
+            guard allowed else {
                 lastError = L10n.text(.notification_permission_off)
                 IosRuntime.shared.setReminderCoverage(untilEpochSeconds: -1)
                 return

@@ -49,6 +49,8 @@ import app.vezuna.ui.DesignFixture
 import app.vezuna.ui.nav.routeFromName
 import app.vezuna.ui.BackupRecovery
 import app.vezuna.notifications.ReminderPreferences
+import app.vezuna.ui.NotificationAccess
+import androidx.core.app.NotificationManagerCompat
 import app.vezuna.ui.PreviousGenerationNotice
 import app.vezuna.ui.ReminderPlatformState
 import app.vezuna.ui.VaultGate
@@ -92,12 +94,14 @@ class AndroidMainActivity : FragmentActivity() {
     private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
     private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
 
+    private val reminderPreferences by lazy { ReminderPreferences(this) }
+
     private val reminders by lazy {
-        val preferences = ReminderPreferences(this)
         ReminderPlatformState(
-            hideMedicationNames = preferences.hideMedicationNames,
-            persistHideMedicationNames = { preferences.hideMedicationNames = it },
+            hideMedicationNames = reminderPreferences.hideMedicationNames,
+            persistHideMedicationNames = { reminderPreferences.hideMedicationNames = it },
             openExactAlarmSettings = ::openExactAlarmSettings,
+            openNotificationSettings = ::openNotificationSettings,
         )
     }
 
@@ -106,6 +110,8 @@ class AndroidMainActivity : FragmentActivity() {
     private val mutableBusy = MutableStateFlow(false)
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        reminderPreferences.notificationPermissionRequested = true
+        refreshNotificationAccess()
         mutableMessage.value = nativeMessage(
             if (granted || Build.VERSION.SDK_INT < 33) NativeKey.REMINDERS_ENABLED else NativeKey.NOTIFICATION_PERMISSION_DENIED,
         )
@@ -191,8 +197,31 @@ class AndroidMainActivity : FragmentActivity() {
         val wasDenied = reminders.exactAlarmsDenied.value
         val denied = !app.notifications.canScheduleExactAlarms()
         reminders.setExactAlarmsDenied(denied)
+        refreshNotificationAccess()
         // Returning from the system screen with the permission now granted: re-arm alarms as exact.
         if (wasDenied && !denied) lifecycleScope.launch { app.notifications.rescheduleAll(app.repository) }
+    }
+
+    /** Allowed, never asked (Android 13+ only), or denied: what Care shows about reminders appearing. */
+    private fun refreshNotificationAccess() {
+        val enabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
+        val neverAsked = Build.VERSION.SDK_INT >= 33 && !reminderPreferences.notificationPermissionRequested &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        reminders.setNotificationAccess(
+            when {
+                enabled -> NotificationAccess.ALLOWED
+                neverAsked -> NotificationAccess.NOT_REQUESTED
+                else -> NotificationAccess.DENIED
+            },
+        )
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+        } catch (missing: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
     }
 
     private fun openExactAlarmSettings() {
