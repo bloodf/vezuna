@@ -66,10 +66,10 @@ class LabTrendsTest {
         val s = trend(hgb, TrendRange.SIX_MONTHS).series.single()
         assertEquals(2, s.points.size)
         val c = s.comparison
-        assertEquals(0.4, c.sincePrevious.delta)
-        assertEquals(LocalDate(2026, 7, 15), c.sincePrevious.fromDate)
+        assertEquals(0.4, c.sincePrevious!!.delta)
+        assertEquals(LocalDate(2026, 7, 15), c.sincePrevious!!.fromDate)
         assertEquals(c.sinceFirst, c.sincePrevious)
-        assertEquals("g/dL", c.sincePrevious.unit)
+        assertEquals("g/dL", c.sincePrevious!!.unit)
     }
 
     @Test
@@ -79,9 +79,9 @@ class LabTrendsTest {
         assertEquals(44.38, f[0], 0.01)
         assertEquals(70.14, f[1], 0.01)
         assertEquals(98.90, f[2], 0.01)
-        assertEquals(0.2, s.comparison.sinceFirst.delta)
-        assertEquals(0.4, s.comparison.sincePrevious.delta)
-        assertEquals(LocalDate(2026, 4, 12), s.comparison.sinceFirst.fromDate)
+        assertEquals(0.2, s.comparison.sinceFirst!!.delta)
+        assertEquals(0.4, s.comparison.sincePrevious!!.delta)
+        assertEquals(LocalDate(2026, 4, 12), s.comparison.sinceFirst!!.fromDate)
     }
 
     @Test
@@ -128,7 +128,7 @@ class LabTrendsTest {
         assertEquals(130.0, s.points[0].value)
         assertEquals("g/dL", s.points[0].originalUnit)
         assertEquals(13.0, s.points[0].originalValue)
-        assertEquals(-2.0, s.comparison.sincePrevious.delta)
+        assertEquals(-2.0, s.comparison.sincePrevious!!.delta)
     }
 
     @Test
@@ -203,7 +203,7 @@ class LabTrendsTest {
     fun sameDayDuplicatesDoNotBreakOrdering() {
         val s = trend(listOf(obs("b", "2026-10-28", 13.2), obs("a", "2026-10-28", 13.0)), TrendRange.All).series.single()
         assertEquals(listOf("a", "b"), s.points.map { it.id })
-        assertEquals(0.2, s.comparison.sincePrevious.delta)
+        assertEquals(0.2, s.comparison.sincePrevious!!.delta)
     }
 
     @Test
