@@ -1,0 +1,739 @@
+[
+  {
+    "id": "home",
+    "kind": "icon",
+    "file": "assets/vectors/icons/home.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "records",
+    "kind": "icon",
+    "file": "assets/vectors/icons/records.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "heart",
+    "kind": "icon",
+    "file": "assets/vectors/icons/heart.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "trends",
+    "kind": "icon",
+    "file": "assets/vectors/icons/trends.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "more",
+    "kind": "icon",
+    "file": "assets/vectors/icons/more.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "back",
+    "kind": "icon",
+    "file": "assets/vectors/icons/back.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "chevron-right",
+    "kind": "icon",
+    "file": "assets/vectors/icons/chevron-right.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "chevron-down",
+    "kind": "icon",
+    "file": "assets/vectors/icons/chevron-down.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "close",
+    "kind": "icon",
+    "file": "assets/vectors/icons/close.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "plus",
+    "kind": "icon",
+    "file": "assets/vectors/icons/plus.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "minus",
+    "kind": "icon",
+    "file": "assets/vectors/icons/minus.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "check",
+    "kind": "icon",
+    "file": "assets/vectors/icons/check.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "check-circle",
+    "kind": "icon",
+    "file": "assets/vectors/icons/check-circle.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "info",
+    "kind": "icon",
+    "file": "assets/vectors/icons/info.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "warning",
+    "kind": "icon",
+    "file": "assets/vectors/icons/warning.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "error",
+    "kind": "icon",
+    "file": "assets/vectors/icons/error.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "search",
+    "kind": "icon",
+    "file": "assets/vectors/icons/search.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "filter",
+    "kind": "icon",
+    "file": "assets/vectors/icons/filter.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "sort",
+    "kind": "icon",
+    "file": "assets/vectors/icons/sort.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "calendar",
+    "kind": "icon",
+    "file": "assets/vectors/icons/calendar.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "clock",
+    "kind": "icon",
+    "file": "assets/vectors/icons/clock.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "history",
+    "kind": "icon",
+    "file": "assets/vectors/icons/history.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "edit",
+    "kind": "icon",
+    "file": "assets/vectors/icons/edit.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "trash",
+    "kind": "icon",
+    "file": "assets/vectors/icons/trash.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "undo",
+    "kind": "icon",
+    "file": "assets/vectors/icons/undo.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "redo",
+    "kind": "icon",
+    "file": "assets/vectors/icons/redo.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "download",
+    "kind": "icon",
+    "file": "assets/vectors/icons/download.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "upload",
+    "kind": "icon",
+    "file": "assets/vectors/icons/upload.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "share",
+    "kind": "icon",
+    "file": "assets/vectors/icons/share.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "external-link",
+    "kind": "icon",
+    "file": "assets/vectors/icons/external-link.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "copy",
+    "kind": "icon",
+    "file": "assets/vectors/icons/copy.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "folder",
+    "kind": "icon",
+    "file": "assets/vectors/icons/folder.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "archive",
+    "kind": "icon",
+    "file": "assets/vectors/icons/archive.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "camera",
+    "kind": "icon",
+    "file": "assets/vectors/icons/camera.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "photo",
+    "kind": "icon",
+    "file": "assets/vectors/icons/photo.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "scan",
+    "kind": "icon",
+    "file": "assets/vectors/icons/scan.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "crop",
+    "kind": "icon",
+    "file": "assets/vectors/icons/crop.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "rotate",
+    "kind": "icon",
+    "file": "assets/vectors/icons/rotate.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "flash",
+    "kind": "icon",
+    "file": "assets/vectors/icons/flash.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "file-text",
+    "kind": "icon",
+    "file": "assets/vectors/icons/file-text.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "file-csv",
+    "kind": "icon",
+    "file": "assets/vectors/icons/file-csv.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "file-pdf",
+    "kind": "icon",
+    "file": "assets/vectors/icons/file-pdf.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "lab",
+    "kind": "icon",
+    "file": "assets/vectors/icons/lab.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "drop",
+    "kind": "icon",
+    "file": "assets/vectors/icons/drop.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "capsule",
+    "kind": "icon",
+    "file": "assets/vectors/icons/capsule.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "bell",
+    "kind": "icon",
+    "file": "assets/vectors/icons/bell.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "bell-off",
+    "kind": "icon",
+    "file": "assets/vectors/icons/bell-off.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "skip",
+    "kind": "icon",
+    "file": "assets/vectors/icons/skip.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "pause",
+    "kind": "icon",
+    "file": "assets/vectors/icons/pause.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "play",
+    "kind": "icon",
+    "file": "assets/vectors/icons/play.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "steps",
+    "kind": "icon",
+    "file": "assets/vectors/icons/steps.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "pulse",
+    "kind": "icon",
+    "file": "assets/vectors/icons/pulse.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "weight",
+    "kind": "icon",
+    "file": "assets/vectors/icons/weight.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "device",
+    "kind": "icon",
+    "file": "assets/vectors/icons/device.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "watch",
+    "kind": "icon",
+    "file": "assets/vectors/icons/watch.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "connect",
+    "kind": "icon",
+    "file": "assets/vectors/icons/connect.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "refresh",
+    "kind": "icon",
+    "file": "assets/vectors/icons/refresh.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "lock",
+    "kind": "icon",
+    "file": "assets/vectors/icons/lock.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "unlock",
+    "kind": "icon",
+    "file": "assets/vectors/icons/unlock.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "key",
+    "kind": "icon",
+    "file": "assets/vectors/icons/key.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "eye",
+    "kind": "icon",
+    "file": "assets/vectors/icons/eye.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "eye-off",
+    "kind": "icon",
+    "file": "assets/vectors/icons/eye-off.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "fingerprint",
+    "kind": "icon",
+    "file": "assets/vectors/icons/fingerprint.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "user",
+    "kind": "icon",
+    "file": "assets/vectors/icons/user.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "users",
+    "kind": "icon",
+    "file": "assets/vectors/icons/users.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "settings",
+    "kind": "icon",
+    "file": "assets/vectors/icons/settings.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "sun",
+    "kind": "icon",
+    "file": "assets/vectors/icons/sun.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "moon",
+    "kind": "icon",
+    "file": "assets/vectors/icons/moon.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "language",
+    "kind": "icon",
+    "file": "assets/vectors/icons/language.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "text-size",
+    "kind": "icon",
+    "file": "assets/vectors/icons/text-size.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "motion",
+    "kind": "icon",
+    "file": "assets/vectors/icons/motion.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "help",
+    "kind": "icon",
+    "file": "assets/vectors/icons/help.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "code",
+    "kind": "icon",
+    "file": "assets/vectors/icons/code.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "sparkles",
+    "kind": "icon",
+    "file": "assets/vectors/icons/sparkles.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "chat",
+    "kind": "icon",
+    "file": "assets/vectors/icons/chat.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "send",
+    "kind": "icon",
+    "file": "assets/vectors/icons/send.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "chip",
+    "kind": "icon",
+    "file": "assets/vectors/icons/chip.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "storage",
+    "kind": "icon",
+    "file": "assets/vectors/icons/storage.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "offline",
+    "kind": "icon",
+    "file": "assets/vectors/icons/offline.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "print",
+    "kind": "icon",
+    "file": "assets/vectors/icons/print.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "list",
+    "kind": "icon",
+    "file": "assets/vectors/icons/list.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "grid",
+    "kind": "icon",
+    "file": "assets/vectors/icons/grid.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "logout",
+    "kind": "icon",
+    "file": "assets/vectors/icons/logout.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "window",
+    "kind": "icon",
+    "file": "assets/vectors/icons/window.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "block",
+    "kind": "icon",
+    "file": "assets/vectors/icons/block.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "loading",
+    "kind": "icon",
+    "file": "assets/vectors/icons/loading.svg",
+    "viewBox": "0 0 24 24",
+    "color": "currentColor",
+    "usage": "Render at 20\u201324dp inside at least44pt/48dp interactive target; label action separately."
+  },
+  {
+    "id": "hemoglobin",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/hemoglobin.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values."
+  },
+  {
+    "id": "ldl",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/ldl.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values."
+  },
+  {
+    "id": "steps",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/steps.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values."
+  },
+  {
+    "id": "heart-rate",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/heart-rate.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values."
+  },
+  {
+    "id": "weight",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/weight.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values."
+  },
+  {
+    "id": "hemoglobin-year",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/hemoglobin-year.svg",
+    "viewBox": "0 0 800 340",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values. A one-year window retains empty months before the first recorded April observation."
+  },
+  {
+    "id": "dose-history",
+    "kind": "chart-reference",
+    "file": "assets/vectors/charts/dose-history.svg",
+    "viewBox": "0 0 800 260",
+    "usage": "Example only. Recalculate from live data and accessible text; never ship static clinical values. Isolated post-action variant: 1 November taken at 09:42. Baseline exports remain 25\u201331 October with five taken."
+  }
+]
