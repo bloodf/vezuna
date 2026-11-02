@@ -193,11 +193,7 @@ fun NoticesScreen(ctx: RouteContext) =
 @Composable
 fun HelpScreen(ctx: RouteContext) = PushedPage(ctx, vitaText(L10nKey.MORE_HELP)) {
     GroupedRows {
-        val importAction = {
-            if (NativeAction.IMPORT_SOURCE in ctx.nativeActions) ctx.nativeActions.perform(NativeAction.IMPORT_SOURCE)
-            else ctx.navigate(AppScreen.ImportSource)
-        }
-        ListRow(vitaText(L10nKey.HELP_IMPORT), onClick = importAction, supporting = vitaText(L10nKey.HELP_IMPORT_SUB), leadingIcon = Res.drawable.ic_upload, category = Category.RECORDS)
+        ListRow(vitaText(L10nKey.HELP_IMPORT), onClick = { ctx.navigate(AppScreen.ImportSource) }, supporting = vitaText(L10nKey.HELP_IMPORT_SUB), leadingIcon = Res.drawable.ic_upload, category = Category.RECORDS)
         ListRow(vitaText(L10nKey.HELP_BACKUP), onClick = { ctx.navigate(AppScreen.Backups) }, supporting = vitaText(L10nKey.HELP_BACKUP_SUB), leadingIcon = Res.drawable.ic_storage, category = Category.CARE)
         ListRow(vitaText(L10nKey.HELP_EXPORT), onClick = { ctx.navigate(AppScreen.ExportHub) }, supporting = vitaText(L10nKey.HELP_EXPORT_SUB), leadingIcon = Res.drawable.ic_share, category = Category.TRENDS)
     }
