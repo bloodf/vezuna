@@ -77,6 +77,8 @@ data class DoctorSourceRow(
     val manualEntry: Boolean,
     val results: Int,
     val unreviewed: Int = 0,
+    /** True when a source document exists, even with a blank name ("Untitled document" then). */
+    val hasDocument: Boolean = false,
     /** When the document was added to Vezuna; printed (labelled) only for documents left out. */
     val importedAt: Instant? = null,
 )
@@ -216,7 +218,7 @@ object DoctorExportContent {
                 collectedAt = rows.minOf { it.collectedAt }, documentName = document?.displayName?.takeIf { it.isNotBlank() },
                 laboratoryName = report?.laboratoryName?.takeIf { it.isNotBlank() }, orderedAt = report?.orderedAt, pages = pages(document),
                 originalStored = document?.vaultKey != null, manualEntry = report?.isManual == true, results = rows.size,
-                unreviewed = document?.let { unreviewed[it.documentId]?.size } ?: 0,
+                unreviewed = document?.let { unreviewed[it.documentId]?.size } ?: 0, hasDocument = document != null,
             )
         }
         val usedDocuments = groups.keys.mapNotNull { it?.sourceDocumentId }.toSet()
@@ -226,7 +228,7 @@ object DoctorExportContent {
                 // No date from the unreviewed values themselves: only the document's own import time.
                 collectedAt = null, documentName = document.displayName.takeIf { it.isNotBlank() }, laboratoryName = null, orderedAt = null,
                 pages = pages(document), originalStored = document.vaultKey != null, manualEntry = false, results = 0, unreviewed = dates.size,
-                importedAt = document.importedAt,
+                importedAt = document.importedAt, hasDocument = true,
             )
         }
         return included.sortedWith(compareBy({ it.collectedAt }, { it.documentName.orEmpty() })) + excluded.sortedBy { it.importedAt }
@@ -409,9 +411,11 @@ object DoctorExportContent {
         }
     }
 
-    /** [decimals] prints numeric bounds at that precision (12.0–16.0); null prints the shortest exact value. */
+    /** [decimals] pads numeric bounds to that precision (12.0–16.0) without rounding any away; null prints the shortest exact value. */
     fun rangeText(range: app.vezuna.domain.ReferenceRange, language: ContentLanguage = ContentLanguage.EN, decimals: Int? = null): String {
-        fun v(value: Double) = DoctorReportFormat.recorded(value, decimals, language)
+        // Pads to [decimals] but never drops a stored digit: 0.27 stays 0.27, 12.5 stays 12.5.
+        fun v(value: Double) =
+            if (decimals == null) DoctorReportFormat.value(value, language) else DoctorReportFormat.fixed(value, maxOf(decimals, DoctorReportFormat.decimalsOf(value, null)), language)
         return when {
             range.text != null -> range.text
             range.lower == null && range.upper == null -> ExportText.of(language).notProvided

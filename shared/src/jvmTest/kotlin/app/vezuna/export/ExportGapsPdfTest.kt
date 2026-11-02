@@ -344,6 +344,39 @@ class ExportGapsPdfTest {
         assertTrue("Untitled document Unreviewed values: 3" in appendix)
     }
 
+    @Test
+    fun boundsOnlyReferencesKeepEveryStoredDigitAndOnlyTheirOwnNumbersSetPadding() {
+        assertEquals("0.27–4.2 mIU/L", DoctorExportContent.rangeText(ReferenceRange(0.27, 4.2, unit = "mIU/L"), ContentLanguage.EN, 1))
+        assertEquals("12.5–16.5 g/dL", DoctorExportContent.rangeText(ReferenceRange(12.5, 16.5, unit = "g/dL"), ContentLanguage.EN, 0))
+        assertEquals("12.0–16.0 g/dL", DoctorExportContent.rangeText(ReferenceRange(12.0, 16.0, unit = "g/dL"), ContentLanguage.EN, 1))
+        val base = PdfFixtures.canonical()
+        fun tsh(id: String, date: String, value: Double, range: ReferenceRange) = LabObservation(
+            PdfFixtures.PROFILE, id, "report-apr", "TSH", "TSH", value, "mIU/L", value, "mIU/L", range,
+            Instant.parse("${date}T11:00:00Z"), ConfirmationStatus.CONFIRMED, valueDecimals = 1,
+        )
+        // Bounds edited by hand (no text): the table and header keep 0.27, never "0.3".
+        val edited = base.copy(observations = base.observations.filterNot { it.testCode == "TSH" } + listOf(
+            tsh("t1", "2026-04-12", 2.1, ReferenceRange(0.27, 4.2, unit = "mIU/L")), tsh("t2", "2026-10-28", 2.4, ReferenceRange(0.27, 4.2, unit = "mIU/L")),
+        ))
+        val editedText = text(PdfFixtures.pdfBytes(PdfFixtures.document(edited)))
+        assertTrue("Recorded reference: 0.27–4.2 mIU/L" in editedText && "0.3–4.2" !in editedText, editedText)
+        // Shared bounds worded differently: an unrelated decimal in the text does not pad the bounds.
+        val worded = base.copy(observations = base.observations.filterNot { it.testCode == "TSH" } + listOf(
+            tsh("t1", "2026-04-12", 2.1, ReferenceRange(1.0, 4.0, text = "Adults 18.25 years+: 1-4 mIU/L", unit = "mIU/L")),
+            tsh("t2", "2026-10-28", 2.4, ReferenceRange(1.0, 4.0, text = "1–4", unit = "mIU/L")),
+        ))
+        val wordedText = text(PdfFixtures.pdfBytes(PdfFixtures.document(worded)))
+        assertTrue("Recorded reference: 1–4 mIU/L" in wordedText, wordedText)
+    }
+
+    @Test
+    fun includedReportWithABlankFileNameIsUntitled() {
+        val base = PdfFixtures.canonical()
+        val blank = base.copy(documents = base.documents.map { if (it.documentId == "doc-report-apr") it.copy(displayName = "") else it })
+        val text = text(PdfFixtures.pdfBytes(PdfFixtures.document(blank, options = ExportOptions(includeSourceAppendix = true))))
+        assertTrue("12 Apr 2026 Untitled document Example Laboratory" in text, text)
+    }
+
     private fun positions(bytes: ByteArray): List<Pair<Float, TextPosition>> = PdfFixtures.open(bytes) { pdf ->
         val found = mutableListOf<Pair<Float, TextPosition>>()
         object : PDFTextStripper() {

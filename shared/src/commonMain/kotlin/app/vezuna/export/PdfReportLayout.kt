@@ -249,8 +249,17 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     /** Fraction digits the reports print for this section's bounds: from the range text when present, else the values'. */
     private fun rangeDecimals(section: DoctorExamSection): Int {
-        val printed = section.history.mapNotNull { it.referenceRange.text }.flatMap { Regex("\\d+[.,](\\d+)").findAll(it).map { m -> m.groupValues[1].length }.toList() }
-        return printed.maxOrNull() ?: section.decimals
+        // Only numbers in the text that are the row's own bounds count ("Adults 18.25+: 12-16" prints 12–16).
+        val printed = section.history.flatMap { row ->
+            val bounds = listOfNotNull(row.referenceRange.lower, row.referenceRange.upper)
+            row.referenceRange.text?.let { text ->
+                Regex("\\d+(?:[.,](\\d+))?").findAll(text)
+                    .filter { m -> m.value.replace(',', '.').toDoubleOrNull()?.let { it in bounds } == true }
+                    .map { m -> m.groupValues[1].length }.toList()
+            }.orEmpty()
+        }
+        // Fallback: the recorded values' precision in the original unit, the same unit as the bounds.
+        return printed.maxOrNull() ?: section.history.mapNotNull { row -> row.originalValue?.let { DoctorReportFormat.decimalsOf(it, row.valueDecimals) } }.maxOrNull() ?: 0
     }
 
     private fun history(section: DoctorExamSection) {
@@ -700,7 +709,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     private fun sourceCells(row: DoctorSourceRow): List<List<Pair<String, Boolean>>> {
         val name = row.documentName ?: when {
             row.manualEntry -> t.enteredManually
-            row.results == 0 -> s.untitledDocument
+            row.hasDocument -> s.untitledDocument
             else -> t.notRecorded
         }
         val details = listOfNotNull(
