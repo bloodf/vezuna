@@ -235,7 +235,7 @@ fun RestoreBackupFlow(
             val file = files.pick()
             if (file == null) {
                 onClose()
-            } else if (file.isEmpty() || file.size > BackupService.MAX_BACKUP_BYTES) {
+            } else if (file.isEmpty() || file.size > BackupService.MAX_BACKUP_READ_BYTES) {
                 error = UserText.Key(L10nKey.BACKUP_FILE_UNREADABLE)
                 step = RestoreStep.Failed
             } else when (service.kind(file)) {

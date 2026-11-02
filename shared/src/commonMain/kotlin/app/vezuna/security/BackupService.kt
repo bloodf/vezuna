@@ -68,7 +68,7 @@ class BackupService(
     private val json: Json = Json { prettyPrint = false; encodeDefaults = true },
 ) {
     fun kind(file: ByteArray): BackupKind = when {
-        file.size > MAX_BACKUP_BYTES -> BackupKind.UNKNOWN
+        file.size > MAX_BACKUP_READ_BYTES -> BackupKind.UNKNOWN
         PassphraseBackupCodec.isPortable(file) -> BackupKind.PORTABLE
         looksLikeLegacyEnvelope(file) -> BackupKind.SAME_DEVICE
         else -> BackupKind.UNKNOWN
@@ -87,13 +87,13 @@ class BackupService(
 
     /**
      * Backs up every profile with its vitals and original source files (schema 4). The file must stay under
-     * [MAX_BACKUP_BYTES] (files are Base64 inside the sealed payload); beyond that, [L10nKey.BACKUP_TOO_LARGE] and nothing is written.
+     * [MAX_BACKUP_WRITE_BYTES] (files are Base64 inside the sealed payload); beyond that, [L10nKey.BACKUP_TOO_LARGE] and nothing is written.
      */
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun createHousehold(members: List<BackupMember>, passphrase: CharArray): ByteArray = withContext(Dispatchers.Default) {
         require(members.isNotEmpty()) { "Nothing to back up" }
         val estimate = members.sumOf { member -> member.files.values.sumOf { (it.size + 2L) / 3 * 4 } }
-        if (estimate > MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+        if (estimate > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
         val payload = HouseholdPayload(
             SCHEMA_VERSION, currentInstant(),
             members.map { member ->
@@ -102,7 +102,7 @@ class BackupService(
         )
         val plain = json.encodeToString(HouseholdPayload.serializer(), payload).encodeToByteArray()
         try {
-            PassphraseBackupCodec.seal(plain, passphrase).also { if (it.size > MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE) }
+            PassphraseBackupCodec.seal(plain, passphrase).also { if (it.size > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE) }
         } finally {
             plain.fill(0)
         }
@@ -190,8 +190,11 @@ class BackupService(
 
         /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
         const val SINGLE_SCHEMA_VERSION = 3
-        /** Held in memory several times over (bytes, Base64, JSON, plaintext, ciphertext), so kept well below Android heap limits. */
-        const val MAX_BACKUP_BYTES = 24 * 1024 * 1024
+        /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
+        const val MAX_BACKUP_READ_BYTES = 64 * 1024 * 1024
+
+        /** New files stay smaller: the payload is held in memory several times over (bytes, Base64, JSON, plaintext, ciphertext). */
+        const val MAX_BACKUP_WRITE_BYTES = 24 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"
     }
 }

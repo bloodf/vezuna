@@ -42,7 +42,7 @@ class AndroidBackupFiles(private val activity: ComponentActivity, private val ex
     }
 
     private fun read(uri: Uri): ByteArray {
-        val limit = BackupService.MAX_BACKUP_BYTES
+        val limit = BackupService.MAX_BACKUP_READ_BYTES
         declaredSize(uri)?.let { if (it > limit) failMessage(L10nKey.BACKUP_FILE_UNREADABLE) }
         val input = activity.contentResolver.openInputStream(uri) ?: failMessage(L10nKey.BACKUP_FILE_UNREADABLE)
         // Chunked, bounded read (readNBytes needs API 33). The declared size can lie, so the cap is enforced here too.

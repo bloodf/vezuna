@@ -111,6 +111,25 @@ class VaultBackedRepositoryStorageTest {
     }
 
     @Test
+    fun anUnavailableProfileCanBeDeletedTogetherWithItsVitals() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = t))
+        repository.createProfile(Profile("b", "Bia", createdAt = t))
+        repository.replaceVitals("a", sampleProfileData("V").vitals)
+        vault.delete(profileKey("a"))
+        val reopened = open()
+        assertEquals(listOf("a"), reopened.unavailableProfiles.map { it.profileId })
+
+        reopened.deleteProfile("a")
+
+        assertTrue(reopened.unavailableProfiles.isEmpty())
+        assertNull(vault.read("repository-vitals-a-v1"))
+        assertEquals(listOf("b"), open().profiles.value.map { it.profileId })
+        assertTrue(open().unavailableProfiles.isEmpty())
+        assertFailsWith<IllegalArgumentException> { reopened.deleteProfile("a") }
+    }
+
+    @Test
     fun previousGenerationIndexKeepsTheNewestProfileAndItsVitals() = runTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = t))

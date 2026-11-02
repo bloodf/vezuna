@@ -765,7 +765,7 @@ class AppController(
                         null
                     } ?: return@forEachIndexed
                     encoded += (bytes.size + 2L) / 3 * 4
-                    if (encoded > BackupService.MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
                     files[fileId] = bytes
                 }
             }

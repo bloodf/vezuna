@@ -209,9 +209,18 @@ class VaultBackedRepository(
 
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
-        val removed = records[profileId] ?: throw IllegalArgumentException("Profile not found")
+        // A profile whose record is missing (see unavailableProfiles) can still be deleted, with its vitals.
+        val removed = records[profileId]
+        val unavailable = skipped[profileId]
+        if (removed == null && unavailable == null) throw IllegalArgumentException("Profile not found")
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
-        writeIndex(records.values.map { it.profile }.filter { it.profileId != profileId })
+        skipped.remove(profileId)
+        try {
+            writeIndex(records.values.map { it.profile }.filter { it.profileId != profileId })
+        } catch (error: Throwable) {
+            unavailable?.let { skipped[profileId] = it }
+            throw error
+        }
         records.remove(profileId)
         vitals.remove(profileId)
         if (healthLinkId == profileId) {
@@ -224,7 +233,7 @@ class VaultBackedRepository(
             selectedProfileId = null
         }
         vault.delete(profileKey(profileId))
-        removed.vaultKeys().forEach { vault.delete(it) }
+        removed?.vaultKeys()?.forEach { vault.delete(it) }
         // Last, so a failure above leaves the vitals in place and the next load's sweep retries.
         vitalsStore.delete(profileId)
         changed()

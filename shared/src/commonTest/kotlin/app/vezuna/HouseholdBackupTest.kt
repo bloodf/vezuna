@@ -73,12 +73,26 @@ class HouseholdBackupTest {
 
     @Test
     fun oversizedHouseholdIsRefusedBeforeAnythingIsWritten() = runTest {
-        val huge = ByteArray(51 * 1024 * 1024)
+        val huge = ByteArray(25 * 1024 * 1024)
         val members = listOf(BackupMember(sampleProfileData("A"), mapOf("A-doc" to huge)))
 
         val failure = assertFailsWith<VitaMessageException> { service.createHousehold(members, pass.copyOf()) }
 
         assertEquals(L10nKey.BACKUP_TOO_LARGE, failure.userText.key)
+    }
+
+    @Test
+    fun readingAcceptsFilesUpToTheOldLimitWhileWritingStopsAt24MiB() = runTest {
+        assertEquals(64 * 1024 * 1024, BackupService.MAX_BACKUP_READ_BYTES)
+        assertEquals(24 * 1024 * 1024, BackupService.MAX_BACKUP_WRITE_BYTES)
+        // A 40 MiB file from a released build is still recognised as a backup (kind is decided before any decryption).
+        val sealed = service.create(sampleProfileData("A"), pass.copyOf())
+        val big = sealed.copyOf(40 * 1024 * 1024)
+        assertEquals(app.vezuna.security.BackupKind.PORTABLE, service.kind(big))
+        assertEquals(app.vezuna.security.BackupKind.UNKNOWN, service.kind(sealed.copyOf(BackupService.MAX_BACKUP_READ_BYTES + 1)))
+        // New files above the write limit are refused.
+        val members = listOf(BackupMember(sampleProfileData("A"), mapOf("A-doc" to ByteArray(19 * 1024 * 1024))))
+        assertEquals(L10nKey.BACKUP_TOO_LARGE, assertFailsWith<VitaMessageException> { service.createHousehold(members, pass.copyOf()) }.userText.key)
     }
 
     @Test
