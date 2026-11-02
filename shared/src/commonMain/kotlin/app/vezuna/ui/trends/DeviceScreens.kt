@@ -23,6 +23,7 @@ import app.vezuna.domain.trends.DateWindow
 import app.vezuna.domain.trends.HistorySeries
 import app.vezuna.domain.trends.VitalSeriesKind
 import app.vezuna.domain.trends.VitalTrends
+import app.vezuna.domain.trends.window
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.vitaPlural
@@ -90,7 +91,7 @@ internal fun ColumnScope.DeviceOverview(ctx: RouteContext, data: ProfileData, to
     var range by remember(data.profile.profileId) { mutableStateOf(HistoryRange.ALL) }
     val all = VitalSeriesKind.entries.map { it to vitalSeries(it, data, range, today) }
     val available = all.mapNotNull { it.second.available }.takeIf { it.isNotEmpty() }?.let { w -> DateWindow(w.minOf { it.start }, w.maxOf { it.end }) }
-    RangeSection(range, { range = it }, all.firstNotNullOfOrNull { it.second.window }, available)
+    RangeSection(range, { range = it }, range.toTrendRange().window(today, available), available)
     all.forEach { (kind, series) -> VitalCard(kind, series) { ctx.navigate(AppScreen.VitalsDetail(kind.name)) } }
     MutedText(vitaText(L10nKey.VITALS_RETENTION_NOTE))
 }

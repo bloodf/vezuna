@@ -24,6 +24,9 @@ object VezunaTokens {
     val Deep = Color(0xFF0C2027)
     val Mist = Color(0xFFE7F5F2)
 
+    /** End padding that keeps text clear of the larger medication panel art. */
+    val ArtClearanceWide = 112.dp
+
     /** Ink on category fills; never white small text on mint, coral, lavender or citron. */
     val OnCategory = Pine
 

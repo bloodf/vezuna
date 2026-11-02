@@ -94,6 +94,7 @@ fun RootScaffold(ctx: RouteContext, title: String, subtitle: String? = null, con
             currentProfileId = ctx.state.data?.profile?.profileId,
             onSwitchProfile = ctx::switchProfile,
             onManageProfiles = { ctx.navigate(AppScreen.Profiles) },
+            onAddProfile = { ctx.navigate(AppScreen.Profiles) },
         )
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }
     }

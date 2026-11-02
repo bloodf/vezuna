@@ -8,9 +8,9 @@ Verification close-out for the Living Color redesign (#121, accessibility #95). 
 
 | Status | Count | Meaning |
 |---|---|---|
-| done | 100 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
+| done | 101 | Implemented and verified (tests and/or Android screenshots or sample PDFs compared with the reference) |
 | implemented | 26 | Implemented and tested in code; not reachable from the design fixture (lock, vault, restore, export transient/error states) or not shot |
-| partial | 27 | Real but incomplete; each gap is named in the table |
+| partial | 26 | Real but incomplete; each gap is named in the table |
 | system | 8 | OS-owned UI (permissions, biometric prompt, notification, share/save sheets); the real native interface is invoked |
 | not-started | 1 | pdf-09 source appendix: the section is not built |
 
@@ -129,7 +129,7 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 002 | welcome | L1 | done | Open source footer omitted (no offline target); device shots blocked |
 | 003 | first-profile | L1 | done | no person illustration asset, uses ill_foliage; device shots blocked |
 | 004 | today-empty | L1 | done | device shots blocked |
-| 005 | profiles | L1 | partial | R0 ProfileSwitcherSheet (ui/components/Header.kt) has no Add profile row; add lives on Profiles page |
+| 005 | profiles | L1 | done | |
 | 006 | profile-edit | L1 | done | device shots blocked |
 | 007 | profile-delete | L1 | done | dismiss reads Cancel (shared ConfirmDialog), body keeps existing full-deletion warning |
 | 008 | startup | L6 | implemented | Lock/startup states need a real vault (not reachable from the in-memory design fixture): device screenshots not taken |

@@ -5,12 +5,8 @@
 "scheduled_medication_reminder" = "Scheduled medication reminder";
 "reminder_for_profile" = "For %@";
 "medication_schedules_unavailable" = "Medication schedules are unavailable";
-"native_actions" = "Vezuna native actions";
 "storage_unavailable" = "Encrypted storage unavailable";
 "opening_storage" = "Opening encrypted Vezuna storage…";
-"import_lab_source" = "Import lab source";
-"healthkit_import_menu" = "HealthKit import";
-"ai_activation_menu" = "AI activation";
 "camera" = "Camera";
 "photos_done" = "Done";
 "add_page" = "Add another page";
@@ -25,9 +21,7 @@
 "heart_rate_samples" = "Heart-rate samples";
 "step_samples" = "Step samples";
 "weight_samples" = "Weight samples";
-"deleted_sample_references" = "Deleted sample references";
 "health_import" = "Health import";
-"premium_ai_activation" = "Premium AI and model activation";
 "refresh_app_store" = "Refresh with App Store";
 "store_verification_description" = "Store verification is requested on launch, when the app becomes active, and by the button above. A verified cache can remain valid for 30 days offline. Health records, imports, reminders, and exports never depend on this state.";
 "premium_inactive" = "Premium AI is not active. Records and exports remain available.";

@@ -5,12 +5,8 @@
 "scheduled_medication_reminder" = "Recordatorio de medicación programado";
 "reminder_for_profile" = "Para %@";
 "medication_schedules_unavailable" = "Los horarios de medicación no están disponibles";
-"native_actions" = "Acciones nativas de Vezuna";
 "storage_unavailable" = "Almacenamiento cifrado no disponible";
 "opening_storage" = "Abriendo el almacenamiento cifrado de Vezuna…";
-"import_lab_source" = "Importar fuente de laboratorio";
-"healthkit_import_menu" = "Importación de HealthKit";
-"ai_activation_menu" = "Activación de IA";
 "camera" = "Cámara";
 "photos_done" = "Listo";
 "add_page" = "Añadir otra página";
@@ -25,9 +21,7 @@
 "heart_rate_samples" = "Muestras de frecuencia cardíaca";
 "step_samples" = "Muestras de pasos";
 "weight_samples" = "Muestras de peso";
-"deleted_sample_references" = "Referencias de muestras eliminadas";
 "health_import" = "Importación de salud";
-"premium_ai_activation" = "Activación de IA prémium y modelos";
 "refresh_app_store" = "Actualizar con App Store";
 "store_verification_description" = "La verificación de la tienda se solicita al abrir la app, al volver a ella y con el botón anterior. Una caché verificada puede seguir siendo válida durante 30 días sin conexión. Los registros, importaciones, recordatorios y exportaciones nunca dependen de este estado.";
 "premium_inactive" = "La IA prémium no está activa. Los registros y las exportaciones siguen disponibles.";

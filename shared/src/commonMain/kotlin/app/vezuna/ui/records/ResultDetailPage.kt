@@ -109,8 +109,10 @@ private fun ValueCard(observation: LabObservation) {
                 Text(vitaText(L10nKey.RESULT_DETAIL_RECORDED_AS_TEXT), style = MaterialTheme.typography.bodyLarge)
                 return@Column
             }
-            val assessment = LabComparator.assess(observation)
-            StatusTag(vitaText(rangeKey(assessment)), rangeKind(assessment))
+            if (observation.confirmation == ConfirmationStatus.CONFIRMED) {
+                val assessment = LabComparator.assess(observation)
+                StatusTag(vitaText(rangeKey(assessment)), rangeKind(assessment))
+            }
             Text(
                 "${vitaText(L10nKey.RESULT_DETAIL_REPORT_RANGE)}: ${uiRangeText(observation.referenceRange)}",
                 style = MaterialTheme.typography.bodyLarge.tabular(),
