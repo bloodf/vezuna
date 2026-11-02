@@ -33,7 +33,10 @@ import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.Category
-import app.vezuna.ui.TrendChart
+import app.vezuna.ui.ChartPoint
+import app.vezuna.ui.LineChart
+import app.vezuna.domain.TrendSeries
+import app.vezuna.domain.referenceBand
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.CategoryPanel
 import app.vezuna.ui.components.EmptyState
@@ -190,4 +193,27 @@ private fun Details(ctx: RouteContext, data: ProfileData, observation: LabObserv
             )
         }
     }
+}
+
+/** Dated chart for a result's history, drawn with the shared [LineChart] at actual elapsed-time positions. */
+@Composable
+private fun TrendChart(series: TrendSeries, modifier: Modifier) {
+    val points = series.points
+    val values = points.map { it.y }
+    val first = points.first().xEpochSeconds
+    val span = (points.last().xEpochSeconds - first).coerceAtLeast(1L).toFloat()
+    val convertedCount = points.count { it.converted }
+    val summary = vitaPlural(
+        L10nKey.TREND_CHART_ACCESSIBILITY, points.size, series.unit,
+        formatLabValue(values.min()), formatLabValue(values.max()), formatLabValue(values.last()),
+    )
+    val description = if (convertedCount == 0) summary else "$summary ${vitaText(L10nKey.CHART_CONVERTED_POINTS, convertedCount)}"
+    LineChart(
+        points = points.map { ChartPoint((it.xEpochSeconds - first) / span, it.y, hollow = it.converted) },
+        identity = "${series.testCode}|${series.unit}",
+        description = description,
+        modifier = modifier,
+        unit = series.unit,
+        band = series.referenceBand(),
+    )
 }
