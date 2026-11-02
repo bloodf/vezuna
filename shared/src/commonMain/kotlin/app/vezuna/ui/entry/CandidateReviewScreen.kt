@@ -85,7 +85,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
             EmptyState(
                 Res.drawable.ill_record_search, vitaText(L10nKey.ENTRY_UNAVAILABLE_TITLE), vitaText(L10nKey.ENTRY_UNAVAILABLE_BODY),
                 Modifier.padding(VezunaTokens.Gutter), actionLabel = vitaText(L10nKey.ENTRY_RETURN_TO_QUEUE),
-                onAction = { ctx.controller.navigator.replace(AppScreen.ImportReview) },
+                onAction = { ctx.controller.navigator.finishAndGo(AppScreen.ImportReview) },
             )
         }
         return
@@ -115,7 +115,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
     fun moveOn() {
         val fresh = ctx.controller.state.value.data
         val next = fresh?.nextPending(candidateId)
-        ctx.controller.navigator.replace(next?.let { AppScreen.CandidateReview(it.candidateId) } ?: AppScreen.ImportReview)
+        ctx.controller.navigator.finishAndGo(next?.let { AppScreen.CandidateReview(it.candidateId) } ?: AppScreen.ImportReview)
     }
 
     fun confirm() {

@@ -18,12 +18,13 @@ import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.Profile
+import app.vezuna.domain.DefaultProfileName
+import app.vezuna.domain.ProfileAge
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.UnitNormalizer
-import app.vezuna.importer.OcrTextParser
 import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
@@ -41,7 +42,6 @@ import app.vezuna.localization.failMessage
 import app.vezuna.localization.formatLabValue
 import app.vezuna.localization.localizeDecimalText
 import app.vezuna.localization.message
-import app.vezuna.localization.parseDecimalInput
 import app.vezuna.localization.pluralMessage
 import app.vezuna.localization.toUserText
 import app.vezuna.platform.currentInstant
@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -80,12 +81,19 @@ class AppController(
     val navigator = Navigator()
 
     suspend fun initialize() = operation {
-        if (repository.profiles.value.isEmpty()) {
-            repository.createProfile(Profile(randomId(), "Me", createdAt = currentInstant()))
+        // A profile only exists once the first run began, so an existing profile means onboarding is done (or not needed).
+        val freshInstall = repository.profiles.value.isEmpty()
+        if (freshInstall) {
+            repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
-        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || mutableState.value.onboarding)
         val profileId = mutableState.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
         loadProfile(profileId)
+        // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
+        val loaded = mutableState.value.data
+        if (mutableState.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty())) {
+            mutableState.value = mutableState.value.copy(onboarding = false)
+        }
         modelManager.refresh()
     }
 
@@ -137,6 +145,28 @@ class AppController(
         switchProfile(profile.profileId)
     }
 
+    /** Sets or clears (null) the birth date. Rejects future dates and ages above [ProfileAge.MAX_YEARS]. */
+    suspend fun setBirthDate(profileId: String, birthDate: LocalDate?) = operation {
+        val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        if (birthDate != null && !ProfileAge.isValid(birthDate, ProfileAge.today(clock(), timeZone()))) failMessage(L10nKey.BIRTH_DATE_INVALID)
+        repository.updateProfile(profile.copy(birthDate = birthDate))
+        mutableState.value = mutableState.value.copy(profiles = repository.profiles.value)
+        reloadCurrentProfile()
+    }
+
+    /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) {
+        val profile = repository.profiles.value.firstOrNull() ?: return skipOnboarding()
+        clearMessages()
+        if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
+        if (birthDate != null) setBirthDate(profile.profileId, birthDate)
+        if (mutableState.value.error == null) skipOnboarding()
+    }
+
+    fun skipOnboarding() {
+        mutableState.value = mutableState.value.copy(onboarding = false)
+    }
+
     suspend fun renameProfile(profileId: String, displayName: String) = operation {
         if (displayName.isBlank()) failMessage(L10nKey.PROFILE_NAME_REQUIRED)
         val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
@@ -176,7 +206,7 @@ class AppController(
         val inserted = importExtracted(source, source.candidates)
         // The source and extraction steps are done; back from review returns to where the import began.
         val current = navigator.current
-        if (current == AppScreen.ImportSource || current == AppScreen.ImportExtract) navigator.replace(AppScreen.ImportReview)
+        if (current == AppScreen.ImportSource || current == AppScreen.ImportExtract) navigator.finishAndGo(AppScreen.ImportReview)
         else navigator.navigate(AppScreen.ImportReview)
         mutableState.value = mutableState.value.copy(
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
@@ -249,13 +279,6 @@ class AppController(
         return inserted
     }
 
-    /** One page: the file hash. Several photos: the hash of the page hashes, so no page is ever concatenated in memory. */
-    private fun sourceIdentity(source: PickedSource): String {
-        val first = sha256(source.bytes).toHex()
-        if (source.additionalPages.isEmpty()) return first
-        return sha256((listOf(first) + source.additionalPages.map { sha256(it).toHex() }).joinToString("|").encodeToByteArray()).toHex()
-    }
-
     private suspend fun newSourceDocument(profileId: String, source: PickedSource, sourceHash: String): SourceDocument {
         val documentId = randomId()
         val store = sourceStore
@@ -283,24 +306,6 @@ class AppController(
         }
     }
 
-    private fun candidateFingerprint(
-        testCode: String,
-        displayName: String,
-        rawValue: String,
-        rawUnit: String,
-        range: ReferenceRange,
-        collectedAt: kotlinx.datetime.Instant,
-    ): String = listOf(
-        testCode.trim().uppercase(),
-        displayName.trim().lowercase(),
-        rawValue.trim(),
-        rawUnit.trim(),
-        range.lower?.toString().orEmpty(),
-        range.upper?.toString().orEmpty(),
-        range.text.orEmpty(),
-        range.unit.orEmpty(),
-        collectedAt.toString(),
-    ).joinToString("|")
 
     suspend fun confirmCandidate(
         candidateId: String,
@@ -775,42 +780,6 @@ class AppController(
     }
 
     private fun requireData(): ProfileData = mutableState.value.data ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
-
-    /**
-     * Bounds come from the reviewer's fields. Reference text and bounds must never disagree:
-     * - edited bounds with unchanged text clear the stale text (the earlier text stays in the revision);
-     * - edited text with untouched bounds recomputes the bounds from it, which only succeeds for exactly one range
-     *   or one-sided `<`, `>`, `≤`, `≥` threshold, and otherwise clears them;
-     * - both edited: the reviewer's bounds and text are kept as typed.
-     * Nothing else is inferred, so a range is never invented.
-     */
-    private fun reviewedRange(
-        original: ReferenceRange,
-        editedText: String?,
-        lowerInput: String,
-        upperInput: String,
-        unit: String,
-        textResult: Boolean,
-    ): ReferenceRange {
-        var text = (editedText ?: original.text)?.trim()?.takeIf { it.isNotEmpty() }
-        if (textResult) return ReferenceRange(text = text)
-        var lower = optionalDouble(lowerInput)
-        var upper = optionalDouble(upperInput)
-        val textChanged = text != original.text
-        val boundsChanged = lower != original.lower || upper != original.upper
-        if (textChanged && !boundsChanged) {
-            val derived = text?.let { OcrTextParser.referenceFromText(it, unit) }
-            lower = derived?.lower
-            upper = derived?.upper
-        } else if (boundsChanged && !textChanged) {
-            text = null
-        }
-        return ReferenceRange(lower, upper, text, unit)
-    }
-
-    private fun optionalDouble(raw: String): Double? = raw.trim().takeIf { it.isNotEmpty() }?.let {
-        parseDecimalInput(it) ?: failMessage(L10nKey.REFERENCE_BOUNDS_NUMERIC)
-    }
 
     // region L3 import and entry
     /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */

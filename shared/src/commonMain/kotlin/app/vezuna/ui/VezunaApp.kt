@@ -208,14 +208,14 @@ fun VezunaApp(
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= VezunaTokens.RailBreakpoint
             Row(Modifier.fillMaxSize()) {
-                if (wide) VezunaRail(nav.root, controller::selectRoot)
+                if (wide && !state.onboarding) VezunaRail(nav.root, controller::selectRoot)
                 Scaffold(
                     modifier = Modifier.weight(1f),
                     containerColor = MaterialTheme.colorScheme.background,
                     // The top inset is consumed by RootHeader and FocusedTaskScaffold, whose pine band reaches
                     // under the status bar.
                     contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                    bottomBar = { if (!wide && nav.isRoot) VezunaNavigationBar(nav.root, controller::selectRoot) },
+                    bottomBar = { if (!wide && nav.isRoot && !state.onboarding) VezunaNavigationBar(nav.root, controller::selectRoot) },
                 ) { padding ->
                     Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
                         AnimatedContent(

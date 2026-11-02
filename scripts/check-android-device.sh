@@ -19,6 +19,13 @@ elif [[ ${#DEVICES[@]} -gt 1 ]]; then
   echo "Multiple devices attached: ${DEVICES[*]}. Set ANDROID_SERIAL=<id> to choose one." >&2
   exit 1
 fi
+# Emulator prep (target device only): system ANR dialogs and animations break UiAutomator tests on a loaded host.
+TARGET="${ANDROID_SERIAL:-${DEVICES[0]}}"
+if [[ "$TARGET" == emulator-* ]]; then
+  for key in window_animation_scale transition_animation_scale animator_duration_scale; do adb -s "$TARGET" shell settings put global "$key" 0 || true; done
+  adb -s "$TARGET" shell settings put global hide_error_dialogs 1 || true
+  adb -s "$TARGET" shell pm disable-user --user 0 com.google.android.gms >/dev/null 2>&1 || true
+fi
 "$ROOT/gradlew" -p "$ROOT" :composeApp:connectedDebugAndroidTest --console=plain
 python3 "$ROOT/tools/localization/check_test_results.py" --instrumentation
 echo "ANDROID_DEVICE_CHECK_PASSED"

@@ -89,10 +89,10 @@ internal fun ReviewQueueScreen(ctx: RouteContext) {
         ) {
             when {
                 pendingTotal > 0 -> PendingBanner(pendingTotal)
-                confirmed > 0 -> ReviewComplete(confirmed, onRecords = { ctx.navigate(AppScreen.Labs) }, onImport = { ctx.controller.navigator.replace(AppScreen.ImportSource) })
+                confirmed > 0 -> ReviewComplete(confirmed, onRecords = { ctx.navigate(AppScreen.Labs) }, onImport = { ctx.controller.navigator.finishAndGo(AppScreen.ImportSource) })
                 else -> EmptyState(
                     Res.drawable.ill_record_empty, vitaText(L10nKey.NOTHING_AWAITING_REVIEW), vitaText(L10nKey.REVIEW_TRACKING),
-                    actionLabel = vitaText(L10nKey.ENTRY_ADD_RECORD), onAction = { ctx.controller.navigator.replace(AppScreen.ImportSource) },
+                    actionLabel = vitaText(L10nKey.ENTRY_ADD_RECORD), onAction = { ctx.controller.navigator.finishAndGo(AppScreen.ImportSource) },
                 )
             }
             details?.let { found ->
