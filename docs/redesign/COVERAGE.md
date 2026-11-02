@@ -100,7 +100,8 @@ samples in scratchpad `pdf-out-gaps/`, rendered with `pdftoppm` and compared wit
 Differences from the images: summary and device pages paginate (the spec prefers more pages over smaller type,
 and device graphs keep their exact tables as the text alternative); no tinted panels; the schedule strip is dated
 from the export day instead of Mon-Sun; the fixture stores no originals, so the appendix says "Original not stored
-on this device" where the image says "Original available".
+on this device" where the image says "Original available", and the "Not included" row shows the document's import
+date instead of a date read from its unreviewed values.
 
 ## Test results (check-all after the L9 merge, 2026-11-02)
 
@@ -294,15 +295,15 @@ rules forbid adding heavy dependencies. Semantics behaviour is covered by code r
 | 148 | review-unavailable | L3 | done | none |
 | 149 | extraction-details | L3 | done | none |
 | 150 | global-feedback | R0 | partial | FeedbackHost live region in the shell (polite/assertive); banner sits at the bottom, image shows it under the header; TalkBack/VoiceOver announcement pass ow... |
-| pdf-01 | health-summary | L9 | done | Two A4 pages instead of one: graphs, graph key and the full latest-results table paginate rather than shrink (spec allows 'continued'); plain blocks instead ... |
+| pdf-01 | health-summary | L9 | done | Two A4 pages instead of one: graphs, graph key and the full latest-results table paginate rather than shrink (spec allows 'continued'); a graph that drops la... |
 | pdf-02 | lab-history-first | L9 | done | none |
 | pdf-03 | lab-history-continuation | L9 | done | none |
 | pdf-04 | single-marker | L9 | done | none |
 | pdf-05 | mixed-results | L9 | implemented | No single-point reference plots |
-| pdf-06 | medication-record | L9 | done | Strip shows the seven dated days from the export date (works for every recurrence) rather than a Mon-Sun week; details stay one labelled line, not the large ... |
+| pdf-06 | medication-record | L9 | done | Strip shows the seven dated days from the export date (works for every recurrence) rather than a Mon-Sun week; open-ended schedules print 'No end date'; deta... |
 | pdf-07 | dose-history | L9 | done | Table keeps the Medication column with the recorded time under the status instead of a separate Recorded time column |
 | pdf-08 | device-measurements | L9 | done | Three A4 pages: each graph keeps its exact dated table below (text alternative for an untagged PDF); steps print as 6240 (no thousands separator) |
-| pdf-09 | source-appendix | L9 | done | Fixture has no stored originals, so rows honestly say 'Original not stored on this device' where the image says 'Original available'; page count only for pho... |
+| pdf-09 | source-appendix | L9 | done | Fixture has no stored originals, so rows honestly say 'Original not stored on this device' where the image says 'Original available'; 'Not included' rows sho... |
 | pdf-10 | sparse-period | L9 | done | none |
 | pdf-11 | portuguese-history | L9 | done | none |
 | pdf-12 | letter-grayscale | L9 | done | none |
