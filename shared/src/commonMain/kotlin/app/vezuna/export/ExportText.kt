@@ -42,6 +42,8 @@ data class ExportText(
     val medicationsRecorded: String,
     val original: String,
     val csvHeader: String,
+    val age: String,
+    val csvMedicationsHeader: String,
 ) {
     companion object {
         fun of(language: ContentLanguage): ExportText = when (language) {
@@ -89,6 +91,8 @@ data class ExportText(
             medicationsRecorded = "Medications (recorded, not recommendations)",
             original = "original",
             csvHeader = "profile_id,collected_at,test_code,test_name,original_value,original_unit,normalized_value,normalized_unit,reference_lower,reference_upper,reference_unit,reference_text,qualitative_value",
+            age = "Age",
+            csvMedicationsHeader = "medication,strength,instructions,active",
         )
 
         private val PT = ExportText(
@@ -130,6 +134,8 @@ data class ExportText(
             medicationsRecorded = "Medicamentos (registrados, não são recomendações)",
             original = "original",
             csvHeader = "id_perfil,coletado_em,codigo_exame,nome_exame,valor_original,unidade_original,valor_normalizado,unidade_normalizada,referencia_minima,referencia_maxima,unidade_referencia,texto_referencia,valor_qualitativo",
+            age = "Idade",
+            csvMedicationsHeader = "medicamento,concentracao,instrucoes,ativo",
         )
 
         private val ES = ExportText(
@@ -171,6 +177,8 @@ data class ExportText(
             medicationsRecorded = "Medicamentos (registrados, no son recomendaciones)",
             original = "original",
             csvHeader = "id_perfil,recolectado_en,codigo_prueba,nombre_prueba,valor_original,unidad_original,valor_normalizado,unidad_normalizada,referencia_minima,referencia_maxima,unidad_referencia,texto_referencia,valor_cualitativo",
+            age = "Edad",
+            csvMedicationsHeader = "medicamento,concentracion,instrucciones,activo",
         )
     }
 }

@@ -18,6 +18,8 @@ data class DoctorPdfDocument(
     val trends: List<DoctorTrendSeries> = emptyList(),
     val generatedAt: Instant = currentInstant(),
     val profileDisplayName: String = "",
+    /** Completed years at [generatedAt]; null when the profile has no birth date. */
+    val ageYears: Int? = null,
     val resultRows: List<DoctorResultRow> = emptyList(),
     val medicationRows: List<DoctorMedicationRow> = emptyList(),
     /** Language of every heading, status, disclaimer and number in the rendered PDF. */
@@ -73,7 +75,13 @@ object DoctorExportContent {
         data: ProfileData,
         title: String = ExportText.of(ContentLanguage.EN).title,
         language: ContentLanguage = ContentLanguage.EN,
+        options: ExportOptions = ExportOptions(),
     ): DoctorPdfDocument {
+        val generatedAt = currentInstant()
+        return build(options.apply(data), title, language, generatedAt, ExportOptions.ageYears(data.profile.birthDate, generatedAt))
+    }
+
+    private fun build(data: ProfileData, title: String, language: ContentLanguage, generatedAt: Instant, ageYears: Int?): DoctorPdfDocument {
         val confirmed = data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
             .sortedWith(compareBy({ it.collectedAt }, { it.observationId }))
@@ -82,6 +90,8 @@ object DoctorExportContent {
             lines = lines(data, language),
             trends = trends(data),
             profileDisplayName = data.profile.displayName,
+            ageYears = ageYears,
+            generatedAt = generatedAt,
             resultRows = confirmed.map { observation ->
                 DoctorResultRow(
                     collectedAt = observation.collectedAt,
@@ -183,7 +193,10 @@ object DoctorExportContent {
  * (canonical decimal point, ISO-8601) in every language, so a spreadsheet or script can read any export.
  */
 class CsvDoctorExporter {
-    fun export(data: ProfileData, language: ContentLanguage = ContentLanguage.EN): String = buildString {
+    fun export(data: ProfileData, language: ContentLanguage = ContentLanguage.EN, options: ExportOptions = ExportOptions()): String =
+        exportFiltered(options.apply(data), language, options.includeMedicationsCsv)
+
+    private fun exportFiltered(data: ProfileData, language: ContentLanguage, includeMedications: Boolean): String = buildString {
         appendLine(ExportText.of(language).csvHeader)
         data.observations
             .filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
@@ -206,10 +219,22 @@ class CsvDoctorExporter {
                 )
                 appendLine(values.joinToString(",") { escape(it) })
             }
+        if (includeMedications) appendMedications(data, language)
+    }
+
+    /** A blank line then a second header: spreadsheets show it as a separate medications block. */
+    private fun StringBuilder.appendMedications(data: ProfileData, language: ContentLanguage) {
+        appendLine()
+        appendLine(ExportText.of(language).csvMedicationsHeader)
+        data.medications.filter { it.profileId == data.profile.profileId }.sortedBy { it.displayName }.forEach { medication ->
+            val values = listOf(medication.displayName, medication.strength.orEmpty(), medication.instructions.orEmpty(), medication.active.toString())
+            appendLine(values.joinToString(",") { escape(it) })
+        }
     }
 
     internal fun escape(raw: String): String {
-        val protected = if (raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
+        // Spreadsheets run a cell as a formula after =, +, -, @ (even behind blanks) and after a leading tab or carriage return.
+        val protected = if (raw.firstOrNull() in setOf('\t', '\r') || raw.firstOrNull { !it.isWhitespace() } in setOf('=', '+', '-', '@')) "'$raw" else raw
         return "\"${protected.replace("\"", "\"\"")}\""
     }
 }

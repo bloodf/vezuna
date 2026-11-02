@@ -28,6 +28,7 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportOptions
 import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
@@ -97,6 +98,8 @@ data class AppUiState(
     val csvExport: String? = null,
     val pdfExport: ExportedPdf? = null,
     val healthLinkedProfileId: String? = null,
+    /** Assistant text received so far while an answer is being generated; null when idle. */
+    val streamingAnswer: String? = null,
 )
 
 object DashboardRefreshSignal {
@@ -658,28 +661,47 @@ class AppController(
         )
     }
 
-    /** Returns true when the answer was stored; on failure the caller keeps the user's question. */
+    /** Returns true when the answer was stored; on failure (or cancellation of the calling job) the caller keeps the user's question. */
     suspend fun ask(question: String): Boolean {
-        operation {
-            val data = requireData()
-            chat.ask(data, mutableState.value.selectedObservationIds, question)
-            loadProfile(data.profile.profileId)
+        var persisted = false
+        try {
+            operation {
+                val data = requireData()
+                val before = data.chat.size
+                mutableState.value = mutableState.value.copy(streamingAnswer = "")
+                try {
+                    chat.ask(data, mutableState.value.selectedObservationIds, question) { partial ->
+                        mutableState.value = mutableState.value.copy(streamingAnswer = partial)
+                    }
+                } finally {
+                    mutableState.value = mutableState.value.copy(streamingAnswer = null)
+                    // Stop may arrive after the exchange was saved: reload so the screen shows what was stored.
+                    withContext(NonCancellable) {
+                        loadProfile(data.profile.profileId)
+                        persisted = (mutableState.value.data?.chat?.size ?: before) > before
+                    }
+                }
+            }
+        } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            // The answer is already stored, so the caller should clear the input as for a normal success.
+            if (persisted) return true
+            throw cancellation
         }
         return mutableState.value.error == null
     }
 
     /** [language] is the per-export override; null follows the app/device language. */
-    suspend fun exportCsv(language: ContentLanguage? = null) = operation {
+    suspend fun exportCsv(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         mutableState.value = mutableState.value.copy(
-            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device()),
+            csvExport = CsvDoctorExporter().export(requireData(), language ?: ContentLanguage.device(), options),
             notice = message(L10nKey.CSV_EXPORT_PREPARED),
         )
     }
 
-    suspend fun exportPdf(language: ContentLanguage? = null) = operation {
+    suspend fun exportPdf(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         val data = requireData()
         val chosen = language ?: ContentLanguage.device()
-        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen)
+        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen, options)
         mutableState.value = mutableState.value.copy(
             pdfExport = pdfExporter.export(document),
             notice = message(L10nKey.PDF_EXPORT_PREPARED),

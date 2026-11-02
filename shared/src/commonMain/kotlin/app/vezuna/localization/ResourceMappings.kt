@@ -422,6 +422,21 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.REPORT_ORDER_DATE_NOT_SET to Res.string.report_order_date_not_set,
     L10nKey.CLEAR_DATE to Res.string.clear_date,
     L10nKey.CHART_CONVERTED_POINTS to Res.string.chart_converted_points,
+    L10nKey.GENERATED_TEXT_DISCLAIMER to Res.string.generated_text_disclaimer,
+    L10nKey.STOP_GENERATING to Res.string.stop_generating,
+    L10nKey.MODEL_INSUFFICIENT_RAM to Res.string.model_insufficient_ram,
+    L10nKey.MODEL_INSUFFICIENT_STORAGE to Res.string.model_insufficient_storage,
+    L10nKey.EXPORT_OPTIONS to Res.string.export_options,
+    L10nKey.EXPORT_FROM_DATE to Res.string.export_from_date,
+    L10nKey.EXPORT_TO_DATE to Res.string.export_to_date,
+    L10nKey.EXPORT_DATE_HINT to Res.string.export_date_hint,
+    L10nKey.EXPORT_TESTS to Res.string.export_tests,
+    L10nKey.EXPORT_ACTIVE_MEDICATIONS_ONLY to Res.string.export_active_medications_only,
+    L10nKey.EXPORT_INCLUDE_MEDICATIONS_CSV to Res.string.export_include_medications_csv,
+    L10nKey.EMPTY_MODEL_ANSWER to Res.string.empty_model_answer,
+    L10nKey.EXPORT_DATE_INVALID to Res.string.export_date_invalid,
+    L10nKey.EXPORT_DATE_RANGE_REVERSED to Res.string.export_date_range_reversed,
+    L10nKey.EXPORT_NO_MATCHING_RESULTS to Res.string.export_no_matching_results,
 )
 
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
