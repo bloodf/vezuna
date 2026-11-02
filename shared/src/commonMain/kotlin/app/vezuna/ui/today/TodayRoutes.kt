@@ -24,7 +24,7 @@ object TodayRoutes {
     fun FirstProfile(ctx: RouteContext) = FirstProfileScreen(ctx, onBack = ctx::back, onDone = ctx::back)
 
     @Composable
-    fun Profiles(ctx: RouteContext) = ProfilesScreen(ctx)
+    fun Profiles(ctx: RouteContext, focusNewName: Boolean = false) = ProfilesScreen(ctx, focusNewName)
 
     @Composable
     fun ProfileEdit(screen: AppScreen.ProfileEdit, ctx: RouteContext) = ProfileEditScreen(screen.profileId, ctx)

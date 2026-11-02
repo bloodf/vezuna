@@ -16,6 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,7 +62,7 @@ private fun UserText?.ifKey(key: L10nKey): UserText? = takeIf { (it as? UserText
 
 /** Image 005 (More > Profiles): every household profile, each opening its edit page, plus Add profile. */
 @Composable
-internal fun ProfilesScreen(ctx: RouteContext) {
+internal fun ProfilesScreen(ctx: RouteContext, focusNewName: Boolean = false) {
     val state = ctx.state
     val currentId = state.data?.profile?.profileId
     var newName by remember { mutableStateOf("") }
@@ -84,7 +87,9 @@ internal fun ProfilesScreen(ctx: RouteContext) {
                     )
                 }
             }
-            LabeledField(vitaText(L10nKey.NEW_PROFILE_NAME), newName, { newName = it })
+            val nameFocus = remember { FocusRequester() }
+            LaunchedEffect(focusNewName) { if (focusNewName) runCatching { nameFocus.requestFocus() } }
+            LabeledField(vitaText(L10nKey.NEW_PROFILE_NAME), newName, { newName = it }, Modifier.focusRequester(nameFocus))
             PrimaryButton(
                 vitaText(L10nKey.ADD_PROFILE),
                 {
