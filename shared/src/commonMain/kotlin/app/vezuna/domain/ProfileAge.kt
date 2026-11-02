@@ -21,6 +21,9 @@ object ProfileAge {
 
 /** Name given to the first profile when the user does not choose one. Never applied to an existing profile. */
 object DefaultProfileName {
+    /** Every localized default, since the device language may change between first launch and a restore. */
+    fun isDefault(name: String): Boolean = ContentLanguage.entries.any { of(it) == name }
+
     fun of(language: ContentLanguage): String = when (language) {
         ContentLanguage.EN -> "Me"
         ContentLanguage.PT -> "Eu"

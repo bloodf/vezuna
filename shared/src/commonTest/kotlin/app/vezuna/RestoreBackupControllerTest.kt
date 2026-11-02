@@ -82,6 +82,121 @@ class RestoreBackupControllerTest {
         assertEquals(data.medications, inner.readProfile(data.profile.profileId).medications)
     }
 
+    // ---- first-run restore removes the untouched default profile ----
+
+    private fun VezunaRepository.ids() = profiles.value.map { it.profileId }
+
+    private suspend fun firstRunRestore(repository: VezunaRepository, prepare: suspend (String) -> Unit = {}): AppController {
+        val controller = controller(repository)
+        prepare(repository.ids().single())
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        return controller
+    }
+
+    @Test
+    fun firstRunRestoreRemovesTheUntouchedDefaultProfile() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = firstRunRestore(repository)
+        assertNull(controller.state.value.error)
+        assertEquals(listOf(data.profile.profileId), repository.ids())
+        assertEquals(listOf(data.profile.profileId), controller.state.value.profiles.map { it.profileId })
+        assertEquals(data.profile.profileId, controller.state.value.data?.profile?.profileId)
+        assertEquals(data.profile.profileId, repository.linkedHealthProfileId())
+        assertEquals(data.profile.profileId, controller.state.value.healthLinkedProfileId)
+    }
+
+    @Test
+    fun localizedDefaultNamesCountAsUntouched() = runTest {
+        val repository = InMemoryVezunaRepository()
+        firstRunRestore(repository) { id -> repository.updateProfile(repository.profiles.value.single().copy(displayName = "Eu")) }
+        assertEquals(listOf(data.profile.profileId), repository.ids())
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenItHasARecord() = runTest {
+        val repository = InMemoryVezunaRepository()
+        firstRunRestore(repository) { id ->
+            repository.addChatMessage(sampleProfileData("ME").chat.single().copy(profileId = id))
+        }
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenItHasAMedication() = runTest {
+        val repository = InMemoryVezunaRepository()
+        firstRunRestore(repository) { id -> repository.addMedication(sampleProfileData("ME").medications.single().copy(profileId = id, schedules = emptyList())) }
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenItHasVitals() = runTest {
+        val repository = InMemoryVezunaRepository()
+        firstRunRestore(repository) { id -> repository.replaceVitals(id, data.vitals) }
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWithACustomNameOrExplicitLink() = runTest {
+        val renamed = InMemoryVezunaRepository()
+        firstRunRestore(renamed) { id -> renamed.updateProfile(renamed.profiles.value.single().copy(displayName = "Maria")) }
+        assertEquals(2, renamed.ids().size)
+
+        val linked = InMemoryVezunaRepository()
+        firstRunRestore(linked) { id -> linked.setLinkedHealthProfile(id) }
+        assertEquals(2, linked.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenAnotherProfileExists() = runTest {
+        val repository = InMemoryVezunaRepository()
+        firstRunRestore(repository) { repository.createProfile(app.vezuna.domain.Profile("other", "Zed", createdAt = data.profile.createdAt)) }
+        assertEquals(3, repository.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenTheRestoreFails() = runTest {
+        val inner = InMemoryVezunaRepository()
+        val repository = object : VezunaRepository by inner {
+            override suspend fun restoreProfile(data: app.vezuna.domain.ProfileData) = throw IllegalStateException("wrong passphrase")
+        }
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertTrue(controller.state.value.error != null)
+        assertEquals(1, inner.profiles.value.size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptForARestoreOutsideFirstRun() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        controller.skipOnboarding() // e.g. Start on Welcome, restore later from More
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenTheAppRelaunchesBetweenWelcomeAndRestore() = runTest {
+        val repository = InMemoryVezunaRepository()
+        controller(repository).startFirstRunRestore()
+        val relaunched = controller(repository) // the flag is memory-only
+        relaunched.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun relaunchAfterAFirstRunRestoreOpensTheRestoredProfile() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = app.vezuna.data.VaultBackedRepository(vault, persistSelection = true).also { it.load() }
+        firstRunRestore(repository)
+        val reopened = app.vezuna.data.VaultBackedRepository(vault, persistSelection = true).also { it.load() }
+        val relaunched = controller(reopened)
+        assertEquals(listOf(data.profile.profileId), reopened.ids())
+        assertEquals(data.profile.profileId, relaunched.state.value.data?.profile?.profileId)
+        assertEquals(data.profile.profileId, reopened.linkedHealthProfileId())
+    }
+
     private object NoModels : ModelFileStore {
         override suspend fun installed(): List<InstalledModel> = emptyList()
         override suspend fun install(model: InstalledModel, sourcePath: String) = Unit

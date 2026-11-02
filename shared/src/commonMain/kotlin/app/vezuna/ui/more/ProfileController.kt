@@ -21,6 +21,41 @@ internal class ProfileController(
     private val repository get() = core.repository
     private val state get() = core.mutableState
 
+    /** Set only by the Welcome screen's Restore; memory-only so a relaunch before the restore safely drops it. */
+    private var firstRunRestoreProfileId: String? = null
+
+    /** Welcome > Restore: ends onboarding and remembers the only profile (the auto-created default) as removable after a successful restore. */
+    fun startFirstRunRestore() {
+        if (state.value.onboarding) firstRunRestoreProfileId = repository.profiles.value.singleOrNull()?.profileId
+        skipOnboarding()
+    }
+
+    /**
+     * After a fully successful first-run restore, deletes the auto-created default profile if nothing was ever added to it.
+     * Any doubt keeps it. Uses the repository delete path so the tombstone is written.
+     */
+    suspend fun discardUntouchedDefaultAfterRestore(restoredIds: List<String>) {
+        val defaultId = firstRunRestoreProfileId ?: return
+        firstRunRestoreProfileId = null
+        val current = state.value.data?.profile?.profileId
+        if (defaultId in restoredIds || current == null || current !in restoredIds) return
+        if (repository.profiles.value.filter { it.profileId !in restoredIds }.map { it.profileId } != listOf(defaultId)) return
+        try {
+            val me = repository.peekProfile(defaultId)
+            val untouched = DefaultProfileName.isDefault(me.profile.displayName) && me.profile.birthDate == null &&
+                me.documents.isEmpty() && me.reports.isEmpty() && me.observations.isEmpty() && me.ocrCandidates.isEmpty() &&
+                me.medications.isEmpty() && me.doseEvents.isEmpty() && me.chat.isEmpty() && me.vitals.isEmpty &&
+                me.vitals.lastSync == null && repository.explicitHealthLinkId() != defaultId
+            if (!untouched) return
+            repository.deleteProfile(defaultId)
+            state.value = state.value.copy(profiles = repository.profiles.value, healthLinkedProfileId = repository.linkedHealthProfileId())
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (failed: Exception) {
+            // The restore already succeeded; a failed cleanup just keeps the default profile.
+        }
+    }
+
     suspend fun initialize() = core.operation {
         // A profile only exists once the first run began, so an existing profile means onboarding is done (or not needed).
         val freshInstall = repository.profiles.value.isEmpty()
@@ -45,6 +80,7 @@ internal class ProfileController(
     }
 
     suspend fun createProfile(displayName: String) = core.operation {
+        firstRunRestoreProfileId = null
         if (displayName.isBlank()) failMessage(L10nKey.PROFILE_NAME_REQUIRED)
         val profile = Profile(randomId(), displayName.trim(), createdAt = currentInstant())
         repository.createProfile(profile)

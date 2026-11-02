@@ -319,6 +319,11 @@ class VaultBackedRepository(
         HealthLink.resolve(healthLinkId, records.values.map { it.profile })
     }
 
+    override suspend fun explicitHealthLinkId(): String? = mutex.withLock {
+        ensureInitialized()
+        healthLinkId
+    }
+
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
         require(records.containsKey(profileId)) { "Profile not found" }

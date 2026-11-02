@@ -84,6 +84,8 @@ interface VezunaRepository {
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
     suspend fun setLinkedHealthProfile(profileId: String)
+    /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
+    suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
     /** Merges the batch into the linked profile only; returns how many of its entries were actually stored. */
     suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int
     /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
@@ -220,6 +222,8 @@ class InMemoryVezunaRepository : VezunaRepository {
     }
 
     override suspend fun linkedHealthProfileId(): String? = mutex.withLock { HealthLink.resolve(healthLink, records.values.map { it.profile }) }
+
+    override suspend fun explicitHealthLinkId(): String? = mutex.withLock { healthLink }
 
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
