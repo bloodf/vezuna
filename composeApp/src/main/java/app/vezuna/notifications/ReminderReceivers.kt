@@ -8,6 +8,7 @@ import app.vezuna.NativeKey
 import app.vezuna.VezunaApplication
 import app.vezuna.nativeMessage
 import app.vezuna.domain.DoseEvent
+import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseEvents
 import app.vezuna.ui.DashboardRefreshSignal
 import kotlinx.coroutines.CancellationException
@@ -84,7 +85,8 @@ class DoseActionReceiver : BroadcastReceiver() {
                 return@guarded
             }
             when (action) {
-                DoseAction.SNOOZE -> app.notifications.snooze(intent)
+                // Same stored event as the in-app snooze; the reschedule below arms it. Without storage fall back to a bare alarm.
+                DoseAction.SNOOZE -> if (!(app.awaitRepository() && isCurrent(app, intent) && recordSnooze(app, intent))) app.notifications.snooze(intent)
                 DoseAction.TAKEN, DoseAction.SKIP -> recordDose(app, intent, action)
             }
             app.notifications.cancel(intent.getIntExtra(MedicationNotificationScheduler.EXTRA_NOTIFICATION_ID, 0))
@@ -93,6 +95,29 @@ class DoseActionReceiver : BroadcastReceiver() {
                 DashboardRefreshSignal.notifyRepositoryChanged()
             }
         }
+    }
+
+    private suspend fun recordSnooze(app: VezunaApplication, intent: Intent): Boolean {
+        val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return false
+        val medicationId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID) ?: return false
+        val scheduleId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_SCHEDULE_ID) ?: return false
+        val shownFor = intent.getLongExtra(MedicationNotificationScheduler.EXTRA_SCHEDULED_FOR, -1L)
+        if (shownFor < 0) return false
+        val now = System.currentTimeMillis()
+        val snoozedAt = Instant.fromEpochSeconds(now / 1000 + MedicationNotificationScheduler.SNOOZE_MS / 1000)
+        app.repository.addDoseEvent(
+            DoseEvent(
+                profileId = profileId,
+                eventId = DoseEvents.snoozeIdFor(scheduleId, snoozedAt),
+                medicationId = medicationId,
+                scheduleId = scheduleId,
+                scheduledFor = snoozedAt,
+                status = DoseEventStatus.SCHEDULED,
+                recordedAt = Instant.fromEpochMilliseconds(now),
+                replacesScheduledFor = Instant.fromEpochMilliseconds(shownFor),
+            ),
+        )
+        return true
     }
 
     private suspend fun recordDose(app: VezunaApplication, intent: Intent, action: DoseAction) {
