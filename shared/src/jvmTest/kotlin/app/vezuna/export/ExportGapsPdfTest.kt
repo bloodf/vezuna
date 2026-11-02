@@ -65,7 +65,7 @@ class ExportGapsPdfTest {
         val document = document(ExportFamily.MEDICATION_RECORD, options = weekOf(ExportFamily.MEDICATION_RECORD))
         val text = text(PdfFixtures.pdfBytes(document))
         listOf(
-            "End date: Not recorded", "Schedule for the next seven days", "Planned times from the schedule, not dose history.",
+            "No end date", "Schedule for the next seven days", "Planned times from the schedule, not dose history.",
             "Sun 01 Nov", "Mon 02 Nov", "Sat 07 Nov",
         ).forEach { assertTrue(it in text, "missing: $it") }
         val row = document.medicationRows.single()
@@ -161,9 +161,9 @@ class ExportGapsPdfTest {
             "Sources included", "Original files are listed, not embedded. Only confirmed results are included.", "Collected Report Original file",
             "12 Apr 2026 april-blood-work-2026.pdf Example Laboratory Confirmed results included: 2", "lipid-panel-2026-10-14.pdf",
             "hepatitis-b-screening-2026-10-28.pdf", "Original not stored on this device",
-            "Not included", "30 Oct 2026 october-blood-work-review.pdf Unreviewed values: 3",
+            "Not included", "Imported 01 Nov 2026 october-blood-work-review.pdf Unreviewed values: 3",
         ).forEach { assertTrue(it in appendix, "missing: $it") }
-        listOf("Fasting glucose", "Ferritin", "96", "42 ng/mL").forEach { assertFalse(it in appendix, "unconfirmed data printed: $it") }
+        listOf("Fasting glucose", "Ferritin", "96", "42 ng/mL", "30 Oct").forEach { assertFalse(it in appendix, "unconfirmed data printed: $it") }
         assertEquals(6, document.sourceRows.count { it.results > 0 })
         assertEquals(8, document.sourceRows.sumOf { it.results })
         assertFalse("Sources included" in pages.dropLast(1).joinToString(" "), "the appendix starts its own page")
@@ -197,7 +197,7 @@ class ExportGapsPdfTest {
     @Test
     fun newSectionsAreLocalized() {
         val pt = text(PdfFixtures.pdfBytes(document(ExportFamily.MEDICATION_RECORD, ContentLanguage.PT, weekOf(ExportFamily.MEDICATION_RECORD).copy(includeSourceAppendix = true, includeLabsPdf = true))))
-        listOf("Linha do tempo diária das doses", "Horários dos próximos sete dias", "Dom 01 Nov", "Data de término: Não registrado", "Fontes incluídas", "Não incluídos").forEach {
+        listOf("Linha do tempo diária das doses", "Horários dos próximos sete dias", "Dom 01 Nov", "Sem data de término", "Fontes incluídas", "Não incluídos").forEach {
             assertTrue(it in pt, "missing PT: $it")
         }
         val es = text(PdfFixtures.pdfBytes(document(ExportFamily.DEVICE_MEASUREMENTS, ContentLanguage.ES, weekOf(ExportFamily.DEVICE_MEASUREMENTS))))
@@ -229,6 +229,7 @@ class ExportGapsPdfTest {
             }
             positions(bytes).forEach { (pageHeight, position) ->
                 if (pageHeight - position.yDirAdj > 25 * PdfStyle.MM) assertTrue(position.fontSizeInPt >= 11f, "'${position.unicode}' at ${position.fontSizeInPt}pt in ${document.family}")
+                else assertTrue(position.fontSizeInPt < 11f, "content '${position.unicode}' in the footer band in ${document.family}")
             }
         }
     }
@@ -287,6 +288,60 @@ class ExportGapsPdfTest {
             assertTrue(phrase in ExportText.of(language).graphKey, "$language")
             assertTrue("Some labels" in ExportText.of(ContentLanguage.EN).labelsOmitted)
         }
+    }
+
+    @Test
+    fun summaryGraphWithDroppedLabelsListsItsReadingsAndTheKeyFitsThePage() {
+        val base = PdfFixtures.canonical()
+        val daily = (0 until 30).map { index ->
+            LabObservation(
+                PdfFixtures.PROFILE, "hgb-d$index", "report-apr", "HGB", "Hemoglobin", 12.0 + index / 10.0, "g/dL", 120.0 + index, "g/L",
+                ReferenceRange(12.0, 16.0, unit = "g/dL"), Instant.fromEpochSeconds(Instant.parse("2026-05-01T11:00:00Z").epochSeconds + index * 86_400L),
+                ConfirmationStatus.CONFIRMED, valueDecimals = 1,
+            )
+        }
+        val data = base.copy(observations = base.observations.filterNot { it.testCode == "HGB" } + daily)
+        val document = DoctorExportContent.document(data, "Health summary", ContentLanguage.EN, ExportFamily.HEALTH_SUMMARY.defaults(), zone, PdfFixtures.generatedAt)
+        val bytes = PdfFixtures.pdfBytes(document)
+        val text = text(bytes)
+        assertTrue("Some labels are left out for space" in text)
+        assertTrue("Hemoglobin · all readings" in text)
+        assertTrue((0 until 30).all { "${(120 + it) / 10}.${(120 + it) % 10} g/dL" in text }, "every reading is printed as text")
+        positions(bytes).forEach { (pageHeight, position) ->
+            if (position.fontSizeInPt >= 11f) assertTrue(pageHeight - position.yDirAdj > 25 * PdfStyle.MM, "'${position.unicode}' in the footer band")
+        }
+    }
+
+    @Test
+    fun scheduleStripNeverLeavesItsMedicationAndContinuesAsSchedule() {
+        val base = DesignFixture.data()
+        val schedule = base.medications.single().schedules.single()
+        val many = (1..12).map { index ->
+            Medication(base.profile.profileId, "m$index", "Medicine ${index.toString().padStart(2, '0')}", "5 mg", "1 tablet", listOf(schedule.copy(scheduleId = "s$index", medicationId = "m$index")))
+        }
+        val bytes = PdfFixtures.pdfBytes(document(ExportFamily.MEDICATION_RECORD, data = base.copy(medications = many, doseEvents = emptyList())))
+        PdfFixtures.pageTexts(bytes).forEach { page ->
+            val strip = page.indexOf("Schedule for the next seven days")
+            if (strip >= 0) assertTrue(Regex("Medicine \\d\\d").find(page)?.range?.first?.let { it < strip } == true, "a strip opens a page without its medication:\n$page")
+        }
+        assertFalse("results, continued" in text(bytes).substringBefore("Dose history"))
+    }
+
+    @Test
+    fun crowdedDayCapsItsStackWeightKeepsStoredPrecisionAndUntitledDocumentsAreNamed() {
+        val base = DesignFixture.data()
+        val schedule = base.medications.single().schedules.single()
+        val crowded = (0 until 10).map { index ->
+            DoseEvent(base.profile.profileId, "c$index", "med-vitamin-d", schedule.scheduleId, Instant.parse("2026-10-20T1${index}:00:00Z"), DoseEventStatus.TAKEN, recordedAt = Instant.parse("2026-10-20T1${index}:01:00Z"))
+        }
+        val doses = text(PdfFixtures.pdfBytes(document(ExportFamily.MEDICATION_RECORD, data = base.copy(doseEvents = base.doseEvents + crowded))))
+        assertTrue("+6" in doses, "doses past the stack are counted, the table lists each")
+        val precise = base.copy(vitals = base.vitals.copy(weights = base.vitals.weights.map { it.copy(kg = it.kg + 0.05) }))
+        val device = text(PdfFixtures.pdfBytes(document(ExportFamily.DEVICE_MEASUREMENTS, options = weekOf(ExportFamily.DEVICE_MEASUREMENTS), data = precise)))
+        assertTrue("68.45 kg" in device && "-0.40 kg (from 25 Oct 2026)" in device, device)
+        val untitled = base.copy(documents = base.documents.map { if (it.documentId == "doc-october-review") it.copy(displayName = " ") else it })
+        val appendix = text(PdfFixtures.pdfBytes(document(ExportFamily.HEALTH_SUMMARY, options = ExportFamily.HEALTH_SUMMARY.defaults().copy(includeSourceAppendix = true), data = untitled)))
+        assertTrue("Untitled document Unreviewed values: 3" in appendix)
     }
 
     private fun positions(bytes: ByteArray): List<Pair<Float, TextPosition>> = PdfFixtures.open(bytes) { pdf ->

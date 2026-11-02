@@ -403,15 +403,15 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     }
 
     /** A table whose header repeats on every page it continues onto, under a "[carry] · continued" line. */
-    private fun grid(carry: String, labels: List<String>, widths: List<Double>, rows: List<List<List<Pair<String, Boolean>>>>) {
+    private fun grid(carry: String, labels: List<String>, widths: List<Double>, rows: List<List<List<Pair<String, Boolean>>>>, what: String = t.tableContinued) {
         // Header plus the first two rows stay together.
-        if (ensure(gridHeaderHeight(labels, widths) + rows.take(2).sumOf { gridRowHeight(it, widths) })) carriedTitle(carry, t.tableContinued)
+        if (ensure(gridHeaderHeight(labels, widths) + rows.take(2).sumOf { gridRowHeight(it, widths) })) carriedTitle(carry, what)
         gridHeader(labels, widths)
         rows.forEach { row ->
             val height = gridRowHeight(row, widths)
             // ponytail: a single row taller than a whole page would overflow; needs a split-row path if reference texts ever get that long.
             if (ensure(height)) {
-                carriedTitle(carry, t.tableContinued)
+                carriedTitle(carry, what)
                 gridHeader(labels, widths)
             }
             var x = left
@@ -459,9 +459,16 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         charted.chunked(2).forEach { pair ->
             val height = pair.maxOf { summaryHeight(it, column) }
             ensure(height)
-            pair.forEachIndexed { index, section -> summaryBlock(section, left + index * (column + gap), y, column) }
+            val omitted = pair.filterIndexed { index, section -> summaryBlock(section, left + index * (column + gap), y, column) }
             y += height + 4 * MM
+            // The latest-results table holds only the latest row, so a graph that dropped labels gets its readings as text.
+            omitted.forEach { section ->
+                ensure(pen.lineHeight(LABEL) + tableHeaderHeight() + 2 * rowHeight(section.history.first()))
+                carriedTitle(section.testName, s.readings)
+                table(section)
+            }
         }
+        ensure(pen.paragraphHeight(t.graphKey, width, NOTE))
         y += pen.paragraph(t.graphKey, left, y, width, NOTE, MUTED) + 4 * MM
     }
 
@@ -474,7 +481,8 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         pen.paragraphHeight(section.testName, column, PdfStyle.SECTION, bold = true) + summaryChart.height() + pen.paragraphHeight(t.labelsOmitted, column, NOTE) +
             summaryChanges(section).sumOf { (label, value) -> pen.paragraphHeight(label, column, LABEL, bold = true) + pen.paragraphHeight(value, column, BODY) }
 
-    private fun summaryBlock(section: DoctorExamSection, x: Double, top: Double, column: Double) {
+    /** Draws one summary graph with its changes; true when some of its labels were left out. */
+    private fun summaryBlock(section: DoctorExamSection, x: Double, top: Double, column: Double): Boolean {
         var cursor = top + pen.paragraph(section.testName, x, top, column, PdfStyle.SECTION, PINE, bold = true)
         val result = summaryChart.draw(section.trend!!, x, cursor, column, section.decimals)
         cursor += result.height
@@ -483,6 +491,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             cursor += pen.paragraph(label, x, cursor, column, LABEL, PINE, bold = true)
             cursor += pen.paragraph(value, x, cursor, column, BODY)
         }
+        return result.labelsOmitted
     }
 
     private fun doseStatus(row: DoctorDoseRow): List<Pair<String, Boolean>> {
@@ -551,15 +560,19 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     private fun device() {
         y += 4 * MM
         val rows = document.deviceRows
-        sectionTitle(s.deviceMeasurements, PdfStyle.CITRON, extra = 2 * pen.lineHeight(BODY))
-        y += pen.paragraph(s.deviceNote, left, y, width, NOTE, MUTED)
-        document.scope.deviceLastSync?.let { y += pen.paragraph(s.lastImport.replace("{date}", DoctorReportFormat.dateTime(it, language)), left, y, width, NOTE, MUTED) }
+        val notes = listOfNotNull(
+            s.deviceNote,
+            document.scope.deviceLastSync?.let { s.lastImport.replace("{date}", DoctorReportFormat.dateTime(it, language)) },
+            s.deviceDays.replace("{days}", rows.map { it.date }.distinct().size.toString()).takeIf { rows.isNotEmpty() },
+        )
+        // Every intro note is reserved with the title, so none of them can reach the footer.
+        sectionTitle(s.deviceMeasurements, PdfStyle.CITRON, extra = notes.sumOf { pen.paragraphHeight(it, width, NOTE) } + 4 * MM + pen.lineHeight(BODY))
+        notes.forEach { y += pen.paragraph(it, left, y, width, NOTE, MUTED) }
         y += 2 * MM
         if (rows.isEmpty()) {
             y += pen.paragraph(s.noDeviceData, left, y, width, BODY)
             return
         }
-        y += pen.paragraph(s.deviceDays.replace("{days}", rows.map { it.date }.distinct().size.toString()), left, y, width, NOTE, MUTED) + 2 * MM
         val days = deviceDays(rows)
         listOf(VitalMetric.STEPS to s.steps, VitalMetric.HEART_RATE_BPM to s.heartRate, VitalMetric.WEIGHT_KG to s.weight).forEach { (metric, title) ->
             val metricRows = rows.filter { it.metric == metric }
@@ -569,7 +582,8 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             val (unit, decimals) = when (metric) {
                 VitalMetric.STEPS -> s.stepsUnit to 0
                 VitalMetric.HEART_RATE_BPM -> "bpm" to 0
-                VitalMetric.WEIGHT_KG -> "kg" to 1
+                // Weight keeps the precision it was stored with (68.35 stays 68.35), up to grams; heart rate is a computed average.
+                VitalMetric.WEIGHT_KG -> "kg" to metricRows.maxOf { minOf(DoctorReportFormat.decimalsOf(it.value, null), 3) }.coerceAtLeast(1)
             }
             val comparison = deviceComparison(metricRows, unit, decimals)
             val latest = metricRows.last()
@@ -578,7 +592,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
                 .map { (label, change) -> label to changeText(comparison, change, decimals) }
             val column = (width - 6 * MM) / 2
             val changeHeight = pen.lineHeight(LABEL) + changes.maxOf { pen.paragraphHeight(it.second, column, BODY) } + 2 * MM
-            sectionTitle(title, PdfStyle.CITRON, extra = pen.lineHeight(BODY) + changeHeight + dailyChart.height())
+            sectionTitle(title, PdfStyle.CITRON, extra = pen.lineHeight(BODY) + changeHeight + dailyChart.height() + pen.paragraphHeight(t.labelsOmitted, width, NOTE))
             y += pen.paragraph(latestText, left, y, width, BODY, bold = true) + 1 * MM
             changes.forEachIndexed { index, (label, value) ->
                 val x = left + index * (column + 6 * MM)
@@ -594,7 +608,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
                 val value = when (metric) {
                     VitalMetric.STEPS -> "${row.value.toLong()} ${s.stepsUnit}"
                     VitalMetric.HEART_RATE_BPM -> "${DoctorReportFormat.fixed(row.value, 0, language)} bpm"
-                    VitalMetric.WEIGHT_KG -> "${DoctorReportFormat.fixed(row.value, 1, language)} kg"
+                    VitalMetric.WEIGHT_KG -> "${DoctorReportFormat.fixed(row.value, decimals, language)} kg"
                 }
                 listOfNotNull(listOf(DoctorReportFormat.date(row.date, language) to false), row.time?.let { listOf(it to false) }, listOf(value to false))
             })
@@ -612,11 +626,22 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         row.times.takeIf { it.isNotEmpty() }?.let { "${t.scheduledTimes}: ${it.joinToString(", ")}" },
         if (row.active) t.active else t.inactive,
         row.startDate?.let { "${t.startDate}: ${DoctorReportFormat.date(it, language)}" },
-        row.startDate?.let { "${s.endDate}: ${row.endDate?.let { end -> DoctorReportFormat.date(end, language) } ?: t.notRecorded}" },
+        row.startDate?.let { row.endDate?.let { end -> "${s.endDate}: ${DoctorReportFormat.date(end, language)}" } ?: s.noEndDate },
     ).joinToString(" · ")
 
     private fun medicationHeight(row: DoctorMedicationRow) =
-        pen.paragraphHeight(row.displayName, width, BODY, bold = true) + pen.paragraphHeight(medicationDetails(row), width, BODY) + 3 * MM
+        pen.paragraphHeight(row.displayName, width, BODY, bold = true) + pen.paragraphHeight(medicationDetails(row), width, BODY) + 3 * MM +
+            (if (showsStrip(row)) stripHeight(row) else 0.0)
+
+    private fun showsStrip(row: DoctorMedicationRow) = document.family == ExportFamily.MEDICATION_RECORD && row.week.isNotEmpty()
+
+    private fun stripLabels(row: DoctorMedicationRow) = row.week.map { "${s.weekdays[it.date.dayOfWeek.isoDayNumber - 1]}\n${DoctorReportFormat.shortDate(it.date, language)}" }
+    private fun stripShares(row: DoctorMedicationRow) = widths(*DoubleArray(row.week.size) { 1.0 })
+    private fun stripCells(row: DoctorMedicationRow) = listOf(row.week.map { day -> day.times.ifEmpty { listOf("–") }.map { it to false } })
+
+    private fun stripHeight(row: DoctorMedicationRow) = 1 * MM + pen.paragraphHeight(s.scheduleWeek, width, LABEL, bold = true) +
+        pen.paragraphHeight(s.scheduleNote, width, NOTE) + 1 * MM + gridHeaderHeight(stripLabels(row), stripShares(row)) +
+        gridRowHeight(stripCells(row).first(), stripShares(row)) + 2 * MM
 
     private fun medications() {
         if (!document.hasStructuredContent) return
@@ -636,7 +661,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             y += pen.paragraph(row.displayName, left, y, width, BODY, bold = true)
             y += pen.paragraph(medicationDetails(row), left, y, width, BODY) + 1 * MM
             // The strip's table ends with its own rule.
-            if (document.family == ExportFamily.MEDICATION_RECORD && row.week.isNotEmpty()) scheduleStrip(row)
+            if (showsStrip(row)) scheduleStrip(row)
             else pen.line(left, y, right, y, PdfStyle.BORDER, PdfStyle.RULE)
             y += 2 * MM
         }
@@ -646,14 +671,11 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
 
     /** pdf-06: the planned times of the next seven dated days, labelled as schedule so it never reads as dose history. */
     private fun scheduleStrip(row: DoctorMedicationRow) {
-        val labels = row.week.map { "${s.weekdays[it.date.dayOfWeek.isoDayNumber - 1]}\n${DoctorReportFormat.shortDate(it.date, language)}" }
-        val shares = widths(*DoubleArray(row.week.size) { 1.0 })
-        val cells = listOf(row.week.map { day -> day.times.ifEmpty { listOf("–") }.map { it to false } })
-        ensure(pen.lineHeight(LABEL) + pen.lineHeight(NOTE) + gridHeaderHeight(labels, shares) + gridRowHeight(cells.first(), shares))
+        // The medication's own ensure() already kept name, details and strip together.
         y += 1 * MM
         y += pen.paragraph(s.scheduleWeek, left, y, width, LABEL, PINE, bold = true)
         y += pen.paragraph(s.scheduleNote, left, y, width, NOTE, MUTED) + 1 * MM
-        grid(row.displayName, labels, shares, cells)
+        grid(row.displayName, stripLabels(row), stripShares(row), stripCells(row), s.scheduleContinued)
     }
 
     /** pdf-09: the reports behind the exported results on their own page; originals are listed, never embedded. */
@@ -676,7 +698,11 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
     }
 
     private fun sourceCells(row: DoctorSourceRow): List<List<Pair<String, Boolean>>> {
-        val name = row.documentName ?: if (row.manualEntry) t.enteredManually else t.notRecorded
+        val name = row.documentName ?: when {
+            row.manualEntry -> t.enteredManually
+            row.results == 0 -> s.untitledDocument
+            else -> t.notRecorded
+        }
         val details = listOfNotNull(
             row.laboratoryName,
             row.orderedAt?.let { "${t.orderedOn} ${DoctorReportFormat.date(it, language)}" },
@@ -690,7 +716,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             else -> s.originalMissing
         }
         return listOf(
-            listOf(DoctorReportFormat.date(row.collectedAt, language) to false),
+            listOf(row.collectedAt?.let { DoctorReportFormat.date(it, language) to false } ?: ("${s.imported} ${row.importedAt?.let { DoctorReportFormat.date(it, language) } ?: t.notRecorded}" to false)),
             listOf(name to false) + details.map { it to true },
             listOf(original to false),
         )

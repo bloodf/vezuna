@@ -65,7 +65,8 @@ data class DoctorDoseRow(
  * lists a document left out because its [unreviewed] values were never confirmed. Never carries the values themselves.
  */
 data class DoctorSourceRow(
-    val collectedAt: Instant,
+    /** Earliest confirmed collection time; null for a document left out, whose only dates are unreviewed. */
+    val collectedAt: Instant?,
     val documentName: String?,
     val laboratoryName: String?,
     val orderedAt: Instant?,
@@ -76,6 +77,8 @@ data class DoctorSourceRow(
     val manualEntry: Boolean,
     val results: Int,
     val unreviewed: Int = 0,
+    /** When the document was added to Vezuna; printed (labelled) only for documents left out. */
+    val importedAt: Instant? = null,
 )
 
 /** Planned dose times of one calendar day, from the medication's schedules (not dose history). */
@@ -220,11 +223,13 @@ object DoctorExportContent {
         val excluded = unreviewed.mapNotNull { (id, dates) ->
             val document = documents[id]?.takeIf { it.documentId !in usedDocuments } ?: return@mapNotNull null
             DoctorSourceRow(
-                collectedAt = dates.min(), documentName = document.displayName, laboratoryName = null, orderedAt = null, pages = pages(document),
-                originalStored = document.vaultKey != null, manualEntry = false, results = 0, unreviewed = dates.size,
+                // No date from the unreviewed values themselves: only the document's own import time.
+                collectedAt = null, documentName = document.displayName.takeIf { it.isNotBlank() }, laboratoryName = null, orderedAt = null,
+                pages = pages(document), originalStored = document.vaultKey != null, manualEntry = false, results = 0, unreviewed = dates.size,
+                importedAt = document.importedAt,
             )
         }
-        return included.sortedWith(compareBy({ it.collectedAt }, { it.documentName.orEmpty() })) + excluded.sortedBy { it.collectedAt }
+        return included.sortedWith(compareBy({ it.collectedAt }, { it.documentName.orEmpty() })) + excluded.sortedBy { it.importedAt }
     }
 
     private fun localTime(instant: Instant, zone: TimeZone): String =

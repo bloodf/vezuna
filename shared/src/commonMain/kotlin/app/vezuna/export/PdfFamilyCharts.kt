@@ -23,11 +23,15 @@ internal class PdfDoseTimeline(private val pen: PdfPen, private val language: Co
     private val dateRow = pen.lineHeight(LABEL) + 2.0
     private val dose get() = 2 * RADIUS + 4.0 + pen.lineHeight(LABEL) + 4.0
 
-    /** Height of one row of up to seven [days]; a day with several doses stacks them, each with its time. */
+    /**
+     * Height of one row of up to seven [days]; a day with several doses stacks them, each with its time. At most
+     * [MAX_STACK] are drawn, then "+N" (the table below lists every dose), so a row always fits a page.
+     */
     fun height(days: List<LocalDate>, rows: List<DoctorDoseRow>): Double {
         val most = days.maxOf { day -> rows.count { it.date == day } }.coerceAtLeast(1)
         val timeLine = if (most > 1) pen.lineHeight(LABEL) else 0.0
-        return dateRow + most * (dose + timeLine) + 2.0
+        val more = if (most > MAX_STACK) pen.lineHeight(LABEL) else 0.0
+        return dateRow + minOf(most, MAX_STACK) * (dose + timeLine) + more + 2.0
     }
 
     fun draw(days: List<LocalDate>, rows: List<DoctorDoseRow>, left: Double, top: Double, width: Double): Double {
@@ -42,7 +46,7 @@ internal class PdfDoseTimeline(private val pen: PdfPen, private val language: Co
             val doses = rows.filter { it.date == day }
             var cursor = top + dateRow
             if (doses.isEmpty()) centered("–", center, cursor + RADIUS, bold = false)
-            doses.forEach { row ->
+            doses.take(MAX_STACK).forEach { row ->
                 if (doses.size > 1) {
                     centered(row.time, center, cursor, bold = false)
                     cursor += pen.lineHeight(LABEL)
@@ -51,6 +55,7 @@ internal class PdfDoseTimeline(private val pen: PdfPen, private val language: Co
                 centered(word(row.status), center, cursor + 2 * RADIUS + 4.0, bold = false)
                 cursor += dose
             }
+            if (doses.size > MAX_STACK) centered("+${doses.size - MAX_STACK}", center, cursor, bold = true)
         }
         return height
     }
@@ -89,6 +94,7 @@ internal class PdfDoseTimeline(private val pen: PdfPen, private val language: Co
     companion object {
         const val DAYS = 7
         const val RADIUS = 8.0
+        const val MAX_STACK = 4
     }
 }
 
@@ -99,7 +105,7 @@ internal class PdfDoseTimeline(private val pen: PdfPen, private val language: Co
 internal class PdfDailyChart(private val pen: PdfPen, private val language: ContentLanguage) {
     fun height(): Double = UNIT_ROW + PLOT + DATE_ROW
 
-    /** Returns true when some value labels had to be left out for space (the table below still has every value). */
+    /** Returns true when some value or date labels had to be left out for space (the table below still has every one). */
     fun draw(days: List<LocalDate>, points: List<Pair<LocalDate, Double>>, bars: Boolean, unit: String, decimals: Int, left: Double, top: Double, width: Double): Boolean {
         val (ticks, fraction) = scale(points.map { it.second }, bars)
         val tickLabels = ticks.map { DoctorReportFormat.value(it, language) }
@@ -145,6 +151,7 @@ internal class PdfDailyChart(private val pen: PdfPen, private val language: Cont
         }
         val dateWidth = days.maxOf { pen.measure(DoctorReportFormat.shortDate(it, language), LABEL) }
         val every = ceil((dateWidth + 4.0) / slot).toInt().coerceAtLeast(1)
+        if (every > 1) omitted = true
         days.forEachIndexed { index, day ->
             if (index % every != 0) return@forEachIndexed
             val text = DoctorReportFormat.shortDate(day, language)

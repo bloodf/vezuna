@@ -59,6 +59,11 @@ data class ExportSectionText(
     val unreviewedInSource: String,
     val noSources: String,
     val continued: String,
+    val readings: String,
+    val scheduleContinued: String,
+    val noEndDate: String,
+    val imported: String,
+    val untitledDocument: String,
 ) {
     fun title(family: ExportFamily, language: ContentLanguage): String = when (family) {
         ExportFamily.HEALTH_SUMMARY -> healthSummary
@@ -125,6 +130,11 @@ data class ExportSectionText(
             unreviewedInSource = "Unreviewed values: {count}",
             noSources = "No source reports: no confirmed results are included.",
             continued = "continued",
+            readings = "all readings",
+            scheduleContinued = "schedule, continued",
+            noEndDate = "No end date",
+            imported = "Imported",
+            untitledDocument = "Untitled document",
         )
 
         private val PT = ExportSectionText(
@@ -175,6 +185,11 @@ data class ExportSectionText(
             unreviewedInSource = "Valores não revisados: {count}",
             noSources = "Nenhum laudo de origem: nenhum resultado confirmado foi incluído.",
             continued = "continuação",
+            readings = "todas as leituras",
+            scheduleContinued = "horários, continuação",
+            noEndDate = "Sem data de término",
+            imported = "Importado em",
+            untitledDocument = "Documento sem título",
         )
 
         private val ES = ExportSectionText(
@@ -225,6 +240,11 @@ data class ExportSectionText(
             unreviewedInSource = "Valores sin revisar: {count}",
             noSources = "No hay informes de origen: no se incluye ningún resultado confirmado.",
             continued = "continuación",
+            readings = "todas las lecturas",
+            scheduleContinued = "horario, continuación",
+            noEndDate = "Sin fecha de fin",
+            imported = "Importado el",
+            untitledDocument = "Documento sin título",
         )
     }
 }
