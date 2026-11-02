@@ -4,7 +4,7 @@ import VezunaShared
 enum NativeString: String {
     case privacy_policy, privacy_policy_unavailable
     case third_party_notices, third_party_notices_unavailable
-    case taken, skip, snooze_10_minutes, notification_permission_off, scheduled_medication_reminder
+    case taken, skip, snooze_10_minutes, notification_permission_off, scheduled_medication_reminder, reminder_for_profile
     case medication_schedules_unavailable, native_actions, storage_unavailable, opening_storage
     case import_lab_source, healthkit_import_menu, export_backup_menu, ai_activation_menu
     case source, photo_library, camera, add_page, pages_in_report, laboratory_name, order_date, clear_date, pdf_or_image, extracting_text, review_extracted_results

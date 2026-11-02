@@ -67,7 +67,13 @@ object MoreRoutes {
             if (available.isNotEmpty()) {
                 GroupedRows(title = vitaText(L10nKey.MORE_SECTION_DEVICE)) {
                     available.forEach { (action, label, icon) ->
-                        ListRow(vitaText(label), onClick = { ctx.nativeActions.perform(action) }, leadingIcon = icon, category = Category.ACTIVITY)
+                        ListRow(
+                            vitaText(label),
+                            onClick = { ctx.nativeActions.perform(action) },
+                            leadingIcon = icon,
+                            category = Category.ACTIVITY,
+                            enabled = action in ctx.nativeActions.enabled,
+                        )
                     }
                 }
             }

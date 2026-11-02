@@ -3,6 +3,7 @@
 "snooze_10_minutes" = "Posponer 10 minutos";
 "notification_permission_off" = "El permiso de notificaciones está desactivado. Los registros de medicación siguen disponibles.";
 "scheduled_medication_reminder" = "Recordatorio de medicación programado";
+"reminder_for_profile" = "Para %@";
 "medication_schedules_unavailable" = "Los horarios de medicación no están disponibles";
 "native_actions" = "Acciones nativas de Vezuna";
 "storage_unavailable" = "Almacenamiento cifrado no disponible";

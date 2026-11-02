@@ -136,10 +136,16 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 try await center.add(request(for: reminder, hidden: hidden))
             }
             for snoozed in rebuiltSnoozes { try await center.add(request(for: snoozed, hidden: hidden)) }
+            // Stored snoozes are matched by (schedule, time), not identifier: the name hashed into it may have changed since.
+            func snoozeKey(_ reminder: DoseReminder) -> String { "\(reminder.scheduleId):\(Int(reminder.scheduledAt.timeIntervalSince1970))" }
+            let coveredSnoozes = Set(pending.filter { $0.identifier.hasSuffix(DoseReminder.snoozeSuffix) }.compactMap { reminder(from: $0.content.userInfo) }.map(snoozeKey))
+            for snoozed in await pendingSnoozes(for: medications, hidden: hidden, now: now) where !coveredSnoozes.contains(snoozeKey(snoozed)) {
+                try await center.add(request(for: snoozed, hidden: hidden))
+            }
             let coverage = planner.coverageEnd(of: reminders, after: now)
             IosRuntime.shared.setReminderCoverage(untilEpochSeconds: coverage.map { Int64($0.timeIntervalSince1970) } ?? -1)
-            await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
             lastError = nil
+            await reconcileDeliveredMissedDoses(activeMedicationIds: activeMedicationIds)
         } catch {
             lastError = error.localizedDescription
         }
@@ -158,7 +164,9 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     static func content(for reminder: DoseReminder, hidingName: Bool) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = hidingName ? L10n.text(.medication_reminder_title) : reminder.medicationName
-        content.body = L10n.text(.scheduled_medication_reminder)
+        // The member name follows the lock-screen privacy mode: hidden together with the medication name.
+        content.body = hidingName ? L10n.text(.scheduled_medication_reminder)
+            : reminder.profileName.map { L10n.text(.reminder_for_profile, $0) } ?? L10n.text(.scheduled_medication_reminder)
         content.sound = .default
         content.categoryIdentifier = category
         content.userInfo = userInfo(for: reminder)
@@ -166,13 +174,15 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     }
 
     private static func userInfo(for reminder: DoseReminder) -> [String: Any] {
-        [
+        var info: [String: Any] = [
             "profileId": reminder.profileId,
             "medicationId": reminder.medicationId,
             "medicationName": reminder.medicationName,
             "scheduleId": reminder.scheduleId,
             "scheduledEpochSeconds": Int(reminder.scheduledAt.timeIntervalSince1970)
         ]
+        if let profileName = reminder.profileName { info["profileName"] = profileName }
+        return info
     }
 
     private func reminder(from userInfo: [AnyHashable: Any]) -> DoseReminder? {
@@ -181,7 +191,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
               let medicationName = userInfo["medicationName"] as? String,
               let scheduleId = userInfo["scheduleId"] as? String,
               let seconds = userInfo["scheduledEpochSeconds"] as? NSNumber else { return nil }
-        return DoseReminder(profileId: profileId, medicationId: medicationId, medicationName: medicationName, scheduleId: scheduleId, scheduledAt: Date(timeIntervalSince1970: seconds.doubleValue))
+        return DoseReminder(profileId: profileId, medicationId: medicationId, medicationName: medicationName, scheduleId: scheduleId, scheduledAt: Date(timeIntervalSince1970: seconds.doubleValue), profileName: userInfo["profileName"] as? String)
     }
 
     private func pendingResponse(from response: UNNotificationResponse) -> PendingDoseResponse? {
@@ -195,7 +205,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             medicationName: reminder.medicationName,
             scheduleId: reminder.scheduleId,
             scheduledEpochSeconds: Int(reminder.scheduledAt.timeIntervalSince1970),
-            receivedAt: Date()
+            receivedAt: Date(),
+            profileName: reminder.profileName
         )
     }
 
@@ -208,7 +219,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             medicationId: response.medicationId,
             medicationName: response.medicationName,
             scheduleId: response.scheduleId,
-            scheduledAt: Date(timeIntervalSince1970: TimeInterval(response.scheduledEpochSeconds))
+            scheduledAt: Date(timeIntervalSince1970: TimeInterval(response.scheduledEpochSeconds)),
+            profileName: response.profileName
         )
         switch response.action {
         case Self.takenAction:
@@ -220,6 +232,9 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         case Self.snoozeAction:
             let snoozed = planner.snooze(reminder, from: response.receivedAt)
             if snoozed.scheduledAt > Date() {
+                // Same stored event as the in-app snooze, so both paths look identical to the dashboard and to reconcile.
+                let outcome = await recordSnooze(reminder, snoozed: snoozed)
+                guard outcome == .done else { return clearDelivered(response, after: outcome) }
                 do { try await center.add(request(for: snoozed, hidden: hideNames)) } catch { lastError = L10n.text(.action_failed); return .retry }
             }
         default:
@@ -272,6 +287,50 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
+    private func recordSnooze(_ reminder: DoseReminder, snoozed: DoseReminder) async -> Outcome {
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                IosRuntime.shared.recordSnooze(
+                    profileId: reminder.profileId,
+                    medicationId: reminder.medicationId,
+                    scheduleId: reminder.scheduleId,
+                    shownEpochSeconds: Int64(reminder.scheduledAt.timeIntervalSince1970),
+                    snoozedEpochSeconds: Int64(snoozed.scheduledAt.timeIntervalSince1970)
+                ) { error in
+                    if let error { continuation.resume(throwing: BridgeError.message(error)) }
+                    else { continuation.resume() }
+                }
+            }
+            return .done
+        } catch {
+            if case BridgeError.message(let message) = error, message.key == "medication_schedule_missing" { return .drop }
+            lastError = error.localizedDescription
+            return .retry
+        }
+    }
+
+    /// Snoozes stored as events (in-app or notification) that still have no pending request, for example after an in-app snooze.
+    private func pendingSnoozes(for medications: [NativeMedication], hidden: Bool, now: Date) async -> [DoseReminder] {
+        struct Stored: Decodable { let profileId: String; let medicationId: String; let scheduleId: String; let scheduledEpochSeconds: Int }
+        do {
+            let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                IosRuntime.shared.listPendingSnoozes { json, error in
+                    if let json { continuation.resume(returning: json) }
+                    else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "action_failed", args: []))) }
+                }
+            }
+            return try JSONDecoder().decode([Stored].self, from: Data(json.utf8)).compactMap { stored in
+                guard let medication = medications.first(where: { $0.medicationId == stored.medicationId }) else { return nil }
+                let at = Date(timeIntervalSince1970: TimeInterval(stored.scheduledEpochSeconds))
+                guard at > now else { return nil }
+                return DoseReminder(profileId: stored.profileId, medicationId: stored.medicationId, medicationName: medication.displayName, scheduleId: stored.scheduleId, scheduledAt: at, isSnooze: true, profileName: medication.profileName)
+            }
+        } catch {
+            log.error("Could not list pending snoozes: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+    }
+
     /// Delivered reminders for paused, stopped or deleted medications (or deleted profiles) must not linger.
     private func removeDeliveredReminders(notIn activeMedicationIds: Set<String>) async {
         let stale = await center.deliveredNotifications().filter { notification in
@@ -282,15 +341,25 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         center.removeDeliveredNotifications(withIdentifiers: stale.map { $0.request.identifier })
     }
 
+    /// The 24-hour MISSED rule lives in shared code (same as Android); here only the leftover notifications are cleared.
     private func reconcileDeliveredMissedDoses(activeMedicationIds: Set<String>) async {
-        let delivered = await center.deliveredNotifications()
-        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
-        for notification in delivered {
-            guard let reminder = reminder(from: notification.request.content.userInfo), reminder.scheduledAt < cutoff,
-                  activeMedicationIds.contains(reminder.medicationId) else { continue }
-            guard await record(reminder, status: "MISSED") != .retry else { continue }
-            center.removeDeliveredNotifications(withIdentifiers: [notification.request.identifier])
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                IosRuntime.shared.recordMissedDoses { error in
+                    if let error { continuation.resume(throwing: BridgeError.message(error)) }
+                    else { continuation.resume() }
+                }
+            }
+        } catch {
+            lastError = error.localizedDescription
+            return
         }
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        let expired = await center.deliveredNotifications().filter { notification in
+            guard let reminder = reminder(from: notification.request.content.userInfo) else { return false }
+            return reminder.scheduledAt < cutoff && activeMedicationIds.contains(reminder.medicationId)
+        }
+        center.removeDeliveredNotifications(withIdentifiers: expired.map { $0.request.identifier })
     }
 
     private func loadMedications() async throws -> [NativeMedication] {

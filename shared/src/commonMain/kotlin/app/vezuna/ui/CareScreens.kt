@@ -75,6 +75,7 @@ import app.vezuna.llm.ModelPackSource
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
+import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.resolve
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
@@ -95,19 +96,20 @@ fun MedicationsScreen(state: AppUiState, controller: AppController, scope: Corou
     var editTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     var stopTarget by remember { mutableStateOf<MedicationRecord?>(null) }
     var deleteTarget by remember { mutableStateOf<MedicationRecord?>(null) }
-    val nextTime = data.medications.filter { it.active }.flatMap { it.schedules }.flatMap { it.timesLocal }.minOrNull()
+    val nextDose = state.dashboard?.nextDose
     ScreenColumn(vitaText(L10nKey.MEDICATIONS), vitaText(L10nKey.MEDICATIONS_SUBTITLE)) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
             Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Schedule, vitaText(L10nKey.NEXT_MEDICATION_SCHEDULE), Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
                 Spacer(Modifier.size(14.dp))
                 Column {
-                    Text(if (nextTime == null) vitaText(L10nKey.NO_UPCOMING_SCHEDULE) else vitaText(L10nKey.NEXT_SCHEDULE, nextTime), style = MaterialTheme.typography.titleLarge)
+                    Text(if (nextDose == null) vitaText(L10nKey.NO_UPCOMING_SCHEDULE) else vitaText(L10nKey.NEXT_SCHEDULE, "${nextDose.medicationName} · ${formatUiDateTime(nextDose.scheduledFor)}"), style = MaterialTheme.typography.titleLarge)
                     Text(vitaText(L10nKey.RECORDED_REMINDERS_NOTE), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
         }
         reminders?.let { ReminderStatus(it) }
+        DoseHistoryCard(data)
         if (data.medications.isEmpty()) {
             EmptyState(vitaText(L10nKey.NO_MEDICATIONS_RECORDED), vitaText(L10nKey.NO_MEDICATIONS_RECORDED_EXPLANATION), Icons.Rounded.Medication)
         }

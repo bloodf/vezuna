@@ -137,6 +137,18 @@ class PersistentVezunaRepository(
         data.copy(doseEvents = DoseEvents.merge(data.doseEvents, event))
     }
 
+    /** One write for many events (e.g. MISSED bookkeeping); events whose schedule no longer exists are skipped. */
+    override suspend fun addDoseEvents(profileId: String, events: List<DoseEvent>) {
+        if (events.isEmpty()) return
+        mutate(profileId) { data ->
+            data.copy(
+                doseEvents = events.filter { event ->
+                    data.medications.any { m -> m.medicationId == event.medicationId && m.schedules.any { it.scheduleId == event.scheduleId } }
+                }.fold(data.doseEvents) { acc, event -> DoseEvents.merge(acc, event) },
+            )
+        }
+    }
+
     override suspend fun addChatMessage(message: ChatMessage) = mutate(message.profileId) { data ->
         require(data.chat.none { it.messageId == message.messageId })
         data.copy(chat = data.chat + message)

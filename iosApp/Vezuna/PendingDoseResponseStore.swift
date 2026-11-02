@@ -10,6 +10,7 @@ struct PendingDoseResponse: Codable, Equatable {
     let scheduleId: String
     let scheduledEpochSeconds: Int
     let receivedAt: Date
+    var profileName: String? = nil
 
     static let maxAge: TimeInterval = 7 * 24 * 60 * 60
 
