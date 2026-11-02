@@ -14,6 +14,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import kotlinx.coroutines.Job
+import app.vezuna.export.ExportOptions
+import app.vezuna.platform.currentInstant
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudOff
@@ -237,6 +240,7 @@ internal fun recurrenceLabel(recurrence: Recurrence, intervalDays: Int): String 
 fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: String?, controller: AppController, scope: CoroutineScope) {
     val data = state.data ?: return EmptyState(vitaText(L10nKey.NO_CHAT), vitaText(L10nKey.SELECT_PROFILE_FIRST))
     var question by remember { mutableStateOf("") }
+    var askJob by remember { mutableStateOf<Job?>(null) }
     val confirmed = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }
     ScreenColumn(vitaText(L10nKey.ON_DEVICE_AI), vitaText(L10nKey.ON_DEVICE_AI_SUBTITLE)) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.vita.ink)) {
@@ -282,6 +286,11 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
             EmptyState(vitaText(L10nKey.START_PRIVATE_CONVERSATION), vitaText(L10nKey.START_PRIVATE_CONVERSATION_EXPLANATION), Icons.Rounded.AutoAwesome)
         }
         data.chat.forEach { message -> ChatBubble(message) }
+        state.streamingAnswer?.let { partial ->
+            if (partial.isEmpty()) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+            else ChatBubble(ChatMessage(data.profile.profileId, "streaming", ChatMessage.Role.ASSISTANT, partial, currentInstant()))
+            VitaButton(vitaText(L10nKey.STOP_GENERATING), Icons.Rounded.Stop, { askJob?.cancel() })
+        }
         OutlinedTextField(
             value = question,
             onValueChange = { question = it },
@@ -289,11 +298,11 @@ fun AiChatScreen(state: AppUiState, loadedModelId: String?, selectedModelId: Str
             label = { Text(vitaText(L10nKey.ASK_RECORD_EDUCATION)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = {
-                if (question.isNotBlank() && loadedModelId != null && !state.loading) scope.launch { if (controller.ask(question)) question = "" }
+                if (question.isNotBlank() && loadedModelId != null && !state.loading) askJob = scope.launch { if (controller.ask(question)) question = "" }
             }),
         )
         VitaButton(vitaText(L10nKey.ASK_ON_DEVICE_MODEL), Icons.Rounded.AutoAwesome, {
-            scope.launch { if (controller.ask(question)) question = "" }
+            askJob = scope.launch { if (controller.ask(question)) question = "" }
         }, enabled = question.isNotBlank() && loadedModelId != null && !state.loading)
     }
 }
@@ -310,6 +319,7 @@ private fun ChatBubble(message: ChatMessage) {
             Column(Modifier.padding(14.dp)) {
                 Text(vitaText(if (user) L10nKey.YOU else L10nKey.VEZUNA), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Text(message.content, style = MaterialTheme.typography.bodyMedium)
+                if (!user) Text(vitaText(L10nKey.GENERATED_TEXT_DISCLAIMER), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -349,6 +359,7 @@ fun ModelsScreen(state: AppUiState, controller: AppController, scope: CoroutineS
                     when {
                         installed == null && modelPackLoader != null -> VitaButton(vitaText(L10nKey.INSTALL_VERIFIED_STORE_PACK), Icons.Rounded.Download, {
                             scope.launch {
+                                if (!controller.modelManager.checkFit(pack)) return@launch
                                 val source = modelPackLoader(pack)
                                 if (source == null) controller.navigate(AppScreen.Models) else try {
                                     controller.installModel(pack, source.path)
@@ -402,9 +413,11 @@ fun SettingsScreen(state: AppUiState, controller: AppController, scope: Coroutin
             }
         }
         Text(vitaText(L10nKey.EXPORT_LANGUAGE_EXPLANATION), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        var exportOptions by remember { mutableStateOf<ExportOptions?>(ExportOptions()) }
+        ExportOptionsPanel(data) { exportOptions = it }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { scope.launch { controller.exportCsv(exportLanguage) } }, Modifier.weight(1f))
-            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { scope.launch { controller.exportPdf(exportLanguage) } }, Modifier.weight(1f))
+            VitaButton(vitaText(L10nKey.PREPARE_CSV), Icons.Rounded.TableChart, { exportOptions?.let { scope.launch { controller.exportCsv(exportLanguage, it) } } }, Modifier.weight(1f), enabled = exportOptions != null)
+            VitaButton(vitaText(L10nKey.PREPARE_PDF), Icons.Rounded.PictureAsPdf, { exportOptions?.let { scope.launch { controller.exportPdf(exportLanguage, it) } } }, Modifier.weight(1f), enabled = exportOptions != null)
         }
         state.csvExport?.let { csv ->
             Card {

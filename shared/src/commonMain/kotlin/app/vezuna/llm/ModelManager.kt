@@ -99,6 +99,7 @@ class InstalledModelManager(
     initialCatalog: ModelCatalog,
     private val files: ModelFileStore,
     private val llm: LocalLlm,
+    private val capacity: DeviceCapacity = UnknownDeviceCapacity,
 ) {
     private val mutex = Mutex()
     var catalog: ModelCatalog = initialCatalog
@@ -160,10 +161,20 @@ class InstalledModelManager(
         }
     }
 
+    /** Runs before the pack is downloaded; on failure the reason is put in [ModelManagerState.error] and false is returned. */
+    fun checkFit(pack: ModelPack): Boolean = try {
+        ModelFitPolicy.requireFits(pack, capacity)
+        true
+    } catch (error: app.vezuna.localization.VitaMessageException) {
+        mutableState.value = mutableState.value.copy(error = error.userText)
+        false
+    }
+
     suspend fun install(pack: ModelPack, sourcePath: String, installedAtEpochSeconds: Long) = mutex.withLock {
         if (catalog.byId(pack.modelId) != pack) failMessage(L10nKey.MODEL_NOT_IN_CATALOG)
         mutableState.value = mutableState.value.copy(busy = true, error = null)
         try {
+            ModelFitPolicy.requireFits(pack, capacity, delivered = true)
             val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
             // Verified atomic replace first: a failed install keeps the loaded model and the old file.
             files.install(model, sourcePath)
