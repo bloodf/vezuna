@@ -55,52 +55,12 @@ import app.vezuna.security.backupFileId
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-
-enum class RestoreMode { REPLACE_EXISTING, RESTORE_AS_NEW }
-
-/** Where a platform keeps the imported source file (encrypted). Optional: a platform without one stores no file. */
-interface SourceFileStore {
-    /** Stores [bytes] for the document and returns the key to record on it. */
-    suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String
-
-    /** Removes a stored file when the import that owned it could not be recorded. */
-    suspend fun discard(key: String)
-
-    /** The stored original, or null when the store keeps none for this document. Used by household backup. */
-    suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
-}
-
-data class AppUiState(
-    val loading: Boolean = true,
-    val error: UserText? = null,
-    val notice: UserText? = null,
-    val profiles: List<Profile> = emptyList(),
-    val data: ProfileData? = null,
-    val dashboard: DashboardSnapshot? = null,
-    val selectedObservationIds: Set<String> = emptySet(),
-    val csvExport: String? = null,
-    val pdfExport: ExportedPdf? = null,
-    val healthLinkedProfileId: String? = null,
-    /** Assistant text received so far while an answer is being generated; null when idle. */
-    val streamingAnswer: String? = null,
-)
-
-object DashboardRefreshSignal {
-    private val mutableChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val changes = mutableChanges.asSharedFlow()
-
-    fun notifyRepositoryChanged() {
-        mutableChanges.tryEmit(Unit)
-    }
-}
 
 class AppController(
     private val repository: VezunaRepository,
@@ -451,7 +411,7 @@ class AppController(
             throw error
         }
         loadProfile(data.profile.profileId)
-        navigator.navigate(AppScreen.Labs)
+        navigator.finishAndGo(AppScreen.Labs)
         mutableState.value = mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
 
