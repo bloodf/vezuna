@@ -12,6 +12,10 @@ Record before starting, in the results table at the end:
 - Use only synthetic data. Never use real health records or private samples.
 - Mark each step PASS, FAIL (link an issue) or N/A (state why). Any FAIL in a section marked blocker stops the release.
 
+## Emulator runs (instrumented tests)
+
+`scripts/check-android-device.sh` runs `connectedDebugAndroidTest`. On an emulator it first sets `hide_error_dialogs=1`, the three animation scales to 0 and disables Google Play services (target `ANDROID_SERIAL` only), because a loaded host produces "Process system isn't responding" dialogs that cover the app and fail unrelated UI tests. Wait for `sys.boot_completed` plus a short idle after boot. `LocalLlmInstrumentedTest` is skipped (and reported) unless `tools/release/stage_smoke_model.py` staged the smoke model; never commit `models/`.
+
 ## 1. Notifications and reminders (blocker)
 
 Create a medication with a daily schedule ~3 minutes ahead and one weekly schedule.
