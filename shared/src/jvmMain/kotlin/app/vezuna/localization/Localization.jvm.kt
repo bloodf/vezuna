@@ -16,3 +16,8 @@ actual fun formatUiDateTime(instant: Instant, languageTag: String): String =
         .withLocale(Locale.forLanguageTag(languageTag))
         .withZone(java.time.ZoneId.systemDefault())
         .format(java.time.Instant.ofEpochMilli(instant.toEpochMilliseconds()))
+
+actual fun formatUiMonth(instant: Instant, languageTag: String): String =
+    java.time.format.DateTimeFormatter.ofPattern("LLLL yyyy", Locale.forLanguageTag(languageTag))
+        .withZone(java.time.ZoneOffset.UTC)
+        .format(java.time.Instant.ofEpochMilli(instant.toEpochMilliseconds()))

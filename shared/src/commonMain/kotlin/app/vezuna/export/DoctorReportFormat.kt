@@ -3,6 +3,7 @@ package app.vezuna.export
 import app.vezuna.domain.RangeAssessment
 import app.vezuna.localization.ContentLanguage
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
@@ -14,15 +15,50 @@ object DoctorReportFormat {
     fun localizeDecimal(formatted: String, language: ContentLanguage): String =
         formatted.replace('.', ExportText.of(language).decimalSeparator)
 
+    /**
+     * Shortest plain decimal for a computed number. Rounds only away binary noise (9 decimals), never to a
+     * fixed short precision, so 0.0004 stays 0.0004.
+     */
     fun value(value: Double, language: ContentLanguage = ContentLanguage.EN): String {
-        val rounded = round(value * 1_000.0) / 1_000.0
-        if (rounded == 0.0) return "0"
-        if (rounded == rounded.toLong().toDouble()) return rounded.toLong().toString()
-        return localizeDecimal(rounded.toString().trimEnd('0').trimEnd('.'), language)
+        if (abs(value) >= 1e9) return round(value).toLong().toString()
+        val text = fixed(value, 9, ContentLanguage.EN).trimEnd('0').trimEnd('.')
+        return if (text == "0" || text == "-0") "0" else localizeDecimal(text, language)
     }
 
+    /** [value] with exactly [decimals] fraction digits, as a report prints it (5.70). */
+    fun fixed(value: Double, decimals: Int, language: ContentLanguage = ContentLanguage.EN): String {
+        var factor = 1L
+        repeat(decimals) { factor *= 10 }
+        val scaled = round(abs(value) * factor).toLong()
+        val sign = if (value < 0 && scaled != 0L) "-" else ""
+        val whole = (scaled / factor).toString()
+        if (decimals == 0) return sign + whole
+        val fraction = (scaled % factor).toString().padStart(decimals, '0')
+        return sign + whole + ExportText.of(language).decimalSeparator + fraction
+    }
+
+    /** The result exactly as recorded: source precision when known, otherwise every stored digit. */
+    fun recorded(value: Double, decimals: Int?, language: ContentLanguage = ContentLanguage.EN): String =
+        if (decimals == null) value(value, language) else fixed(value, decimals, language)
+
     fun originalValue(row: DoctorResultRow, language: ContentLanguage = ContentLanguage.EN): String =
-        row.qualitativeValue ?: "${value(requireNotNull(row.originalValue), language)} ${row.originalUnit}"
+        row.qualitativeValue ?: "${recorded(requireNotNull(row.originalValue), row.valueDecimals, language)} ${row.originalUnit}"
+
+    /** Fraction digits worth printing for arithmetic on these values: the most precise operand wins. */
+    fun decimalsOf(value: Double, recorded: Int?): Int =
+        recorded ?: value(value).substringAfter('.', "").length
+
+    /** "+0.2 g/dL" / "-14 mg/dL" / "0 g/dL": a signed arithmetic difference, never a judgement. ASCII minus: the bundled Noto subset has no U+2212. */
+    fun signedChange(delta: Double, decimals: Int, unit: String, language: ContentLanguage = ContentLanguage.EN): String {
+        val magnitude = fixed(abs(delta), decimals, language)
+        val zero = magnitude.all { it == '0' || !it.isDigit() }
+        val sign = when {
+            zero -> ""
+            delta > 0 -> "+"
+            else -> "-"
+        }
+        return "$sign$magnitude $unit".trim()
+    }
 
     fun normalizedValue(row: DoctorResultRow, language: ContentLanguage = ContentLanguage.EN): String? {
         if (row.qualitativeValue != null) return null
@@ -44,8 +80,10 @@ object DoctorReportFormat {
         }
     }
 
-    fun date(instant: Instant, language: ContentLanguage = ContentLanguage.EN): String {
-        val date = instant.toLocalDateTime(TimeZone.UTC).date
+    fun date(instant: Instant, language: ContentLanguage = ContentLanguage.EN): String =
+        date(instant.toLocalDateTime(TimeZone.UTC).date, language)
+
+    fun date(date: LocalDate, language: ContentLanguage = ContentLanguage.EN): String {
         return "${date.dayOfMonth.toString().padStart(2, '0')} ${ExportText.of(language).months[date.monthNumber - 1]} ${date.year}"
     }
 

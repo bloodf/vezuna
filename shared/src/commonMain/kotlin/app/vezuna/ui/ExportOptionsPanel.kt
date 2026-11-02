@@ -25,6 +25,8 @@ import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.UnitNormalizer
 import app.vezuna.export.ExportOptions
+import app.vezuna.export.PaperSize
+import app.vezuna.localization.deviceLanguageTag
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 
@@ -37,6 +39,8 @@ fun ExportOptionsPanel(data: ProfileData, onOptionsChange: (ExportOptions?) -> U
     var selectedTests by remember(profileId) { mutableStateOf(emptySet<String>()) }
     var activeOnly by remember(profileId) { mutableStateOf(false) }
     var medicationsCsv by remember(profileId) { mutableStateOf(false) }
+    var paper by remember { mutableStateOf(PaperSize.forLanguageTag(deviceLanguageTag())) }
+    var grayscale by remember { mutableStateOf(false) }
     val tests = remember(profileId, data.observations) {
         data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }
             .groupBy { UnitNormalizer.canonicalTestCode(it.testCode) }
@@ -48,7 +52,7 @@ fun ExportOptionsPanel(data: ProfileData, onOptionsChange: (ExportOptions?) -> U
     val fromInvalid = fromText.isNotBlank() && from == null
     val toInvalid = toText.isNotBlank() && to == null
     val reversed = from != null && to != null && from > to
-    val options = if (fromInvalid || toInvalid || reversed) null else ExportOptions(from, to, selectedTests.filterTo(mutableSetOf()) { code -> tests.any { it.first == code } }, activeOnly, medicationsCsv)
+    val options = if (fromInvalid || toInvalid || reversed) null else ExportOptions(from, to, selectedTests.filterTo(mutableSetOf()) { code -> tests.any { it.first == code } }, activeOnly, medicationsCsv, paper, grayscale)
     SideEffect { onOptionsChange(options) }
     val hasConfirmed = data.observations.any { it.confirmation == ConfirmationStatus.CONFIRMED }
     val noMatches = options != null && hasConfirmed && options.apply(data).observations.none { it.confirmation == ConfirmationStatus.CONFIRMED }
@@ -86,6 +90,13 @@ fun ExportOptionsPanel(data: ProfileData, onOptionsChange: (ExportOptions?) -> U
         if (noMatches) Text(vitaText(L10nKey.EXPORT_NO_MATCHING_RESULTS), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         ToggleRow(vitaText(L10nKey.EXPORT_ACTIVE_MEDICATIONS_ONLY), activeOnly) { activeOnly = it }
         ToggleRow(vitaText(L10nKey.EXPORT_INCLUDE_MEDICATIONS_CSV), medicationsCsv) { medicationsCsv = it }
+        Text(vitaText(L10nKey.EXPORT_PAPER_SIZE), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(PaperSize.A4 to L10nKey.EXPORT_PAPER_A4, PaperSize.LETTER to L10nKey.EXPORT_PAPER_LETTER).forEach { (size, label) ->
+                FilterChip(selected = paper == size, onClick = { paper = size }, label = { Text(vitaText(label)) })
+            }
+        }
+        ToggleRow(vitaText(L10nKey.EXPORT_GRAYSCALE), grayscale) { grayscale = it }
     }
 }
 
