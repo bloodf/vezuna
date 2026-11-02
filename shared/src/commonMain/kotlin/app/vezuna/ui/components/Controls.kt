@@ -31,7 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -133,8 +135,31 @@ private fun statusStyle(kind: StatusKind): Pair<Color, DrawableResource> = when 
 }
 
 /**
+ * Two related fields (value and unit, lower and upper bound) side by side, stacked when the text is large
+ * (font scale 1.3 and up) or the width is under 360dp, so labels never truncate.
+ */
+@Composable
+fun FieldPair(modifier: Modifier = Modifier, first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
+        val stacked = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.3f || maxWidth < 360.dp
+        if (stacked) {
+            Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+                first(Modifier.fillMaxWidth())
+                second(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd)) {
+                first(Modifier.weight(1f))
+                second(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
  * Text field with a persistent label, an optional hint and a local error. The error never clears the
- * entered value; the keyboard follows [keyboardType]. A clear button appears once there is text.
+ * entered value; the keyboard follows [keyboardType] (use [KeyboardType.Decimal] for clinical numbers: the
+ * existing parser still accepts a decimal comma). A clear button appears once there is text.
  */
 @Composable
 fun LabeledField(
@@ -175,7 +200,8 @@ fun LabeledField(
                 }
                 else -> null
             },
-            supportingText = (error ?: hint)?.let { text -> { Text(text) } },
+            // Supporting text belongs to the field, so TalkBack and VoiceOver read the error with it.
+            supportingText = (error ?: hint)?.let { text -> { Text(text, modifier = if (error != null) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier) } },
             modifier = Modifier.fillMaxWidth().semantics { if (error != null) error(error) },
         )
     }

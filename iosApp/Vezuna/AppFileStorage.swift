@@ -8,13 +8,19 @@ enum AppFileStorage {
         return directory
     }
 
-    static func preparePrivateDirectory(_ url: URL) throws {
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
-        try protectAndExclude(url)
+    /// Vault files use `completeUntilFirstUserAuthentication` so lock-screen dose actions can read them after the
+    /// first unlock; contents stay AES-GCM encrypted with the Keychain key.
+    static func prepareVaultDirectory(_ url: URL) throws {
+        try preparePrivateDirectory(url, protection: .completeUntilFirstUserAuthentication)
     }
 
-    static func protectAndExclude(_ url: URL) throws {
-        try FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
+    static func preparePrivateDirectory(_ url: URL, protection: FileProtectionType = .complete) throws {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.protectionKey: protection])
+        try protectAndExclude(url, protection: protection)
+    }
+
+    static func protectAndExclude(_ url: URL, protection: FileProtectionType = .complete) throws {
+        try FileManager.default.setAttributes([.protectionKey: protection], ofItemAtPath: url.path)
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         var mutable = url

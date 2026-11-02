@@ -77,7 +77,12 @@ fun ListRow(
     showChevron: Boolean = onClick != null,
     enabled: Boolean = true,
 ) {
-    val clickable = if (onClick != null) Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick) else Modifier
+    // One focus stop per row: clickable merges its children; a static row merges explicitly.
+    val clickable = if (onClick != null) {
+        Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+    } else {
+        Modifier.semantics(mergeDescendants = true) {}
+    }
     Row(
         modifier
             .fillMaxWidth()

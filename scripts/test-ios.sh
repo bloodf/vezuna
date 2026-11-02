@@ -29,5 +29,5 @@ xcodebuild test \
   -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
   -derivedDataPath "$ROOT/iosApp/.ios-build/derived-data/Test" \
   -parallel-testing-enabled NO \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
   ARCHS=arm64

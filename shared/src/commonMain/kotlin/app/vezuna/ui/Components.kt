@@ -46,7 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,7 +61,7 @@ fun ScreenColumn(title: String, subtitle: String? = null, content: @Composable C
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Spacer(Modifier.height(2.dp))
-        Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         subtitle?.let { Text(it, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         content()
         Spacer(Modifier.height(28.dp))
@@ -71,7 +71,7 @@ fun ScreenColumn(title: String, subtitle: String? = null, content: @Composable C
 @Composable
 fun SectionHeading(title: String, supporting: String? = null) {
     Column(Modifier.padding(top = 8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         supporting?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
@@ -144,7 +144,7 @@ fun PrivacyStatus() {
 @Composable
 fun EmptyState(title: String, explanation: String, icon: ImageVector = Icons.Rounded.Info, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     Card(
-        Modifier.fillMaxWidth().semantics { contentDescription = "$title. $explanation" },
+        Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
