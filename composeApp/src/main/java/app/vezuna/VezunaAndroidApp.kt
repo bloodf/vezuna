@@ -16,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -27,7 +26,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.provider.Settings
 import app.vezuna.ui.more.MorePlatform
-import app.vezuna.export.NativeExport
 import app.vezuna.importer.AndroidSourcePicker
 import app.vezuna.llm.ModelPackLoadState
 import app.vezuna.llm.PlayAssetPackLoader
@@ -48,32 +46,20 @@ fun VezunaAndroidApp(
     sourcePicker: AndroidSourcePicker,
     modelLoader: PlayAssetPackLoader,
     messageFlow: StateFlow<NativeText?>,
-    exportFlow: StateFlow<NativeExport?>,
     busyFlow: StateFlow<Boolean>,
     onHealthConnect: () -> Unit,
     onReminders: () -> Unit,
     backupFiles: BackupFileAccess,
     reminders: ReminderPlatformState,
-    onPresentExport: (NativeExport) -> Unit,
-    onDismissExport: () -> Unit,
-    onShareExport: (NativeExport) -> Unit,
-    onSaveExport: (NativeExport) -> Unit,
     onDismissMessage: () -> Unit,
     startRoute: AppScreen? = null,
 ) {
     val state by controller.state.collectAsState()
     val message by messageFlow.collectAsState()
-    val pendingExport by exportFlow.collectAsState()
     val nativeBusy by busyFlow.collectAsState()
     val extraction by sourcePicker.lastExtraction.collectAsState()
     val modelLoadState by modelLoader.state.collectAsState()
 
-    LaunchedEffect(state.csvExport) {
-        state.csvExport?.let { onPresentExport(NativeExport("vezuna-doctor-export.csv", "text/csv", it.encodeToByteArray())) }
-    }
-    LaunchedEffect(state.pdfExport) {
-        state.pdfExport?.let { onPresentExport(NativeExport(it.fileName, "application/pdf", it.bytes)) }
-    }
     MaterialTheme {
         val context = LocalContext.current
         remember(context) { installMorePlatform(context); true }
@@ -141,19 +127,6 @@ fun VezunaAndroidApp(
                 confirmButton = { TextButton(onClick = modelLoader::clearState) { Text(nativeMessage(NativeKey.CLOSE).resolve(context)) } },
             )
             else -> Unit
-        }
-
-        pendingExport?.let { export ->
-            AlertDialog(
-                onDismissRequest = onDismissExport,
-                title = { Text(nativeMessage(NativeKey.EXPORT_READY).resolve(context)) },
-                text = { Text(nativeMessage(NativeKey.EXPORT_READY_MESSAGE, export.fileName, export.bytes.size).resolve(context)) },
-                confirmButton = { TextButton(onClick = { onShareExport(export) }) { Text(nativeMessage(NativeKey.SHARE).resolve(context)) } },
-                dismissButton = {
-                    TextButton(onClick = { onSaveExport(export) }) { Text(nativeMessage(NativeKey.SAVE).resolve(context)) }
-                    TextButton(onClick = onDismissExport) { Text(nativeMessage(NativeKey.CLOSE).resolve(context)) }
-                },
-            )
         }
 
         extraction?.let { result ->

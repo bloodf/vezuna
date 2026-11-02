@@ -29,7 +29,11 @@ final class PdfExportTests: XCTestCase {
             ],
             medicationRows: [DoctorMedicationRow(displayName: "Vitamin D", strength: "1,000 IU", instructions: "1 capsule", active: true, times: ["08:00"], startDate: nil)],
             language: language, birthDate: nil, paper: paper, grayscale: grayscale,
-            scope: DoctorExportScope(selectedFrom: nil, selectedTo: nil, availableFirst: nil, availableLast: nil, excludedUnreviewed: 3, medicationsIncluded: true)
+            scope: DoctorExportScope(
+                selectedFrom: nil, selectedTo: nil, availableFirst: nil, availableLast: nil, excludedUnreviewed: 3, medicationsIncluded: true,
+                labsIncluded: true, doseHistoryIncluded: false, deviceIncluded: false, deviceLastSync: nil
+            ),
+            family: .labHistory, doseRows: [], deviceRows: []
         )
     }
 

@@ -5,7 +5,7 @@ import VezunaShared
 
 final class AppShellModel: ObservableObject {
     enum Sheet: Identifiable {
-        case importSource, health, export, license, notices, privacy
+        case importSource, health, license, notices, privacy
         var id: Self { self }
     }
 
@@ -20,6 +20,7 @@ final class AppShellModel: ObservableObject {
     lazy var modelLoader = StoreModelPackLoader(licenseManager: licenseManager)
     private let sourcePicker = ComposeSourcePicker()
     private let backupFiles = ComposeBackupFiles()
+    private let exportFiles = ComposeExportFiles()
     private(set) var healthImporter: HealthKitImporter?
     private var didConfigure = false
     private var vaultPath: String?
@@ -41,6 +42,7 @@ final class AppShellModel: ObservableObject {
             IosRuntime.shared.licenseProvider = licenseManager
             IosRuntime.shared.sourcePicker = sourcePicker
             IosRuntime.shared.backupFiles = backupFiles
+            IosRuntime.shared.exportFiles = exportFiles
             IosRuntime.shared.modelPackLoader = modelLoader
             IosRuntime.shared.repositoryObserver = notifications
             if HealthKitImporter.supported {

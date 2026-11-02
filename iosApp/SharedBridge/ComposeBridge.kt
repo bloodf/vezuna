@@ -15,16 +15,8 @@ import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.VitalsWindow
 import app.vezuna.domain.WeightReading
-import app.vezuna.export.CsvDoctorExporter
-import app.vezuna.export.DoctorExportContent
-import app.vezuna.export.DoctorPdfDocument
-import app.vezuna.export.ExportedPdf
-import app.vezuna.export.ExportOptions
-import app.vezuna.export.ExportText
-import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
-import app.vezuna.localization.ContentLanguage
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.loadBundledModelCatalog
@@ -116,6 +108,34 @@ interface NativeBackupFiles {
     fun saveBackup(fileName: String, bytes: ByteArray, completion: (Boolean) -> Unit)
 }
 
+// region L9 exports
+/** System save and share sheets for the shared export preview; both receive the exact previewed bytes. */
+interface NativeExportFiles {
+    /** Completion receives "saved", "cancelled" or "failed" from the Files export picker. */
+    fun saveExport(fileName: String, bytes: ByteArray, completion: (String) -> Unit)
+
+    /** Completion receives false when the share sheet could not be presented. */
+    fun shareExport(fileName: String, bytes: ByteArray, completion: (Boolean) -> Unit)
+}
+
+private fun installExportPlatformIos() {
+    app.vezuna.ui.export.ExportPlatform.save = save@{ fileName, _, bytes ->
+        val native = IosRuntime.exportFiles ?: error("Export files unavailable")
+        val result = suspendCancellableCoroutine { continuation -> native.saveExport(fileName, bytes) { if (continuation.isActive) continuation.resume(it) } }
+        when (result) {
+            "saved" -> app.vezuna.ui.export.SaveOutcome.SAVED
+            "cancelled" -> app.vezuna.ui.export.SaveOutcome.CANCELLED
+            else -> error("Export save failed")
+        }
+    }
+    app.vezuna.ui.export.ExportPlatform.share = { fileName, _, bytes ->
+        val native = IosRuntime.exportFiles ?: error("Export files unavailable")
+        val presented = suspendCancellableCoroutine { continuation -> native.shareExport(fileName, bytes) { if (continuation.isActive) continuation.resume(it) } }
+        check(presented) { "Share sheet unavailable" }
+    }
+}
+// endregion L9 exports
+
 interface NativeModelPackLoader {
     /** Completion receives the absolute path of the pack file; the store streams it, so no full copy is made. */
     fun loadModelPack(pack: ModelPack, completion: (String?, NativeMessage?) -> Unit)
@@ -153,7 +173,7 @@ interface NativeActionHandler {
 
 /** Native screens iOS offers from More (they used to sit in the toolbar menu). */
 private val iosNativeActions = setOf(
-    NativeAction.IMPORT_SOURCE, NativeAction.EXPORT, NativeAction.HEALTH,
+    NativeAction.IMPORT_SOURCE, NativeAction.HEALTH,
     NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
 )
 
@@ -221,6 +241,7 @@ object IosRuntime {
 
     var sourcePicker: NativeSourcePicker? = null
     var backupFiles: NativeBackupFiles? = null
+    var exportFiles: NativeExportFiles? = null // L9
     var modelPackLoader: NativeModelPackLoader? = null
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
@@ -446,52 +467,6 @@ object IosRuntime {
             }
         }
     }
-
-    /**
-     * [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language.
-     * [fromDate] and [toDate] are optional ISO dates (YYYY-MM-DD); blank means unbounded and malformed text fails the export.
-     */
-    fun exportCsv(
-        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
-        completion: (String?, NativeMessage?) -> Unit,
-    ) = withProfile(completion) { data ->
-        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
-        CsvDoctorExporter().export(data, exportLanguage(languageTag), options)
-    }
-
-    /** "A4" or "LETTER" from the device region, for the export paper picker's initial value. */
-    fun defaultExportPaper(): String = app.vezuna.export.PaperSize.forLanguageTag(app.vezuna.localization.deviceLanguageTag()).name
-
-    fun exportPdf(
-        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
-        paper: String, grayscale: Boolean,
-        completion: (ExportedPdf?, NativeMessage?) -> Unit,
-    ) = withProfile(completion) { data ->
-        val language = exportLanguage(languageTag)
-        val size = app.vezuna.export.PaperSize.entries.firstOrNull { it.name == paper } ?: app.vezuna.export.PaperSize.A4
-        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv).copy(paper = size, grayscale = grayscale)
-        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language, options))
-    }
-
-    @kotlinx.serialization.Serializable
-    private data class ExportTest(val code: String, val name: String)
-
-    /** JSON array of `{code, name}` for the confirmed tests of the active profile, for the export test picker. */
-    fun listExportTests(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        val tests = data.observations.filter { it.confirmation == app.vezuna.domain.ConfirmationStatus.CONFIRMED }
-            .groupBy { app.vezuna.domain.UnitNormalizer.canonicalTestCode(it.testCode) }
-            .map { (code, rows) -> ExportTest(code, rows.first().displayName) }
-            .sortedBy { it.code }
-        json.encodeToString(ListSerializer(ExportTest.serializer()), tests)
-    }
-
-    private fun exportOptions(fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean): ExportOptions {
-        fun date(text: String) = if (text.isBlank()) null else requireNotNull(ExportOptions.parseDate(text)) { "Invalid export date" }
-        return ExportOptions(date(fromDate), date(toDate), testCodes.toSet(), activeMedicationsOnly, includeMedicationsCsv)
-    }
-
-    private fun exportLanguage(languageTag: String): ContentLanguage =
-        if (languageTag.isEmpty()) ContentLanguage.device() else ContentLanguage.fromTag(languageTag)
 
     fun listMedications(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
         json.encodeToString(ListSerializer(Medication.serializer()), data.medications.filter { it.active })
@@ -733,6 +708,7 @@ object IosRuntime {
 /** [route] is a debug deep link (launch argument `-VezunaRoute <Name>`); Swift passes it only in debug builds. */
 fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewController {
     installMorePlatformIos()
+    installExportPlatformIos()
     val picker = IosRuntime.sourcePicker
     val loader = IosRuntime.modelPackLoader
     val backupPicker = IosRuntime.backupFiles
@@ -789,6 +765,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
     }
     return ComposeUIViewController {
         installMorePlatformIos()
+        installExportPlatformIos()
         VezunaApp(
             controller = controller,
             scope = IosRuntime.scope,

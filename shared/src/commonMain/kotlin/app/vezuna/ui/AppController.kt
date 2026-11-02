@@ -30,7 +30,7 @@ import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
 import app.vezuna.export.ExportOptions
-import app.vezuna.export.ExportText
+import app.vezuna.export.ExportSectionText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
@@ -695,7 +695,7 @@ class AppController(
     suspend fun exportPdf(language: ContentLanguage? = null, options: ExportOptions = ExportOptions()) = operation {
         val data = requireData()
         val chosen = language ?: ContentLanguage.device()
-        val document = DoctorExportContent.document(data, ExportText.of(chosen).title, chosen, options)
+        val document = DoctorExportContent.document(data, ExportSectionText.titleOf(options.family, chosen), chosen, options, timeZone())
         mutableState.value = mutableState.value.copy(
             pdfExport = pdfExporter.export(document),
             notice = message(L10nKey.PDF_EXPORT_PREPARED),
@@ -821,6 +821,13 @@ class AppController(
         }
     }
     // endregion L2 records
+
+    // region L9 exports
+    /** Drops prepared files before a new preview is built, so the preview never shows the previous selection's bytes. */
+    fun clearExports() {
+        mutableState.value = mutableState.value.copy(csvExport = null, pdfExport = null)
+    }
+    // endregion L9 exports
 }
 
 /** Result of opening a report's original file: the decrypted pages, no stored file, or a file that failed to decrypt. */

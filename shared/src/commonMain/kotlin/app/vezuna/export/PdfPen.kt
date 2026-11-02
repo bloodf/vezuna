@@ -23,6 +23,7 @@ internal object PdfStyle {
     val MINT = hex(0x71E2CC)
     val CORAL = hex(0xFF8A65)
     val LAVENDER = hex(0xB8ABFF)
+    val CITRON = hex(0xDDF27C)
     val PAPER = PdfColor(1.0, 1.0, 1.0)
 
     private fun hex(rgb: Int) = PdfColor(((rgb shr 16) and 0xFF) / 255.0, ((rgb shr 8) and 0xFF) / 255.0, (rgb and 0xFF) / 255.0)
