@@ -16,7 +16,7 @@ import app.vezuna.llm.ModelFileStore
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test

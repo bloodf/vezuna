@@ -16,8 +16,8 @@ import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.UnitNormalizer
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.platform.currentInstant
+import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
@@ -386,7 +386,7 @@ object DoctorExportContent {
 
     fun lines(data: ProfileData, language: ContentLanguage = ContentLanguage.EN): List<String> = buildList {
         val text = ExportText.of(language)
-        fun num(value: Double) = DoctorReportFormat.localizeDecimal(value.toString(), language)
+        fun num(value: Double) = DoctorReportFormat.value(value, language)
         add("${text.profile}: ${data.profile.displayName}")
         add(text.confirmedResults)
         data.observations.filter { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
@@ -396,7 +396,7 @@ object DoctorExportContent {
                     add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.result.lowercase()} ${it.qualitativeValue} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
                     return@forEach
                 }
-                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.original} ${num(it.originalValue)} ${it.originalUnit} | ${text.normalized} ${num(it.normalizedValue)} ${it.normalizedUnit} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
+                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.original} ${DoctorReportFormat.recorded(it.originalValue, it.valueDecimals, language)} ${it.originalUnit} | ${text.normalized} ${num(it.normalizedValue)} ${it.normalizedUnit} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
             }
         add(text.medicationsRecorded)
         data.medications.filter { it.profileId == data.profile.profileId }.forEach { medication: Medication ->
@@ -436,12 +436,12 @@ class CsvDoctorExporter {
                     observation.collectedAt.toString(),
                     observation.testCode,
                     observation.displayName,
-                    if (observation.isQualitative) "" else observation.originalValue.toString(),
+                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.originalValue, observation.valueDecimals),
                     observation.originalUnit,
-                    if (observation.isQualitative) "" else observation.normalizedValue.toString(),
+                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.normalizedValue, observation.valueDecimals.takeIf { observation.normalizedValue == observation.originalValue }),
                     observation.normalizedUnit,
-                    observation.referenceRange.lower?.toString().orEmpty(),
-                    observation.referenceRange.upper?.toString().orEmpty(),
+                    observation.referenceRange.lower?.let { DoctorReportFormat.value(it) }.orEmpty(),
+                    observation.referenceRange.upper?.let { DoctorReportFormat.value(it) }.orEmpty(),
                     observation.referenceRange.unit.orEmpty(),
                     observation.referenceRange.text.orEmpty(),
                     observation.qualitativeValue.orEmpty(),

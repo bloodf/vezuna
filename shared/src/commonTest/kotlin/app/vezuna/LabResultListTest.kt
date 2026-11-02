@@ -6,7 +6,7 @@ import app.vezuna.domain.LabReport
 import app.vezuna.domain.LabResultFilter
 import app.vezuna.domain.LabResultList
 import app.vezuna.domain.ReferenceRange
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

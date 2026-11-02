@@ -3,7 +3,7 @@ package app.vezuna
 import app.vezuna.domain.NumberAmbiguity
 import app.vezuna.importer.OcrTextParser
 import app.vezuna.ui.ExtractedValueKind
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

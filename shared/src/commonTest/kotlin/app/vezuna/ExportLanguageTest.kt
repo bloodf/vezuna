@@ -11,7 +11,7 @@ import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorReportFormat
 import app.vezuna.export.ExportText
 import app.vezuna.localization.ContentLanguage
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -72,8 +72,8 @@ class ExportLanguageTest {
         val notes = pt.lines.joinToString("\n")
         assertTrue(notes.contains("Perfil: Ana"))
         assertTrue(notes.contains("Resultados laboratoriais confirmados"))
-        assertTrue(notes.contains("125,0 g/L"))
-        assertTrue(DoctorExportContent.document(data).lines.joinToString("\n").contains("125.0 g/L"))
+        assertTrue(notes.contains("125 g/L"))
+        assertTrue(DoctorExportContent.document(data).lines.joinToString("\n").contains("125 g/L"))
     }
 
     @Test
@@ -83,7 +83,7 @@ class ExportLanguageTest {
             assertEquals(ExportText.of(language).csvHeader, csv.first())
             val row = csv[1]
             assertTrue(row.contains("\"12.5\""), "$language: canonical decimal point")
-            assertTrue(row.contains("\"125.0\""))
+            assertTrue(row.contains("\"125\""))
             assertTrue(row.contains("2026-03-05T08:30:00Z"))
             assertTrue(row.contains("\"g/dL\"") && row.contains("\"g/L\""), "units unchanged")
         }

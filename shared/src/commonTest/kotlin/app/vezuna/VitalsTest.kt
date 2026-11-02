@@ -15,7 +15,7 @@ import app.vezuna.domain.VitalsWindow
 import app.vezuna.domain.WeightReading
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn

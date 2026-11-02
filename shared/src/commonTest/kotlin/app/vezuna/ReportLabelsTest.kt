@@ -6,7 +6,7 @@ import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
 import app.vezuna.ui.reportDate
 import app.vezuna.ui.reportDisplayName
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

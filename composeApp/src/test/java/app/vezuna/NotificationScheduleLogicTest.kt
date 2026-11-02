@@ -42,7 +42,7 @@ class NotificationScheduleLogicTest {
     fun reminderIsStaleAfterPauseStopOrDelete() {
         val schedule = schedule(Recurrence.DAILY)
         val medication = Medication(schedule.profileId, schedule.medicationId, "Med", schedules = listOf(schedule))
-        val profile = Profile(schedule.profileId, "Me", createdAt = kotlinx.datetime.Instant.fromEpochSeconds(1))
+        val profile = Profile(schedule.profileId, "Me", createdAt = kotlin.time.Instant.fromEpochSeconds(1))
         fun current(data: ProfileData?) = NotificationScheduleLogic.isReminderCurrent(data, schedule.medicationId, schedule.scheduleId)
         assertTrue(current(ProfileData(profile, medications = listOf(medication))))
         assertEquals(false, current(ProfileData(profile, medications = listOf(medication.copy(active = false)))))
@@ -54,7 +54,7 @@ class NotificationScheduleLogicTest {
     fun firedReminderNotificationIsKeptButPausedOrDeletedOnesAreCancelled() {
         val schedule = schedule(Recurrence.DAILY)
         val medication = Medication(schedule.profileId, schedule.medicationId, "Med", schedules = listOf(schedule))
-        val profile = Profile(schedule.profileId, "Me", createdAt = kotlinx.datetime.Instant.fromEpochSeconds(1))
+        val profile = Profile(schedule.profileId, "Me", createdAt = kotlin.time.Instant.fromEpochSeconds(1))
         val shown = listOf(
             app.vezuna.notifications.ShownReminder(1, "p", "m", "s"),
             app.vezuna.notifications.ShownReminder(2, "gone", "m", "s"),

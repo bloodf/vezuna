@@ -1,7 +1,7 @@
 package app.vezuna.localization
 
 import java.util.Locale
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 actual fun deviceLanguageTag(): String = Locale.getDefault().toLanguageTag()
 

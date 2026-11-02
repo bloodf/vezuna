@@ -97,7 +97,7 @@ object ExportSession {
 }
 
 /** A confirmed test the user can include, with its latest confirmed reading. */
-data class ExportTestChoice(val code: String, val name: String, val latestValue: String, val latestAt: kotlinx.datetime.Instant, val count: Int)
+data class ExportTestChoice(val code: String, val name: String, val latestValue: String, val latestAt: kotlin.time.Instant, val count: Int)
 
 object ExportScope {
     fun tests(data: ProfileData): List<ExportTestChoice> = data.observations

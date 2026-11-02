@@ -70,7 +70,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
@@ -266,7 +266,7 @@ object IosRuntime {
 
     /** Called by the notification coordinator after planning; a negative value clears the "scheduled until" line. */
     fun setReminderCoverage(untilEpochSeconds: Long) {
-        reminderState.setCoverageUntil(if (untilEpochSeconds < 0) null else kotlinx.datetime.Instant.fromEpochSeconds(untilEpochSeconds))
+        reminderState.setCoverageUntil(if (untilEpochSeconds < 0) null else kotlin.time.Instant.fromEpochSeconds(untilEpochSeconds))
     }
 
     /** Backup chosen on the recovery screen; stored into the fresh vault by the reset that follows. */

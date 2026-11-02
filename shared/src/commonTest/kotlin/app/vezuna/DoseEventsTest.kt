@@ -9,7 +9,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.Profile
 import app.vezuna.domain.Recurrence
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals

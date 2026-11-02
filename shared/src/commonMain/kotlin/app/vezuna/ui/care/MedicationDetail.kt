@@ -53,7 +53,6 @@ import kotlinx.datetime.atStartOfDayIn
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_calendar
 import vezuna.shared.generated.resources.ic_edit
-import vezuna.shared.generated.resources.ic_file_text
 import vezuna.shared.generated.resources.ic_history
 import vezuna.shared.generated.resources.ic_pause
 import vezuna.shared.generated.resources.ic_play
@@ -80,8 +79,8 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
     ) {
         Text(name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
         CategoryPanel(Category.CARE, illustration = Res.drawable.ill_capsule) {
-            medication.strength?.let { Text(it, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.clearOfArt(112.dp)) }
-            medication.instructions?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.clearOfArt(112.dp)) }
+            medication.strength?.let { Text(it, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.clearOfArt(VezunaTokens.ArtClearanceWide)) }
+            medication.instructions?.let { Text(it, style = MaterialTheme.typography.titleMedium, modifier = Modifier.clearOfArt(VezunaTokens.ArtClearanceWide)) }
             MedicationStatusTag(status)
             when (status) {
                 MedicationStatus.PAUSED -> Text(vitaText(L10nKey.CARE_PAUSED_NOTE), style = MaterialTheme.typography.bodyLarge)
@@ -93,17 +92,11 @@ internal fun MedicationDetailBody(ctx: RouteContext, medication: Medication) {
         }
         GroupedRows {
             if (medication.schedules.isEmpty()) {
-                ListRow(vitaText(L10nKey.SCHEDULE), supporting = vitaText(L10nKey.CARE_NO_SCHEDULE), leadingIcon = Res.drawable.ic_calendar, category = Category.RECORDS)
+                ListRow(vitaText(L10nKey.SCHEDULE), supporting = vitaText(L10nKey.CARE_NO_SCHEDULE), leadingIcon = Res.drawable.ic_calendar, category = Category.CARE)
             }
             medication.schedules.forEach { schedule ->
-                ListRow(vitaText(L10nKey.SCHEDULE), supporting = scheduleText(schedule), leadingIcon = Res.drawable.ic_calendar, category = Category.RECORDS)
+                ListRow(vitaText(L10nKey.SCHEDULE), supporting = scheduleText(schedule), leadingIcon = Res.drawable.ic_calendar, category = Category.CARE)
             }
-            ListRow(
-                vitaText(L10nKey.CARE_INSTRUCTIONS),
-                supporting = medication.instructions ?: vitaText(L10nKey.CARE_NO_INSTRUCTIONS),
-                leadingIcon = Res.drawable.ic_file_text,
-                category = Category.TRENDS,
-            )
         }
         PrimaryButton(vitaText(L10nKey.EDIT_MEDICATION), { ctx.navigate(AppScreen.MedicationForm(medication.medicationId)) }, Modifier.fillMaxWidth(), enabled = !busy, icon = Res.drawable.ic_edit)
         val resume = status != MedicationStatus.ACTIVE
@@ -186,4 +179,4 @@ private fun DangerOutlineButton(text: String, onClick: () -> Unit, enabled: Bool
 }
 
 /** Formatting a UTC-midnight date at noon keeps the same calendar day in every local zone. */
-private fun kotlinx.datetime.Instant.plusHalfDay() = kotlinx.datetime.Instant.fromEpochSeconds(epochSeconds + 12 * 60 * 60)
+private fun kotlin.time.Instant.plusHalfDay() = kotlin.time.Instant.fromEpochSeconds(epochSeconds + 12 * 60 * 60)

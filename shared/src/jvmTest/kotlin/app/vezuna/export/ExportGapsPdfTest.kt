@@ -15,7 +15,7 @@ import app.vezuna.localization.ContentLanguage
 import app.vezuna.ui.DesignFixture
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus

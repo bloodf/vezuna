@@ -14,7 +14,7 @@ import app.vezuna.ui.care.DoseState
 import app.vezuna.ui.care.MedicationStatus
 import app.vezuna.ui.care.medicationFormValid
 import app.vezuna.ui.care.status
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

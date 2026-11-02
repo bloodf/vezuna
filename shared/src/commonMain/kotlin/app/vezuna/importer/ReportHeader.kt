@@ -1,6 +1,6 @@
 package app.vezuna.importer
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** Report-level facts read from the page text: both are drafts for the reviewer to confirm or edit. */
 data class ReportHeader(val laboratoryName: String? = null, val orderedAt: Instant? = null)

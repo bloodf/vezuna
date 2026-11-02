@@ -16,7 +16,7 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

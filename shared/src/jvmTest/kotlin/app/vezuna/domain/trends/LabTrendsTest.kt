@@ -8,7 +8,7 @@ import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.HeartRateDay
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.WeightReading
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

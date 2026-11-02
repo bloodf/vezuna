@@ -37,7 +37,6 @@ import app.vezuna.ui.components.RangeChips
 import app.vezuna.ui.components.SectionHeading
 import app.vezuna.ui.nav.RouteContext
 import kotlinx.datetime.TimeZone
-import kotlin.math.roundToInt
 
 /**
  * Dose history (067, #56): plain counts of recorded doses with the denominator named, for 7 and 30 days and the
@@ -110,7 +109,6 @@ private fun WindowSummary(days: Int, counts: DoseCounts) {
 
 @Composable
 private fun CountsText(counts: DoseCounts) {
-    val percent = counts.adherenceFraction?.let { (it * 100).roundToInt() } ?: return
-    Text(vitaText(L10nKey.CARE_HISTORY_SHARE, counts.taken, counts.completed, percent), style = MaterialTheme.typography.titleMedium)
+    Text(vitaText(L10nKey.CARE_HISTORY_SHARE, counts.taken, counts.completed), style = MaterialTheme.typography.titleMedium)
     Text(vitaText(L10nKey.CARE_HISTORY_COUNTS, counts.taken, counts.skipped, counts.missed), style = MaterialTheme.typography.bodyLarge)
 }

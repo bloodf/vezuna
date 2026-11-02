@@ -78,7 +78,7 @@ class AppVisualInstrumentedTest {
         val directory = context.getExternalFilesDir(null)!!
         val suffix = UUID.randomUUID().toString()
         val profile = Profile(
-            "visual-$suffix", "AAA Visual synthetic", createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(System.currentTimeMillis()),
+            "visual-$suffix", "AAA Visual synthetic", createdAt = kotlin.time.Instant.fromEpochMilliseconds(System.currentTimeMillis()),
         ).also { app.repository.createProfile(it) }
         val now = Instant.now().plusSeconds(2 * 60 * 60).atZone(ZoneId.systemDefault())
         val longName = "Long-acting combination medication with a very long synthetic name for enlarged text review"

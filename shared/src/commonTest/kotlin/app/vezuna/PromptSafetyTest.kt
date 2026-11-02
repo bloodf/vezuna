@@ -4,7 +4,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.llm.HealthPromptBuilder
 import app.vezuna.localization.ContentLanguage
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -18,7 +18,7 @@ import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withoutDocument
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals

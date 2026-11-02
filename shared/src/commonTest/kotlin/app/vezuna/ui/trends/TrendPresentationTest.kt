@@ -12,7 +12,7 @@ import app.vezuna.domain.trends.TrendRange
 import app.vezuna.domain.trends.VitalSeriesKind
 import app.vezuna.domain.trends.VitalTrends
 import app.vezuna.ui.components.HistoryRange
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

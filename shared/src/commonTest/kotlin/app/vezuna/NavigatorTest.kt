@@ -9,7 +9,7 @@ import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import app.vezuna.ui.nav.routeFromName
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -3,7 +3,7 @@ package app.vezuna.ui.entry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** The OS source the person chose on the Add a record screen. Each one opens the real system UI. */
 enum class SourceKind { CAMERA, PHOTOS, FILE }

@@ -8,7 +8,7 @@ import app.vezuna.domain.UnitNormalizer
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /** What a doctor export contains. The defaults export everything. */
 data class ExportOptions(

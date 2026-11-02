@@ -3,6 +3,7 @@ package app.vezuna.llm
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.ProfileData
 import app.vezuna.export.DoctorExportContent
+import app.vezuna.export.DoctorReportFormat
 import app.vezuna.localization.ContentLanguage
 
 object HealthPromptBuilder {
@@ -41,7 +42,7 @@ object HealthPromptBuilder {
         } else {
             selected.joinToString("\n") {
                 if (it.isQualitative) return@joinToString "- ${it.collectedAt}: ${it.displayName} (${it.testCode}), qualitative result ${it.qualitativeValue}, report reference ${DoctorExportContent.rangeText(it.referenceRange)}"
-                "- ${it.collectedAt}: ${it.displayName} (${it.testCode}), original ${it.originalValue} ${it.originalUnit}, normalized ${it.normalizedValue} ${it.normalizedUnit}, report reference ${DoctorExportContent.rangeText(it.referenceRange)}"
+                "- ${it.collectedAt}: ${it.displayName} (${it.testCode}), original ${DoctorReportFormat.recorded(it.originalValue, it.valueDecimals)} ${it.originalUnit}, normalized ${DoctorReportFormat.value(it.normalizedValue)} ${it.normalizedUnit}, report reference ${DoctorExportContent.rangeText(it.referenceRange)}"
             }
         }
         return buildString {

@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.formatUiDateTime
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
+import kotlinx.coroutines.delay
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.Category
 import app.vezuna.ui.NotificationAccess
@@ -110,9 +112,13 @@ internal fun CareHome(ctx: RouteContext) {
     actionFor?.let { DoseActionSheet(ctx, it) { actionFor = null } }
 }
 
+private const val CLOCK_TICK_MILLIS = 60_000L
+
 @Composable
 private fun TodayPanel(ctx: RouteContext, data: ProfileData, onDose: (CareDose) -> Unit) {
-    val now = currentInstant()
+    // Re-read the clock every minute so "today" rolls over at midnight while the screen stays open.
+    var now by remember { mutableStateOf(currentInstant()) }
+    LaunchedEffect(Unit) { while (true) { delay(CLOCK_TICK_MILLIS); now = currentInstant() } }
     val doses = CareDoses.today(data, now, TimeZone.currentSystemDefault())
     val firstOpen = doses.firstOrNull { !it.recorded }
     CategoryPanel(Category.CARE, illustration = Res.drawable.ill_capsule) {
@@ -135,7 +141,7 @@ private fun TodayPanel(ctx: RouteContext, data: ProfileData, onDose: (CareDose) 
                         ctx.controller.takeDose(firstOpen.dose)
                     }
                 },
-                Modifier.fillMaxWidth().semantics { contentDescription = label },
+                Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = label; role = Role.Button },
                 container = VezunaTokens.Pine,
                 content = Color.White,
                 icon = Res.drawable.ic_check_circle,

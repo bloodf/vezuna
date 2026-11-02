@@ -88,4 +88,4 @@ internal fun DoseActionSheet(ctx: RouteContext, dose: CareDose, onDismiss: () ->
 /** Matches AppController.snoozeDose and the notification snooze action (#51). */
 private const val SNOOZE_MINUTES = 10
 
-private fun kotlinx.datetime.Instant.plusMinutes(minutes: Int) = kotlinx.datetime.Instant.fromEpochSeconds(epochSeconds + minutes * 60L)
+private fun kotlin.time.Instant.plusMinutes(minutes: Int) = kotlin.time.Instant.fromEpochSeconds(epochSeconds + minutes * 60L)

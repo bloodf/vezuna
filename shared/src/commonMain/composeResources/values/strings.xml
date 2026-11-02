@@ -768,10 +768,11 @@ iOS: %2$s</string>
     <string name="source_zoom_in">Zoom in</string>
     <string name="source_zoom_out">Zoom out</string>
     <string name="source_missing_title">Original file is not available.</string>
-    <string name="source_missing_body">This device has no stored copy of this report's file. Restored backups keep the results, not the original files. Your results stay as they are.</string>
+    <string name="source_missing_body">This device has no stored copy of this report's file. Backups of a single profile keep the results, not the original files. Your results stay as they are.</string>
     <string name="source_missing_reimport_hint">Import the same file again to view it here. Values already reviewed are not added twice.</string>
     <string name="source_reimport">Import the file again</string>
     <string name="source_unreadable_body">The stored file could not be opened on this device. Your results stay as they are.</string>
+    <string name="source_unsupported_title">This file cannot be shown here.</string>
     <string name="source_unsupported_body">This file type cannot be shown on this device. Your results stay as they are.</string>
     <string name="source_return">Return to report</string>
     <string name="result_detail_recorded_as_text">Result recorded as text.</string>
@@ -795,7 +796,6 @@ iOS: %2$s</string>
     <!-- L4 Care (redesign) -->
     <string name="care_subtitle">Medication schedule</string>
     <string name="care_today">Today</string>
-    <string name="care_today_date">Today, %1$s</string>
     <string name="care_no_doses_today">No doses scheduled for today.</string>
     <string name="care_next_scheduled">Next scheduled: %1$s</string>
     <string name="care_dose_pending">Pending</string>
@@ -807,7 +807,7 @@ iOS: %2$s</string>
     <string name="care_dose_missed">Recorded as missed</string>
     <string name="care_dose_row">%1$s, %2$s, %3$s</string>
     <string name="care_mark_taken">Mark as taken</string>
-    <string name="care_mark_taken_for">Mark %1$s as taken</string>
+    <string name="care_mark_taken_for">Mark as taken, %1$s</string>
     <string name="care_skip_dose">Skip this dose</string>
     <string name="care_mark_skipped">Change to skipped</string>
     <string name="care_change_to_taken">Change to taken</string>
@@ -820,9 +820,6 @@ iOS: %2$s</string>
     <string name="care_dose_snoozed">Reminder for %1$s snoozed until %2$s.</string>
     <string name="care_empty_title">No medications added</string>
     <string name="care_empty_body">Add your medication and the schedule you follow.</string>
-    <string name="care_medication_row">%1$s, %2$s</string>
-    <string name="care_instructions">Instructions</string>
-    <string name="care_no_instructions">No instructions recorded.</string>
     <string name="care_no_schedule">No schedule recorded.</string>
     <string name="care_pause_reminders">Pause reminders</string>
     <string name="care_resume_reminders">Resume reminders</string>
@@ -832,7 +829,6 @@ iOS: %2$s</string>
     <string name="care_stop_body">This ends its schedules today and changes its status to stopped. Dose history is kept. It is not medical advice.</string>
     <string name="care_delete_title">Delete %1$s?</string>
     <string name="care_delete_body">Removes this medication, its schedules and dose records from this profile. This cannot be undone.</string>
-    <string name="care_keep_medication">Keep medication</string>
     <string name="care_recent_doses">Recent recorded doses</string>
     <string name="care_no_recorded_doses">No doses recorded yet.</string>
     <string name="care_view_history">View dose history</string>
@@ -846,11 +842,10 @@ iOS: %2$s</string>
     <string name="care_all_medications">All medications</string>
     <string name="care_history_period">Recorded history: %1$s – %2$s</string>
     <string name="care_history_counts">%1$s taken · %2$s skipped · %3$s missed</string>
-    <string name="care_history_share">%1$s of %2$s recorded doses taken (%3$s%)</string>
+    <string name="care_history_share">%1$s of %2$s recorded doses taken</string>
     <string name="care_history_window">Last %1$s days</string>
     <string name="care_history_note">Statuses reflect recorded events. A dose with no record 24 hours after its time is recorded as missed.</string>
     <string name="care_history_empty">No doses recorded in this period.</string>
-    <string name="care_history_recorded_at">recorded %1$s</string>
     <string name="care_reminders_title">Medication reminders</string>
     <string name="care_reminders_intro">Get a reminder at your scheduled time.</string>
     <string name="care_reminders_local">Notifications stay on this device.</string>
@@ -1013,6 +1008,7 @@ iOS: %2$s</string>
     <string name="backup_panel_body">Create a passphrase-protected file you can keep anywhere. Only that passphrase opens it.</string>
     <string name="backup_panel_title">Encrypted and portable</string>
     <string name="backup_ready_passphrase">Passphrase needed to restore</string>
+    <string name="backup_ready_chat_left_out">Assistant chat is not included in this file.</string>
     <string name="backup_ready_passphrase_body">You need the backup passphrase to open this file on any device.</string>
     <string name="backup_ready_size">File size</string>
     <string name="backup_ready_title">Encrypted backup ready</string>

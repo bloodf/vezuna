@@ -166,7 +166,7 @@ internal class PdfDailyChart(private val pen: PdfPen, private val language: Cont
         val margin = if (span > 0) span * 0.15 else maxOf(kotlin.math.abs(values.max()) * 0.05, 1.0)
         val framed = values + listOf(values.min() - margin, values.max() + margin)
         val series = DoctorTrendSeries("", "", "", framed.mapIndexed { index, value ->
-            DoctorTrendPoint(kotlinx.datetime.Instant.fromEpochSeconds(index.toLong()), value, ReferenceRange())
+            DoctorTrendPoint(kotlin.time.Instant.fromEpochSeconds(index.toLong()), value, ReferenceRange())
         })
         val geometry = DoctorChartGeometryFactory.create(series)
         return geometry.ticks to geometry::yFraction

@@ -10,7 +10,7 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.ExportOptions
 import app.vezuna.localization.ContentLanguage
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -105,6 +105,17 @@ class ExportOptionsTest {
         assertEquals("medicamento,concentracao,instrucoes,ativo", lines[lines.size - 2])
         assertEquals("\"Metformin\",\"\",\"\",\"true\"", lines.last())
         assertTrue("Old drug" !in withMeds)
+    }
+
+    @Test
+    fun csvWritesValuesWithTheirPrintedPrecision() {
+        val whole = observation("w", "HGB", "2026-04-10T10:00:00Z").copy(originalValue = 146.0, normalizedValue = 146.0, valueDecimals = 0, referenceRange = ReferenceRange(70.0, 99.0))
+        val two = observation("x", "GLU", "2026-04-11T10:00:00Z").copy(originalValue = 5.7, normalizedValue = 5.7, valueDecimals = 2)
+        val csv = CsvDoctorExporter().export(data.copy(observations = listOf(whole, two)))
+        assertTrue("\"146\"," in csv && "146.0" !in csv && "99.0" !in csv, csv)
+        assertTrue("\"5.70\"" in csv, csv)
+        val notes = DoctorExportContent.lines(data.copy(observations = listOf(two.copy(originalValue = 5.4, normalizedValue = 5.4, valueDecimals = 2)))).joinToString("\n")
+        assertTrue("5.40 g/L" in notes, notes)
     }
 
     @Test

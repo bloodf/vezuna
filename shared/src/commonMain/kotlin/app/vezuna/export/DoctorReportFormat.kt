@@ -2,7 +2,7 @@ package app.vezuna.export
 
 import app.vezuna.domain.RangeAssessment
 import app.vezuna.localization.ContentLanguage
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime

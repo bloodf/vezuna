@@ -51,6 +51,7 @@ import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_check
 import vezuna.shared.generated.resources.ic_chevron_down
+import vezuna.shared.generated.resources.ic_plus
 import vezuna.shared.generated.resources.ic_users
 import vezuna.shared.generated.resources.ill_foliage
 
@@ -87,6 +88,7 @@ fun RootHeader(
     currentProfileId: String?,
     onSwitchProfile: (String) -> Unit,
     onManageProfiles: () -> Unit,
+    onAddProfile: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     illustration: DrawableResource? = Res.drawable.ill_foliage,
@@ -113,7 +115,7 @@ fun RootHeader(
                     val current = profiles.firstOrNull { it.profileId == currentProfileId }
                     // The name may take the whole row at large text sizes; actions keep their own width.
                     if (current != null) {
-                        ProfileSwitcher(profiles, current, onSwitchProfile, onManageProfiles, Modifier.weight(1f, fill = false))
+                        ProfileSwitcher(profiles, current, onSwitchProfile, onManageProfiles, onAddProfile, Modifier.weight(1f, fill = false))
                     }
                     actions()
                 }
@@ -137,6 +139,7 @@ fun ProfileSwitcher(
     current: Profile,
     onSwitchProfile: (String) -> Unit,
     onManageProfiles: () -> Unit,
+    onAddProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -162,6 +165,7 @@ fun ProfileSwitcher(
             currentProfileId = current.profileId,
             onSwitchProfile = { open = false; if (it != current.profileId) onSwitchProfile(it) },
             onManageProfiles = { open = false; onManageProfiles() },
+            onAddProfile = { open = false; onAddProfile() },
             onDismiss = { open = false },
         )
     }
@@ -174,6 +178,7 @@ fun ProfileSwitcherSheet(
     currentProfileId: String,
     onSwitchProfile: (String) -> Unit,
     onManageProfiles: () -> Unit,
+    onAddProfile: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     VezunaSheet(title = vitaText(L10nKey.PROFILE_SWITCHER_TITLE), onDismiss = onDismiss) {
@@ -195,6 +200,11 @@ fun ProfileSwitcherSheet(
                     modifier = Modifier.semantics { this.selected = selected },
                 )
             }
+            ListRow(
+                title = vitaText(L10nKey.ADD_PROFILE),
+                onClick = onAddProfile,
+                leadingIcon = Res.drawable.ic_plus,
+            )
             ListRow(
                 title = vitaText(L10nKey.MANAGE_PROFILES),
                 onClick = onManageProfiles,

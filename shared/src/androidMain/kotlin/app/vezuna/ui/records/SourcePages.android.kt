@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 actual suspend fun renderPdfPage(bytes: ByteArray, index: Int, widthPx: Int): RenderedPdfPage? = withContext(Dispatchers.IO) {
+    sweepStaleSourceFiles()
     // PdfRenderer needs a seekable descriptor. The decrypted copy lives in the app-private cache
     // (java.io.tmpdir) only until the descriptor is open, like the OCR path; nothing outside the app can read it.
     val file = File.createTempFile("vezuna-source-", ".pdf").apply { writeBytes(bytes) }
@@ -31,3 +32,12 @@ actual suspend fun renderPdfPage(bytes: ByteArray, index: Int, widthPx: Int): Re
         file.delete()
     }
 }
+
+/** A process kill between createTempFile and delete leaves a decrypted copy behind; remove any old one on the next call. */
+private fun sweepStaleSourceFiles() {
+    val cutoff = System.currentTimeMillis() - STALE_SOURCE_MILLIS
+    File(System.getProperty("java.io.tmpdir") ?: return).listFiles { f -> f.name.startsWith("vezuna-source-") && f.name.endsWith(".pdf") && f.lastModified() < cutoff }
+        ?.forEach { it.delete() }
+}
+
+private const val STALE_SOURCE_MILLIS = 60_000L

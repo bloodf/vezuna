@@ -1,7 +1,7 @@
 package app.vezuna
 
 import app.vezuna.ui.ReminderPlatformState
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

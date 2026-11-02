@@ -768,10 +768,11 @@ iOS: %2$s</string>
     <string name="source_zoom_in">Ampliar</string>
     <string name="source_zoom_out">Reducir</string>
     <string name="source_missing_title">El archivo original no está disponible.</string>
-    <string name="source_missing_body">Este dispositivo no tiene una copia guardada del archivo de este informe. Las copias de seguridad restauradas conservan los resultados, no los archivos originales. Tus resultados siguen como están.</string>
+    <string name="source_missing_body">Este dispositivo no tiene una copia guardada del archivo de este informe. Las copias de un solo perfil conservan los resultados, no los archivos originales. Tus resultados siguen como están.</string>
     <string name="source_missing_reimport_hint">Vuelve a importar el mismo archivo para verlo aquí. Los valores ya revisados no se añaden dos veces.</string>
     <string name="source_reimport">Importar el archivo de nuevo</string>
     <string name="source_unreadable_body">No se pudo abrir el archivo guardado en este dispositivo. Tus resultados siguen como están.</string>
+    <string name="source_unsupported_title">Este archivo no se puede mostrar aquí.</string>
     <string name="source_unsupported_body">Este tipo de archivo no se puede mostrar en este dispositivo. Tus resultados siguen como están.</string>
     <string name="source_return">Volver al informe</string>
     <string name="result_detail_recorded_as_text">Resultado registrado como texto.</string>
@@ -795,7 +796,6 @@ iOS: %2$s</string>
     <!-- L4 Care (redesign) -->
     <string name="care_subtitle">Horario de medicamentos</string>
     <string name="care_today">Hoy</string>
-    <string name="care_today_date">Hoy, %1$s</string>
     <string name="care_no_doses_today">No hay dosis programadas para hoy.</string>
     <string name="care_next_scheduled">Próxima programada: %1$s</string>
     <string name="care_dose_pending">Pendiente</string>
@@ -807,7 +807,7 @@ iOS: %2$s</string>
     <string name="care_dose_missed">Registrada como perdida</string>
     <string name="care_dose_row">%1$s, %2$s, %3$s</string>
     <string name="care_mark_taken">Marcar como tomada</string>
-    <string name="care_mark_taken_for">Marcar %1$s como tomada</string>
+    <string name="care_mark_taken_for">Marcar como tomada, %1$s</string>
     <string name="care_skip_dose">Omitir esta dosis</string>
     <string name="care_mark_skipped">Cambiar a omitida</string>
     <string name="care_change_to_taken">Cambiar a tomada</string>
@@ -820,9 +820,6 @@ iOS: %2$s</string>
     <string name="care_dose_snoozed">Recordatorio de %1$s pospuesto hasta %2$s.</string>
     <string name="care_empty_title">No hay medicamentos añadidos</string>
     <string name="care_empty_body">Añade tu medicamento y el horario que sigues.</string>
-    <string name="care_medication_row">%1$s, %2$s</string>
-    <string name="care_instructions">Instrucciones</string>
-    <string name="care_no_instructions">No hay instrucciones registradas.</string>
     <string name="care_no_schedule">No hay horario registrado.</string>
     <string name="care_pause_reminders">Pausar recordatorios</string>
     <string name="care_resume_reminders">Reanudar recordatorios</string>
@@ -832,7 +829,6 @@ iOS: %2$s</string>
     <string name="care_stop_body">Esto finaliza sus horarios hoy y cambia su estado a detenido. El historial de dosis se conserva. No es un consejo médico.</string>
     <string name="care_delete_title">¿Eliminar %1$s?</string>
     <string name="care_delete_body">Elimina este medicamento, sus horarios y registros de dosis de este perfil. No se puede deshacer.</string>
-    <string name="care_keep_medication">Conservar medicamento</string>
     <string name="care_recent_doses">Dosis registradas recientes</string>
     <string name="care_no_recorded_doses">Aún no hay dosis registradas.</string>
     <string name="care_view_history">Ver historial de dosis</string>
@@ -846,11 +842,10 @@ iOS: %2$s</string>
     <string name="care_all_medications">Todos los medicamentos</string>
     <string name="care_history_period">Historial registrado: %1$s – %2$s</string>
     <string name="care_history_counts">%1$s tomadas · %2$s omitidas · %3$s perdidas</string>
-    <string name="care_history_share">%1$s de %2$s dosis registradas tomadas (%3$s%)</string>
+    <string name="care_history_share">%1$s de %2$s dosis registradas tomadas</string>
     <string name="care_history_window">Últimos %1$s días</string>
     <string name="care_history_note">Los estados reflejan eventos registrados. Una dosis sin registro 24 horas después de su hora se registra como perdida.</string>
     <string name="care_history_empty">No hay dosis registradas en este período.</string>
-    <string name="care_history_recorded_at">registrada %1$s</string>
     <string name="care_reminders_title">Recordatorios de medicamentos</string>
     <string name="care_reminders_intro">Recibe un recordatorio a la hora programada.</string>
     <string name="care_reminders_local">Las notificaciones se quedan en este dispositivo.</string>
@@ -1013,6 +1008,7 @@ iOS: %2$s</string>
     <string name="backup_panel_body">Crea un archivo protegido con frase de contraseña que puedes guardar donde quieras. Solo esa frase lo abre.</string>
     <string name="backup_panel_title">Cifrada y portátil</string>
     <string name="backup_ready_passphrase">Frase de contraseña necesaria para restaurar</string>
+    <string name="backup_ready_chat_left_out">El chat del asistente no está incluido en este archivo.</string>
     <string name="backup_ready_passphrase_body">Necesitas la frase de contraseña para abrir este archivo en cualquier dispositivo.</string>
     <string name="backup_ready_size">Tamaño del archivo</string>
     <string name="backup_ready_title">Copia cifrada lista</string>

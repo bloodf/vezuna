@@ -55,6 +55,7 @@ import app.vezuna.ui.components.PrimaryButton
 import app.vezuna.ui.components.ProgressState
 import app.vezuna.ui.components.SecondaryButton
 import app.vezuna.ui.nav.RouteContext
+import kotlin.math.ceil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.decodeToImageBitmap
@@ -109,13 +110,16 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
     var pageIndex by remember { mutableIntStateOf(0) }
     var pageCount by remember { mutableIntStateOf(if (isPdf(file.mediaType)) 1 else file.pages.size) }
     var zoom by remember { mutableStateOf(MIN_ZOOM) }
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
+    // Keeps the last render of the page on screen while a sharper one is produced after zooming.
+    var shown by remember { mutableStateOf<Pair<Int, ImageBitmap>?>(null) }
     var unsupported by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val baseWidth = maxWidth - VezunaTokens.Gutter * 2
-        val renderPx = with(LocalDensity.current) { (baseWidth.toPx() * 2).toInt() }
-        LaunchedEffect(pageIndex) {
-            image = null
+        // PDF pages re-render per zoom bucket (1x..4x of the 2x base), capped by MAX_PAGE_PX, so small values stay sharp.
+        val bucket = if (isPdf(file.mediaType)) ceil(zoom).toInt().coerceIn(1, MAX_ZOOM.toInt()) else 1
+        val renderPx = with(LocalDensity.current) { (baseWidth.toPx() * 2 * bucket).toInt().coerceAtMost(MAX_PAGE_PX) }
+        // Keyed on the clamped size: buckets that clamp to the same size do not render again.
+        LaunchedEffect(pageIndex, renderPx) {
             val page = try {
                 if (isPdf(file.mediaType)) {
                     renderPdfPage(file.pages.first(), pageIndex, renderPx)?.also { pageCount = it.pageCount }?.image
@@ -125,12 +129,14 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
-                return@LaunchedEffect onFailed()
+                // A failed sharper re-render keeps the page already on screen.
+                if (shown?.first != pageIndex) onFailed()
+                return@LaunchedEffect
             }
-            if (page == null) unsupported = true else image = page
+            if (page == null) unsupported = true else shown = pageIndex to page
         }
         if (unsupported) {
-            EmptyState(Res.drawable.ill_file_error, vitaText(L10nKey.SOURCE_MISSING_TITLE), vitaText(L10nKey.SOURCE_UNSUPPORTED_BODY), Modifier.padding(VezunaTokens.Gutter))
+            EmptyState(Res.drawable.ill_file_error, vitaText(L10nKey.SOURCE_UNSUPPORTED_TITLE), vitaText(L10nKey.SOURCE_UNSUPPORTED_BODY), Modifier.padding(VezunaTokens.Gutter))
             return@BoxWithConstraints
         }
         Column(Modifier.fillMaxSize()) {
@@ -146,7 +152,7 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
                     .verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                val current = image
+                val current = shown?.takeIf { it.first == pageIndex }?.second
                 if (current == null) {
                     ProgressState(vitaText(L10nKey.SOURCE_OPENING), Modifier.width(baseWidth))
                 } else {

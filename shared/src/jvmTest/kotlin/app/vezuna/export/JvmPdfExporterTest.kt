@@ -3,7 +3,7 @@ package app.vezuna.export
 import app.vezuna.domain.RangeAssessment
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.localization.ContentLanguage
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import org.apache.pdfbox.contentstream.operator.Operator
 import org.apache.pdfbox.cos.COSNumber
