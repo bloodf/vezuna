@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +31,7 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.vitaText
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
 
 /** Every report of the profile, imported or manual, each deletable after a confirmation. */
 @Composable
@@ -35,9 +39,9 @@ internal fun ReportList(data: ProfileData, controller: AppController) {
     if (data.reports.isEmpty()) return
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<LabReport?>(null) }
+    var pendingEdit by remember { mutableStateOf<LabReport?>(null) }
     val manualName = vitaText(L10nKey.MANUAL_ENTRY_REPORT)
-    fun nameOf(report: LabReport): String =
-        data.documents.firstOrNull { it.documentId == report.sourceDocumentId }?.displayName ?: manualName
+    fun nameOf(report: LabReport): String = reportDisplayName(report, data, manualName)
     SectionHeading(vitaText(L10nKey.IMPORTED_REPORTS), vitaText(L10nKey.IMPORTED_REPORTS_SUBTITLE))
     data.reports.sortedByDescending { it.importedAt }.forEach { report ->
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -45,6 +49,11 @@ internal fun ReportList(data: ProfileData, controller: AppController) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(nameOf(report), style = MaterialTheme.typography.titleMedium)
                     Text(vitaText(if (report.isManual) L10nKey.REPORT_MANUAL_SUMMARY else L10nKey.REPORT_SUMMARY, formatUiDate(report.importedAt)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    report.orderedAt?.let { Text(vitaText(L10nKey.REPORT_ORDER_DATE, formatUiDate(it)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+                TextButton({ pendingEdit = report }, Modifier.defaultMinSize(minHeight = 48.dp)) {
+                    androidx.compose.material3.Icon(Icons.Rounded.Edit, null)
+                    Text(vitaText(L10nKey.EDIT_REPORT_DETAILS))
                 }
                 TextButton({ pendingDelete = report }, Modifier.defaultMinSize(minHeight = 48.dp)) {
                     androidx.compose.material3.Icon(Icons.Rounded.Delete, null)
@@ -62,4 +71,31 @@ internal fun ReportList(data: ProfileData, controller: AppController) {
             onDismiss = { pendingDelete = null },
         )
     }
+    pendingEdit?.let { report ->
+        ReportDetailsDialog(
+            report,
+            onSave = { name, date -> pendingEdit = null; scope.launch { controller.updateReportDetails(report.reportId, name, date) } },
+            onDismiss = { pendingEdit = null },
+        )
+    }
+}
+
+@Composable
+private fun ReportDetailsDialog(report: LabReport, onSave: (String, Instant?) -> Unit, onDismiss: () -> Unit) {
+    var name by remember(report.reportId) { mutableStateOf(report.laboratoryName.orEmpty()) }
+    var date by remember(report.reportId) { mutableStateOf(report.orderedAt) }
+    val notSet = vitaText(L10nKey.REPORT_ORDER_DATE_NOT_SET)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(vitaText(L10nKey.EDIT_REPORT_DETAILS)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(vitaText(L10nKey.REPORT_LABORATORY_NAME)) }, singleLine = true)
+                FilterDateButton(vitaText(L10nKey.REPORT_ORDER_DATE, date?.let { formatUiDate(it) } ?: notSet), date) { date = it }
+                if (date != null) TextButton({ date = null }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CLEAR_DATE)) }
+            }
+        },
+        confirmButton = { TextButton({ onSave(name, date) }, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.SAVE)) } },
+        dismissButton = { TextButton(onDismiss, Modifier.defaultMinSize(minHeight = 48.dp)) { Text(vitaText(L10nKey.CANCEL)) } },
+    )
 }
