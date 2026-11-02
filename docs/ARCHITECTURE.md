@@ -57,6 +57,8 @@ SwiftUI shell around the Kotlin framework. `iosApp/SharedBridge/` is Kotlin comp
 4. Records are serialized and encrypted by the platform `SecureVault`, scoped to a profile.
 5. Export builds PDF/CSV from confirmed data and hands it to the OS share sheet. Backup is a passphrase-sealed file (see Storage and backup).
 
+The laboratory-history PDF layout lives in `shared/.../export/PdfReportLayout.kt`; each platform supplies only a `PdfCanvas` (Android `PdfDocument`, iOS `UIGraphicsPDFRenderer`, JVM PDFBox for tests and samples). A4 or US Letter (default from the device region) and an optional grayscale mode are export options. The PDF is **not tagged**: neither mobile renderer can write a structure tree, so there are no PDF/UA tags, heading structure, table-header tags or chart alt text. Only the JVM renderer sets `/Lang`; iOS sets the title; Android sets no metadata. Text is selectable in reading order, and every chart is followed by a table of the exact values as its text alternative. The CSV export is the machine-readable alternative.
+
 Records, backup, and export never depend on the licensing gate or on a model being installed.
 
 ## Storage and backup

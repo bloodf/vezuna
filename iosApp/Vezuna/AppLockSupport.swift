@@ -66,6 +66,11 @@ final class PrivacyCover {
         guard window == nil else { return }
         let cover = UIWindow(windowScene: scene)
         cover.windowLevel = .alert + 1
+        switch UserDefaults.standard.string(forKey: "vezuna-theme-mode") {
+        case "LIGHT": cover.overrideUserInterfaceStyle = .light
+        case "DARK": cover.overrideUserInterfaceStyle = .dark
+        default: cover.overrideUserInterfaceStyle = .unspecified
+        }
         cover.rootViewController = UIHostingController(rootView: PrivacyCoverView())
         cover.isHidden = false
         window = cover

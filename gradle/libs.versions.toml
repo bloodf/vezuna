@@ -6,6 +6,7 @@ coroutines = "1.11.0"
 serialization = "1.12.0"
 datetime = "0.7.1"
 llamatik = "2.1.0"
+pdfbox = "3.0.8"
 kover = "0.9.11"
 
 [libraries]
@@ -14,6 +15,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 llamatik-core = { module = "com.llamatik:core", version.ref = "llamatik" }
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version = "1.9.0" }

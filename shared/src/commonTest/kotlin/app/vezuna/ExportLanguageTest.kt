@@ -46,9 +46,9 @@ class ExportLanguageTest {
         assertEquals("05 Fev 2026", DoctorReportFormat.date(march, ContentLanguage.PT))
         assertEquals("05 Feb 2026", DoctorReportFormat.date(march, ContentLanguage.ES))
         assertEquals("05 Dic 2026", DoctorReportFormat.date(Instant.parse("2026-12-05T00:00:00Z"), ContentLanguage.ES))
-        assertEquals("Above reference", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.EN))
-        assertEquals("Acima da referência", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.PT))
-        assertEquals("Por encima de la referencia", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.ES))
+        assertEquals("Above report range", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.EN))
+        assertEquals("Acima da faixa do laudo", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.PT))
+        assertEquals("Por encima del rango del informe", DoctorReportFormat.assessment(RangeAssessment.ABOVE, ContentLanguage.ES))
     }
 
     @Test

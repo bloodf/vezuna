@@ -24,7 +24,15 @@ class AndroidBackupFiles(private val activity: ComponentActivity, private val ex
         pending = null
     }
 
-    val access = BackupFileAccess(pick = ::pick, save = ::save)
+    // Last-backup record (#69): a plain preference, never the vault, so it holds no health data.
+    private val prefs by lazy { activity.getSharedPreferences("vezuna_backup", android.content.Context.MODE_PRIVATE) }
+
+    val access = BackupFileAccess(
+        pick = ::pick,
+        save = ::save,
+        loadHistory = { prefs.getString(HISTORY_KEY, null) },
+        saveHistory = { prefs.edit().putString(HISTORY_KEY, it).apply() },
+    )
 
     private suspend fun pick(): ByteArray? {
         if (pending != null) failNative(NativeKey.SAVE_ALREADY_ACTIVE)
@@ -69,5 +77,8 @@ class AndroidBackupFiles(private val activity: ComponentActivity, private val ex
             onFailure = { if (it is UserCancelledExport) false else throw it },
         )
 
-    private companion object { const val CHUNK_BYTES = 64 * 1024 }
+    private companion object {
+        const val CHUNK_BYTES = 64 * 1024
+        const val HISTORY_KEY = "last_backup"
+    }
 }
