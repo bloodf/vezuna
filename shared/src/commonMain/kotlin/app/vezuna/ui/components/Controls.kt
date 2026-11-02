@@ -119,6 +119,8 @@ fun StatusTag(text: String, kind: StatusKind, modifier: Modifier = Modifier) {
     Row(
         modifier
             .clip(RoundedCornerShape(VezunaTokens.PillRadius))
+            // Opaque surface under the tint: status text stays readable on category fills (light-on-lavender in dark).
+            .background(MaterialTheme.colorScheme.surface)
             .background(color.copy(alpha = 0.12f))
             .heightIn(min = 36.dp)
             .padding(start = 8.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)
