@@ -6,6 +6,7 @@ import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.BackupMember
 import app.vezuna.security.backupFileId
+import app.vezuna.security.fileIds
 import app.vezuna.ui.RestoreMode
 import app.vezuna.ui.SourceFileStore
 import kotlinx.coroutines.NonCancellable
@@ -32,10 +33,12 @@ suspend fun VezunaRepository.restoreMembers(
     members.forEach { member ->
         val data = member.data
         val existing = if (profiles.value.any { it.profileId == data.profile.profileId }) peekProfile(data.profile.profileId) else null
-        // Original-file keys derive from the document ID, so an ID already used by another profile would overwrite its file.
+        // Original-file keys derive from the document ID plus the page, so compare file IDs, not document IDs: an incoming
+        // "X-page-2" must not overwrite page 2 of another profile's document X (nor clash within this profile).
         val usedByOthers = profiles.value.filter { it.profileId != data.profile.profileId }
-            .flatMapTo(mutableSetOf()) { peekProfile(it.profileId).documents.map { document -> document.documentId } }
-        val collides = data.documents.any { it.documentId in usedByOthers }
+            .flatMapTo(mutableSetOf()) { peekProfile(it.profileId).documents.flatMap { document -> document.fileIds() } }
+        val incoming = data.documents.flatMap { it.fileIds() }
+        val collides = incoming.any { it in usedByOthers } || incoming.toSet().size != incoming.size
         val toStore = when {
             mode == RestoreMode.RESTORE_AS_NEW || collides -> data.remappedAsNew(newId)
             existing == null -> data.keepingOnlyAvailableSourceFiles(null)

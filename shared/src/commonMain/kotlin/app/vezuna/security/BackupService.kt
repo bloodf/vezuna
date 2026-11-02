@@ -1,6 +1,7 @@
 package app.vezuna.security
 
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
@@ -30,6 +31,12 @@ data class BackupPayload(
  * source store binds page files to, so the same string is used for loading, backing up and restoring a page.
  */
 fun backupFileId(documentId: String, page: Int): String = if (page == 1) documentId else "$documentId-page-$page"
+
+private val PAGE_LIKE_ID = Regex(".*-page-[0-9]+")
+private const val MAX_PAGES = 500
+
+/** Every file ID a document can have in a backup or in the vault: its first page and each further page. */
+fun SourceDocument.fileIds(): List<String> = (1..1 + pageVaultKeys.size).map { backupFileId(documentId, it) }
 
 /** One profile of a household backup plus its original source files, keyed by document ID. */
 class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap())
@@ -165,11 +172,16 @@ class BackupService(
         }
     }
 
-    /** Consistent records, and files only for pages of documents that exist. */
-    private fun BackupMember.isValid() =
-        data.isInternallyConsistent() && files.keys.all { id ->
-            data.documents.any { document -> (1..1 + document.pageVaultKeys.size).any { backupFileId(document.documentId, it) == id } }
-        }
+    /**
+     * Consistent records, and files only for pages of documents that exist. A document ID that looks like a page file ID
+     * ("<id>-page-N") is refused, because it could name another document's page file; page counts are capped.
+     */
+    private fun BackupMember.isValid(): Boolean {
+        if (!data.isInternallyConsistent()) return false
+        if (data.documents.any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
+        val allowed = data.documents.flatMapTo(HashSet()) { it.fileIds() }
+        return files.keys.all { it in allowed }
+    }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {
         if (file.firstOrNull()?.toInt() != '{'.code) return false

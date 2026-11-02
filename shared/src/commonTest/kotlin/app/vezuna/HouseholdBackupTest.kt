@@ -364,6 +364,51 @@ class MultiPageDocumentTest {
     }
 
     @Test
+    fun aDocumentIdThatLooksLikeAPageFileCannotOverwriteAnotherProfilesPage() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(threePages("a", "X"), pageFiles("X"))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val a = repository.readProfile("a").documents.single()
+
+        // Same restore path as a backup that slipped past validation: the file ID "X-page-2" belongs to profile a's page 2.
+        val crafted = ProfileData(
+            Profile("b", "Name b", createdAt = t),
+            documents = listOf(app.vezuna.domain.SourceDocument("b", "X-page-2", "x.jpg", "image/jpeg", "h", t)),
+        )
+        val outcome = repository.restoreMembers(listOf(BackupMember(crafted, mapOf("X-page-2" to byteArrayOf(66)))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+
+        assertContentEquals(byteArrayOf(2), store.load("a", "X-page-2", a.pageVaultKeys[0]))
+        assertContentEquals(byteArrayOf(3), store.load("a", "X-page-3", a.pageVaultKeys[1]))
+        assertNotEquals("X-page-2", repository.readProfile(outcome.profileIds.single()).documents.single().documentId)
+    }
+
+    @Test
+    fun aDocumentIdClashingWithItsOwnProfilesPageIsRemapped() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val data = threePages("p", "X").let {
+            it.copy(documents = it.documents + app.vezuna.domain.SourceDocument("p", "X-page-2", "y.jpg", "image/jpeg", "h", t, vaultKey = "source-document-X-page-2"))
+        }
+
+        repository.restoreMembers(listOf(BackupMember(data, pageFiles("X") + ("X-page-2" to byteArrayOf(9)))), RestoreMode.REPLACE_EXISTING, VaultSourceFileStore(vault), ::newId)
+
+        val stored = repository.profiles.value.single().profileId
+        assertNotEquals("p", stored)
+    }
+
+    @Test
+    fun backupsWithPageLikeDocumentIdsOrAbsurdPageCountsAreRejected() = runTest {
+        val like = threePages("p", "X-page-3")
+        val file = service.createHousehold(listOf(BackupMember(like)), "correct horse battery".toCharArray())
+        assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, "correct horse battery".toCharArray()) }.userText.key)
+
+        val many = threePages("p").let { it.copy(documents = it.documents.map { d -> d.copy(pageVaultKeys = (1..501).map { n -> "k$n" }) }) }
+        val file2 = service.createHousehold(listOf(BackupMember(many)), "correct horse battery".toCharArray())
+        assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file2, "correct horse battery".toCharArray()) }.userText.key)
+    }
+
+    @Test
     fun deletingTheDocumentOrProfileRemovesEveryPageFile() = runTest {
         val vault = GenerationalMemoryVault()
         val repository = VaultBackedRepository(vault).also { it.load() }
