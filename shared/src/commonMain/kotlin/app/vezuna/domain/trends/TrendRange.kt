@@ -23,13 +23,17 @@ sealed interface TrendRange {
         init {
             require(from <= to) { "Custom range must not end before it starts" }
         }
+
+        companion object {
+            /** Safe factory for user-picked dates: null when [from] is after [to]. */
+            fun ofOrNull(from: LocalDate, to: LocalDate): Custom? = if (from <= to) Custom(from, to) else null
+        }
     }
 
     companion object {
         val THREE_MONTHS: TrendRange = Months(3)
         val SIX_MONTHS: TrendRange = Months(6)
         val ONE_YEAR: TrendRange = Months(12)
-        val THREE_YEARS: TrendRange = Months(36)
     }
 }
 

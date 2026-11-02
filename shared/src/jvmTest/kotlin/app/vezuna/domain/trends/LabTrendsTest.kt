@@ -13,6 +13,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -96,7 +97,6 @@ class LabTrendsTest {
     fun noDataInRangeIsNoReadingAndNeverZero() {
         val s = trend(listOf(obs("a", "2024-01-05", 13.0)), TrendRange.THREE_MONTHS).series.single()
         assertEquals(ComparisonStatus.NO_READING, s.comparison.status)
-        assertEquals("No reading recorded", s.comparison.status.message)
         assertTrue(s.points.isEmpty())
         assertTrue(s.hasHistoryOutsideWindow)
         assertEquals(1, s.allPoints.size)
@@ -107,7 +107,6 @@ class LabTrendsTest {
         val s = trend(listOf(obs("a", "2026-10-28", 13.0)), TrendRange.All).series.single()
         assertEquals(ComparisonStatus.NOT_ENOUGH_READINGS, s.comparison.status)
         assertEquals(0.5, s.points.single().xFraction)
-        assertEquals("Not enough readings to compare", s.comparison.status.message)
     }
 
     @Test
@@ -177,18 +176,39 @@ class LabTrendsTest {
     }
 
     @Test
-    fun collectionDateIsNoonUtcCalendarDayRegardlessOfZone() {
-        val saved = java.util.TimeZone.getDefault()
-        try {
-            listOf("Pacific/Apia", "America/Sao_Paulo").forEach {
-                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(it))
-                val p = trend(hgb, TrendRange.All).series.single().points.first()
-                assertEquals(LocalDate(2026, 4, 12), p.date)
-                assertEquals(Instant.parse("2026-04-12T12:00:00Z"), p.at)
-            }
-        } finally {
-            java.util.TimeZone.setDefault(saved)
-        }
+    fun labCollectionDayIsStableAndWeightUsesLocalDay() {
+        val p = trend(hgb, TrendRange.All).series.single().points.first()
+        assertEquals(LocalDate(2026, 4, 12), p.date)
+        assertEquals(Instant.parse("2026-04-12T12:00:00Z"), p.at)
+        val v = ProfileVitals(weights = listOf(WeightReading("w", Instant.parse("2026-10-31T23:30:00Z"), 68.4)))
+        fun day(zone: String) = VitalTrends.series(VitalSeriesKind.WEIGHT, v, TrendRange.All, today, TimeZone.of(zone)).points.single().date
+        assertEquals(LocalDate(2026, 11, 1), day("Pacific/Auckland"))
+        assertEquals(LocalDate(2026, 10, 31), day("America/Sao_Paulo"))
+        assertEquals(LocalDate(2026, 10, 31), day("UTC"))
+    }
+
+    @Test
+    fun normalizedMixedUnitsKeepNonZeroDelta() {
+        val o = listOf(
+            obs("a", "2026-04-12", 80.0, "umol/L", 0.08 to "mmol/L", decimals = 0),
+            obs("b", "2026-07-15", 0.09, "mmol/L", 0.09 to "mmol/L", decimals = 2),
+        )
+        val s = trend(o, TrendRange.All).series.single()
+        assertEquals("mmol/L", s.unit)
+        assertEquals(0.01, s.comparison.sincePrevious!!.delta, 1e-9)
+    }
+
+    @Test
+    fun customRangeRejectsReversedDates() {
+        assertNull(TrendRange.Custom.ofOrNull(LocalDate(2026, 5, 2), LocalDate(2026, 5, 1)))
+        assertNotNull(TrendRange.Custom.ofOrNull(LocalDate(2026, 5, 1), LocalDate(2026, 5, 1)))
+        assertFailsWith<IllegalArgumentException> { TrendRange.Custom(LocalDate(2026, 5, 2), LocalDate(2026, 5, 1)) }
+    }
+
+    @Test
+    fun duplicateDeviceDaysCollapseToOnePoint() {
+        val v = ProfileVitals(steps = listOf(StepsDay(LocalDate(2026, 10, 30), 100), StepsDay(LocalDate(2026, 10, 30), 200)))
+        assertEquals(1, VitalTrends.series(VitalSeriesKind.STEPS, v, TrendRange.All, today, TimeZone.UTC).points.size)
     }
 
     @Test
@@ -204,6 +224,8 @@ class LabTrendsTest {
         val s = trend(listOf(obs("b", "2026-10-28", 13.2), obs("a", "2026-10-28", 13.0)), TrendRange.All).series.single()
         assertEquals(listOf("a", "b"), s.points.map { it.id })
         assertEquals(0.2, s.comparison.sincePrevious!!.delta)
+        assertTrue(s.comparison.sincePrevious!!.sameDay)
+        assertFalse(s.canDrawLine)
     }
 
     @Test

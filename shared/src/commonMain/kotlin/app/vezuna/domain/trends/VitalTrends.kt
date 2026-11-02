@@ -7,7 +7,7 @@ import kotlinx.datetime.toLocalDateTime
 
 enum class VitalSeriesKind { STEPS, HEART_RATE_DAILY_AVERAGE, WEIGHT }
 
-/** Device measurement trends. Steps and heart rate are daily summaries; weight readings are dated individually. */
+/** Device measurement trends. Display names are left to the UI (key off [VitalSeriesKind]); one record per day is assumed, the last wins. Steps and heart rate are daily summaries; weight readings are dated individually. */
 object VitalTrends {
     private val device = PointSource(PointSourceKind.DEVICE)
 
@@ -19,13 +19,13 @@ object VitalTrends {
         zone: TimeZone,
     ): HistorySeries {
         val (name, unit, raw) = when (kind) {
-            VitalSeriesKind.STEPS -> Triple("Steps", "steps", vitals.steps.map {
-                RawReading("steps-${it.date}", it.date, it.count.toDouble(), it.count.toDouble(), "steps", 0, null, device, Granularity.DAILY_SUMMARY, "")
+            VitalSeriesKind.STEPS -> Triple(kind.name, "count", vitals.steps.associateBy { it.date }.values.map {
+                RawReading("steps-${it.date}", it.date, it.count.toDouble(), it.count.toDouble(), "count", 0, null, device, Granularity.DAILY_SUMMARY, "")
             })
-            VitalSeriesKind.HEART_RATE_DAILY_AVERAGE -> Triple("Daily average heart rate", "bpm", vitals.heartRateDaily.map {
+            VitalSeriesKind.HEART_RATE_DAILY_AVERAGE -> Triple(kind.name, "bpm", vitals.heartRateDaily.associateBy { it.date }.values.map {
                 RawReading("hr-${it.date}", it.date, it.avg, it.avg, "bpm", null, null, device, Granularity.DAILY_SUMMARY, "")
             })
-            VitalSeriesKind.WEIGHT -> Triple("Weight", "kg", vitals.weights.map {
+            VitalSeriesKind.WEIGHT -> Triple(kind.name, "kg", vitals.weights.map {
                 RawReading("weight-${it.recordId}", it.time.toLocalDateTime(zone).date, it.kg, it.kg, "kg", null, null, device, Granularity.READING, it.time.toString())
             })
         }

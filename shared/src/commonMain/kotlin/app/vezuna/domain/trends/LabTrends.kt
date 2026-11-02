@@ -54,8 +54,9 @@ object LabTrends {
         today: LocalDate,
     ): TestTrend {
         val latest = rows.maxWith(compareBy({ it.collectedAt }, { it.observationId }))
-        val reportsById = reports.associateBy { it.reportId }
-        val docsById = documents.associateBy { it.documentId }
+        val profileId = rows.first().profileId
+        val reportsById = reports.filter { it.profileId == profileId }.associateBy { it.reportId }
+        val docsById = documents.filter { it.profileId == profileId }.associateBy { it.documentId }
         fun sourceOf(o: LabObservation): PointSource {
             val report = reportsById[o.reportId]
             val doc = report?.sourceDocumentId?.let { docsById[it] }
@@ -65,6 +66,8 @@ object LabTrends {
                 else -> PointSource(PointSourceKind.REPORT, report.laboratoryName ?: doc?.displayName, report.reportId, report.sourceDocumentId)
             }
         }
+        // Invariant: collection dates are stored as noon UTC calendar days, so the UTC date is the collection day.
+        // Real timestamps would need the viewer's local zone instead.
         fun dateOf(o: LabObservation) = o.collectedAt.toLocalDateTime(TimeZone.UTC).date
 
         val text = rows.filter { it.isQualitative }.sortedWith(compareBy({ it.collectedAt }, { it.observationId })).map {
@@ -84,7 +87,9 @@ object LabTrends {
                     RawReading(
                         it.observationId, dateOf(it),
                         if (useOriginal) it.originalValue else it.normalizedValue,
-                        it.originalValue, it.originalUnit, it.valueDecimals,
+                        it.originalValue, it.originalUnit,
+                        // Decimals describe the printed original; a normalized value has no known precision.
+                        if (useOriginal) it.valueDecimals else null,
                         it.referenceRange, sourceOf(it), Granularity.READING, it.observationId,
                     )
                 }

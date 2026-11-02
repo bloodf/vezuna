@@ -43,7 +43,11 @@ data class TimeAxis(val startEpochSeconds: Long, val endEpochSeconds: Long) {
         else ((epochSeconds - startEpochSeconds).toDouble() / (endEpochSeconds - startEpochSeconds)).coerceIn(0.0, 1.0)
 }
 
-/** Plain arithmetic difference. Deliberately carries no better/worse judgement. */
+/**
+ * Plain arithmetic difference. Deliberately carries no better/worse judgement.
+ * Readings are ordered by date, then by id (stable, not real recency): when two readings share a day the
+ * "previous" one can have the same date, see [sameDay]; the UI should say "same day" rather than "since <date>".
+ */
 data class ChangeSummary(
     val delta: Double,
     val unit: String,
@@ -51,13 +55,12 @@ data class ChangeSummary(
     val fromValue: Double,
     val toDate: LocalDate,
     val toValue: Double,
-)
-
-enum class ComparisonStatus(val message: String?) {
-    NO_READING("No reading recorded"),
-    NOT_ENOUGH_READINGS("Not enough readings to compare"),
-    COMPARABLE(null),
+) {
+    val sameDay: Boolean get() = fromDate == toDate
 }
+
+/** Copy for these states ("No reading recorded", "Not enough readings to compare") is localized by the UI/PDF layer. */
+enum class ComparisonStatus { NO_READING, NOT_ENOUGH_READINGS, COMPARABLE }
 
 /** Latest reading in the selected period plus its change against the period's first and previous reading. */
 data class TrendComparison(
@@ -85,8 +88,8 @@ data class HistorySeries(
 ) {
     val available: DateWindow? get() = allPoints.firstOrNull()?.let { DateWindow(it.date, allPoints.last().date) }
     val hasHistoryOutsideWindow: Boolean get() = allPoints.size > points.size
-    /** The line may only join actual points, and only when there are at least two. */
-    val canDrawLine: Boolean get() = points.size >= 2
+    /** The line may only join actual points, and only when they span at least two distinct dates. */
+    val canDrawLine: Boolean get() = points.map { it.date }.distinct().size >= 2
 }
 
 /** A text (qualitative) result kept as text: never a number, zero or score. */
