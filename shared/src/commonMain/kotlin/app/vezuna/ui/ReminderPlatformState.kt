@@ -15,6 +15,8 @@ class ReminderPlatformState(
     private val persistHideMedicationNames: (Boolean) -> Unit = {},
     /** Opens the system screen where exact alarms can be allowed; null where the platform has no such concept. */
     val openExactAlarmSettings: (() -> Unit)? = null,
+    /** Opens this app's notification settings in the system; null where the platform cannot. */
+    val openNotificationSettings: (() -> Unit)? = null,
 ) {
     private val hideNames = MutableStateFlow(hideMedicationNames)
     val hideMedicationNames: StateFlow<Boolean> = hideNames.asStateFlow()
@@ -26,6 +28,12 @@ class ReminderPlatformState(
     private val coverage = MutableStateFlow<Instant?>(null)
     /** Last scheduled reminder, when the platform can only schedule a limited window ahead (iOS). */
     val coverageUntil: StateFlow<Instant?> = coverage.asStateFlow()
+
+    private val access = MutableStateFlow(NotificationAccess.UNKNOWN)
+    /** Whether the system lets reminders appear. Schedules are saved either way. */
+    val notificationAccess: StateFlow<NotificationAccess> = access.asStateFlow()
+
+    fun setNotificationAccess(value: NotificationAccess) { access.value = value }
 
     fun setHideMedicationNames(hide: Boolean) {
         hideNames.value = hide
@@ -42,3 +50,6 @@ class ReminderPlatformState(
         fun isCoverageLow(until: Instant, now: Instant): Boolean = until - now < LOW_COVERAGE
     }
 }
+
+/** System notification permission as the platform reports it. UNKNOWN shows nothing rather than guessing. */
+enum class NotificationAccess { UNKNOWN, NOT_REQUESTED, ALLOWED, DENIED }

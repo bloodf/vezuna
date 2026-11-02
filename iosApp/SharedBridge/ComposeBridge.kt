@@ -257,7 +257,19 @@ object IosRuntime {
     internal val reminderState = ReminderPlatformState(
         hideMedicationNames = NSUserDefaults.standardUserDefaults.boolForKey(HIDE_NAMES_KEY),
         persistHideMedicationNames = { NSUserDefaults.standardUserDefaults.setBool(it, HIDE_NAMES_KEY) },
+        openNotificationSettings = { nativeActionHandler?.perform("NOTIFICATION_SETTINGS") },
     )
+
+    /** Called by the notification coordinator with the system authorization; "notDetermined" is asked for automatically. */
+    fun setNotificationAuthorization(allowed: Boolean, denied: Boolean) {
+        reminderState.setNotificationAccess(
+            when {
+                allowed -> app.vezuna.ui.NotificationAccess.ALLOWED
+                denied -> app.vezuna.ui.NotificationAccess.DENIED
+                else -> app.vezuna.ui.NotificationAccess.UNKNOWN
+            },
+        )
+    }
 
     /** Called by the notification coordinator after planning; a negative value clears the "scheduled until" line. */
     fun setReminderCoverage(untilEpochSeconds: Long) {
