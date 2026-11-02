@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,6 +38,7 @@ import app.vezuna.localization.toUserText
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.security.BackupKind
+import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import app.vezuna.security.OpenedBackup
 import app.vezuna.security.PassphraseStrength
@@ -67,7 +70,12 @@ fun BackupSettingsSection(state: AppUiState, controller: AppController, files: B
     }
     val data = state.data
     if (creating && data != null) {
-        CreateBackupDialog(service, data, files, onClose = { creating = false }, onSaved = { controller.announce(UserText.Key(L10nKey.BACKUP_SAVED)) })
+        CreateBackupDialog(
+            service, data, files,
+            household = if (state.profiles.size > 1 || data.documents.any { it.vaultKey != null }) controller::householdForBackup else null,
+            onClose = { creating = false },
+            onSaved = { controller.announce(UserText.Key(L10nKey.BACKUP_SAVED)) },
+        )
     }
     if (restoring) {
         RestoreBackupFlow(
@@ -75,7 +83,7 @@ fun BackupSettingsSection(state: AppUiState, controller: AppController, files: B
             files = files,
             profileExists = { id -> state.profiles.any { it.profileId == id } },
             confirmBody = null,
-            onConfirmed = { opened, mode -> controller.restoreBackup(opened.data, mode) },
+            onConfirmed = { opened, mode -> controller.restoreHousehold(opened.members, mode) },
             onClose = { restoring = false },
         )
     }
@@ -96,7 +104,15 @@ private fun PassphraseField(label: String, value: String, onChange: (String) -> 
 }
 
 @Composable
-private fun CreateBackupDialog(service: BackupService, data: ProfileData, files: BackupFileAccess, onClose: () -> Unit, onSaved: () -> Unit) {
+private fun CreateBackupDialog(
+    service: BackupService,
+    data: ProfileData,
+    files: BackupFileAccess,
+    household: (suspend () -> List<BackupMember>)?,
+    onClose: () -> Unit,
+    onSaved: () -> Unit,
+) {
+    var wholeHousehold by remember { mutableStateOf(false) }
     var passphrase by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -112,6 +128,12 @@ private fun CreateBackupDialog(service: BackupService, data: ProfileData, files:
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 InlineNotice(vitaText(L10nKey.BACKUP_PASSPHRASE_WARNING), Icons.Rounded.Lock)
+                if (household != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = wholeHousehold, onCheckedChange = { wholeHousehold = it }, enabled = !busy)
+                        Text(vitaText(L10nKey.BACKUP_INCLUDE_HOUSEHOLD), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
                 PassphraseField(vitaText(L10nKey.BACKUP_PASSPHRASE_LABEL), passphrase, { passphrase = it; error = null }, !busy)
                 if (passphrase.isNotEmpty()) {
                     Text(
@@ -140,8 +162,8 @@ private fun CreateBackupDialog(service: BackupService, data: ProfileData, files:
                 val chars = passphrase.toCharArray()
                 scope.launch {
                     try {
-                        val bytes = service.create(data, chars)
-                        val saved = files.save(backupFileName(data), bytes)
+                        val bytes = if (wholeHousehold && household != null) service.createHousehold(household(), chars) else service.create(data, chars)
+                        val saved = files.save(if (wholeHousehold) householdBackupFileName() else backupFileName(data), bytes)
                         busy = false
                         if (saved) {
                             onSaved()
@@ -213,7 +235,7 @@ fun RestoreBackupFlow(
             val file = files.pick()
             if (file == null) {
                 onClose()
-            } else if (file.isEmpty() || file.size > BackupService.MAX_BACKUP_BYTES) {
+            } else if (file.isEmpty() || file.size > BackupService.MAX_BACKUP_READ_BYTES) {
                 error = UserText.Key(L10nKey.BACKUP_FILE_UNREADABLE)
                 step = RestoreStep.Failed
             } else when (service.kind(file)) {
@@ -253,8 +275,8 @@ fun RestoreBackupFlow(
         }
         is RestoreStep.Decide -> {
             val opened = current.opened
-            val name = opened.data.profile.displayName
-            val exists = profileExists(opened.data.profile.profileId)
+            val name = opened.members.joinToString(", ") { it.data.profile.displayName }
+            val exists = opened.members.any { profileExists(it.data.profile.profileId) }
             val finish: (RestoreMode) -> Unit = { mode ->
                 busy = true
                 scope.launch {
@@ -271,7 +293,10 @@ fun RestoreBackupFlow(
                 title = { Text(vitaText(if (exists) L10nKey.BACKUP_PROFILE_EXISTS_TITLE else L10nKey.BACKUP_CONFIRM_TITLE)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(vitaText(L10nKey.BACKUP_CONTENTS, name), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            if (opened.members.size > 1) vitaText(L10nKey.BACKUP_HOUSEHOLD_CONTENTS, opened.members.size, name) else vitaText(L10nKey.BACKUP_CONTENTS, name),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
                         if (opened.kind == BackupKind.SAME_DEVICE) Text(vitaText(L10nKey.BACKUP_SAME_DEVICE_LABEL), style = MaterialTheme.typography.bodySmall)
                         Text(
                             if (exists) vitaText(L10nKey.BACKUP_PROFILE_EXISTS_BODY, name) else vitaText(confirmBody ?: L10nKey.BACKUP_CONFIRM_BODY, name),
@@ -313,4 +338,9 @@ internal fun backupFileName(data: ProfileData): String {
     val safe = data.profile.displayName.map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("").take(40).ifBlank { "profile" }
     val date = currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date
     return "vezuna-$safe-$date.${BackupService.FILE_EXTENSION}"
+}
+
+internal fun householdBackupFileName(): String {
+    val date = currentInstant().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    return "vezuna-household-$date.${BackupService.FILE_EXTENSION}"
 }
