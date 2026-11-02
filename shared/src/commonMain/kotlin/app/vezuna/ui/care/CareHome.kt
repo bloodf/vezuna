@@ -141,7 +141,7 @@ private fun TodayPanel(ctx: RouteContext, data: ProfileData, onDose: (CareDose) 
                         ctx.controller.takeDose(firstOpen.dose)
                     }
                 },
-                Modifier.fillMaxWidth().semantics { contentDescription = label },
+                Modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = label; role = Role.Button },
                 container = VezunaTokens.Pine,
                 content = Color.White,
                 icon = Res.drawable.ic_check_circle,

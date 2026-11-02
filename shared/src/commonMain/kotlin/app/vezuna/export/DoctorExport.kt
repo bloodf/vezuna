@@ -325,7 +325,7 @@ object DoctorExportContent {
                     add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.result.lowercase()} ${it.qualitativeValue} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
                     return@forEach
                 }
-                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.original} ${num(it.originalValue)} ${it.originalUnit} | ${text.normalized} ${num(it.normalizedValue)} ${it.normalizedUnit} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
+                add("${it.collectedAt} | ${it.displayName} (${it.testCode}) | ${text.original} ${DoctorReportFormat.recorded(it.originalValue, it.valueDecimals, language)} ${it.originalUnit} | ${text.normalized} ${num(it.normalizedValue)} ${it.normalizedUnit} | ${text.reference.lowercase()} ${rangeText(it.referenceRange, language)}")
             }
         add(text.medicationsRecorded)
         data.medications.filter { it.profileId == data.profile.profileId }.forEach { medication: Medication ->
@@ -366,7 +366,7 @@ class CsvDoctorExporter {
                     observation.displayName,
                     if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.originalValue, observation.valueDecimals),
                     observation.originalUnit,
-                    if (observation.isQualitative) "" else DoctorReportFormat.value(observation.normalizedValue),
+                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.normalizedValue, observation.valueDecimals.takeIf { observation.normalizedValue == observation.originalValue }),
                     observation.normalizedUnit,
                     observation.referenceRange.lower?.let { DoctorReportFormat.value(it) }.orEmpty(),
                     observation.referenceRange.upper?.let { DoctorReportFormat.value(it) }.orEmpty(),

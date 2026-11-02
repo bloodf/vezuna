@@ -118,7 +118,8 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
         // PDF pages re-render per zoom bucket (1x..4x of the 2x base), capped by MAX_PAGE_PX, so small values stay sharp.
         val bucket = if (isPdf(file.mediaType)) ceil(zoom).toInt().coerceIn(1, MAX_ZOOM.toInt()) else 1
         val renderPx = with(LocalDensity.current) { (baseWidth.toPx() * 2 * bucket).toInt().coerceAtMost(MAX_PAGE_PX) }
-        LaunchedEffect(pageIndex, bucket) {
+        // Keyed on the clamped size: buckets that clamp to the same size do not render again.
+        LaunchedEffect(pageIndex, renderPx) {
             val page = try {
                 if (isPdf(file.mediaType)) {
                     renderPdfPage(file.pages.first(), pageIndex, renderPx)?.also { pageCount = it.pageCount }?.image
@@ -128,7 +129,9 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
             } catch (cancellation: kotlinx.coroutines.CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
-                return@LaunchedEffect onFailed()
+                // A failed sharper re-render keeps the page already on screen.
+                if (shown?.first != pageIndex) onFailed()
+                return@LaunchedEffect
             }
             if (page == null) unsupported = true else shown = pageIndex to page
         }

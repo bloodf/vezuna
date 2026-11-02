@@ -114,6 +114,8 @@ class ExportOptionsTest {
         val csv = CsvDoctorExporter().export(data.copy(observations = listOf(whole, two)))
         assertTrue("\"146\"," in csv && "146.0" !in csv && "99.0" !in csv, csv)
         assertTrue("\"5.70\"" in csv, csv)
+        val notes = DoctorExportContent.lines(data.copy(observations = listOf(two.copy(originalValue = 5.4, normalizedValue = 5.4, valueDecimals = 2)))).joinToString("\n")
+        assertTrue("5.40 g/L" in notes, notes)
     }
 
     @Test
