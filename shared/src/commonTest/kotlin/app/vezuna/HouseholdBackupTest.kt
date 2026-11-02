@@ -257,3 +257,128 @@ class SourceFileStorageTest {
 
 /** Forwards everything to [inner]; tests override the one call they want to break. */
 internal open class VezunaRepositoryDelegate(private val inner: app.vezuna.data.VezunaRepository) : app.vezuna.data.VezunaRepository by inner
+
+class MultiPageDocumentTest {
+    private val t = Instant.parse("2026-01-01T00:00:00Z")
+    private val service = BackupService()
+    private var ids = 0
+    private fun newId() = "fresh-${ids++}"
+
+    private fun threePages(profileId: String, documentId: String = "d") = ProfileData(
+        Profile(profileId, "Name $profileId", createdAt = t),
+        documents = listOf(
+            app.vezuna.domain.SourceDocument(
+                profileId, documentId, "scan.jpg", "image/jpeg", "h", t,
+                vaultKey = "source-document-$documentId",
+                pageVaultKeys = listOf("source-document-$documentId-page-2", "source-document-$documentId-page-3"),
+            ),
+        ),
+    )
+
+    private fun pageFiles(documentId: String = "d") = mapOf(
+        documentId to byteArrayOf(1), "$documentId-page-2" to byteArrayOf(2), "$documentId-page-3" to byteArrayOf(3),
+    )
+
+    @Test
+    fun backupCarriesEveryPageAndRejectsFilesForPagesThatDoNotExist() = runTest {
+        val member = BackupMember(threePages("p"), pageFiles())
+        val opened = service.open(service.createHousehold(listOf(member), "correct horse battery".toCharArray()), "correct horse battery".toCharArray())
+        assertEquals(setOf("d", "d-page-2", "d-page-3"), opened.members.single().files.keys)
+        assertContentEquals(byteArrayOf(3), opened.members.single().files.getValue("d-page-3"))
+
+        val bogus = BackupMember(threePages("p"), mapOf("d-page-9" to byteArrayOf(9)))
+        val file = service.createHousehold(listOf(bogus), "correct horse battery".toCharArray())
+        assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, "correct horse battery".toCharArray()) }.userText.key)
+    }
+
+    @Test
+    fun restoreStoresEachPageAndPointsTheDocumentAtThem() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+
+        repository.restoreMembers(listOf(BackupMember(threePages("p"), pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+
+        val doc = repository.readProfile("p").documents.single()
+        assertContentEquals(byteArrayOf(1), store.load("p", "d", assertNotNull(doc.vaultKey)))
+        assertEquals(2, doc.pageVaultKeys.size)
+        doc.pageVaultKeys.forEachIndexed { index, key -> assertContentEquals(byteArrayOf((index + 2).toByte()), store.load("p", "d-page-${index + 2}", key)) }
+    }
+
+    @Test
+    fun restoreAsNewStoresPagesUnderTheNewDocumentId() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(threePages("p"), pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+
+        val copyId = repository.restoreMembers(listOf(BackupMember(threePages("p"), pageFiles())), RestoreMode.RESTORE_AS_NEW, store, ::newId).profileIds.single()
+
+        val copy = repository.readProfile(copyId).documents.single()
+        assertNotEquals("d", copy.documentId)
+        assertEquals(2, copy.pageVaultKeys.size)
+        copy.pageVaultKeys.forEachIndexed { index, key -> assertContentEquals(byteArrayOf((index + 2).toByte()), store.load(copyId, "${copy.documentId}-page-${index + 2}", key)) }
+        // The original profile's pages are untouched.
+        assertEquals(3, repository.readProfile("p").documents.single().let { 1 + it.pageVaultKeys.size })
+    }
+
+    @Test
+    fun incompletePagesAreDroppedRatherThanMisnumbered() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val files = pageFiles() - "d-page-2"
+
+        repository.restoreMembers(listOf(BackupMember(threePages("p"), files)), RestoreMode.REPLACE_EXISTING, VaultSourceFileStore(vault), ::newId)
+
+        val doc = repository.readProfile("p").documents.single()
+        assertNotNull(doc.vaultKey)
+        assertTrue(doc.pageVaultKeys.isEmpty())
+    }
+
+    @Test
+    fun anotherProfilesPagesAreNeverOverwrittenByACollidingDocumentId() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(threePages("a"), pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val before = repository.readProfile("a").documents.single()
+
+        val other = pageFiles().mapValues { byteArrayOf(7) }
+        repository.restoreMembers(listOf(BackupMember(threePages("b"), other)), RestoreMode.REPLACE_EXISTING, store, ::newId)
+
+        before.pageVaultKeys.forEachIndexed { index, key -> assertContentEquals(byteArrayOf((index + 2).toByte()), store.load("a", "d-page-${index + 2}", key)) }
+    }
+
+    @Test
+    fun deletingTheDocumentOrProfileRemovesEveryPageFile() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        repository.restoreMembers(listOf(BackupMember(threePages("p"), pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        repository.restoreMembers(listOf(BackupMember(threePages("q", "e"), pageFiles("e"))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val keys = repository.readProfile("p").documents.single().let { listOfNotNull(it.vaultKey) + it.pageVaultKeys }
+        val otherKeys = repository.readProfile("q").documents.single().let { listOfNotNull(it.vaultKey) + it.pageVaultKeys }
+
+        repository.deleteDocument("p", "d")
+        keys.forEach { assertNull(vault.read(it)) }
+        otherKeys.forEach { assertNotNull(vault.read(it)) }
+        repository.deleteProfile("q")
+        otherKeys.forEach { assertNull(vault.read(it)) }
+    }
+
+    @Test
+    fun householdExportIncludesEveryPage() = runTest {
+        val repository = InMemoryVezunaRepository()
+        repository.restoreProfile(threePages("p"))
+        val store = object : SourceFileStore {
+            override suspend fun save(profileId: String, documentId: String, bytes: ByteArray) = error("unused")
+            override suspend fun discard(key: String) {}
+            override suspend fun load(profileId: String, documentId: String, key: String) = documentId.encodeToByteArray()
+        }
+
+        val files = labController(repository, store).householdForBackup().single().files
+
+        assertEquals(setOf("d", "d-page-2", "d-page-3"), files.keys)
+        assertContentEquals("d-page-3".encodeToByteArray(), files.getValue("d-page-3"))
+    }
+}

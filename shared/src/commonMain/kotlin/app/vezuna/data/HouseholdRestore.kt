@@ -3,7 +3,9 @@ package app.vezuna.data
 import app.vezuna.domain.keepingOnlyAvailableSourceFiles
 import app.vezuna.domain.remappedAsNew
 import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.SourceDocument
 import app.vezuna.security.BackupMember
+import app.vezuna.security.backupFileId
 import app.vezuna.ui.RestoreMode
 import app.vezuna.ui.SourceFileStore
 import kotlinx.coroutines.NonCancellable
@@ -44,15 +46,7 @@ suspend fun VezunaRepository.restoreMembers(
         try {
             // Remapping keeps document order, so the n-th document of the backup is the n-th document to store.
             val withFiles = toStore.copy(documents = toStore.documents.mapIndexed { index, document ->
-                val bytes = member.files[data.documents[index].documentId]
-                // A kept original of the profile being replaced is already stored and is never rewritten.
-                if (files == null || bytes == null || document.vaultKey in keptKeys) {
-                    document
-                } else {
-                    val key = files.save(document.profileId, document.documentId, bytes)
-                    if (key !in keptKeys) written += key
-                    document.copy(vaultKey = key)
-                }
+                if (files == null) document else files.restoreOriginals(document, data.documents[index], member.files, keptKeys, written)
             })
             if (!restoreWithVitals(withFiles)) allVitals = false
         } catch (error: Throwable) {
@@ -62,4 +56,28 @@ suspend fun VezunaRepository.restoreMembers(
         stored += toStore.profile.profileId
     }
     return RestoreOutcome(stored, allVitals)
+}
+
+/**
+ * Stores the page files [original] carried in the backup under [document]'s IDs and points [document] at them.
+ * A kept original of the profile being replaced is already stored and is never rewritten. Pages are all-or-nothing:
+ * a missing page would shift the numbering the page keys are bound to, so then only page 1 is restored.
+ */
+private suspend fun SourceFileStore.restoreOriginals(
+    document: SourceDocument,
+    original: SourceDocument,
+    backupFiles: Map<String, ByteArray>,
+    keptKeys: Set<String>,
+    written: MutableList<String>,
+): SourceDocument {
+    if (document.vaultKey in keptKeys) return document
+    val first = backupFiles[original.documentId] ?: return document
+    val pages = (2..original.pageVaultKeys.size + 1).map { backupFiles[backupFileId(original.documentId, it)] }
+    val key = save(document.profileId, document.documentId, first).also { written += it }
+    val pageKeys = if (pages.all { it != null }) {
+        pages.mapIndexed { index, bytes -> save(document.profileId, backupFileId(document.documentId, index + 2), bytes!!).also { written += it } }
+    } else {
+        emptyList()
+    }
+    return document.copy(vaultKey = key, pageVaultKeys = pageKeys)
 }

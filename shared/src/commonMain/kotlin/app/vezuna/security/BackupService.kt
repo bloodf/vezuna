@@ -25,6 +25,12 @@ data class BackupPayload(
     val data: ProfileData,
 )
 
+/**
+ * File ID of page [page] (1-based) of a document inside [BackupMember.files]. It is also the document ID the
+ * source store binds page files to, so the same string is used for loading, backing up and restoring a page.
+ */
+fun backupFileId(documentId: String, page: Int): String = if (page == 1) documentId else "$documentId-page-$page"
+
 /** One profile of a household backup plus its original source files, keyed by document ID. */
 class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap())
 
@@ -159,9 +165,11 @@ class BackupService(
         }
     }
 
-    /** Consistent records, and files only for documents that exist. */
+    /** Consistent records, and files only for pages of documents that exist. */
     private fun BackupMember.isValid() =
-        data.isInternallyConsistent() && files.keys.all { id -> data.documents.any { it.documentId == id } }
+        data.isInternallyConsistent() && files.keys.all { id ->
+            data.documents.any { document -> (1..1 + document.pageVaultKeys.size).any { backupFileId(document.documentId, it) == id } }
+        }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {
         if (file.firstOrNull()?.toInt() != '{'.code) return false

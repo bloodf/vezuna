@@ -51,6 +51,7 @@ import app.vezuna.platform.toHex
 import app.vezuna.data.restoreMembers
 import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
+import app.vezuna.security.backupFileId
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -754,17 +755,19 @@ class AppController(
             val data = repository.peekProfile(profile.profileId)
             val files = mutableMapOf<String, ByteArray>()
             data.documents.forEach { document ->
-                val key = document.vaultKey ?: return@forEach
-                val bytes = try {
-                    sourceStore?.load(document.profileId, document.documentId, key)
-                } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                    throw cancelled
-                } catch (unreadable: Exception) {
-                    null
-                } ?: return@forEach
-                encoded += (bytes.size + 2L) / 3 * 4
-                if (encoded > BackupService.MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
-                files[document.documentId] = bytes
+                (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEachIndexed { index, key ->
+                    val fileId = backupFileId(document.documentId, index + 1)
+                    val bytes = try {
+                        sourceStore?.load(document.profileId, fileId, key)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (unreadable: Exception) {
+                        null
+                    } ?: return@forEachIndexed
+                    encoded += (bytes.size + 2L) / 3 * 4
+                    if (encoded > BackupService.MAX_BACKUP_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    files[fileId] = bytes
+                }
             }
             BackupMember(data, files)
         }
