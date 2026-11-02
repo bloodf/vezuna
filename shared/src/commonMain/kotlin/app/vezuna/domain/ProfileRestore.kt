@@ -19,6 +19,7 @@ fun ProfileData.remappedAsNew(newId: () -> String): ProfileData {
         is JsonObject -> JsonObject(element.mapValues { (key, value) ->
             when {
                 key == "vaultKey" -> JsonNull
+                key == "pageVaultKeys" -> kotlinx.serialization.json.JsonArray(emptyList())
                 isIdField(key) && value is JsonPrimitive && value.isString -> JsonPrimitive(mapping.getOrPut(value.content, newId))
                 else -> walk(value)
             }
@@ -40,7 +41,10 @@ private fun isIdField(key: String) = key != "recordId" && (key == "profileId" ||
 fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): ProfileData {
     val available = existing?.documents?.mapNotNull { doc -> doc.vaultKey?.let { doc.documentId to it } }?.toSet().orEmpty()
     return copy(documents = documents.map { doc ->
-        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) doc else doc.copy(vaultKey = null)
+        val current = existing?.documents?.firstOrNull { it.documentId == doc.documentId }
+        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) {
+            doc.copy(pageVaultKeys = doc.pageVaultKeys.filter { it in current?.pageVaultKeys.orEmpty() })
+        } else doc.copy(vaultKey = null, pageVaultKeys = emptyList())
     })
 }
 

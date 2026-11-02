@@ -626,6 +626,9 @@ object IosRuntime {
         mediaType: String,
         sourceBytes: ByteArray,
         candidates: List<NativeCandidateInput>,
+        additionalPages: List<ByteArray>,
+        laboratoryName: String?,
+        orderedEpochSeconds: Long?,
         completion: (NativeMessage?) -> Unit,
     ) {
         if (!initialized) {
@@ -639,7 +642,12 @@ object IosRuntime {
                     return@launch
                 }
                 // The same AppController path as Android: SHA-256 dedupe, identical validation, one report per source.
-                controller.importSource(PickedSource(fileName, mediaType, sourceBytes, candidates.map { it.toExtracted() }))
+                controller.importSource(
+                    PickedSource(
+                        fileName, mediaType, sourceBytes, candidates.map { it.toExtracted() },
+                        laboratoryName, orderedEpochSeconds?.let { Instant.fromEpochSeconds(it) }, additionalPages,
+                    ),
+                )
                 if (controller.state.value.error != null) {
                     completion(nativeMessage("import_save_failed"))
                     return@launch
