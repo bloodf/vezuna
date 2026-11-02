@@ -16,6 +16,7 @@ import app.vezuna.export.CsvDoctorExporter
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.DoctorPdfDocument
 import app.vezuna.export.ExportedPdf
+import app.vezuna.export.ExportOptions
 import app.vezuna.export.ExportText
 import app.vezuna.export.NativePdfExporter
 import app.vezuna.llm.InstalledModelManager
@@ -313,7 +314,7 @@ object IosRuntime {
             llm = llamatikLocalLlm()
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
-            val manager = InstalledModelManager(catalog, files, llm)
+            val manager = InstalledModelManager(catalog, files, llm, IosDeviceCapacity())
             controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault, json))
             initialized = true
             controller.initialize()
@@ -409,14 +410,42 @@ object IosRuntime {
         }
     }
 
-    /** [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language. */
-    fun exportCsv(languageTag: String, completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
-        CsvDoctorExporter().export(data, exportLanguage(languageTag))
+    /**
+     * [languageTag] is the per-export override ("en", "pt", "es"); empty follows the device language.
+     * [fromDate] and [toDate] are optional ISO dates (YYYY-MM-DD); blank means unbounded and malformed text fails the export.
+     */
+    fun exportCsv(
+        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        completion: (String?, NativeMessage?) -> Unit,
+    ) = withProfile(completion) { data ->
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
+        CsvDoctorExporter().export(data, exportLanguage(languageTag), options)
     }
 
-    fun exportPdf(languageTag: String, completion: (ExportedPdf?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+    fun exportPdf(
+        languageTag: String, fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean,
+        completion: (ExportedPdf?, NativeMessage?) -> Unit,
+    ) = withProfile(completion) { data ->
         val language = exportLanguage(languageTag)
-        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language))
+        val options = exportOptions(fromDate, toDate, testCodes, activeMedicationsOnly, includeMedicationsCsv)
+        NativePdfExporter().export(DoctorExportContent.document(data, ExportText.of(language).title, language, options))
+    }
+
+    @kotlinx.serialization.Serializable
+    private data class ExportTest(val code: String, val name: String)
+
+    /** JSON array of `{code, name}` for the confirmed tests of the active profile, for the export test picker. */
+    fun listExportTests(completion: (String?, NativeMessage?) -> Unit) = withProfile(completion) { data ->
+        val tests = data.observations.filter { it.confirmation == app.vezuna.domain.ConfirmationStatus.CONFIRMED }
+            .groupBy { app.vezuna.domain.UnitNormalizer.canonicalTestCode(it.testCode) }
+            .map { (code, rows) -> ExportTest(code, rows.first().displayName) }
+            .sortedBy { it.code }
+        json.encodeToString(ListSerializer(ExportTest.serializer()), tests)
+    }
+
+    private fun exportOptions(fromDate: String, toDate: String, testCodes: List<String>, activeMedicationsOnly: Boolean, includeMedicationsCsv: Boolean): ExportOptions {
+        fun date(text: String) = if (text.isBlank()) null else requireNotNull(ExportOptions.parseDate(text)) { "Invalid export date" }
+        return ExportOptions(date(fromDate), date(toDate), testCodes.toSet(), activeMedicationsOnly, includeMedicationsCsv)
     }
 
     private fun exportLanguage(languageTag: String): ContentLanguage =

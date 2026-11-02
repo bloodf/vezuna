@@ -8,19 +8,40 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class LocalHealthChat(
     private val repository: VezunaRepository,
     private val llm: LocalLlm,
     private val language: () -> ContentLanguage = ContentLanguage::device,
 ) {
-    suspend fun ask(data: ProfileData, selectedObservationIds: Set<String>, question: String): ChatMessage {
+    /**
+     * Streams the answer through [onPartial]. The question and answer are stored together only when generation
+     * completes, so a failed or cancelled request leaves no half exchange behind and the caller can retry.
+     */
+    suspend fun ask(
+        data: ProfileData,
+        selectedObservationIds: Set<String>,
+        question: String,
+        onPartial: (String) -> Unit = {},
+    ): ChatMessage {
         if (question.isBlank()) failMessage(L10nKey.ENTER_QUESTION)
         val profileId = data.profile.profileId
-        repository.addChatMessage(ChatMessage(profileId, randomId(), ChatMessage.Role.USER, question.trim(), currentInstant()))
         val prompt = HealthPromptBuilder.build(data, selectedObservationIds, question, language())
-        val answer = ChatMessage(profileId, randomId(), ChatMessage.Role.ASSISTANT, llm.generate(prompt), currentInstant())
-        repository.addChatMessage(answer)
+        val text = StringBuilder()
+        llm.generateStream(prompt).collect { chunk ->
+            text.append(chunk)
+            onPartial(text.toString())
+        }
+        if (text.isBlank()) failMessage(L10nKey.EMPTY_MODEL_ANSWER)
+        val user = ChatMessage(profileId, randomId(), ChatMessage.Role.USER, question.trim(), currentInstant())
+        val answer = ChatMessage(profileId, randomId(), ChatMessage.Role.ASSISTANT, text.toString(), currentInstant())
+        // A cancel arriving now must not leave a question without its answer.
+        withContext(NonCancellable) {
+            repository.addChatMessage(user)
+            repository.addChatMessage(answer)
+        }
         return answer
     }
 }
