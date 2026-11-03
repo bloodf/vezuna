@@ -14,20 +14,22 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ThirdPartyNoticesInstrumentedTest {
     @Test
-    fun opensPackagedNoticesFromDeviceMenuAndReturnsToRecords() {
+    fun opensPackagedNoticesFromDeviceMenuAndReturnsToTheNoticesPage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales en-US")
         ActivityScenario.launch(AndroidMainActivity::class.java).use {
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            device.findObject(By.text("More").clickable(true)).click()
-            assertTrue(device.wait(Until.hasObject(By.text("Third-party notices")), 5_000))
-            device.findObject(By.text("Third-party notices").clickable(true)).click()
+            assertTrue(device.awaitToday())
+            device.tapText("More")
+            device.scrollAndTapText("About Vezuna")
+            device.tapText("Third-party notices")
+            // The in-app page offers the packaged notices through its button.
+            device.tapText("Third-party notices")
             assertTrue(device.wait(Until.hasObject(By.text("Vezuna third-party notices")), 10_000))
             assertTrue(device.hasObject(By.textContains("Vezuna source and original artwork")))
             device.takeScreenshot(File(context.getExternalFilesDir(null), "third-party-notices.png"))
             device.findObject(By.text("Close")).click()
-            assertTrue(device.wait(Until.hasObject(By.text("Third-party notices")), 5_000))
+            assertTrue(device.awaitText("Third-party notices"))
         }
         println("THIRD_PARTY_NOTICES_NAVIGATION_PASSED")
     }

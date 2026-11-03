@@ -30,36 +30,36 @@ class AppVisualInstrumentedTest {
         val directory = instrumentation.targetContext.getExternalFilesDir(null)!!
         val scenario = ActivityScenario.launch(AndroidMainActivity::class.java)
         try {
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
+            assertTrue(device.awaitToday())
             assertTrue("Profile switcher is not accessible", device.hasObject(By.descContains("Switch profile")))
-            capture(device, directory, "ui-home.png", "Household")
-            navigate(device, directory, "Records", "Lab records", "ui-labs.png")
-            navigate(device, directory, "Care", "Medications", "ui-medications.png")
-            navigate(device, directory, "More", "Assistant", "ui-more.png")
-            clickText(device, "Assistant")
+            capture(device, directory, "ui-home.png", "Today")
+            navigate(device, directory, "Records", "ui-labs.png")
+            navigate(device, directory, "Care", "ui-medications.png", marker = "Medication schedule")
+            navigate(device, directory, "More", "ui-more.png", marker = "Settings and preferences")
+            clickText(device, "Assistant and local models")
             assertTrue(device.wait(Until.hasObject(By.text("On-device AI")), 5_000))
             capture(device, directory, "ui-ai.png", "On-device AI")
             device.pressBack()
-            clickText(device, "Settings & export")
-            assertTrue(device.wait(Until.hasObject(By.text("No Vezuna app server")), 5_000))
-            capture(device, directory, "ui-settings.png", "Settings & export")
+            clickText(device, "Exports")
+            assertTrue(device.wait(Until.hasObject(By.text("Create export")), 5_000))
+            capture(device, directory, "ui-settings.png", "Create export")
 
             device.executeShellCommand("cmd uimode night yes")
-            // The session is retained across the recreation, so the Settings screen is still selected.
+            // The session is retained across the recreation, so the export page is still selected.
             device.pressBack()
             clickText(device, "Today")
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 10_000))
-            capture(device, directory, "ui-dark.png", "Household")
+            assertTrue(device.awaitToday())
+            capture(device, directory, "ui-dark.png", "Today")
             device.executeShellCommand("cmd uimode night no")
 
             device.executeShellCommand("settings put system font_scale 1.3")
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 10_000))
-            capture(device, directory, "ui-large-text.png", "Household")
+            assertTrue(device.awaitToday())
+            capture(device, directory, "ui-large-text.png", "Today")
 
             device.executeShellCommand("settings put system font_scale 1.0")
             device.executeShellCommand("settings put global animator_duration_scale 0")
             scenario.recreate()
-            navigate(device, directory, "Records", "Lab records", "ui-reduced-motion.png")
+            navigate(device, directory, "Records", "ui-reduced-motion.png")
             println("APP_VISUAL_STATES_CAPTURED")
         } finally {
             device.executeShellCommand("cmd uimode night no")
@@ -118,12 +118,12 @@ class AppVisualInstrumentedTest {
             device.waitForIdle()
             selectVisualProfile(device, scenario, profile.profileId)
             clickText(device, "Care")
-            assertTrue(device.wait(Until.hasObject(By.text("Medications")), 10_000))
+            assertTrue(device.wait(Until.hasObject(By.text("Medication schedule")), 10_000))
             capture(device, directory, "vezuna-large-text-medications.png", "Large text medications")
             device.executeShellCommand("settings put system font_scale 1.0")
             selectVisualProfile(device, scenario, profile.profileId)
             clickText(device, "Care")
-            assertTrue(device.wait(Until.hasObject(By.text("Medications")), 10_000))
+            assertTrue(device.wait(Until.hasObject(By.text("Medication schedule")), 10_000))
             scenario.onActivity { activity ->
                 runBlocking { activity.controller.addMedication("Error fixture", "", "", "99:99") }
             }
@@ -131,9 +131,9 @@ class AppVisualInstrumentedTest {
             capture(device, directory, "vezuna-error.png", "Invalid reminder time")
 
             clickText(device, "More")
-            clickText(device, "Settings & export")
-            assertTrue(device.wait(Until.hasObject(By.text("No Vezuna app server")), 5_000))
-            capture(device, directory, "vezuna-offline-settings.png", "Offline settings")
+            clickText(device, "Privacy and app lock")
+            assertTrue(device.wait(Until.hasObject(By.text("Your data")), 5_000))
+            capture(device, directory, "vezuna-offline-settings.png", "Offline privacy")
 
             device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales ar-EG")
             scenario.recreate()
@@ -159,26 +159,30 @@ class AppVisualInstrumentedTest {
         scenario.onActivity { activity ->
             runBlocking { activity.controller.switchProfile(profileId) }
         }
-        assertTrue(device.wait(Until.hasObject(By.textContains("AAA Visual synthetic")), 10_000))
+        assertTrue(device.wait(Until.hasObject(By.descContains("AAA Visual synthetic")), 10_000))
         device.waitForIdle()
     }
 
-    /** Navigation items and list rows are found by their visible label; the clickable filter skips headings. */
+    /** Navigation items and list rows are found by their visible label; the lowest match is the control, not a heading. */
     private fun clickText(device: UiDevice, text: String) {
-        val selector = By.text(text).clickable(true)
+        val selector = By.text(text)
         assertTrue("Control $text did not appear", device.wait(Until.hasObject(selector), 10_000))
         repeat(5) {
-            device.findObject(selector)?.let { control -> control.click(); return }
+            device.findObjects(selector).lastOrNull()?.let { control -> control.click(); return }
             device.waitForIdle()
             device.wait(Until.hasObject(selector), 2_000)
         }
         fail("Control $text disappeared before it could be clicked")
     }
 
-    private fun navigate(device: UiDevice, directory: File, tab: String, title: String, fileName: String) {
+    /** The tab label is also the page heading, so a page without its own marker shows the label twice. */
+    private fun navigate(device: UiDevice, directory: File, tab: String, fileName: String, marker: String = tab) {
         clickText(device, tab)
-        assertTrue("Destination $title did not appear", device.wait(Until.hasObject(By.text(title)), 5_000))
-        capture(device, directory, fileName, title)
+        val needed = if (marker == tab) 2 else 1
+        val deadline = System.currentTimeMillis() + 5_000
+        while (device.findObjects(By.text(marker)).size < needed && System.currentTimeMillis() < deadline) device.waitForIdle()
+        assertTrue("Destination $marker did not appear", device.findObjects(By.text(marker)).size >= needed)
+        capture(device, directory, fileName, marker)
     }
 
     private fun capture(device: UiDevice, directory: File, fileName: String, title: String) {
