@@ -76,10 +76,10 @@ class MedicationSupplyTest {
     fun onlyTakenDosesAfterTheCountUseAUnit() {
         val events = listOf(
             event("t", DoseEventStatus.TAKEN),
-            event("sk", DoseEventStatus.SKIPPED),
-            event("mi", DoseEventStatus.MISSED),
-            event("sc", DoseEventStatus.SCHEDULED),
-            event("old", DoseEventStatus.TAKEN, recorded = counted.minus(kotlin.time.Duration.parse("1h"))),
+            event("sk", DoseEventStatus.SKIPPED, counted.plus(kotlin.time.Duration.parse("2h"))),
+            event("mi", DoseEventStatus.MISSED, counted.plus(kotlin.time.Duration.parse("3h"))),
+            event("sc", DoseEventStatus.SCHEDULED, counted.plus(kotlin.time.Duration.parse("4h"))),
+            event("old", DoseEventStatus.TAKEN, counted.plus(kotlin.time.Duration.parse("5h")), recorded = counted.minus(kotlin.time.Duration.parse("1h"))),
         )
         assertEquals(9, MedicationSupplies.remaining(medication(), events))
     }

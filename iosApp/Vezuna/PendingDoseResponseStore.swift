@@ -11,6 +11,8 @@ struct PendingDoseResponse: Codable, Equatable {
     let scheduledEpochSeconds: Int
     let receivedAt: Date
     var profileName: String? = nil
+    /// Absent on notifications and responses saved before this field; shared code then resolves the snooze from stored events.
+    var originalEpochSeconds: Int? = nil
 
     static let maxAge: TimeInterval = 7 * 24 * 60 * 60
 

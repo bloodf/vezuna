@@ -50,21 +50,18 @@ object MedicationSupplies {
     }
 
     /**
-     * One unit per dose. A dose snoozed and then taken records at the snoozed time, a different event key from the
-     * original; both TAKEN rows (notification and in-app) are the same dose, so they are counted by the original time.
-     * Known limit: a separate real dose of the same schedule on the exact second of a snooze target would count once.
+     * One unit per dose. Older builds recorded a dose taken after a snooze at the snoozed time, so history can hold two
+     * TAKEN rows for it; they are counted by the original time. Known limit, old markers only since new snoozes stay off
+     * the minute: a separate real dose of the same schedule on the exact second of an old snooze target would count once.
+     * Duplicates are judged by their last tap, not the first time shown: a recount between the two taps counted the dose
+     * as used after the recount, and stored history keeps the count it had.
      */
     private fun takenSinceCount(supply: MedicationSupply, medicationId: String, events: List<DoseEvent>): Int {
-        val replaced = events.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
-            .associate { (it.scheduleId to it.scheduledFor.epochSeconds) to it.replacesScheduledFor!!.epochSeconds }
-        fun original(event: DoseEvent): Pair<String, Long> {
-            var at = event.scheduledFor.epochSeconds
-            val seen = mutableSetOf(at)
-            while (true) at = replaced[event.scheduleId to at]?.takeIf { seen.add(it) } ?: return event.scheduleId to at
-        }
-        return events
-            .filter { it.medicationId == medicationId && it.status == DoseEventStatus.TAKEN && (it.recordedAt ?: it.scheduledFor) >= supply.countedAt }
-            .distinctBy(::original)
+        val own = events.filter { it.medicationId == medicationId }
+        val original = DoseEvents.oldCountOriginals(own)
+        return DoseEvents.perDose(own, keepFirstRepeat = false)
+            .filter { it.status == DoseEventStatus.TAKEN && (it.recordedAt ?: it.scheduledFor) >= supply.countedAt }
+            .distinctBy { it.scheduleId to original(it.scheduleId, it.scheduledFor).epochSeconds }
             .size
     }
 

@@ -152,13 +152,13 @@ class DashboardDataInstrumentedTest {
             val snoozed = repository.readProfile(profileId).doseEvents.single {
                 it.scheduleId == scheduleId && it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null
             }
-            assertTrue(snoozed.scheduledFor.epochSeconds - snoozed.recordedAt!!.epochSeconds == 600L)
+            assertTrue(snoozed.scheduledFor.epochSeconds - snoozed.recordedAt!!.epochSeconds in 600L..601L)
             await("real snooze alarm") { findAlarm(context, medicationId, scheduleId, snoozed.scheduledFor.epochSeconds) != null }
 
             clickText(device, "Mark as taken")
             await("taken snoozed dose") {
                 repository.readProfile(profileId).doseEvents.any {
-                    it.scheduleId == scheduleId && it.scheduledFor == snoozed.scheduledFor && it.status == DoseEventStatus.TAKEN
+                    it.scheduleId == scheduleId && it.scheduledFor == snoozed.replacesScheduledFor && it.status == DoseEventStatus.TAKEN
                 }
             }
             await("snooze alarm cancellation") { findAlarm(context, medicationId, scheduleId, snoozed.scheduledFor.epochSeconds) == null }
