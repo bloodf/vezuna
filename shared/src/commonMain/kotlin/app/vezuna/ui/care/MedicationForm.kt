@@ -58,7 +58,7 @@ internal fun MedicationFormBody(ctx: RouteContext, medication: Medication?) {
     var strength by rememberSaveable { mutableStateOf(medication?.strength.orEmpty()) }
     var instructions by rememberSaveable { mutableStateOf(medication?.instructions.orEmpty()) }
     val data = ctx.state.data
-    val unitsShown = remember { medication?.let { m -> data?.let { MedicationSupplies.remaining(m, it.doseEvents) } }?.toString() }
+    val unitsShown = rememberSaveable { medication?.let { m -> data?.let { MedicationSupplies.remaining(m, it.doseEvents) } }?.toString() }
     var supplyUnits by rememberSaveable { mutableStateOf(unitsShown.orEmpty()) }
     var lowThreshold by rememberSaveable { mutableStateOf(medication?.supply?.lowThreshold?.toString().orEmpty()) }
     var drafts by remember { mutableStateOf(medication?.schedules?.map(ScheduleDraft::from)?.ifEmpty { null } ?: listOf(ScheduleDraft(startDate = today))) }
