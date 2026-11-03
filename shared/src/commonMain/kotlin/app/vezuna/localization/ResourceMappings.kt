@@ -1219,7 +1219,6 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.APPT_REMINDER_15M to Res.string.appt_reminder_15m,
     L10nKey.APPT_REMINDER_1H to Res.string.appt_reminder_1h,
     L10nKey.APPT_REMINDER_1D to Res.string.appt_reminder_1d,
-    L10nKey.APPT_REMINDER_MINUTES to Res.string.appt_reminder_minutes,
     L10nKey.APPT_REMINDER_NOTE to Res.string.appt_reminder_note,
     L10nKey.APPT_REMINDER_PASSED to Res.string.appt_reminder_passed,
     L10nKey.APPT_REMINDER_SUMMARY to Res.string.appt_reminder_summary,
@@ -1234,6 +1233,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
 private val pluralResources = mapOf<L10nKey, PluralStringResource>(
     L10nKey.HR_COUNT to Res.plurals.hr_count,
     L10nKey.APPT_COUNT to Res.plurals.appt_count,
+    L10nKey.APPT_REMINDER_MINUTES to Res.plurals.appt_reminder_minutes,
     L10nKey.CONFIRMED_POINTS to Res.plurals.confirmed_points,
     L10nKey.PENDING_CANDIDATES to Res.plurals.pending_candidates,
     L10nKey.REVIEW_CANDIDATES_NOTICE to Res.plurals.review_candidates_notice,

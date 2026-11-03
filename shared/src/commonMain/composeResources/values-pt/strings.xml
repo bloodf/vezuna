@@ -394,8 +394,8 @@ iOS: %2$s</string>
     <string name="exact_alarms_off_title">Os lembretes podem atrasar</string>
     <string name="exact_alarms_off_explanation">Os alarmes exatos estão desativados, então o Android pode atrasar os lembretes de dose para economizar bateria. Permita alarmes e lembretes para o Vezuna nas configurações do sistema para recebê-los no horário.</string>
     <string name="open_alarm_settings">Abrir configurações de alarmes</string>
-    <string name="hide_medication_names">Ocultar nomes de medicamentos na tela de bloqueio</string>
-    <string name="hide_medication_names_explanation">Os lembretes mostram uma mensagem genérica em vez do nome do medicamento onde outras pessoas poderiam ler.</string>
+    <string name="hide_medication_names">Ocultar nomes na tela de bloqueio</string>
+    <string name="hide_medication_names_explanation">Lembretes de medicamentos e consultas mostram uma mensagem genérica em vez do nome do medicamento ou do profissional onde outras pessoas possam ler.</string>
     <string name="section_reminders">Lembretes</string>
     <string name="schedule_repeat">Repetir</string>
     <string name="schedule_weekdays">Dias da semana</string>
@@ -1307,7 +1307,10 @@ iOS: %2$s</string>
     <string name="appt_reminder_15m">15 minutos antes</string>
     <string name="appt_reminder_1h">1 hora antes</string>
     <string name="appt_reminder_1d">1 dia antes</string>
-    <string name="appt_reminder_minutes">%1$d minutos antes</string>
+    <plurals name="appt_reminder_minutes">
+        <item quantity="one">%1$d minuto antes</item>
+        <item quantity="other">%1$d minutos antes</item>
+    </plurals>
     <string name="appt_reminder_note">Os lembretes são definidos só neste aparelho. Nada é enviado pela rede.</string>
     <string name="appt_reminder_passed">Esse horário de lembrete já passou. Escolha um tempo menor ou desative o lembrete.</string>
     <string name="appt_reminder_summary">Lembrete: %1$s</string>

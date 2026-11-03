@@ -14,12 +14,15 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -36,6 +39,7 @@ import app.vezuna.ui.AppScreen
 import app.vezuna.ui.Category
 import app.vezuna.ui.CollectionDateField
 import app.vezuna.ui.TimePickerDialog
+import app.vezuna.ui.NotificationAccess
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.ConfirmDialog
 import app.vezuna.ui.components.DestructiveButton
@@ -45,10 +49,13 @@ import app.vezuna.ui.components.GroupedRows
 import app.vezuna.ui.components.LabeledField
 import app.vezuna.ui.components.ListRow
 import app.vezuna.ui.components.PrimaryButton
+import app.vezuna.ui.components.TertiaryButton
 import app.vezuna.ui.entry.FixFieldsNotice
 import app.vezuna.ui.entry.FormColumn
 import app.vezuna.ui.entry.guardedBack
+import app.vezuna.ui.nav.NativeAction
 import app.vezuna.ui.nav.RouteContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import vezuna.shared.generated.resources.Res
@@ -105,7 +112,7 @@ private fun reminderLabel(minutes: Int): String = when (minutes) {
     15 -> vitaText(L10nKey.APPT_REMINDER_15M)
     60 -> vitaText(L10nKey.APPT_REMINDER_1H)
     24 * 60 -> vitaText(L10nKey.APPT_REMINDER_1D)
-    else -> vitaText(L10nKey.APPT_REMINDER_MINUTES, minutes)
+    else -> vitaPlural(L10nKey.APPT_REMINDER_MINUTES, minutes)
 }
 
 /** Add ([appointmentId] null) or edit, with delete on an existing visit. */
@@ -142,17 +149,17 @@ internal fun AppointmentFormScreen(ctx: RouteContext, appointmentId: String?) {
             CollectionDateField(
                 draft.date, { date, _ -> draft = draft.copy(date = date) },
                 error = vitaText(L10nKey.APPT_DATE_REQUIRED).takeIf { showErrors && draft.dateMissing },
-                label = vitaText(L10nKey.APPT_FIELD_DATE), help = vitaText(L10nKey.APPT_DATE_HELP),
+                label = vitaText(L10nKey.APPT_FIELD_DATE), help = vitaText(L10nKey.APPT_DATE_HELP), allowFutureDates = true,
             )
             val timeText = vitaText(L10nKey.APPT_TIME_LABEL, draft.time)
             OutlinedButton({ pickingTime = true }, Modifier.fillMaxWidth().heightIn(min = VezunaTokens.TouchTarget).semantics { contentDescription = timeText }) { Text(timeText) }
             LabeledField(vitaText(L10nKey.APPT_FIELD_NOTES), draft.notes, { draft = draft.copy(notes = it) }, singleLine = false)
-            ReminderPicker(draft, error = showErrors && draft.reminderPassed(now, zone)) { draft = draft.copy(reminderMinutesBefore = it) }
-            FixFieldsNotice(showErrors && !draft.isValid(now, zone))
+            ReminderPicker(ctx, draft, error = showErrors && draft.reminderPassed(now, zone, existing)) { draft = draft.copy(reminderMinutesBefore = it) }
+            FixFieldsNotice(showErrors && !draft.isValid(now, zone, existing))
             PrimaryButton(
                 vitaText(L10nKey.SAVE),
                 {
-                    if (!draft.isValid(now, zone)) {
+                    if (!draft.isValid(now, zone, existing)) {
                         showErrors = true
                     } else {
                         busy = true
@@ -196,7 +203,10 @@ internal fun AppointmentFormScreen(ctx: RouteContext, appointmentId: String?) {
 /** Off by default: a reminder exists only when the owner picks a lead time for this visit. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ReminderPicker(draft: AppointmentDraft, error: Boolean, onSelect: (Int?) -> Unit) {
+private fun ReminderPicker(ctx: RouteContext, draft: AppointmentDraft, error: Boolean, onSelect: (Int?) -> Unit) {
+    val reminders = ctx.reminders
+    val access by (reminders?.notificationAccess ?: remember { MutableStateFlow(NotificationAccess.UNKNOWN) }).collectAsState()
+    val exactDenied by (reminders?.exactAlarmsDenied ?: remember { MutableStateFlow(false) }).collectAsState()
     val options = (listOf<Int?>(null) + Appointment.REMINDER_CHOICES + listOfNotNull(draft.reminderMinutesBefore?.takeIf { it !in Appointment.REMINDER_CHOICES })).distinct()
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
         Text(vitaText(L10nKey.APPT_REMINDER), style = MaterialTheme.typography.titleMedium)
@@ -206,12 +216,26 @@ private fun ReminderPicker(draft: AppointmentDraft, error: Boolean, onSelect: (I
                 val isSelected = option == draft.reminderMinutesBefore
                 FilterChip(
                     selected = isSelected,
-                    onClick = { onSelect(option) },
+                    onClick = {
+                        onSelect(option)
+                        // The system dialog is the only way to allow notifications; ask when a reminder is first wanted, not only from Care.
+                        if (option != null && access == NotificationAccess.NOT_REQUESTED && NativeAction.REMINDERS in ctx.nativeActions) ctx.nativeActions.perform(NativeAction.REMINDERS)
+                    },
                     label = { Text(option?.let { reminderLabel(it) } ?: vitaText(L10nKey.APPT_REMINDER_OFF)) },
                     modifier = Modifier.heightIn(min = VezunaTokens.TouchTarget).semantics { role = Role.RadioButton; this.selected = isSelected },
                 )
             }
         }
-        if (error) Text(vitaText(L10nKey.APPT_REMINDER_PASSED), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        if (error) Text(vitaText(L10nKey.APPT_REMINDER_PASSED), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        if (draft.reminderMinutesBefore != null) {
+            if (access == NotificationAccess.DENIED) {
+                Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                reminders?.openNotificationSettings?.let { TertiaryButton(vitaText(L10nKey.CARE_OPEN_DEVICE_SETTINGS), it) }
+            }
+            if (exactDenied) {
+                Text(vitaText(L10nKey.EXACT_ALARMS_OFF_EXPLANATION), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                reminders?.openExactAlarmSettings?.let { TertiaryButton(vitaText(L10nKey.OPEN_ALARM_SETTINGS), it) }
+            }
+        }
     }
 }

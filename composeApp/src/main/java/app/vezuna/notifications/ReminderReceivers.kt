@@ -185,18 +185,21 @@ class AppointmentReceiver : BroadcastReceiver() {
             if (!app.awaitRepository()) return@guarded
             val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return@guarded
             val appointmentId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_ID) ?: return@guarded
-            val clinician = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_CLINICIAN) ?: return@guarded
+            val noticeKey = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_NOTICE_KEY) ?: return@guarded
             val atMillis = intent.getLongExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_AT, -1L)
             val data = try {
                 app.repository.peekProfile(profileId)
             } catch (missing: NoSuchElementException) {
                 return@guarded
             }
-            if (NotificationScheduleLogic.isAppointmentReminderCurrent(data, appointmentId, atMillis)) {
+            // The stored record is the source of the clinician and of whether this alarm is still wanted.
+            val appointment = NotificationScheduleLogic.currentAppointment(data, appointmentId, atMillis)
+            if (appointment != null) {
                 app.notifications.showAppointmentReminder(
-                    appointmentId, clinician, atMillis,
+                    profileId, appointmentId, appointment.clinician, atMillis,
                     data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
                 )
+                app.notifications.markAppointmentDelivered(noticeKey)
             }
             app.notifications.rescheduleAll(app.repository)
         }

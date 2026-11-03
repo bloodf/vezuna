@@ -16,15 +16,18 @@ class StorageSchemaTooNewException(val found: Int, val supported: Int) :
  * a new schema bumps [CURRENT] and registers exactly one step.
  */
 object StorageSchema {
-    const val CURRENT = 3
+    const val CURRENT = 4
     const val FIELD = "schemaVersion"
 
     val steps: Map<Int, (JsonObject) -> JsonObject> = mapOf(
         // 1 -> 2: no field changes; the version stamp itself is the change.
         1 to { document -> document },
-        // 2 -> 3: optional allergy, condition, vaccination, appointment and vault document lists; older documents simply have none. The bump makes an
+        // 2 -> 3: optional allergy, condition, vaccination and vault document lists; older documents simply have none. The bump makes an
         // older build refuse these documents as "too new" instead of treating them as damaged.
         2 to { document -> document },
+        // 3 -> 4: optional appointment list; older documents simply have none. The bump makes a build that predates it refuse these
+        // documents as "too new" (a clear recovery screen, nothing quarantined) instead of treating them as damaged.
+        3 to { document -> document },
     )
 
     fun versionOf(document: JsonObject): Int = (document[FIELD] as? JsonPrimitive)?.intOrNull ?: 1

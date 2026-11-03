@@ -59,14 +59,26 @@ fun ProfileData.withoutAppointment(appointmentId: String): ProfileData {
 
 /**
  * Local reminders for upcoming visits, the one rule both platforms share. A reminder exists only for an appointment that
- * opted in and whose reminder time is still ahead; deleting the appointment or switching the reminder off removes it from
- * the list, which is what makes the platform cancel the alarm.
+ * opted in and has not started yet; deleting the appointment or switching the reminder off removes it from the list, which
+ * is what makes the platform cancel the alarm.
+ *
+ * A reminder whose time has passed is still listed while the visit is ahead, unless the platform already [handled] it
+ * (delivered on Android, handed to the system on iOS): that is how a reminder due while the phone was off or the vault was not
+ * ready still fires, late, and never fires twice. [Notice.fireAt] stays the original time; the platform fires a late one right away.
  */
 object AppointmentReminders {
-    data class Notice(val profileId: String, val appointmentId: String, val clinician: String, val appointmentAt: Instant, val fireAt: Instant)
+    data class Notice(val profileId: String, val appointmentId: String, val clinician: String, val appointmentAt: Instant, val fireAt: Instant) {
+        /** Changes when the visit time or lead time changes, so a moved visit is reminded again. */
+        val key: String get() = "$appointmentId:${fireAt.epochSeconds}"
+    }
 
-    fun notices(data: ProfileData, now: Instant): List<Notice> = data.appointments.mapNotNull { appointment ->
-        val fireAt = appointment.reminderAt?.takeIf { it > now } ?: return@mapNotNull null
-        Notice(appointment.profileId, appointment.appointmentId, appointment.clinician, appointment.at, fireAt)
+    fun notices(data: ProfileData, now: Instant, handled: Set<String> = emptySet()): List<Notice> = data.appointments.mapNotNull { appointment ->
+        val fireAt = appointment.reminderAt ?: return@mapNotNull null
+        if (appointment.at <= now) return@mapNotNull null
+        val notice = Notice(appointment.profileId, appointment.appointmentId, appointment.clinician, appointment.at, fireAt)
+        notice.takeIf { fireAt > now || it.key !in handled }
     }.sortedBy { it.fireAt }
+
+    /** Every appointment that currently has a reminder switched on, whether or not it is due: what a delivered notification must still match. */
+    fun reminderIds(data: ProfileData): Set<String> = data.appointments.filter { it.reminderMinutesBefore != null }.map { it.appointmentId }.toSet()
 }

@@ -1,5 +1,6 @@
 package app.vezuna.notifications
 
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
@@ -10,6 +11,8 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+
+data class ShownAppointment(val notificationId: Int, val profileId: String, val appointmentId: String, val appointmentAtMillis: Long)
 
 data class ShownReminder(val notificationId: Int, val profileId: String, val medicationId: String, val scheduleId: String)
 
@@ -37,11 +40,18 @@ object NotificationScheduleLogic {
             medication.medicationId == medicationId && medication.active && medication.schedules.any { it.scheduleId == scheduleId }
         } == true
 
-    /** False once the appointment was deleted or moved, or its reminder switched off, after the alarm was armed. */
-    fun isAppointmentReminderCurrent(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Boolean =
-        data?.appointments?.any {
+    /** The appointment an alarm was armed for, or null once it was deleted or moved, or its reminder switched off, after arming. */
+    fun currentAppointment(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Appointment? =
+        data?.appointments?.firstOrNull {
             it.appointmentId == appointmentId && it.reminderMinutesBefore != null && it.at.toEpochMilliseconds() == appointmentAtMillis
-        } == true
+        }
+
+    fun isAppointmentReminderCurrent(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Boolean =
+        currentAppointment(data, appointmentId, appointmentAtMillis) != null
+
+    /** Delivered visit reminders that no longer match a stored appointment with a reminder on. */
+    fun staleAppointmentNotificationIds(shown: List<ShownAppointment>, profiles: Map<String, ProfileData>): List<Int> =
+        shown.filterNot { isAppointmentReminderCurrent(profiles[it.profileId], it.appointmentId, it.appointmentAtMillis) }.map { it.notificationId }
 
     fun nextOccurrences(schedule: DoseSchedule, now: Instant, zone: ZoneId): List<ZonedDateTime> {
         val localNow = now.atZone(zone)

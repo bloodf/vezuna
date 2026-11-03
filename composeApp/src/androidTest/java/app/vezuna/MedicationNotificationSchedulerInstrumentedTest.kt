@@ -1,5 +1,6 @@
 package app.vezuna
 
+import app.vezuna.notifications.AppointmentReceiver
 import app.vezuna.notifications.DoseActionReceiver
 
 import android.app.AlarmManager
@@ -9,6 +10,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEventStatus
 import app.vezuna.domain.DoseEvents
@@ -50,6 +52,54 @@ class MedicationNotificationSchedulerInstrumentedTest {
             assertEquals(before, app.repository.profiles.value.map { it.profileId })
         } finally {
             ids.forEach { runCatching { app.repository.deleteProfile(it) } }
+        }
+    }
+
+    private fun findAppointmentAlarm(appointmentId: String): PendingIntent? = PendingIntent.getBroadcast(
+        context,
+        "appointment:$appointmentId".hashCode(),
+        Intent(context, AppointmentReceiver::class.java).apply {
+            action = MedicationNotificationScheduler.ACTION_APPOINTMENT
+            data = Uri.parse("vezuna://appointment/$appointmentId")
+        },
+        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    @Test
+    fun anAppointmentAlarmIsArmedForOptedInVisitsAndCancelledOnDeleteOrReminderOff() = runBlocking {
+        val profileId = "appt-${UUID.randomUUID()}"
+        val now = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+        val at = kotlin.time.Instant.fromEpochSeconds(now.epochSecond + 3 * 3600)
+        val on = Appointment(profileId, "on-$profileId", at, "Dr. Silva", reminderMinutesBefore = 60)
+        val off = Appointment(profileId, "off-$profileId", at, "Dr. Lima")
+        try {
+            app.repository.createProfile(Profile(profileId, "Appointment test", createdAt = kotlin.time.Instant.fromEpochSeconds(1)))
+            app.repository.addAppointment(on)
+            app.repository.addAppointment(off)
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNotNull(findAppointmentAlarm(on.appointmentId))
+            assertNull("no reminder, no alarm", findAppointmentAlarm(off.appointmentId))
+
+            app.repository.updateAppointment(on.copy(reminderMinutesBefore = null))
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNull("switched off cancels it", findAppointmentAlarm(on.appointmentId))
+
+            app.repository.updateAppointment(on)
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNotNull(findAppointmentAlarm(on.appointmentId))
+            app.repository.deleteAppointment(profileId, on.appointmentId)
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNull("deleting cancels it", findAppointmentAlarm(on.appointmentId))
+
+            app.repository.addAppointment(on)
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNotNull(findAppointmentAlarm(on.appointmentId))
+            app.repository.deleteProfile(profileId)
+            app.notifications.rescheduleAll(app.repository, now)
+            assertNull("deleting the profile cancels it", findAppointmentAlarm(on.appointmentId))
+        } finally {
+            runCatching { app.repository.deleteProfile(profileId) }
+            findAppointmentAlarm(on.appointmentId)?.let { context.getSystemService(AlarmManager::class.java).cancel(it); it.cancel() }
         }
     }
 

@@ -1,6 +1,8 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.data.StorageSchema
+import app.vezuna.data.StorageSchemaTooNewException
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.restoreMembers
 import app.vezuna.domain.Appointment
@@ -201,9 +203,13 @@ class AppointmentsTest {
         val a = withVisits(sampleProfileData("A"))
         val b = withVisits(sampleProfileData("B"))
         assertEquals(a, service.open(service.create(a, pass.copyOf()), pass.copyOf()).data)
-        assertEquals(5, backupSchemaOf(service.create(a, pass.copyOf())))
+        assertEquals(6, backupSchemaOf(service.create(a, pass.copyOf())))
         val household = service.createHousehold(listOf(BackupMember(a), BackupMember(b)), pass.copyOf())
-        assertEquals(5, backupSchemaOf(household))
+        assertEquals(6, backupSchemaOf(household))
+        // Health records alone stay at 5, and a household mixing both takes the highest number any member needs.
+        val withHealth = sampleProfileData("D").copy(allergies = listOf(app.vezuna.domain.AllergyRecord("D-profile", "d1", "Latex")))
+        assertEquals(5, backupSchemaOf(service.createHousehold(listOf(BackupMember(withHealth)), pass.copyOf())))
+        assertEquals(6, backupSchemaOf(service.createHousehold(listOf(BackupMember(withHealth), BackupMember(a)), pass.copyOf())))
         assertEquals(listOf(a, b), service.open(household, pass.copyOf()).members.map { it.data })
         // Without visits the schema stays where it was, so older builds keep reading those backups.
         assertEquals(4, backupSchemaOf(service.createHousehold(listOf(BackupMember(sampleProfileData("C"))), pass.copyOf())))
@@ -216,8 +222,9 @@ class AppointmentsTest {
         suspend fun open(payload: String) = service.open(PassphraseBackupCodec.seal(payload.encodeToByteArray(), pass.copyOf()), pass.copyOf())
         val old = open("""{"schemaVersion":4,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
         assertTrue(old.members.single().data.appointments.isEmpty())
+        listOf(5, 6).forEach { v -> assertEquals(1, open("""{"schemaVersion":$v,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""").members.size) }
         val failure = assertFailsWith<VitaMessageException> {
-            open("""{"schemaVersion":6,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile,"appointments":[]}}]}""")
+            open("""{"schemaVersion":7,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile,"appointments":[]}}]}""")
         }
         assertEquals(L10nKey.BACKUP_UNSUPPORTED_SCHEMA, failure.userText.key)
     }
@@ -262,8 +269,8 @@ class AppointmentsTest {
         assertEquals(listOf("A-profile-next"), notices.map { it.appointmentId }, "only the visit that opted in")
         assertEquals(soon - 60.minutes, notices.single().fireAt)
         assertEquals("Dr. Silva", notices.single().clinician)
-        // Once the reminder time has passed nothing is armed, so a fired reminder never repeats.
-        assertTrue(AppointmentReminders.notices(data, soon - 30.minutes).isEmpty())
+        // Once the reminder was delivered nothing is armed, so it never repeats.
+        assertTrue(AppointmentReminders.notices(data, soon - 30.minutes, handled = setOf(notices.single().key)).isEmpty())
     }
 
     @Test
@@ -282,6 +289,52 @@ class AppointmentsTest {
         val data = withVisits()
         val moved = data.copy(appointments = data.appointments.map { if (it.appointmentId == "A-profile-next") it.copy(at = soon + 60.minutes) else it })
         assertEquals(soon, AppointmentReminders.notices(moved, now).single().fireAt)
+    }
+
+    @Test
+    fun aStoredDocumentFromANewerSchemaIsRefusedNotMisread() {
+        val json = Json { encodeDefaults = true }
+        val document = json.encodeToJsonElement(ProfileData.serializer(), withVisits()) as kotlinx.serialization.json.JsonObject
+        assertEquals(4, StorageSchema.CURRENT)
+        assertEquals(StorageSchema.stamp(document), StorageSchema.migrate(StorageSchema.stamp(document, 3)), "older documents migrate with nothing lost")
+        assertFailsWith<StorageSchemaTooNewException> { StorageSchema.migrate(StorageSchema.stamp(document, 5)) }
+    }
+
+    @Test
+    fun theVisitTimeIsTheSameInstantInAnyDeviceZone() {
+        val draft = AppointmentDraft(date = Instant.parse("2026-11-10T12:00:00Z"), time = "14:30", clinician = "Dr")
+        val saoPaulo = TimeZone.of("America/Sao_Paulo")
+        val lisbon = TimeZone.of("Europe/Lisbon")
+        assertEquals(Instant.parse("2026-11-10T17:30:00Z"), draft.at(saoPaulo))
+        assertEquals(Instant.parse("2026-11-10T14:30:00Z"), draft.at(lisbon))
+        val saved = draft.toAppointment("p", "a", saoPaulo)
+        assertEquals(draft, saved.toDraft(saoPaulo).copy(clinician = "Dr", notes = ""), "round trips in the zone it was entered in")
+        assertEquals("02:30", saved.toDraft(TimeZone.of("Asia/Tokyo")).time, "the same instant read on a device in Tokyo")
+    }
+
+    @Test
+    fun aVisitWhoseReminderAlreadyFiredCanStillBeEditedButNotGivenAPastReminder() {
+        val existing = Appointment("p", "a", soon, "Dr", reminderMinutesBefore = 24 * 60)
+        val afterReminder = soon - 12.minutes * 60
+        val edited = existing.toDraft(utc).copy(notes = "bring results")
+        assertTrue(edited.isValid(afterReminder, utc, existing), "unchanged reminder, other edit")
+        assertFalse(edited.copy(reminderMinutesBefore = 2 * 24 * 60).isValid(afterReminder, utc, existing), "a new lead time already in the past is refused")
+        assertTrue(edited.copy(reminderMinutesBefore = 15).isValid(afterReminder, utc, existing), "a new lead time still ahead is fine")
+        assertFalse(edited.isValid(afterReminder, utc, null), "a new visit is checked")
+    }
+
+    @Test
+    fun aReminderDueWhileTheDeviceWasOffStillFiresUntilDeliveredAndNeverTwice() {
+        val data = withVisits()
+        val dueAt = soon - 60.minutes
+        val late = dueAt + 5.minutes
+        val notice = AppointmentReminders.notices(data, late).single()
+        assertEquals(dueAt, notice.fireAt, "keeps its original time; the platform fires it now")
+        assertTrue(AppointmentReminders.notices(data, late, handled = setOf(notice.key)).isEmpty(), "delivered once")
+        assertTrue(AppointmentReminders.notices(data, soon + 1.minutes).isEmpty(), "the visit started: too late")
+        val moved = data.copy(appointments = data.appointments.map { if (it.appointmentId == "A-profile-next") it.copy(at = soon + 60.minutes) else it })
+        assertEquals(1, AppointmentReminders.notices(moved, late, handled = setOf(notice.key)).size, "a moved visit is reminded again")
+        assertEquals(setOf("A-profile-next"), AppointmentReminders.reminderIds(data))
     }
 
     @Test

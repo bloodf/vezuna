@@ -201,10 +201,11 @@ class HealthRecordsTest {
 
     @Test
     fun storageSchemaStepIsANoOpSoOldDocumentsLoadUnchanged() {
-        assertEquals(3, StorageSchema.CURRENT)
+        assertEquals(4, StorageSchema.CURRENT)
         val json = Json { encodeDefaults = true }
         val document = json.encodeToJsonElement(ProfileData.serializer(), ProfileData(Profile("p", "Ana", createdAt = at))) as kotlinx.serialization.json.JsonObject
         assertEquals(StorageSchema.stamp(document), StorageSchema.migrate(StorageSchema.stamp(document, 2)))
+        assertEquals(StorageSchema.stamp(document), StorageSchema.migrate(StorageSchema.stamp(document, 3)))
     }
 
     // ---- old data, backups ----
@@ -269,12 +270,12 @@ class HealthRecordsTest {
         listOf(1, 2, 3).forEach { v ->
             assertEquals("p", open("""{"schemaVersion":$v,"profileId":"p","exportedAt":"2026-03-10T12:00:00Z","data":{"profile":$profile}}""").data.profile.profileId)
         }
-        listOf(4, 5).forEach { v ->
+        listOf(4, 5, 6).forEach { v ->
             val opened = open("""{"schemaVersion":$v,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
             assertEquals(listOf("p"), opened.members.map { it.data.profile.profileId })
         }
         val failure = assertFailsWith<VitaMessageException> {
-            open("""{"schemaVersion":6,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
+            open("""{"schemaVersion":7,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
         }
         assertEquals(L10nKey.BACKUP_UNSUPPORTED_SCHEMA, failure.userText.key)
     }
@@ -288,7 +289,7 @@ class HealthRecordsTest {
     }
 
     @Test
-    fun aVersion2VaultDocumentLoadsAndIsRestampedAsVersion3WithNoRecords() = runTest {
+    fun aVersion2VaultDocumentLoadsAndIsRestampedAsVersion4WithNoRecords() = runTest {
         val vault = GenerationalMemoryVault()
         val first = VaultBackedRepository(vault).also { it.load() }
         first.createProfile(Profile("a", "Ana", createdAt = at))
@@ -296,8 +297,8 @@ class HealthRecordsTest {
         vault.current.keys.toList().forEach { key ->
             val envelope = app.vezuna.security.CipherEnvelopeCodec.decode(vault.current.getValue(key))
             val plain = vault.decrypt(envelope).decodeToString()
-            if ("\"schemaVersion\":3" in plain) {
-                val old = vault.encrypt(plain.replace("\"schemaVersion\":3", "\"schemaVersion\":2").encodeToByteArray(), envelope.associatedData)
+            if ("\"schemaVersion\":4" in plain) {
+                val old = vault.encrypt(plain.replace("\"schemaVersion\":4", "\"schemaVersion\":2").encodeToByteArray(), envelope.associatedData)
                 vault.current[key] = app.vezuna.security.CipherEnvelopeCodec.encode(old)
             }
         }
@@ -306,7 +307,7 @@ class HealthRecordsTest {
         reopened.addHealthRecord(AllergyRecord("a", "a1", "Latex"))
         val stored = vault.current.getValue("repository-profile-a-v1")
         val text = vault.decrypt(app.vezuna.security.CipherEnvelopeCodec.decode(stored)).decodeToString()
-        assertTrue("\"schemaVersion\":3" in text && "Latex" in text)
+        assertTrue("\"schemaVersion\":4" in text && "Latex" in text)
         assertEquals("Latex", VaultBackedRepository(vault).also { it.load() }.readProfile("a").allergies.single().substance)
     }
 

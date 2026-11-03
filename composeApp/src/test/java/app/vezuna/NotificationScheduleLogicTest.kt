@@ -7,6 +7,7 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
 import app.vezuna.notifications.NotificationScheduleLogic
+import app.vezuna.notifications.ShownAppointment
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import java.time.Instant
@@ -30,6 +31,23 @@ class NotificationScheduleLogicTest {
         assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(null, "a1", millis), "profile gone")
         val off = data.copy(appointments = data.appointments.map { it.copy(reminderMinutesBefore = null) })
         assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(off, "a1", millis), "reminder switched off")
+    }
+
+    @Test
+    fun aDeliveredVisitReminderIsPrunedWhenItsAppointmentIsGoneMovedOrSwitchedOffOrItsProfileIsRemoved() {
+        val at = kotlin.time.Instant.parse("2026-11-10T14:30:00Z")
+        val millis = at.toEpochMilliseconds()
+        val data = ProfileData(Profile("p", "Ana", createdAt = at), appointments = listOf(Appointment("p", "a1", at, "Dr. Silva", reminderMinutesBefore = 60)))
+        val shown = listOf(
+            ShownAppointment(1, "p", "a1", millis),
+            ShownAppointment(2, "p", "deleted", millis),
+            ShownAppointment(3, "p", "a1", millis + 60_000),
+            ShownAppointment(4, "gone", "a1", millis),
+        )
+        assertEquals(listOf(2, 3, 4), NotificationScheduleLogic.staleAppointmentNotificationIds(shown, mapOf("p" to data)))
+        val off = data.copy(appointments = data.appointments.map { it.copy(reminderMinutesBefore = null) })
+        assertEquals(listOf(1, 2, 3, 4), NotificationScheduleLogic.staleAppointmentNotificationIds(shown, mapOf("p" to off)))
+        assertEquals("Dr. Silva", NotificationScheduleLogic.currentAppointment(data, "a1", millis)?.clinician)
     }
 
     @Test

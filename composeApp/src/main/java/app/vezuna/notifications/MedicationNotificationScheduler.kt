@@ -37,6 +37,7 @@ class MedicationNotificationScheduler(private val context: Context) {
     private val armedStore = context.getSharedPreferences(ARMED_PREFS, Context.MODE_PRIVATE)
     private val supplyStore = context.getSharedPreferences(SUPPLY_PREFS, Context.MODE_PRIVATE)
     private val appointmentStore = context.getSharedPreferences(APPOINTMENT_PREFS, Context.MODE_PRIVATE)
+    private val deliveredStore = context.getSharedPreferences(APPOINTMENT_DELIVERED_PREFS, Context.MODE_PRIVATE)
 
     fun createChannel() {
         val channel = NotificationChannel(
@@ -57,6 +58,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         val loaded = mutableMapOf<String, ProfileData>()
         val supplyKeys = mutableSetOf<String>()
         val appointmentIds = mutableSetOf<String>()
+        val appointmentKeys = mutableSetOf<String>()
         var failed = false
         repository.profiles.value.forEach { profile ->
             try {
@@ -74,7 +76,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                 val profileName = data.profile.displayName.takeIf { repository.profiles.value.size > 1 }
                 armProfile(data, now, zone, armed, profileName)
                 armSupply(data, now, zone, supplyKeys)
-                armAppointments(data, now, appointmentIds, profileName)
+                armAppointments(data, now, appointmentIds, appointmentKeys, profileName)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -93,27 +95,36 @@ class MedicationNotificationScheduler(private val context: Context) {
         }
         cancelStale(armed)
         cancelStaleNotifications(loaded)
+        cancelStaleAppointmentNotifications(loaded)
         forgetSupplyKeys(supplyKeys)
-        cancelStaleAppointments(appointmentIds)
+        cancelStaleAppointments(appointmentIds, appointmentKeys)
     }
 
     /**
      * Visit reminders: one local alarm per opted-in upcoming appointment, replaced on every pass. Deleting the appointment or
      * switching its reminder off drops it from [AppointmentReminders.notices], and [cancelStaleAppointments] then cancels the alarm.
+     * A reminder that came due while the phone was off or the vault was not ready is still listed until it is delivered, and
+     * the alarm armed for its past time fires at once.
      */
-    private fun armAppointments(data: ProfileData, now: Instant, armed: MutableSet<String>, profileName: String?) {
-        AppointmentReminders.notices(data, kotlin.time.Instant.fromEpochSeconds(now.epochSecond)).forEach { notice ->
+    private fun armAppointments(data: ProfileData, now: Instant, armed: MutableSet<String>, liveKeys: MutableSet<String>, profileName: String?) {
+        val kNow = kotlin.time.Instant.fromEpochSeconds(now.epochSecond)
+        val delivered = deliveredStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
+        data.appointments.forEach { appointment ->
+            val fireAt = appointment.reminderAt ?: return@forEach
+            if (appointment.at > kNow) liveKeys += "${appointment.appointmentId}:${fireAt.epochSeconds}"
+        }
+        AppointmentReminders.notices(data, kNow, delivered).forEach { notice ->
             armed += notice.appointmentId
             setAlarm(notice.fireAt.toEpochMilliseconds(), appointmentIntent(notice.appointmentId, PendingIntent.FLAG_UPDATE_CURRENT) {
                 putExtra(EXTRA_PROFILE_ID, notice.profileId)
-                putExtra(EXTRA_CLINICIAN, notice.clinician)
+                putExtra(EXTRA_NOTICE_KEY, notice.key)
                 putExtra(EXTRA_APPOINTMENT_AT, notice.appointmentAt.toEpochMilliseconds())
                 profileName?.let { putExtra(EXTRA_PROFILE_NAME, it) }
             }!!)
         }
     }
 
-    private fun cancelStaleAppointments(armed: Set<String>) {
+    private fun cancelStaleAppointments(armed: Set<String>, liveKeys: Set<String>) {
         val previous = appointmentStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
         NotificationScheduleLogic.staleArmedKeys(previous, armed).forEach { id ->
             appointmentIntent(id, PendingIntent.FLAG_NO_CREATE)?.let {
@@ -122,6 +133,8 @@ class MedicationNotificationScheduler(private val context: Context) {
             }
         }
         appointmentStore.edit().putStringSet(ARMED_KEY, armed.toSet()).apply()
+        // Delivery marks are kept only for visits still ahead, so they cannot grow without bound.
+        deliveredStore.edit().putStringSet(ARMED_KEY, deliveredStore.getStringSet(ARMED_KEY, emptySet()).orEmpty().intersect(liveKeys)).apply()
     }
 
     private fun appointmentIntent(appointmentId: String, flags: Int, extras: Intent.() -> Unit = {}): PendingIntent? {
@@ -136,8 +149,17 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     private fun appointmentNotificationId(appointmentId: String): Int = "appointment:$appointmentId".hashCode()
 
-    /** Shown by [AppointmentReceiver] once the alarm fires and the appointment has been re-checked. */
-    fun showAppointmentReminder(appointmentId: String, clinician: String, appointmentAtMillis: Long, profileName: String? = null) {
+    /** Called once a visit reminder was shown, so a later pass does not fire it again. */
+    fun markAppointmentDelivered(noticeKey: String) {
+        deliveredStore.edit().putStringSet(ARMED_KEY, deliveredStore.getStringSet(ARMED_KEY, emptySet()).orEmpty() + noticeKey).apply()
+    }
+
+    /**
+     * Shown by [AppointmentReceiver] once the alarm fires and the appointment has been re-checked. The clinician is read from the
+     * stored record by the caller, never from the alarm. Always private on the lock screen: the public version says only that a
+     * visit is coming, and the setting that hides names makes the private version generic too.
+     */
+    fun showAppointmentReminder(profileId: String, appointmentId: String, clinician: String, appointmentAtMillis: Long, profileName: String? = null) {
         val hideName = preferences.hideMedicationNames
         val title = nativeMessage(NativeKey.APPOINTMENT_REMINDER_TITLE).resolve(context)
         val generic = nativeMessage(NativeKey.APPOINTMENT_REMINDER_GENERIC_TEXT).resolve(context)
@@ -148,14 +170,15 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setContentTitle(title)
             .setContentText(if (hideName) generic else nativeMessage(NativeKey.APPOINTMENT_REMINDER_TEXT, clinician, whenText).resolve(context))
             .setSubText(profileName?.takeUnless { hideName }?.let { nativeMessage(NativeKey.REMINDER_FOR_PROFILE, it).resolve(context) })
-            .setVisibility(if (hideName) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
-            .apply {
-                if (hideName) {
-                    setPublicVersion(
-                        NotificationCompat.Builder(context, APPOINTMENT_CHANNEL_ID).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(generic).build(),
-                    )
-                }
-            }
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(context, APPOINTMENT_CHANNEL_ID).setSmallIcon(R.drawable.ic_notification).setContentTitle(title).setContentText(generic).build(),
+            )
+            .addExtras(android.os.Bundle().apply {
+                putString(EXTRA_PROFILE_ID, profileId)
+                putString(EXTRA_APPOINTMENT_ID, appointmentId)
+                putLong(EXTRA_APPOINTMENT_AT, appointmentAtMillis)
+            })
             .setContentIntent(
                 PendingIntent.getActivity(
                     context,
@@ -169,6 +192,21 @@ class MedicationNotificationScheduler(private val context: Context) {
         if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
         }
+    }
+
+    /** Delivered visit reminders whose appointment was deleted, moved, switched off or whose profile was removed leave the shade. */
+    private fun cancelStaleAppointmentNotifications(profiles: Map<String, ProfileData>) {
+        val shown = context.getSystemService(NotificationManager::class.java).activeNotifications.mapNotNull { sbn ->
+            if (sbn.notification.channelId != APPOINTMENT_CHANNEL_ID) return@mapNotNull null
+            val extras = sbn.notification.extras
+            ShownAppointment(
+                sbn.id,
+                extras.getString(EXTRA_PROFILE_ID) ?: return@mapNotNull null,
+                extras.getString(EXTRA_APPOINTMENT_ID) ?: return@mapNotNull null,
+                extras.getLong(EXTRA_APPOINTMENT_AT, -1L),
+            )
+        }
+        NotificationScheduleLogic.staleAppointmentNotificationIds(shown, profiles).forEach { cancel(it) }
     }
 
     /**
@@ -464,9 +502,10 @@ class MedicationNotificationScheduler(private val context: Context) {
         const val APPOINTMENT_CHANNEL_ID = "appointment-reminders"
         const val ACTION_APPOINTMENT = "app.vezuna.action.APPOINTMENT_REMINDER"
         const val EXTRA_APPOINTMENT_ID = "appointmentId"
-        const val EXTRA_CLINICIAN = "clinician"
+        const val EXTRA_NOTICE_KEY = "noticeKey"
         const val EXTRA_APPOINTMENT_AT = "appointmentAt"
         private const val APPOINTMENT_PREFS = "recorded-appointment-armed-alarms"
+        private const val APPOINTMENT_DELIVERED_PREFS = "recorded-appointment-delivered"
         private const val SUPPLY_PREFS = "recorded-medication-supply-notices"
         private const val ARMED_PREFS = "recorded-medication-armed-alarms"
         private const val ARMED_KEY = "armed"

@@ -30,15 +30,19 @@ internal data class AppointmentDraft(
         return day.atTime(LocalTime(hour, minute)).toInstant(zone)
     }
 
-    /** A reminder that would already have fired can never be delivered, so it is refused instead of saved silently. */
-    fun reminderPassed(now: Instant, zone: TimeZone): Boolean {
+    /**
+     * A reminder that would already have fired can never be delivered, so a new or changed one is refused instead of saved
+     * silently. Saving other edits (notes) of a visit whose unchanged reminder already fired is fine.
+     */
+    fun reminderPassed(now: Instant, zone: TimeZone, existing: Appointment? = null): Boolean {
         val lead = reminderMinutesBefore ?: return false
         val at = at(zone) ?: return false
+        if (existing != null && existing.at == at && existing.reminderMinutesBefore == lead) return false
         return at - lead.minutes <= now
     }
 
-    fun isValid(now: Instant, zone: TimeZone): Boolean =
-        !clinicianMissing && at(zone) != null && !reminderPassed(now, zone)
+    fun isValid(now: Instant, zone: TimeZone, existing: Appointment? = null): Boolean =
+        !clinicianMissing && at(zone) != null && !reminderPassed(now, zone, existing)
 
     /** Call only when [isValid]. Surrounding spaces go; every other character stays as written. */
     fun toAppointment(profileId: String, id: String, zone: TimeZone): Appointment =

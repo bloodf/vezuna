@@ -83,6 +83,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -517,35 +518,44 @@ object IosRuntime {
     }
 
     /**
-     * Visit reminders of every profile as JSON: one entry per appointment that opted in and whose reminder time is still ahead.
-     * Anything absent (deleted, reminder switched off, already due) is what the native side cancels.
+     * Visit reminders of every profile as JSON: `notices` has one entry per appointment that opted in, has not started and is
+     * not already [handledJson] (the keys the native side handed to the system before); a late one keeps its original
+     * `fireEpochSeconds` and the native side fires it at once. `reminderIds` lists every appointment with a reminder on, so
+     * a delivered notification of a deleted or switched-off visit can be removed.
      */
-    fun planAppointmentReminders(completion: (String?, NativeMessage?) -> Unit) {
+    fun planAppointmentReminders(handledJson: String, completion: (String?, NativeMessage?) -> Unit) {
         if (!initialized) {
             completion(null, nativeMessage("bridge_storage_not_ready"))
             return
         }
         scope.launch {
             try {
+                val handled = json.parseToJsonElement(handledJson).jsonArray.map { it.jsonPrimitive.content }.toSet()
                 val now = currentInstant()
                 val profiles = repository.profiles.value
-                val notices = profiles.flatMap { profile ->
-                    AppointmentReminders.notices(repository.peekProfile(profile.profileId), now).map { profile to it }
-                }
+                val loaded = profiles.map { it to repository.peekProfile(it.profileId) }
+                val notices = loaded.flatMap { (profile, data) -> AppointmentReminders.notices(data, now, handled).map { profile to it } }
                 completion(
-                    JsonArray(
-                        notices.map { (profile, notice) ->
-                            JsonObject(
-                                mapOf(
-                                    "profileId" to JsonPrimitive(notice.profileId),
-                                    "appointmentId" to JsonPrimitive(notice.appointmentId),
-                                    "clinician" to JsonPrimitive(notice.clinician),
-                                    "appointmentEpochSeconds" to JsonPrimitive(notice.appointmentAt.epochSeconds),
-                                    "fireEpochSeconds" to JsonPrimitive(notice.fireAt.epochSeconds),
-                                    "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
-                                ),
-                            )
-                        },
+                    JsonObject(
+                        mapOf(
+                            "notices" to JsonArray(
+                                notices.map { (profile, notice) ->
+                                    JsonObject(
+                                        mapOf(
+                                            "key" to JsonPrimitive(notice.key),
+                                            "profileId" to JsonPrimitive(notice.profileId),
+                                            "appointmentId" to JsonPrimitive(notice.appointmentId),
+                                            "clinician" to JsonPrimitive(notice.clinician),
+                                            "appointmentEpochSeconds" to JsonPrimitive(notice.appointmentAt.epochSeconds),
+                                            "fireEpochSeconds" to JsonPrimitive(notice.fireAt.epochSeconds),
+                                            "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
+                                        ),
+                                    )
+                                },
+                            ),
+                            "reminderIds" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.reminderIds(data) }.map { JsonPrimitive(it) }),
+                            "nowEpochSeconds" to JsonPrimitive(now.epochSeconds),
+                        ),
                     ).toString(),
                     null,
                 )

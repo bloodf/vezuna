@@ -2,6 +2,7 @@ package app.vezuna.ui
 
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.AllergyRecord
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.AllergySeverity
 import app.vezuna.domain.ConditionRecord
 import app.vezuna.domain.ConditionStatus
@@ -113,6 +114,12 @@ object DesignFixture {
                 VaccinationRecord(P, "vaccination-flu", "Influenza 2026", at("2026-04-20T12:00:00Z"), doseNumber = "1", lot = "FLU-2026-118"),
                 VaccinationRecord(P, "vaccination-hepb", "Hepatitis B", at("2019-03-02T12:00:00Z"), doseNumber = "3"),
                 VaccinationRecord(P, "vaccination-tetanus", "Tetanus", doseNumber = "Booster"),
+            ),
+            appointments = listOf(
+                Appointment(P, "appointment-cardiology", at("2026-12-09T14:30:00Z"), "Dr. Example, cardiology", "Bring the last blood pressure log", reminderMinutesBefore = 24 * 60),
+                Appointment(P, "appointment-gp", at("2027-02-02T12:00:00Z"), "Dr. Example, family doctor"),
+                Appointment(P, "appointment-dermatology", at("2026-10-14T17:00:00Z"), "Dr. Example, dermatology", "Mole check, all clear"),
+                Appointment(P, "appointment-checkup", at("2026-06-03T13:15:00Z"), "Dr. Example, family doctor", "Annual check-up"),
             ),
             // region document vault
             vaultDocuments = listOf(

@@ -16,7 +16,8 @@ internal class AppointmentsController(private val core: ControllerCore) {
         val zone = core.timeZone()
         if (draft.clinicianMissing) failMessage(L10nKey.APPT_CLINICIAN_REQUIRED)
         if (draft.dateMissing || draft.at(zone) == null) failMessage(L10nKey.APPT_DATE_REQUIRED)
-        if (draft.reminderPassed(core.clock(), zone)) failMessage(L10nKey.APPT_REMINDER_PASSED)
+        val existing = appointmentId?.let { id -> data.appointments.firstOrNull { it.appointmentId == id } }
+        if (draft.reminderPassed(core.clock(), zone, existing)) failMessage(L10nKey.APPT_REMINDER_PASSED)
         val profileId = data.profile.profileId
         if (appointmentId == null) {
             repository.addAppointment(draft.toAppointment(profileId, randomId(), zone))

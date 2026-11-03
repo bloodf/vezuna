@@ -394,8 +394,8 @@ iOS: %2$s</string>
     <string name="exact_alarms_off_title">Reminders may arrive late</string>
     <string name="exact_alarms_off_explanation">Exact alarms are off, so Android may delay dose reminders to save battery. Allow alarms and reminders for Vezuna in system settings to get them on time.</string>
     <string name="open_alarm_settings">Open alarm settings</string>
-    <string name="hide_medication_names">Hide medication names on the lock screen</string>
-    <string name="hide_medication_names_explanation">Reminders show a generic message instead of the medication name where other people could read it.</string>
+    <string name="hide_medication_names">Hide names on the lock screen</string>
+    <string name="hide_medication_names_explanation">Reminders for medications and visits show a generic message instead of the medication name or clinician where other people could read it.</string>
     <string name="section_reminders">Reminders</string>
     <string name="schedule_repeat">Repeat</string>
     <string name="schedule_weekdays">Days of the week</string>
@@ -1307,7 +1307,10 @@ iOS: %2$s</string>
     <string name="appt_reminder_15m">15 minutes before</string>
     <string name="appt_reminder_1h">1 hour before</string>
     <string name="appt_reminder_1d">1 day before</string>
-    <string name="appt_reminder_minutes">%1$d minutes before</string>
+    <plurals name="appt_reminder_minutes">
+        <item quantity="one">%1$d minute before</item>
+        <item quantity="other">%1$d minutes before</item>
+    </plurals>
     <string name="appt_reminder_note">Reminders are set on this device only. Nothing is sent over the network.</string>
     <string name="appt_reminder_passed">That reminder time has already passed. Choose a shorter time or switch the reminder off.</string>
     <string name="appt_reminder_summary">Reminder: %1$s</string>

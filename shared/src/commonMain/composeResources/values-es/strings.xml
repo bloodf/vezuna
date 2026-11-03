@@ -394,8 +394,8 @@ iOS: %2$s</string>
     <string name="exact_alarms_off_title">Los recordatorios pueden retrasarse</string>
     <string name="exact_alarms_off_explanation">Las alarmas exactas están desactivadas, así que Android puede retrasar los recordatorios de dosis para ahorrar batería. Permite alarmas y recordatorios para Vezuna en los ajustes del sistema para recibirlos a tiempo.</string>
     <string name="open_alarm_settings">Abrir ajustes de alarmas</string>
-    <string name="hide_medication_names">Ocultar nombres de medicamentos en la pantalla de bloqueo</string>
-    <string name="hide_medication_names_explanation">Los recordatorios muestran un mensaje genérico en lugar del nombre del medicamento donde otras personas podrían leerlo.</string>
+    <string name="hide_medication_names">Ocultar nombres en la pantalla de bloqueo</string>
+    <string name="hide_medication_names_explanation">Los recordatorios de medicamentos y consultas muestran un mensaje genérico en lugar del nombre del medicamento o del profesional donde otras personas puedan leerlo.</string>
     <string name="section_reminders">Recordatorios</string>
     <string name="schedule_repeat">Repetir</string>
     <string name="schedule_weekdays">Días de la semana</string>
@@ -1307,7 +1307,10 @@ iOS: %2$s</string>
     <string name="appt_reminder_15m">15 minutos antes</string>
     <string name="appt_reminder_1h">1 hora antes</string>
     <string name="appt_reminder_1d">1 día antes</string>
-    <string name="appt_reminder_minutes">%1$d minutos antes</string>
+    <plurals name="appt_reminder_minutes">
+        <item quantity="one">%1$d minuto antes</item>
+        <item quantity="other">%1$d minutos antes</item>
+    </plurals>
     <string name="appt_reminder_note">Los recordatorios se programan solo en este dispositivo. No se envía nada por la red.</string>
     <string name="appt_reminder_passed">Esa hora de recordatorio ya pasó. Elige un tiempo menor o desactiva el recordatorio.</string>
     <string name="appt_reminder_summary">Recordatorio: %1$s</string>
