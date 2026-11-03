@@ -16,6 +16,7 @@ import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VaultDocument
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.WeightReading
 import kotlin.time.Instant
@@ -93,8 +94,22 @@ object DesignFixture {
                 )
             },
             vitals = vitals(),
+            // region document vault
+            vaultDocuments = listOf(
+                vaultDocument("vault-prescription", "vitamin-d-prescription.pdf", "application/pdf", "2026-09-02", listOf("Prescription"), stored = true),
+                vaultDocument("vault-ultrasound", "abdominal-ultrasound-report.pdf", "application/pdf", "2026-08-19", listOf("Imaging", "Dr. Example"), stored = true),
+                vaultDocument("vault-vaccine", "vaccination-card.jpg", "image/jpeg", "2026-05-06", listOf("Vaccination"), stored = true),
+                vaultDocument("vault-restored", "insurance-letter.pdf", "application/pdf", "2026-03-21", listOf("Insurance"), stored = false),
+            ),
+            // endregion document vault
         )
     }
+
+    /** [stored] false shows a record restored from a backup that carried no files. The fixture holds no real files. */
+    private fun vaultDocument(id: String, file: String, type: String, date: String, tags: List<String>, stored: Boolean) = VaultDocument(
+        SourceDocument(P, id, file, type, "fixture-$id", at("${date}T15:00:00Z"), vaultKey = if (stored) "fixture-$id" else null),
+        tags,
+    )
 
     /** Seven daily summaries: steps, daily average heart rate and three weights (gaps stay gaps). */
     private fun vitals(): ProfileVitals {

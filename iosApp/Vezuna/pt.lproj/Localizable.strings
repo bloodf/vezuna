@@ -10,7 +10,7 @@
 "camera" = "Câmera";
 "photos_done" = "Concluir";
 "add_page" = "Adicionar outra página";
-"pages_in_report" = "Páginas neste laudo: %1$d";
+"pages_in_report" = "Páginas adicionadas: %1$d";
 "value" = "Valor";
 "close" = "Fechar";
 "healthkit_description" = "O Vezuna solicita acesso somente leitura a frequência cardíaca, passos e peso. As importações usam âncoras do HealthKit por perfil e permanecem neste dispositivo.";

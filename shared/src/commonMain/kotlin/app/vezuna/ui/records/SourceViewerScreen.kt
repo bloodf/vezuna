@@ -55,6 +55,7 @@ import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.components.PrimaryButton
 import app.vezuna.ui.components.ProgressState
 import app.vezuna.ui.components.SecondaryButton
+import app.vezuna.ui.entry.MAX_PDF_PAGES
 import app.vezuna.ui.nav.RouteContext
 import kotlin.math.ceil
 import kotlinx.coroutines.Dispatchers
@@ -75,21 +76,32 @@ private const val ZOOM_STEP = 0.5f
  * the screen says so and never implies an attachment exists (image 021).
  */
 @Composable
-internal fun SourceViewerScreen(ctx: RouteContext, documentId: String) =
-    FocusedTaskScaffold(title = vitaText(L10nKey.SOURCE_TITLE), onBack = ctx::back) {
-        val document = ctx.state.data?.documents?.firstOrNull { it.documentId == documentId }
+internal fun SourceViewerScreen(ctx: RouteContext, documentId: String) {
+    val vaultDocument = ctx.state.data?.vaultDocuments?.firstOrNull { it.source.documentId == documentId }?.source
+    FocusedTaskScaffold(title = vitaText(if (vaultDocument != null) L10nKey.DOCUMENTS_VIEWER_TITLE else L10nKey.SOURCE_TITLE), onBack = ctx::back) {
+        val document = vaultDocument ?: ctx.state.data?.documents?.firstOrNull { it.documentId == documentId }
         var read by remember(documentId) { mutableStateOf<SourceFileRead?>(null) }
         LaunchedEffect(documentId) { read = ctx.controller.readSourceFile(documentId) }
         when (val result = read) {
             null -> ProgressState(vitaText(L10nKey.SOURCE_OPENING))
             is SourceFileRead.Available -> SourcePages(result, document?.displayName.orEmpty(), onFailed = { read = SourceFileRead.Unreadable })
-            SourceFileRead.Missing -> SourceUnavailable(ctx, vitaText(L10nKey.SOURCE_MISSING_BODY), offerReimport = document != null)
-            SourceFileRead.Unreadable -> SourceUnavailable(ctx, vitaText(L10nKey.SOURCE_UNREADABLE_BODY), offerReimport = false)
+            // A vault document is never offered the lab import: that path reads the file.
+            SourceFileRead.Missing -> if (vaultDocument != null) {
+                SourceUnavailable(ctx, vitaText(L10nKey.DOCUMENTS_FILE_MISSING_BODY), offerReimport = false, returnLabel = vitaText(L10nKey.DOCUMENTS_RETURN))
+            } else {
+                SourceUnavailable(ctx, vitaText(L10nKey.SOURCE_MISSING_BODY), offerReimport = document != null)
+            }
+            SourceFileRead.Unreadable -> if (vaultDocument != null) {
+                SourceUnavailable(ctx, vitaText(L10nKey.DOCUMENTS_FILE_UNREADABLE_BODY), offerReimport = false, returnLabel = vitaText(L10nKey.DOCUMENTS_RETURN))
+            } else {
+                SourceUnavailable(ctx, vitaText(L10nKey.SOURCE_UNREADABLE_BODY), offerReimport = false)
+            }
         }
     }
+}
 
 @Composable
-private fun SourceUnavailable(ctx: RouteContext, body: String, offerReimport: Boolean) {
+private fun SourceUnavailable(ctx: RouteContext, body: String, offerReimport: Boolean, returnLabel: String = vitaText(L10nKey.SOURCE_RETURN)) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter),
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
@@ -98,7 +110,7 @@ private fun SourceUnavailable(ctx: RouteContext, body: String, offerReimport: Bo
         if (offerReimport) {
             Text(vitaText(L10nKey.SOURCE_MISSING_REIMPORT_HINT), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        PrimaryButton(vitaText(L10nKey.SOURCE_RETURN), ctx::back, Modifier.fillMaxWidth())
+        PrimaryButton(returnLabel, ctx::back, Modifier.fillMaxWidth())
         if (offerReimport) SecondaryButton(vitaText(L10nKey.SOURCE_REIMPORT), { ctx.navigate(AppScreen.ImportSource) }, Modifier.fillMaxWidth())
     }
 }
@@ -164,7 +176,11 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
                 }
             }
             ZoomControls(zoom) { zoom = it }
-            if (pageCount > 1) PagePicker(pageIndex, pageCount) { pageIndex = it }
+            when {
+                // Vault PDFs have no page cap, and one button per page would crowd out the page itself.
+                pageCount > MAX_PDF_PAGES -> PageStepper(pageIndex, pageCount) { pageIndex = it }
+                pageCount > 1 -> PagePicker(pageIndex, pageCount) { pageIndex = it }
+            }
         }
     }
 }
@@ -183,6 +199,17 @@ private fun ZoomControls(zoom: Float, onZoom: (Float) -> Unit) {
         IconButton({ onZoom((zoom + ZOOM_STEP).coerceAtMost(MAX_ZOOM)) }, enabled = zoom < MAX_ZOOM, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
             Icon(painterResource(Res.drawable.ic_plus), contentDescription = vitaText(L10nKey.SOURCE_ZOOM_IN))
         }
+    }
+}
+
+@Composable
+private fun PageStepper(selected: Int, count: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceSm),
+        horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm),
+    ) {
+        SecondaryButton(vitaText(L10nKey.SOURCE_PAGE_PREVIOUS), { onSelect(selected - 1) }, Modifier.weight(1f), enabled = selected > 0)
+        SecondaryButton(vitaText(L10nKey.SOURCE_PAGE_NEXT), { onSelect(selected + 1) }, Modifier.weight(1f), enabled = selected < count - 1)
     }
 }
 

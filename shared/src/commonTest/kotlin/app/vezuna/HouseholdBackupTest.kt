@@ -167,7 +167,7 @@ class HouseholdBackupSafetyTest {
 
         val failure = assertFailsWith<VitaMessageException> { controller.householdForBackup() }
 
-        assertEquals(L10nKey.BACKUP_TOO_LARGE, failure.userText.key)
+        assertEquals(L10nKey.BACKUP_TOO_LARGE_NAMED, failure.userText.key)
         assertTrue(store.loads < 10, "stopped after ${store.loads} loads")
     }
 

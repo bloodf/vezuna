@@ -17,4 +17,10 @@ object RecordsRoutes {
 
     @Composable
     fun ResultDetail(screen: AppScreen.ResultDetail, ctx: RouteContext) = ResultDetailPage(ctx, screen.observationId)
+
+    @Composable
+    fun Documents(ctx: RouteContext) = DocumentsScreen(ctx)
+
+    @Composable
+    fun DocumentDetail(screen: AppScreen.DocumentDetail, ctx: RouteContext) = DocumentDetailScreen(ctx, screen.documentId)
 }

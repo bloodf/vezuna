@@ -29,7 +29,7 @@
     <string name="take_photo">Take photo</string>
     <string name="add_another_photo">Add page</string>
     <string name="photos_done">Use these photos</string>
-    <string name="photo_added_message">Photos in this report: %1$d. Add another page?</string>
+    <string name="photo_added_message">Photos added: %1$d. Add another page?</string>
     <string name="image_empty">The selected image is empty.</string>
     <string name="image_unreadable">The selected file is not a readable image.</string>
     <string name="pdf_empty">The selected PDF is empty.</string>

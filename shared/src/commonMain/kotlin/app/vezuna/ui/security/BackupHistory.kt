@@ -1,6 +1,7 @@
 package app.vezuna.ui.security
 
 import app.vezuna.domain.ConfirmationStatus
+import app.vezuna.domain.allDocuments
 import app.vezuna.security.BackupMember
 import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
@@ -58,8 +59,8 @@ data class BackupContents(
             doseEvents = members.sumOf { it.data.doseEvents.size },
             hasDeviceData = members.any { !it.data.vitals.isEmpty },
             chatMessages = members.sumOf { it.data.chat.size },
-            documents = members.sumOf { it.data.documents.size },
-            originalFiles = members.sumOf { m -> m.data.documents.count { it.documentId in m.files } },
+            documents = members.sumOf { it.data.allDocuments().size },
+            originalFiles = members.sumOf { m -> m.data.allDocuments().count { it.documentId in m.files } },
         )
     }
 }

@@ -10,7 +10,7 @@
 "camera" = "Cámara";
 "photos_done" = "Listo";
 "add_page" = "Añadir otra página";
-"pages_in_report" = "Páginas en este informe: %1$d";
+"pages_in_report" = "Páginas añadidas: %1$d";
 "value" = "Valor";
 "close" = "Cerrar";
 "healthkit_description" = "Vezuna solicita acceso de solo lectura a frecuencia cardíaca, pasos y peso. Las importaciones usan anclas de HealthKit por perfil y permanecen en este dispositivo.";

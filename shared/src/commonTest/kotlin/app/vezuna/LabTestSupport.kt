@@ -11,13 +11,18 @@ import app.vezuna.llm.ModelFileStore
 import app.vezuna.ui.AppController
 import app.vezuna.ui.SourceFileStore
 
-internal fun labController(repository: VezunaRepository, sourceStore: SourceFileStore? = null): AppController {
+internal fun labController(
+    repository: VezunaRepository,
+    sourceStore: SourceFileStore? = null,
+    documentFileOpens: suspend (String, List<ByteArray>) -> Boolean = { _, _ -> true },
+): AppController {
     val llm = LabTestLlm()
     return AppController(
         repository,
         InstalledModelManager(ModelCatalog.unconfigured(), LabTestModelStore(), llm),
         LocalHealthChat(repository, llm),
         sourceStore = sourceStore,
+        documentFileOpens = documentFileOpens,
     )
 }
 

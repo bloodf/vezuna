@@ -2,6 +2,7 @@ package app.vezuna.security
 
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.allDocuments
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
@@ -180,8 +181,8 @@ class BackupService(
      */
     private fun BackupMember.isValid(): Boolean {
         if (!data.isInternallyConsistent()) return false
-        if (data.documents.any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
-        val allowed = data.documents.flatMapTo(HashSet()) { it.fileIds() }
+        if (data.allDocuments().any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
+        val allowed = data.allDocuments().flatMapTo(HashSet()) { it.fileIds() }
         return files.keys.all { it in allowed }
     }
 
@@ -203,7 +204,10 @@ class BackupService(
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
 
-        /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
+        /**
+         * What [create] still writes. A profile with vault documents has a field builds before them refuse as invalid
+         * content; no such build has shipped. If that changes, bump the version so they say "update the app" instead.
+         */
         const val SINGLE_SCHEMA_VERSION = 3
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
         const val MAX_BACKUP_READ_BYTES = 64 * 1024 * 1024
