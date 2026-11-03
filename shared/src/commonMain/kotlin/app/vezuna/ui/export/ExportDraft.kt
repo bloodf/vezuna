@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.domain.healthRecords
 import app.vezuna.export.DoctorExportContent
 import app.vezuna.export.ExportFamily
 import app.vezuna.export.ExportOptions
@@ -41,6 +42,9 @@ class ExportDraft(val profileId: String, val kind: String, paper: PaperSize) {
     var includeDoses by mutableStateOf(defaults.includeDoseHistory)
     var includeDevice by mutableStateOf(defaults.includeDeviceData)
     var includeSources by mutableStateOf(defaults.includeSourceAppendix)
+    var includeAllergies by mutableStateOf(defaults.includeAllergies)
+    var includeConditions by mutableStateOf(defaults.includeConditions)
+    var includeVaccinations by mutableStateOf(defaults.includeVaccinations)
     var activeMedicationsOnly by mutableStateOf(false)
     var medicationsInCsv by mutableStateOf(false)
     var paper by mutableStateOf(paper)
@@ -81,6 +85,9 @@ class ExportDraft(val profileId: String, val kind: String, paper: PaperSize) {
             includeDoseHistory = includeDoses,
             includeDeviceData = includeDevice,
             includeSourceAppendix = includeSources,
+            includeAllergies = includeAllergies,
+            includeConditions = includeConditions,
+            includeVaccinations = includeVaccinations,
         )
     }
 }
@@ -116,7 +123,9 @@ object ExportScope {
 
     /** False when every selected section would print nothing; the preview then offers to change the selection. */
     fun hasContent(data: ProfileData, options: ExportOptions, csv: Boolean, zone: TimeZone): Boolean {
-        val confirmed = options.apply(data).observations.any { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
+        val selected = options.apply(data)
+        val confirmed = selected.observations.any { it.profileId == data.profile.profileId && it.confirmation == ConfirmationStatus.CONFIRMED }
+        if (selected.healthRecords.isNotEmpty()) return true
         if (csv) return confirmed || (options.includeMedicationsCsv && data.medications.any { it.profileId == data.profile.profileId })
         return (options.includeLabsPdf && confirmed) ||
             (options.includeMedicationsPdf && options.apply(data).medications.any { it.profileId == data.profile.profileId }) ||

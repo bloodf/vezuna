@@ -1,5 +1,7 @@
 package app.vezuna.export
 
+import app.vezuna.domain.AllergyRecord
+import app.vezuna.domain.ConditionRecord
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DeviceVitals
 import app.vezuna.domain.DoseEventStatus
@@ -14,6 +16,10 @@ import app.vezuna.domain.RangeAssessment
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.domain.VaccinationRecord
+import app.vezuna.domain.allergiesByName
+import app.vezuna.domain.conditionsByName
+import app.vezuna.domain.vaccinationsByDate
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.platform.currentInstant
 import kotlin.time.Instant
@@ -45,9 +51,13 @@ data class DoctorPdfDocument(
     val deviceRows: List<DoctorDeviceRow> = emptyList(),
     /** Source reports behind the exported results, plus documents left out for unreviewed values (pdf-09). */
     val sourceRows: List<DoctorSourceRow> = emptyList(),
+    // User-entered sections, already filtered and in display order; empty ones print nothing.
+    val allergies: List<AllergyRecord> = emptyList(),
+    val conditions: List<ConditionRecord> = emptyList(),
+    val vaccinations: List<VaccinationRecord> = emptyList(),
 ) {
     val hasStructuredContent: Boolean get() = profileDisplayName.isNotEmpty() || resultRows.isNotEmpty() || medicationRows.isNotEmpty() ||
-        doseRows.isNotEmpty() || deviceRows.isNotEmpty()
+        doseRows.isNotEmpty() || deviceRows.isNotEmpty() || allergies.isNotEmpty() || conditions.isNotEmpty() || vaccinations.isNotEmpty()
 }
 
 /** One recorded dose outcome; [date] and [time] are local to the device zone at export time. */
@@ -198,6 +208,9 @@ object DoctorExportContent {
             medicationRows = if (options.includeMedicationsPdf) medicationRows(selected, generatedAt.toLocalDateTime(zone).date) else emptyList(),
             resultRows = if (options.includeLabsPdf) built.resultRows else emptyList(),
             family = options.family,
+            allergies = selected.allergiesByName,
+            conditions = selected.conditionsByName,
+            vaccinations = selected.vaccinationsByDate,
             doseRows = if (options.includeDoseHistory) doseRows(data, options, zone) else emptyList(),
             deviceRows = if (options.includeDeviceData) deviceRows(data, options, zone) else emptyList(),
             sourceRows = if (options.includeSourceAppendix) sourceRows(data, selected, options) else emptyList(),
@@ -462,6 +475,21 @@ class CsvDoctorExporter {
                 appendLine(values.joinToString(",") { escape(it) })
             }
         if (includeMedications) appendMedications(data, language)
+        appendHealthRecords(data, language)
+    }
+
+    /** Each non-empty kind is its own block, like medications; values stay as entered, dates are ISO at their known precision. */
+    private fun StringBuilder.appendHealthRecords(data: ProfileData, language: ContentLanguage) {
+        val text = HealthRecordText.of(language)
+        fun block(header: String, rows: List<List<String>>) {
+            if (rows.isEmpty()) return
+            appendLine()
+            appendLine(header)
+            rows.forEach { row -> appendLine(row.joinToString(",") { escape(it) }) }
+        }
+        block(text.csvAllergies, data.allergiesByName.map { listOf(it.substance, it.reaction.orEmpty(), it.severity?.let(text::label).orEmpty(), it.notes.orEmpty()) })
+        block(text.csvConditions, data.conditionsByName.map { listOf(it.name, it.onset?.iso.orEmpty(), it.status?.let(text::label).orEmpty(), it.notes.orEmpty()) })
+        block(text.csvVaccinations, data.vaccinationsByDate.map { listOf(it.vaccine, it.day?.toString().orEmpty(), it.doseNumber.orEmpty(), it.lot.orEmpty()) })
     }
 
     /** A blank line then a second header: spreadsheets show it as a separate medications block. */

@@ -5,6 +5,7 @@ import app.vezuna.domain.ProfileAge
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.UnitNormalizer
+import app.vezuna.domain.VaccinationRecord
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -33,16 +34,29 @@ data class ExportOptions(
     val includeDeviceData: Boolean = false,
     /** PDF source appendix (pdf-09): the reports the exported results came from; files are listed, never embedded. */
     val includeSourceAppendix: Boolean = false,
+    /** User-entered sections; an empty one is left out of the export entirely. */
+    val includeAllergies: Boolean = false,
+    val includeConditions: Boolean = false,
+    /** Dated vaccinations follow the period; undated ones are listed only when the period is unbounded. */
+    val includeVaccinations: Boolean = false,
 ) {
     init {
         require(from == null || to == null || from <= to) { "Export start date is after the end date" }
     }
 
-    /** The profile data restricted to this selection; results and medications are filtered, nothing else is touched. */
+    /** The profile data restricted to this selection; results, medications and health records are filtered, nothing else is touched. */
     fun apply(data: ProfileData): ProfileData = data.copy(
         observations = data.observations.filter(::includes),
         medications = data.medications.filter { !activeMedicationsOnly || it.active },
+        allergies = if (includeAllergies) data.allergies else emptyList(),
+        conditions = if (includeConditions) data.conditions else emptyList(),
+        vaccinations = if (includeVaccinations) data.vaccinations.filter(::includes) else emptyList(),
     )
+
+    private fun includes(vaccination: VaccinationRecord): Boolean {
+        val day = vaccination.day ?: return from == null && to == null
+        return (from == null || day >= from) && (to == null || day <= to)
+    }
 
     /** Unreviewed imported values of the profile inside this selection: excluded from the export, but counted in its scope. */
     fun unreviewedCount(data: ProfileData): Int = unreviewedByDocument(data).values.sumOf { it.size }
@@ -92,7 +106,8 @@ enum class ExportFamily(val slug: String) {
 
     /** Starting sections for this family; the user can change every one before exporting. */
     fun defaults(paper: PaperSize = PaperSize.A4): ExportOptions = when (this) {
-        HEALTH_SUMMARY, LAB_HISTORY -> ExportOptions(family = this, paper = paper)
+        HEALTH_SUMMARY -> ExportOptions(family = this, paper = paper, includeAllergies = true, includeConditions = true, includeVaccinations = true)
+        LAB_HISTORY -> ExportOptions(family = this, paper = paper)
         MEDICATION_RECORD -> ExportOptions(family = this, paper = paper, includeLabsPdf = false, includeDoseHistory = true)
         DEVICE_MEASUREMENTS -> ExportOptions(family = this, paper = paper, includeLabsPdf = false, includeMedicationsPdf = false, includeDeviceData = true)
     }

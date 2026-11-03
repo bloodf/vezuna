@@ -121,6 +121,36 @@ class RestoreBackupControllerTest {
     }
 
     @Test
+    fun firstRunRestoreKeepsADefaultProfileThatOnlyHasHealthRecords() = runTest {
+        val repository = InMemoryVezunaRepository()
+        var defaultId = ""
+        firstRunRestore(repository) { id ->
+            defaultId = id
+            repository.addHealthRecord(app.vezuna.domain.AllergyRecord(id, "allergy-1", "Latex"))
+        }
+        assertTrue(defaultId in repository.ids(), "an allergy counts as touched")
+        assertEquals("Latex", repository.readProfile(defaultId).allergies.single().substance)
+    }
+
+    @Test
+    fun firstRunRestoreKeepsADefaultProfileHoldingOnlyOneKindOfRecord() = runTest {
+        val records = listOf<(String) -> app.vezuna.domain.HealthRecord>(
+            { id -> app.vezuna.domain.AllergyRecord(id, "r1", "Latex") },
+            { id -> app.vezuna.domain.ConditionRecord(id, "r1", "Migraine") },
+            { id -> app.vezuna.domain.VaccinationRecord(id, "r1", "Tetanus") },
+        )
+        records.forEach { make ->
+            val repository = InMemoryVezunaRepository()
+            var defaultId = ""
+            firstRunRestore(repository) { id ->
+                defaultId = id
+                repository.addHealthRecord(make(id))
+            }
+            assertTrue(defaultId in repository.ids(), "${make("x").kind} counts as touched")
+        }
+    }
+
+    @Test
     fun localizedDefaultNamesCountAsUntouched() = runTest {
         val repository = InMemoryVezunaRepository()
         firstRunRestore(repository) { id -> repository.updateProfile(repository.profiles.value.single().copy(displayName = "Eu")) }

@@ -8,6 +8,7 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 
 ### Added
 
+- User-entered allergies and intolerances, conditions and history, and vaccinations: kept as written per profile, included in backups, and selectable as PDF and CSV sections. Never inferred from results and not sent to the assistant.
 - Kotlin Multiplatform shared module (`shared/`) with Compose Multiplatform UI, domain logic, encrypted-vault contract, model lifecycle, comparisons, and PDF/CSV export.
 - Android app (`composeApp/`): encrypted persistence (Android Keystore AES-256-GCM), ML Kit and PDF text import, Health Connect read, medication reminders, Play LVL gate, Play Asset Delivery loader, native sharing.
 - iOS app (`iosApp/`): SwiftUI shell, CryptoKit AES-GCM with file protection, HealthKit read, PDFKit/Vision import, reminders, StoreKit gate, hosted-asset loader, native sharing.

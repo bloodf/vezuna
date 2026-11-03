@@ -49,7 +49,8 @@ class ExportGapsPdfTest {
 
     @Test
     fun healthSummaryDrawsEachMultiDateTestWithFirstAndPreviousChanges() {
-        val bytes = PdfFixtures.pdfBytes(document(ExportFamily.HEALTH_SUMMARY))
+        // Without the fixture's health records, which add their own sections.
+        val bytes = PdfFixtures.pdfBytes(document(ExportFamily.HEALTH_SUMMARY, data = DesignFixture.data().copy(allergies = emptyList(), conditions = emptyList(), vaccinations = emptyList())))
         val text = text(bytes)
         listOf(
             "Hemoglobin g/dL", "LDL cholesterol mg/dL", "13.0", "12.8", "146", "140", "12 Apr 2026", "15 Jul 2026",

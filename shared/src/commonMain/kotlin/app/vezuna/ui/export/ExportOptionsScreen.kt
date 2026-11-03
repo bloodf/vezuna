@@ -94,6 +94,7 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
             if (csv) {
                 ListRow(vitaText(L10nKey.EXPORT_SECTION_LABS), supporting = labCounts)
                 SwitchRow(vitaText(L10nKey.EXPORT_INCLUDE_MEDICATIONS_CSV), null, draft.medicationsInCsv) { draft.medicationsInCsv = it }
+                HealthRecordSwitches(data, draft, options)
             } else {
                 SwitchRow(vitaText(L10nKey.EXPORT_SECTION_LABS), labCounts, draft.includeLabs) { draft.includeLabs = it }
                 SwitchRow(vitaText(L10nKey.EXPORT_SECTION_MEDS), null, draft.includeMedications) { draft.includeMedications = it }
@@ -103,6 +104,7 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
                     if (data.vitals.isEmpty) vitaText(L10nKey.EXPORT_SECTION_DEVICE_NONE) else null,
                     draft.includeDevice,
                 ) { draft.includeDevice = it }
+                HealthRecordSwitches(data, draft, options)
                 SwitchRow(vitaText(L10nKey.EXPORT_SECTION_SOURCES), null, draft.includeSources) { draft.includeSources = it }
             }
             if (csv || draft.includeMedications || draft.includeDoses) {
@@ -146,6 +148,16 @@ internal fun ExportOptionsScreen(ctx: RouteContext, kind: String) {
         )
         Spacer(Modifier.height(VezunaTokens.SpaceLg))
     }
+}
+
+@Composable
+private fun HealthRecordSwitches(data: ProfileData, draft: ExportDraft, options: ExportOptions?) {
+    @Composable
+    fun row(title: L10nKey, count: Int, checked: Boolean, onChange: (Boolean) -> Unit) =
+        SwitchRow(vitaText(title), if (count > 0) vitaPlural(L10nKey.HR_COUNT, count) else vitaText(L10nKey.HR_EXPORT_NONE), checked, onChange)
+    row(L10nKey.HR_ALLERGIES, data.allergies.size, draft.includeAllergies) { draft.includeAllergies = it }
+    row(L10nKey.HR_CONDITIONS, data.conditions.size, draft.includeConditions) { draft.includeConditions = it }
+    row(L10nKey.HR_VACCINATIONS, (options?.copy(includeVaccinations = true)?.apply(data)?.vaccinations ?: data.vaccinations).size, draft.includeVaccinations) { draft.includeVaccinations = it }
 }
 
 private fun labTestCount(data: ProfileData, options: ExportOptions): Int =

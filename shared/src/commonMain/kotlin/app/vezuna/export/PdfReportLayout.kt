@@ -69,6 +69,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         if (document.scope.labsIncluded) labs()
         // A device-only export leaves medications out entirely instead of printing "Not selected".
         if (document.family != ExportFamily.DEVICE_MEASUREMENTS || document.scope.medicationsIncluded) medications()
+        healthRecords()
         if (document.scope.doseHistoryIncluded && document.hasStructuredContent) doseHistory()
         if (document.scope.deviceIncluded && document.hasStructuredContent) device()
         if (document.scope.sourceAppendixIncluded && document.hasStructuredContent) sourceAppendix()
@@ -678,6 +679,41 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
         }
         ensure(pen.paragraphHeight(t.medicationNote, width, NOTE))
         y += pen.paragraph(t.medicationNote, left, y, width, NOTE, MUTED)
+    }
+
+    private fun healthRecords() {
+        val text = HealthRecordText.of(language)
+        val bounded = document.scope.selectedFrom != null || document.scope.selectedTo != null
+        val general = if (bounded) "${text.note} ${text.notPeriodBound}" else text.note
+        recordSection(text.allergies, general, document.allergies.map { HealthRecordExport.block(it, language) })
+        recordSection(text.conditions, general, document.conditions.map { HealthRecordExport.block(it, language) })
+        recordSection(text.vaccinations, if (bounded) "${text.note} ${text.onlyInPeriod}" else text.note, document.vaccinations.map { HealthRecordExport.block(it, language) })
+    }
+
+    /** An empty section prints nothing, so a missing section never reads as "none". */
+    private fun recordSection(title: String, note: String, records: List<HealthRecordBlock>) {
+        if (records.isEmpty()) return
+        val line = pen.lineHeight(BODY)
+        y += 4 * MM
+        sectionTitle(title, PdfStyle.LAVENDER, extra = pen.paragraphHeight(note, width, NOTE) + 2 * MM + 2 * line)
+        y += pen.paragraph(note, left, y, width, NOTE, MUTED) + 2 * MM
+        records.forEach { record ->
+            // The name stays with the first detail line; free text then flows line by line, so any length stays clear of the footer.
+            if (ensure(2 * line)) carriedTitle(title, s.continued)
+            flowingText(record.name, title, bold = true)
+            record.details.forEach { flowingText(it, title) }
+            y += 1 * MM
+            pen.line(left, y, right, y, PdfStyle.BORDER, PdfStyle.RULE)
+            y += 2 * MM
+        }
+    }
+
+    private fun flowingText(value: String, carry: String, bold: Boolean = false) {
+        pen.wrap(value, width, BODY, bold).forEach { part ->
+            if (ensure(pen.lineHeight(BODY))) carriedTitle(carry, s.continued)
+            pen.text(part, left, y, BODY, bold = bold)
+            y += pen.lineHeight(BODY)
+        }
     }
 
     /** pdf-06: the planned times of the next seven dated days, labelled as schedule so it never reads as dose history. */

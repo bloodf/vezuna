@@ -62,7 +62,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
     val ids = listOf(id) + allDocuments().map { it.documentId } + reports.map { it.reportId } + observations.flatMap { o -> listOf(o.observationId) + o.revisions.map { it.revisionId } } +
         ocrCandidates.flatMap { c -> listOf(c.candidateId) + c.revisions.map { it.revisionId } } +
         medications.flatMap { m -> listOf(m.medicationId) + m.schedules.map { it.scheduleId } } +
-        doseEvents.map { it.eventId } + chat.map { it.messageId }
+        doseEvents.map { it.eventId } + chat.map { it.messageId } + healthRecords.map { it.id }
     return ids.all(::isValidId) &&
         allDocuments().unique { it.documentId } &&
         reports.unique { it.reportId } &&
@@ -82,7 +82,9 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         doseEvents.all { e ->
             e.profileId == id && medications.any { m -> m.medicationId == e.medicationId && m.schedules.any { it.scheduleId == e.scheduleId } }
         } &&
-        chat.all { it.profileId == id }
+        chat.all { it.profileId == id } &&
+        healthRecords.all { it.profileId == id } &&
+        healthRecords.unique { it.id }
 }
 
 private val VALID_ID = Regex("[A-Za-z0-9_-]{1,128}")

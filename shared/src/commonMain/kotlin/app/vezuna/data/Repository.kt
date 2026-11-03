@@ -8,6 +8,7 @@ import app.vezuna.domain.ClinicalDuplicateDetector
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
+import app.vezuna.domain.HealthRecord
 import app.vezuna.domain.LabObservation
 import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
@@ -23,13 +24,16 @@ import app.vezuna.domain.withVaultDocument
 import app.vezuna.domain.withoutVaultDocument
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
+import app.vezuna.domain.withHealthRecord
 import app.vezuna.domain.withMedication
+import app.vezuna.domain.withNewHealthRecord
 import app.vezuna.domain.withObservation
 import app.vezuna.domain.withProfile
 import app.vezuna.domain.withReport
 import app.vezuna.domain.withSchedule
 import app.vezuna.domain.withoutChatMessage
 import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutHealthRecord
 import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
@@ -83,6 +87,9 @@ interface VezunaRepository {
     suspend fun deleteSchedule(profileId: String, scheduleId: String)
     suspend fun updateChatMessage(message: ChatMessage)
     suspend fun deleteChatMessage(profileId: String, messageId: String)
+    suspend fun addHealthRecord(record: HealthRecord)
+    suspend fun updateHealthRecord(record: HealthRecord)
+    suspend fun deleteHealthRecord(profileId: String, recordId: String)
 
     /**
      * Creates the profile or atomically replaces every record of the existing one with [data] (no stale records
@@ -233,6 +240,12 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun updateChatMessage(message: ChatMessage) = mutate(message.profileId) { it.withChatMessage(message) }
 
     override suspend fun deleteChatMessage(profileId: String, messageId: String) = mutate(profileId) { it.withoutChatMessage(messageId) }
+
+    override suspend fun addHealthRecord(record: HealthRecord) = mutate(record.profileId) { it.withNewHealthRecord(record) }
+
+    override suspend fun updateHealthRecord(record: HealthRecord) = mutate(record.profileId) { it.withHealthRecord(record) }
+
+    override suspend fun deleteHealthRecord(profileId: String, recordId: String) = mutate(profileId) { it.withoutHealthRecord(recordId) }
 
     override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }

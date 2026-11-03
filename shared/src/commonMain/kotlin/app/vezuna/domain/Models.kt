@@ -219,6 +219,7 @@ data class ChatMessage(
     enum class Role { USER, ASSISTANT }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ProfileData(
     val profile: Profile,
@@ -231,6 +232,11 @@ data class ProfileData(
     val chat: List<ChatMessage> = emptyList(),
     // Device health data (Health Connect / HealthKit); populated only for the linked profile.
     val vitals: ProfileVitals = ProfileVitals(),
+    // User-entered records (#96). Left out of the JSON while empty, so backups without them stay readable by older builds;
+    // an older build refuses one that has them (unknown key), so nothing is ever silently dropped. Local storage is stamped v3 and refused by older builds.
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val allergies: List<AllergyRecord> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val conditions: List<ConditionRecord> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val vaccinations: List<VaccinationRecord> = emptyList(),
     // region document vault
     /** Non-lab files. Left out of the JSON while empty, so a profile without any serializes exactly as before. */
     @OptIn(ExperimentalSerializationApi::class)
