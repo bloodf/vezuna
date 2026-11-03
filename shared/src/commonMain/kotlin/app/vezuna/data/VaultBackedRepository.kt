@@ -553,6 +553,9 @@ class VaultBackedRepository(
                 warn("Could not delete the migrated legacy repository file", error)
             }
         }
+        // Nothing above needed the key when the vault is empty. Prove it works now: a dead Keychain or Keystore on a
+        // first run must reach the recovery screen, not report the vault as open and fail on the first write.
+        if (records.isEmpty()) vault.encrypt(ByteArray(0), KEY_CHECK_ASSOCIATED_DATA)
         publishProfiles()
         initialized = true
     }
@@ -750,6 +753,7 @@ class VaultBackedRepository(
         suspend fun open(vault: SecureVault, json: Json = Json { encodeDefaults = true }, persistSelection: Boolean = true): VaultBackedRepository =
             VaultBackedRepository(vault, json, persistSelection).also { it.load() }
 
+        private val KEY_CHECK_ASSOCIATED_DATA = "Vezuna repository key check".encodeToByteArray()
         private const val LEGACY_KEY = "repository-v1"
         private const val LEGACY_ASSOCIATED_DATA = "Vezuna repository v1"
         private const val INDEX_KEY = "repository-profile-index-v1"
