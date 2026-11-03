@@ -40,11 +40,9 @@ data class PartialDate(val year: Int, val month: Int? = null, val day: Int? = nu
     }
 
     companion object {
-        private const val MIN_YEAR = 1900
-
-        /** Null unless the fields form a real date; blank month and day mean unknown. */
+        /** Null unless the fields form a real date (any year the type accepts, so a restored old record can be saved again); blank month and day mean unknown. */
         fun parse(year: String, month: String, day: String): PartialDate? {
-            val y = year.trim().toIntOrNull()?.takeIf { it >= MIN_YEAR } ?: return null
+            val y = year.trim().toIntOrNull()?.takeIf { it >= 1 } ?: return null
             val m = month.trim().ifEmpty { null }?.let { it.toIntOrNull() ?: return null }
             val d = day.trim().ifEmpty { null }?.let { it.toIntOrNull() ?: return null }
             return try {

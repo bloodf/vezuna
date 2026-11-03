@@ -80,7 +80,8 @@ class HealthRecordsTest {
         assertEquals("2015", PartialDate(2015).iso)
         assertEquals("2015-03", PartialDate.parse(" 2015", "3 ", "")!!.iso)
         assertEquals("2015-03-09", PartialDate.parse("2015", "3", "9")!!.iso)
-        listOf(Triple("", "3", ""), Triple("2015", "", "9"), Triple("2015", "13", ""), Triple("2015", "2", "30"), Triple("15", "", ""), Triple("abc", "", "")).forEach { (y, m, d) ->
+        assertEquals(PartialDate(1850), PartialDate.parse("1850", "", ""), "a restored older record can be saved again")
+        listOf(Triple("", "3", ""), Triple("2015", "", "9"), Triple("2015", "13", ""), Triple("2015", "2", "30"), Triple("0", "", ""), Triple("10000", "", ""), Triple("abc", "", "")).forEach { (y, m, d) ->
             assertNull(PartialDate.parse(y, m, d), "$y-$m-$d")
         }
     }
