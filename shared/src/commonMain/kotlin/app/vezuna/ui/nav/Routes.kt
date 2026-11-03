@@ -80,7 +80,7 @@ fun routeFromName(text: String): AppScreen? {
     val name = text.substringBefore(':').trim()
     val arg = text.substringAfter(':', "").trim()
     val objects = listOf(
-        AppScreen.Dashboard, AppScreen.Welcome, AppScreen.FirstProfile, AppScreen.Profiles,
+        AppScreen.Dashboard, AppScreen.Welcome, AppScreen.FirstProfile, AppScreen.Profiles, AppScreen.AddProfile,
         AppScreen.Labs, AppScreen.ImportReview, AppScreen.ImportSource, AppScreen.ImportExtract, AppScreen.ManualEntry,
         AppScreen.Medications, AppScreen.Trends, AppScreen.Vitals, AppScreen.Connections,
         AppScreen.Backups, AppScreen.LockSettings, AppScreen.DataPrivacy,

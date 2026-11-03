@@ -52,6 +52,7 @@ import app.vezuna.localization.formatUiDate
 import app.vezuna.localization.vitaText
 import app.vezuna.security.PassphraseStrengthLevel
 import app.vezuna.ui.VezunaTokens
+import app.vezuna.ui.components.decorativeArtShown
 import app.vezuna.ui.components.StatusKind
 import app.vezuna.ui.vita
 import kotlin.time.Instant
@@ -221,7 +222,8 @@ internal fun SecurityPanel(title: String, body: String, illustration: DrawableRe
                 Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
                 Text(body, style = MaterialTheme.typography.bodyMedium)
             }
-            Image(painterResource(illustration), contentDescription = null, modifier = Modifier.size(88.dp))
+            // Gives its width back at very large text, like the other panels' art.
+            if (decorativeArtShown()) Image(painterResource(illustration), contentDescription = null, modifier = Modifier.size(88.dp))
         }
     }
 }

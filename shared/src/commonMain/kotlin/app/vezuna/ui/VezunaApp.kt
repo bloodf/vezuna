@@ -1,5 +1,8 @@
 package app.vezuna.ui
 
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.consumeWindowInsets
 import app.vezuna.ui.components.singleWordAutoSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -220,19 +223,20 @@ fun VezunaApp(
             Row(Modifier.fillMaxSize()) {
                 if (wide && !state.onboarding) VezunaRail(nav.root, controller::selectRoot)
                 Scaffold(
-                    modifier = Modifier.weight(1f),
+                    // The rail already clears the start cutout; the pages and their pine bands take the sides themselves.
+                    modifier = Modifier.weight(1f).then(if (wide && !state.onboarding) Modifier.consumeWindowInsets(WindowInsets.safeDrawing.only(WindowInsetsSides.Start)) else Modifier),
                     containerColor = MaterialTheme.colorScheme.background,
                     // The top inset is consumed by RootHeader and FocusedTaskScaffold, whose pine band reaches
                     // under the status bar. The bottom edge is left to the pages: they draw under the home
                     // indicator and end their scroll with clearOfNavigationBar().
-                    contentWindowInsets = ScaffoldDefaults.contentWindowInsets.only(WindowInsetsSides.Horizontal),
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     bottomBar = { if (!wide && nav.isRoot && !state.onboarding) VezunaNavigationBar(nav.root, controller::selectRoot) },
                 ) { padding ->
                     // The tab bar clears the bottom edge itself; without it, pages keep clear of the navigation bar.
                     val tabBarShown = !wide && nav.isRoot && !state.onboarding
                     val navigationBarHeight = WindowInsets.navigationBars.exclude(WindowInsets.ime).asPaddingValues().calculateBottomPadding()
                     CompositionLocalProvider(LocalContentBottomInset provides if (tabBarShown) 0.dp else navigationBarHeight) {
-                    Box(Modifier.fillMaxSize().padding(padding).imePadding()) {
+                    Box(Modifier.fillMaxSize().padding(padding).imePadding().then(if (state.onboarding) Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)) else Modifier)) {
                         AnimatedContent(
                             targetState = Triple(nav.root, nav.stack.size, nav.current),
                             transitionSpec = {

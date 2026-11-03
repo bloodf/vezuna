@@ -243,6 +243,7 @@ private fun MedicationList(ctx: RouteContext, data: ProfileData) {
                     leadingIcon = Res.drawable.ic_capsule,
                     category = Category.CARE,
                     trailing = { MedicationStatusTag(status) },
+                    stackTrailing = true,
                 )
             }
         }
