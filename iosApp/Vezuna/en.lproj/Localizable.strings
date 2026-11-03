@@ -10,7 +10,7 @@
 "camera" = "Camera";
 "photos_done" = "Done";
 "add_page" = "Add another page";
-"pages_in_report" = "Pages in this report: %1$d";
+"pages_in_report" = "Pages added: %1$d";
 "value" = "Value";
 "close" = "Close";
 "healthkit_description" = "Vezuna requests read-only access to heart rate, steps, and weight. Imports use per-profile HealthKit anchors and remain on this device.";

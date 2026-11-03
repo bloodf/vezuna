@@ -33,8 +33,8 @@ actual suspend fun renderPdfPage(bytes: ByteArray, index: Int, widthPx: Int): Re
     }
 }
 
-/** A process kill between createTempFile and delete leaves a decrypted copy behind; remove any old one on the next call. */
-private fun sweepStaleSourceFiles() {
+/** A process kill between createTempFile and delete leaves a decrypted copy behind; removed on the next call and at startup. */
+fun sweepStaleSourceFiles() {
     val cutoff = System.currentTimeMillis() - STALE_SOURCE_MILLIS
     File(System.getProperty("java.io.tmpdir") ?: return).listFiles { f -> f.name.startsWith("vezuna-source-") && f.name.endsWith(".pdf") && f.lastModified() < cutoff }
         ?.forEach { it.delete() }

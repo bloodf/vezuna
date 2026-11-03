@@ -13,6 +13,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.semantics.Role
+import app.vezuna.domain.allDocuments
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.resolve
@@ -84,7 +85,7 @@ internal fun BackupsScreen(ctx: RouteContext) {
                 BackHandler { page = BackupsPage.OVERVIEW }
                 CreateBackupFlow(
                     service, data, files,
-                    household = if (ctx.state.profiles.size > 1 || data.documents.any { it.vaultKey != null }) controller::householdForBackup else null,
+                    household = if (ctx.state.profiles.size > 1 || data.allDocuments().any { it.vaultKey != null }) controller::householdForBackup else null,
                     profileCount = ctx.state.profiles.size,
                     onSaved = { household ->
                         updateHistory(history.copy(savedAt = currentInstant(), household = household))
@@ -132,7 +133,7 @@ private suspend fun restore(ctx: RouteContext, members: List<BackupMember>, mode
 private fun Overview(ctx: RouteContext, history: BackupHistory, available: Boolean, onHistory: (BackupHistory) -> Unit, open: (BackupsPage) -> Unit) {
     val data = ctx.state.data
     val now = currentInstant()
-    val householdOffered = ctx.state.profiles.size > 1 || data?.documents?.any { it.vaultKey != null } == true
+    val householdOffered = ctx.state.profiles.size > 1 || data?.allDocuments()?.any { it.vaultKey != null } == true
     FocusedTaskScaffold(title = vitaText(L10nKey.BACKUP_SCREEN_TITLE), onBack = ctx::back) {
         SecurityPage {
             SecurityPanel(vitaText(L10nKey.BACKUP_PANEL_TITLE), vitaText(L10nKey.BACKUP_PANEL_BODY), Res.drawable.ill_backup)

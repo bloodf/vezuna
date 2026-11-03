@@ -16,7 +16,11 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VaultDocument
+import app.vezuna.domain.addingVaultDocument
 import app.vezuna.domain.isInternallyConsistent
+import app.vezuna.domain.withVaultDocument
+import app.vezuna.domain.withoutVaultDocument
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
 import app.vezuna.domain.withMedication
@@ -61,6 +65,12 @@ interface VezunaRepository {
     suspend fun updateDocument(document: SourceDocument)
     /** Cascades to the document's reports, observations, candidates and stored source file. */
     suspend fun deleteDocument(profileId: String, documentId: String)
+    // region document vault
+    suspend fun addVaultDocument(document: VaultDocument)
+    suspend fun updateVaultDocument(document: VaultDocument)
+    /** The record goes first; its stored file is removed only once that is durable. */
+    suspend fun deleteVaultDocument(profileId: String, documentId: String)
+    // endregion document vault
     suspend fun updateReport(report: LabReport)
     /** Cascades to the report's observations and, when unshared, its candidates, document and stored source file. */
     suspend fun deleteReport(profileId: String, reportId: String)
@@ -142,6 +152,14 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
 
     override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    // region document vault
+    override suspend fun addVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.addingVaultDocument(document) }
+
+    override suspend fun updateVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.withVaultDocument(document) }
+
+    override suspend fun deleteVaultDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutVaultDocument(documentId) }
+    // endregion document vault
 
     override suspend fun addReport(report: LabReport) = mutate(report.profileId) { data ->
         require(report.sourceDocumentId == null || data.documents.any { it.documentId == report.sourceDocumentId }) { "Source document must exist in this profile" }

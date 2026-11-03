@@ -3,6 +3,8 @@ package app.vezuna.domain
 import kotlinx.datetime.DayOfWeek
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -229,4 +231,39 @@ data class ProfileData(
     val chat: List<ChatMessage> = emptyList(),
     // Device health data (Health Connect / HealthKit); populated only for the linked profile.
     val vitals: ProfileVitals = ProfileVitals(),
+    // region document vault
+    /** Non-lab files. Left out of the JSON while empty, so a profile without any serializes exactly as before. */
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val vaultDocuments: List<VaultDocument> = emptyList(),
+    // endregion document vault
 )
+
+// region document vault
+/**
+ * A non-lab file the person keeps in the vault (prescription, imaging report, ...), stored like an imported report's
+ * original through [source]. Being in [ProfileData.vaultDocuments], never in [ProfileData.documents], is what makes it
+ * non-lab: nothing that reads lab documents (OCR, candidates, results, trends, doctor export) can reach it, and nothing
+ * is read from its contents. [tags] are stored as the person wrote them.
+ */
+@Serializable
+data class VaultDocument(val source: SourceDocument, val tags: List<String> = emptyList())
+
+/** Tag rules for vault documents; matching ignores case, spelling stays as written. */
+object DocumentTags {
+    const val MAX_LENGTH = 40
+    const val MAX_PER_DOCUMENT = 20
+    const val MAX_NAME_LENGTH = 255
+
+    /** Trimmed, without blanks or case-insensitive repeats (the first spelling stays), capped. */
+    fun clean(tags: List<String>): List<String> =
+        tags.map { it.trim().take(MAX_LENGTH).trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.take(MAX_PER_DOCUMENT)
+
+    /** Every tag in use, one spelling each, alphabetically. */
+    fun inUse(documents: List<VaultDocument>): List<String> = documents.flatMap { it.tags }.distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
+
+    /** Newest first; a null [tag] means all. */
+    fun filter(documents: List<VaultDocument>, tag: String?): List<VaultDocument> =
+        documents.filter { doc -> tag == null || doc.tags.any { it.equals(tag, ignoreCase = true) } }.sortedByDescending { it.source.importedAt }
+}
+// endregion document vault

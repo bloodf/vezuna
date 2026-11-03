@@ -7,6 +7,7 @@ import app.vezuna.domain.LabReport
 import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrRevision
 import app.vezuna.domain.ReferenceRange
+import app.vezuna.domain.allDocuments
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import app.vezuna.localization.formatLabValue
@@ -240,7 +241,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
 
     /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
     suspend fun readSourceFile(documentId: String): SourceFileRead {
-        val document = core.mutableState.value.data?.documents?.firstOrNull { it.documentId == documentId } ?: return SourceFileRead.Missing
+        val document = core.mutableState.value.data?.allDocuments()?.firstOrNull { it.documentId == documentId } ?: return SourceFileRead.Missing
         val keys = listOfNotNull(document.vaultKey) + document.pageVaultKeys
         val store = sourceStore
         if (keys.isEmpty() || store == null) return SourceFileRead.Missing

@@ -36,6 +36,7 @@ internal class GenerationalMemoryVault : SecureVault {
     val previous = mutableMapOf<String, ByteArray>()
     val quarantined = mutableMapOf<String, ByteArray>()
     val failingWrites = mutableSetOf<String>()
+    val failingDeletes = mutableSetOf<String>()
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray) =
         CipherEnvelope("test-xor", "test-key", byteArrayOf(7), plainText.xor(), associatedData)
@@ -58,7 +59,11 @@ internal class GenerationalMemoryVault : SecureVault {
     override suspend fun storedAssociatedData(): List<ByteArray>? =
         if (scanAssociatedData) current.values.mapNotNull { runCatching { CipherEnvelopeCodec.decode(it).associatedData }.getOrNull() } else null
     override suspend fun listKeys(): List<String>? = if (listing) (current.keys + previous.keys).toList() else null
-    override suspend fun delete(key: String) { current.remove(key); previous.remove(key) }
+    override suspend fun delete(key: String) {
+        if (key in failingDeletes) error("cannot delete")
+        current.remove(key)
+        previous.remove(key)
+    }
     override suspend fun quarantineCurrent(key: String): Boolean {
         val file = current.remove(key) ?: return false
         quarantined[key] = file
