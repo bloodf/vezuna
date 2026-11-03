@@ -59,7 +59,7 @@ class AppExportInstrumentedTest {
 
             openExportOptions(device, CSV_ROW)
             device.scrollAndTapText("Preview CSV")
-            assertTrue("CSV export did not become ready", device.awaitText("Export ready"))
+            assertTrue("CSV export did not become ready", device.awaitText("CSV preview"))
             assertTrue(device.wait(Until.hasObject(By.textContains("-lab-results-")), 3_000))
             println("APP_UI_EXPORT_WITHOUT_LICENSE_PASSED")
         } finally {

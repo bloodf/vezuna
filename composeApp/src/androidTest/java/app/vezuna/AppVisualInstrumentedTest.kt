@@ -58,6 +58,9 @@ class AppVisualInstrumentedTest {
 
             device.executeShellCommand("settings put system font_scale 1.0")
             device.executeShellCommand("settings put global animator_duration_scale 0")
+            // The font-scale change recreates the activity on its own; let that finish before recreating by hand.
+            assertTrue(device.awaitToday())
+            device.waitForIdle()
             scenario.recreate()
             navigate(device, directory, "Records", "ui-reduced-motion.png")
             println("APP_VISUAL_STATES_CAPTURED")
