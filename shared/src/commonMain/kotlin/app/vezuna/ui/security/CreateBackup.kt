@@ -165,6 +165,9 @@ internal fun CreateBackupFlow(
                 } else {
                     SecurityNotice(scopeTitle(false, data.profile.displayName), StatusKind.INFO, detail = scopeBoundary(false))
                 }
+                if (!wholeHousehold && data.vaultDocuments.any { it.source.vaultKey != null }) {
+                    SecurityNotice(vitaText(L10nKey.BACKUP_DOCUMENTS_LEFT_OUT), StatusKind.WARNING)
+                }
                 GroupedRows {
                     ListRow(
                         vitaText(L10nKey.BACKUP_LEAVE_OUT_CHAT),

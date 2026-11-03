@@ -22,7 +22,7 @@ object StorageSchema {
     val steps: Map<Int, (JsonObject) -> JsonObject> = mapOf(
         // 1 -> 2: no field changes; the version stamp itself is the change.
         1 to { document -> document },
-        // 2 -> 3: optional allergy, condition and vaccination lists; older documents simply have none. The bump makes an
+        // 2 -> 3: optional allergy, condition, vaccination and vault document lists; older documents simply have none. The bump makes an
         // older build refuse these documents as "too new" instead of treating them as damaged.
         2 to { document -> document },
     )

@@ -36,6 +36,8 @@ internal class GenerationalMemoryVault : SecureVault {
     val previous = mutableMapOf<String, ByteArray>()
     val quarantined = mutableMapOf<String, ByteArray>()
     val failingWrites = mutableSetOf<String>()
+    val writes = mutableListOf<String>()
+    val failingDeletes = mutableSetOf<String>()
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray) =
         CipherEnvelope("test-xor", "test-key", byteArrayOf(7), plainText.xor(), associatedData)
@@ -47,6 +49,7 @@ internal class GenerationalMemoryVault : SecureVault {
 
     override suspend fun write(key: String, ciphertext: ByteArray) {
         if (key in failingWrites) error("disk full")
+        writes += key
         current[key]?.let { previous[key] = it }
         current[key] = ciphertext.copyOf()
     }
@@ -58,7 +61,11 @@ internal class GenerationalMemoryVault : SecureVault {
     override suspend fun storedAssociatedData(): List<ByteArray>? =
         if (scanAssociatedData) current.values.mapNotNull { runCatching { CipherEnvelopeCodec.decode(it).associatedData }.getOrNull() } else null
     override suspend fun listKeys(): List<String>? = if (listing) (current.keys + previous.keys).toList() else null
-    override suspend fun delete(key: String) { current.remove(key); previous.remove(key) }
+    override suspend fun delete(key: String) {
+        if (key in failingDeletes) error("cannot delete")
+        current.remove(key)
+        previous.remove(key)
+    }
     override suspend fun quarantineCurrent(key: String): Boolean {
         val file = current.remove(key) ?: return false
         quarantined[key] = file
@@ -340,7 +347,7 @@ class VaultBackedRepositoryStorageTest {
     }
 
     @Test
-    fun committingFiveThousandObservationsIsFastAndOnlyRewritesOneProfile() = runTest {
+    fun committingFiveThousandObservationsOnlyRewritesOneProfile() = runTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = t))
         repository.createProfile(Profile("b", "Bia", createdAt = t))
@@ -352,13 +359,16 @@ class VaultBackedRepositoryStorageTest {
         repository.restoreProfile(repository.readProfile("a").copy(observations = big))
         val otherBefore = vault.current.getValue(profileKey("b")).copyOf()
 
+        vault.writes.clear()
         val started = kotlin.time.TimeSource.Monotonic.markNow()
         repository.addChatMessage(app.vezuna.domain.ChatMessage("a", "m", app.vezuna.domain.ChatMessage.Role.USER, "hi", t))
         val elapsed = started.elapsedNow()
 
         assertContentEquals(otherBefore, vault.current.getValue(profileKey("b")))
-        // The issue's target is 200 ms on a device; the bound here only guards against a rewrite of everything.
-        assertTrue(elapsed.inWholeMilliseconds < 2_000, "commit took $elapsed")
+        assertEquals(listOf(profileKey("a")), vault.writes)
+        // Wall clock only catches a hang: this runs on shared, loaded machines. The writes above are the real guard
+        // against rewriting everything. The 200 ms target (the issue's) is for a release build on a device.
+        assertTrue(elapsed.inWholeSeconds < 30, "commit took $elapsed")
         assertEquals(5_000, open().readProfile("a").observations.size)
     }
 }

@@ -265,7 +265,7 @@ private fun VaccinationFields(draft: HealthRecordDraft, onChange: (HealthRecordD
 private fun <T : Any> LabelPicker(title: String, options: List<T>, selected: T?, labelKey: (T) -> L10nKey, onSelect: (T?) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
-        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
             (listOf<T?>(null) + options).forEach { option ->
                 val isSelected = option == selected
                 FilterChip(

@@ -16,6 +16,10 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VaultDocument
+import app.vezuna.domain.addingVaultDocument
+import app.vezuna.domain.withVaultDocument
+import app.vezuna.domain.withoutVaultDocument
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
@@ -280,7 +284,7 @@ class VaultBackedRepository(
             selectedProfileId = null
         }
         vault.delete(profileKey(profileId))
-        removed?.vaultKeys()?.forEach { vault.delete(it) }
+        removed?.vaultKeys()?.let { deleteFiles(it) }
         // Last, so a failure above leaves the vitals in place and the next load's sweep retries.
         vitalsStore.delete(profileId)
         changed()
@@ -289,6 +293,14 @@ class VaultBackedRepository(
     override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
 
     override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    // region document vault
+    override suspend fun addVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.addingVaultDocument(document) }
+
+    override suspend fun updateVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.withVaultDocument(document) }
+
+    override suspend fun deleteVaultDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutVaultDocument(documentId) }
+    // endregion document vault
 
     override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
 
@@ -395,7 +407,23 @@ class VaultBackedRepository(
         val updated = transform(current)
         commit(updated)
         // Source files orphaned by a cascading delete are removed only after the new records are durable.
-        (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
+        deleteFiles(current.vaultKeys() - updated.vaultKeys())
+    }
+
+    /** Tries every key, so one failure does not strand the rest, then reports the first failure. */
+    private suspend fun deleteFiles(keys: Set<String>) {
+        var failure: Exception? = null
+        keys.forEach { key ->
+            try {
+                vault.delete(key)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                warn("Could not delete a source file", error)
+                if (failure == null) failure = error
+            }
+        }
+        failure?.let { throw it }
     }
 
     private suspend fun commit(data: ProfileData) {
@@ -535,6 +563,9 @@ class VaultBackedRepository(
                 warn("Could not delete the migrated legacy repository file", error)
             }
         }
+        // Nothing above needed the key when the vault is empty. Prove it works now: a dead Keychain or Keystore on a
+        // first run must reach the recovery screen, not report the vault as open and fail on the first write.
+        if (records.isEmpty()) vault.encrypt(ByteArray(0), KEY_CHECK_ASSOCIATED_DATA)
         publishProfiles()
         initialized = true
     }
@@ -732,6 +763,7 @@ class VaultBackedRepository(
         suspend fun open(vault: SecureVault, json: Json = Json { encodeDefaults = true }, persistSelection: Boolean = true): VaultBackedRepository =
             VaultBackedRepository(vault, json, persistSelection).also { it.load() }
 
+        private val KEY_CHECK_ASSOCIATED_DATA = "Vezuna repository key check".encodeToByteArray()
         private const val LEGACY_KEY = "repository-v1"
         private const val LEGACY_ASSOCIATED_DATA = "Vezuna repository v1"
         private const val INDEX_KEY = "repository-profile-index-v1"

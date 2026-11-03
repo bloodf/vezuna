@@ -100,7 +100,8 @@ import kotlin.coroutines.resumeWithException
  * ([app.vezuna.ui.entry.ImportFailureReason] name) with the file name when known.
  */
 interface NativeSourcePicker {
-    fun pickSource(kind: String, completion: (PickedSource?, String?, String?) -> Unit)
+    /** [storeOnly]: hand over the file without extracting text (document vault). */
+    fun pickSource(kind: String, storeOnly: Boolean, completion: (PickedSource?, String?, String?) -> Unit)
 
     /** The person stopped the import: stop extraction, delete temporary copies and never call the completion. */
     fun cancelPick()
@@ -684,6 +685,9 @@ object IosRuntime {
         }
         return PickedSource(fileName, mediaType, pages.first(), candidates, header.laboratoryName, header.orderedAt, pages.drop(1))
     }
+    /** A file for the document vault: no text, no candidates, no report details. */
+    fun storedSource(fileName: String, mediaType: String, pages: List<ByteArray>): PickedSource =
+        PickedSource(fileName, mediaType, pages.first(), emptyList(), additionalPages = pages.drop(1))
     // endregion L3 import and entry
 
     private fun <T> withProfile(completion: (T?, NativeMessage?) -> Unit, block: suspend (app.vezuna.domain.ProfileData) -> T) {
@@ -733,10 +737,12 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
         scope = IosRuntime.composeScope(),
         sourcePicker = if (picker == null) null else {
             {
-                val kind = IosRuntime.controllerForCompose().importSession.requestedKind.name
+                val session = IosRuntime.controllerForCompose().importSession
+                val kind = session.requestedKind.name
+                val storeOnly = session.storeOnly
                 suspendCancellableCoroutine { continuation ->
                     continuation.invokeOnCancellation { picker.cancelPick() }
-                    picker.pickSource(kind) { source, failure, fileName ->
+                    picker.pickSource(kind, storeOnly) { source, failure, fileName ->
                         if (!continuation.isActive) return@pickSource
                         if (failure == null) {
                             continuation.resume(source)

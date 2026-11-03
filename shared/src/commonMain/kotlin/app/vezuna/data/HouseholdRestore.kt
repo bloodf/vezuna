@@ -1,8 +1,10 @@
 package app.vezuna.data
 
+import app.vezuna.domain.allDocuments
 import app.vezuna.domain.keepingOnlyAvailableSourceFiles
 import app.vezuna.domain.remappedAsNew
 import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.withCleanVaultText
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.BackupMember
 import app.vezuna.security.backupFileId
@@ -31,13 +33,13 @@ suspend fun VezunaRepository.restoreMembers(
     val stored = mutableListOf<String>()
     var allVitals = true
     members.forEach { member ->
-        val data = member.data
+        val data = member.data.withCleanVaultText()
         val existing = if (profiles.value.any { it.profileId == data.profile.profileId }) peekProfile(data.profile.profileId) else null
         // Original-file keys derive from the document ID plus the page, so compare file IDs, not document IDs: an incoming
         // "X-page-2" must not overwrite page 2 of another profile's document X (nor clash within this profile).
         val usedByOthers = profiles.value.filter { it.profileId != data.profile.profileId }
-            .flatMapTo(mutableSetOf()) { peekProfile(it.profileId).documents.flatMap { document -> document.fileIds() } }
-        val incoming = data.documents.flatMap { it.fileIds() }
+            .flatMapTo(mutableSetOf()) { peekProfile(it.profileId).allDocuments().flatMap { document -> document.fileIds() } }
+        val incoming = data.allDocuments().flatMap { it.fileIds() }
         val collides = incoming.any { it in usedByOthers } || incoming.toSet().size != incoming.size
         val toStore = when {
             mode == RestoreMode.RESTORE_AS_NEW || collides -> data.remappedAsNew(newId)
@@ -48,9 +50,14 @@ suspend fun VezunaRepository.restoreMembers(
         val written = mutableListOf<String>()
         try {
             // Remapping keeps document order, so the n-th document of the backup is the n-th document to store.
-            val withFiles = toStore.copy(documents = toStore.documents.mapIndexed { index, document ->
-                if (files == null) document else files.restoreOriginals(document, data.documents[index], member.files, keptKeys, written)
-            })
+            val withFiles = toStore.copy(
+                documents = toStore.documents.mapIndexed { index, document ->
+                    if (files == null) document else files.restoreOriginals(document, data.documents[index], member.files, keptKeys, written)
+                },
+                vaultDocuments = toStore.vaultDocuments.mapIndexed { index, document ->
+                    if (files == null) document else document.copy(source = files.restoreOriginals(document.source, data.vaultDocuments[index].source, member.files, keptKeys, written))
+                },
+            )
             if (!restoreWithVitals(withFiles)) allVitals = false
         } catch (error: Throwable) {
             withContext(NonCancellable) { written.forEach { files?.discard(it) } }

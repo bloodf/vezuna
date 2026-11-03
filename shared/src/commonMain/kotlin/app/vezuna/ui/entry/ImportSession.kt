@@ -12,6 +12,9 @@ enum class SourceKind { CAMERA, PHOTOS, FILE }
 /** Explainable reasons a source could not be read; each has its own copy and recovery. */
 enum class ImportFailureReason { TOO_LARGE, UNREADABLE, CAMERA_UNAVAILABLE, CAMERA_DENIED, TOO_MANY_PAGES }
 
+/** What one pick must do. A platform reads it once when the pick starts: [storeOnly] means hand over the file, read nothing. */
+data class PickRequest(val kind: SourceKind, val storeOnly: Boolean)
+
 /** Most PDF pages read in one import; more would exhaust memory and time on a phone. Both platforms enforce it. */
 const val MAX_PDF_PAGES = 30
 
@@ -55,12 +58,20 @@ class ImportSession {
     /** Results confirmed since the last import started; drives the Review complete count (never assumed). */
     val confirmedCount: StateFlow<Int> = mutableConfirmed.asStateFlow()
 
-    /** The source the platform picker should open; read by the platform when the shared UI calls it. */
-    var requestedKind: SourceKind = SourceKind.FILE
+    /** What the platform picker should do; read by the platform when the shared UI calls it. */
+    var pickRequest: PickRequest = PickRequest(SourceKind.FILE, storeOnly = false)
         private set
 
+    val requestedKind: SourceKind get() = pickRequest.kind
+    val storeOnly: Boolean get() = pickRequest.storeOnly
+
+    /** Asks for a file with nothing read from it (document vault). A lab review in progress keeps its state. */
+    fun requestFileOnly(kind: SourceKind) {
+        pickRequest = PickRequest(kind, storeOnly = true)
+    }
+
     fun start(kind: SourceKind) {
-        requestedKind = kind
+        pickRequest = PickRequest(kind, storeOnly = false)
         mutableDetails.value = null
         mutableConfirmed.value = 0
         mutablePhase.value = ImportPhase.Reading(null)
@@ -110,6 +121,6 @@ class ImportSession {
         mutableDetails.value = null
         mutableDates.value = emptyMap()
         mutableConfirmed.value = 0
-        requestedKind = SourceKind.FILE
+        pickRequest = PickRequest(SourceKind.FILE, storeOnly = false)
     }
 }

@@ -21,7 +21,9 @@ import app.vezuna.ui.export.ExportController
 import app.vezuna.ui.more.ProfileController
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
+import app.vezuna.ui.records.DocumentVaultController
 import app.vezuna.ui.records.RecordsController
+import app.vezuna.ui.records.storedFileOpens
 import app.vezuna.ui.security.BackupController
 import app.vezuna.ui.security.RestoreResult
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +46,8 @@ class AppController(
     val backup: BackupService? = null,
     sourceStore: SourceFileStore? = null,
     warn: (String, Throwable) -> Unit = { _, _ -> },
+    /** Whether a file for the document vault can be opened on this device: media type and pages. */
+    documentFileOpens: suspend (String, List<ByteArray>) -> Boolean = ::storedFileOpens,
 ) {
     private val core = ControllerCore(repository, clock, timeZone, sourceStore)
     val state: StateFlow<AppUiState> = core.mutableState.asStateFlow()
@@ -59,6 +63,7 @@ class AppController(
     private val assistant = AssistantController(core, repository, chat)
     private val exports = ExportController(core, pdfExporter)
     private val backups = BackupController(core, profiles::switchProfile, profiles::discardUntouchedDefaultAfterRestore)
+    private val documentVault = DocumentVaultController(core, navigator, imports.importSession, backups::householdFitsBackup, documentFileOpens)
 
     /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */
     val importSession get() = imports.importSession
@@ -78,6 +83,7 @@ class AppController(
     private fun onProfileChanged() {
         core.mutableState.value = core.mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
         imports.importSession.clear()
+        documentVault.onProfileChanged()
         backups.onProfileChanged()
         navigator.resetToRoots()
     }
@@ -192,6 +198,15 @@ class AppController(
 
     /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
     suspend fun readSourceFile(documentId: String): SourceFileRead = records.readSourceFile(documentId)
+
+    // region document vault
+    /** The tag the Documents list is filtered by; cleared on profile change. */
+    val documentTagFilter: StateFlow<String?> get() = documentVault.tagFilter
+    fun filterDocumentsByTag(tag: String?) = documentVault.filterByTag(tag)
+    suspend fun addDocumentFrom(kind: app.vezuna.ui.entry.SourceKind, picker: suspend () -> PickedSource?) = documentVault.addFrom(kind, picker)
+    suspend fun updateDocument(documentId: String, name: String, tags: List<String>) = documentVault.update(documentId, name, tags)
+    suspend fun deleteDocument(documentId: String) = documentVault.delete(documentId)
+    // endregion document vault
 
     // medications and doses
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) = care.addMedication(name, strength, instructions, time)

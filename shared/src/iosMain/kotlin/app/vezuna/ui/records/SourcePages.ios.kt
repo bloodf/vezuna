@@ -20,6 +20,8 @@ actual suspend fun renderPdfPage(bytes: ByteArray, index: Int, widthPx: Int): Re
     require(bytes.isNotEmpty()) { "Empty PDF" }
     val data = bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = bytes.size.toULong()) }
     val document = requireNotNull(PDFDocument(data = data)) { "Unreadable PDF" }
+    // A password-protected PDF opens but cannot be drawn; PDFKit would return a blank page.
+    require(!document.isLocked()) { "Locked PDF" }
     val count = document.pageCount.toInt()
     require(count > 0) { "PDF has no pages" }
     val page = requireNotNull(document.pageAtIndex(index.coerceIn(0, count - 1).toULong())) { "Missing PDF page" }

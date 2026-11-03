@@ -2,9 +2,11 @@ package app.vezuna.ui.security
 
 import app.vezuna.data.restoreMembers
 import app.vezuna.localization.L10nKey
+import app.vezuna.localization.VitaMessageException
 import app.vezuna.localization.failMessage
 import app.vezuna.localization.message
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.SourceDocument
 import app.vezuna.platform.randomId
 import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
@@ -51,15 +53,20 @@ internal class BackupController(
     }
 
     /**
-     * Every profile with its vitals and original source files, for a household backup. A missing or unreadable file is
-     * left out; loading stops with BACKUP_TOO_LARGE as soon as the originals cannot fit in a backup.
+     * Every profile with its vitals and original source files, for a household backup. A lab report's missing or
+     * unreadable original is left out (its results stay, and restore says so). A vault document is nothing but its
+     * file, so one that cannot be read stops the backup and names the document. Loading stops as soon as the files
+     * cannot fit in a backup, naming the largest document seen so far so the person knows where to start.
      */
     suspend fun householdForBackup(): List<BackupMember> {
         var encoded = 0L
+        var largestName = ""
+        var largestSize = -1L
         return core.repository.profiles.value.map { profile ->
             val data = core.repository.peekProfile(profile.profileId)
             val files = mutableMapOf<String, ByteArray>()
-            data.documents.forEach { document ->
+            suspend fun collect(document: SourceDocument, required: Boolean) {
+                var documentSize = 0L
                 (listOfNotNull(document.vaultKey) + document.pageVaultKeys).forEachIndexed { index, key ->
                     val fileId = backupFileId(document.documentId, index + 1)
                     val bytes = try {
@@ -68,13 +75,32 @@ internal class BackupController(
                         throw cancelled
                     } catch (unreadable: Exception) {
                         null
-                    } ?: return@forEachIndexed
+                    }
+                    if (bytes == null) {
+                        if (required) failMessage(L10nKey.BACKUP_DOCUMENT_UNREADABLE, document.displayName)
+                        return@forEachIndexed
+                    }
                     encoded += (bytes.size + 2L) / 3 * 4
-                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
+                    documentSize += bytes.size
+                    if (documentSize > largestSize) {
+                        largestSize = documentSize
+                        largestName = document.displayName
+                    }
+                    if (encoded > BackupService.MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE_NAMED, largestName)
                     files[fileId] = bytes
                 }
             }
+            data.documents.forEach { collect(it, required = false) }
+            data.vaultDocuments.forEach { collect(it.source, required = true) }
             BackupMember(data, files)
         }
+    }
+
+    /** False only when size is the reason; a backup blocked by something else says so when it is made. */
+    suspend fun householdFitsBackup(): Boolean = try {
+        householdForBackup()
+        true
+    } catch (failure: VitaMessageException) {
+        failure.userText.key != L10nKey.BACKUP_TOO_LARGE_NAMED
     }
 }

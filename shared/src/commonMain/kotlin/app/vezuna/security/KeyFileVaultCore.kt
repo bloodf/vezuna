@@ -1,7 +1,5 @@
 package app.vezuna.security
 
-import kotlinx.serialization.json.Json
-
 /** Minimal file seam so key-file rules can be tested without Foundation. */
 interface VaultFileOps {
     fun exists(path: String): Boolean
@@ -163,7 +161,7 @@ class KeyFileVaultCore(
 
     /** The vault envelope stored at [path], or null for unreadable files and other plaintext files. */
     private fun envelopeOf(path: String): CipherEnvelope? = files.read(path)
-        ?.let { runCatching { envelopeJson.decodeFromString(CipherEnvelope.serializer(), it.decodeToString()) }.getOrNull() }
+        ?.let { runCatching { CipherEnvelopeCodec.decode(it) }.getOrNull() }
         ?.takeIf { it.algorithm == algorithm && it.keyId == keyId }
 
     private fun readsBack(store: VaultKeyStore, key: ByteArray): Boolean {
@@ -192,8 +190,6 @@ class KeyFileVaultCore(
         if (!createIfAbsent) throw VaultUnreadableException(VaultFailure.KEY_UNAVAILABLE)
         return randomKey().also { files.write(keyPath, it) }
     }
-
-    private val envelopeJson = Json { ignoreUnknownKeys = true }
 
     companion object {
         const val KEY_BYTES = 32

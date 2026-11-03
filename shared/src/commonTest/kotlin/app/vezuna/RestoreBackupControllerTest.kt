@@ -133,6 +133,24 @@ class RestoreBackupControllerTest {
     }
 
     @Test
+    fun firstRunRestoreKeepsADefaultProfileHoldingOnlyOneKindOfRecord() = runTest {
+        val records = listOf<(String) -> app.vezuna.domain.HealthRecord>(
+            { id -> app.vezuna.domain.AllergyRecord(id, "r1", "Latex") },
+            { id -> app.vezuna.domain.ConditionRecord(id, "r1", "Migraine") },
+            { id -> app.vezuna.domain.VaccinationRecord(id, "r1", "Tetanus") },
+        )
+        records.forEach { make ->
+            val repository = InMemoryVezunaRepository()
+            var defaultId = ""
+            firstRunRestore(repository) { id ->
+                defaultId = id
+                repository.addHealthRecord(make(id))
+            }
+            assertTrue(defaultId in repository.ids(), "${make("x").kind} counts as touched")
+        }
+    }
+
+    @Test
     fun localizedDefaultNamesCountAsUntouched() = runTest {
         val repository = InMemoryVezunaRepository()
         firstRunRestore(repository) { id -> repository.updateProfile(repository.profiles.value.single().copy(displayName = "Eu")) }
@@ -258,6 +276,19 @@ class RestoreBackupControllerTest {
         controller.restoreBackup(data.copy(profile = data.profile.copy(profileId = defaultId)), RestoreMode.REPLACE_EXISTING)
         assertEquals(listOf(defaultId), repository.ids())
         assertEquals(defaultId, controller.state.value.data?.profile?.profileId)
+    }
+
+    @Test
+    fun defaultProfileHoldingADocumentCountsAsTouched() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        val defaultId = repository.ids().single()
+        repository.addVaultDocument(
+            app.vezuna.domain.VaultDocument(app.vezuna.domain.SourceDocument(defaultId, "kept", "rx.pdf", "application/pdf", "h", kotlin.time.Instant.parse("2026-01-01T00:00:00Z"), "k")),
+        )
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertTrue(defaultId in repository.ids())
     }
 
     @Test

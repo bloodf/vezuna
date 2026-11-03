@@ -20,6 +20,8 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 - Laboratory-history PDF rebuilt to the print spec: vector logo, 11 pt minimum text, paginated tables with repeated headers, charts at real date spacing with labelled values, first/previous changes, A4/Letter and grayscale options, EN/PT/ES. Known limit: the PDF is untagged on Android and iOS (no structure tree); the value tables are the charts' text alternative.
 - Open-source documentation: CONTRIBUTING, SECURITY, PRIVACY, THIRD_PARTY_NOTICES, architecture and development guides, and the MIT `LICENSE` for source code (fonts, brand, and dependencies keep their own terms).
 
+- Document vault: encrypted storage for prescriptions, imaging reports and similar files with free-text tags, kept apart from lab records and never read. Household backups carry the files; single-profile backups keep names and tags only.
+
 ### Changed
 
 - Android model and controller state now lives in an Activity ViewModel, surviving configuration changes (in-flight controller work keeps running through rotation) and unloading the native model when the session is cleared.

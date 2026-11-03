@@ -334,7 +334,7 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Strong passphrase</string>
     <string name="backup_create_action">Create backup</string>
     <string name="backup_saved">Backup saved. Keep the passphrase safe</string>
-    <string name="backup_too_large">This backup is too large (over 24 MB with the original files). Back up one profile at a time.</string>
+    <string name="backup_too_large">This backup is too large (over 24 MB with original files and stored documents). A backup of one profile leaves those files out.</string>
     <string name="backup_include_household">Back up all profiles with their original files</string>
     <string name="backup_household_contents">Backup of %1$d profiles: %2$s</string>
     <string name="backup_enter_passphrase_title">Enter the backup passphrase</string>
@@ -992,7 +992,7 @@ iOS: %2$s</string>
     <string name="backup_item_medications">Medications</string>
     <string name="backup_item_medications_count">%1$d medications, %2$d recorded doses</string>
     <string name="backup_item_not_included">Not included</string>
-    <string name="backup_item_originals">Original report files</string>
+    <string name="backup_item_originals">Original files</string>
     <string name="backup_item_originals_count">%1$d of %2$d included</string>
     <string name="backup_item_reports">Reports</string>
     <string name="backup_item_reports_count">%1$d reports, %2$d results to review</string>
@@ -1008,7 +1008,7 @@ iOS: %2$s</string>
     <string name="backup_not_saved">Not saved. The file is still here: choose Save backup to try again.</string>
     <string name="backup_open_failed_title">Couldn't open this backup</string>
     <string name="backup_open_today">Go to Today</string>
-    <string name="backup_originals_missing_body">Reports keep their details and results, but their original PDF or photo will not be available after restoring.</string>
+    <string name="backup_originals_missing_body">Reports keep their details and results, and stored documents keep their name and tags, but their original PDF or photo will not be available after restoring.</string>
     <string name="backup_originals_missing_title">Some original files are not in this backup</string>
     <string name="backup_panel_body">Create a passphrase-protected file you can keep anywhere. Only that passphrase opens it.</string>
     <string name="backup_panel_title">Encrypted and portable</string>
@@ -1034,9 +1034,9 @@ iOS: %2$s</string>
     <string name="backup_restoring_body">Keep the app open. Your current records stay as they are until this step finishes.</string>
     <string name="backup_save_action">Save backup</string>
     <string name="backup_scope_household">All profiles with original files</string>
-    <string name="backup_scope_household_body">Every profile with its records, medications, device data and chat, plus the original report files. The file must stay under 24 MB; an original that can't be read is left out.</string>
+    <string name="backup_scope_household_body">Every profile with its records, medications, device data and chat, plus the original report files and stored documents. The file must stay under 24 MB; a report original that can't be read is left out, and a stored document that can't be read stops the backup.</string>
     <string name="backup_scope_profile">One profile</string>
-    <string name="backup_scope_profile_body">One profile's records, reports, medications, dose history, device data and chat. Original report files (PDFs and photos) are not included.</string>
+    <string name="backup_scope_profile_body">One profile's records, reports, medications, dose history, device data and chat. Original report files and stored document files (PDFs and photos) are not included.</string>
     <string name="backup_scope_profile_named">Only %1$s</string>
     <string name="backup_scope_title">What to back up</string>
     <string name="backup_screen_title">Backups</string>
@@ -1286,4 +1286,61 @@ iOS: %2$s</string>
         <item quantity="other">%1$d entries</item>
     </plurals>
     <!-- /Health records -->
+    <!-- document vault -->
+    <string name="backup_too_large_named">This backup is too large (over 24 MB with original files and stored documents). "%1$s" is one of the largest files. A backup of one profile leaves those files out.</string>
+    <string name="documents_stored_backup_full">Document stored, but a backup of every profile no longer fits the 24 MB limit. Delete large files to make one, or back up one profile without its files.</string>
+    <string name="source_page_previous">Previous page</string>
+    <string name="source_page_next">Next page</string>
+    <string name="backup_document_unreadable">"%1$s" could not be read, so this backup was not created. Nothing was left out. Open the document to check it, or delete it and try again.</string>
+    <string name="backup_documents_left_out">This profile has stored documents. A backup of one profile keeps their names and tags, not the files. Choose every profile to include the files.</string>
+    <string name="documents_title">Documents</string>
+    <string name="documents_entry_hint">Prescriptions, imaging reports and other files</string>
+    <string name="documents_empty_title">No documents yet</string>
+    <string name="documents_empty_body">Keep prescriptions, imaging reports and similar files here, encrypted on this device.</string>
+    <string name="documents_add">Add document</string>
+    <string name="documents_privacy_note">Stored encrypted on this device. Vezuna does not read these files, and they never become results or trends.</string>
+    <string name="documents_filter_by_tag">Filter by tag</string>
+    <string name="documents_filter_all">All</string>
+    <string name="documents_no_file">File not on this device</string>
+    <string name="documents_source_camera_hint">Photograph each page (up to 10)</string>
+    <string name="documents_source_photos_hint">Photos of one document from your library (up to 10)</string>
+    <string name="documents_source_file_hint">A PDF or image saved in Files</string>
+    <string name="documents_picker_unavailable">Adding files is not available in this build.</string>
+    <string name="documents_not_found">Document not available</string>
+    <string name="documents_not_found_body">This document is no longer in this profile.</string>
+    <string name="documents_return">Return to documents</string>
+    <string name="documents_added_on">Added %1$s</string>
+    <string name="documents_no_tags">No tags</string>
+    <string name="documents_tags_list">Tags: %1$s</string>
+    <string name="documents_view_file">View file</string>
+    <string name="documents_file_missing_body">This device has no stored copy of this file. Backups of a single profile keep the name and tags, not the file. Add the same file again to put it back.</string>
+    <string name="documents_file_unreadable_body">The stored file could not be opened on this device. It has not been changed.</string>
+    <string name="documents_edit">Edit name and tags</string>
+    <string name="documents_delete">Delete document</string>
+    <string name="documents_delete_title">Delete %1$s?</string>
+    <string name="documents_delete_body">The encrypted file on this device is deleted too. This cannot be undone. Backups you already saved are not changed.</string>
+    <string name="documents_remove_tag">Remove tag %1$s</string>
+    <string name="documents_name_label">Name</string>
+    <string name="documents_name_required">Enter a name for this document.</string>
+    <string name="documents_tags_heading">Tags</string>
+    <string name="documents_new_tag_label">New tag</string>
+    <string name="documents_add_tag">Add</string>
+    <string name="documents_tag_suggestions">Suggestions</string>
+    <string name="documents_tag_prescription">Prescription</string>
+    <string name="documents_tag_imaging">Imaging</string>
+    <string name="documents_tag_referral">Referral</string>
+    <string name="documents_tag_vaccination">Vaccination</string>
+    <string name="documents_tag_insurance">Insurance</string>
+    <string name="documents_save">Save</string>
+    <string name="documents_viewer_title">Document</string>
+    <string name="documents_unreadable">Could not open this file. It may be damaged, password-protected or in an unsupported format. Nothing was saved.</string>
+    <string name="documents_added">Document stored.</string>
+    <string name="documents_already_stored">This file is already in your documents.</string>
+    <string name="documents_file_restored">The file is back with this document.</string>
+    <string name="documents_updated">Document updated.</string>
+    <string name="documents_deleted">Document deleted.</string>
+    <plurals name="documents_count">
+        <item quantity="one">%1$d document</item>
+        <item quantity="other">%1$d documents</item>
+    </plurals>
 </resources>

@@ -23,4 +23,8 @@ object RecordsRoutes {
 
     @Composable
     fun HealthRecordForm(screen: AppScreen.HealthRecordForm, ctx: RouteContext) = HealthRecordFormScreen(ctx, screen.kind, screen.recordId)
+    fun Documents(ctx: RouteContext) = DocumentsScreen(ctx)
+
+    @Composable
+    fun DocumentDetail(screen: AppScreen.DocumentDetail, ctx: RouteContext) = DocumentDetailScreen(ctx, screen.documentId)
 }

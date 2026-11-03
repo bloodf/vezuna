@@ -6,6 +6,9 @@ import app.vezuna.localization.ContentLanguage
 import app.vezuna.ui.DesignFixture
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import org.apache.pdfbox.cos.COSNumber
+import org.apache.pdfbox.pdfparser.PDFStreamParser
+import org.apache.pdfbox.contentstream.operator.Operator
 import org.apache.pdfbox.text.PDFTextStripper
 import org.apache.pdfbox.text.TextPosition
 import kotlin.test.Test
@@ -72,6 +75,17 @@ class HealthRecordsPdfTest {
             val pages = PdfFixtures.pageTexts(bytes)
             assertTrue(pages.size >= 3, "expected several pages, got ${pages.size}")
             assertTrue("reaction599" in text(bytes), "nothing is cut")
+            PdfFixtures.open(bytes) { pdf ->
+                pdf.pages.forEach { page ->
+                    val tokens = PDFStreamParser(page).parse()
+                    tokens.forEachIndexed { index, token ->
+                        if (token is Operator && token.name in setOf("rg", "RG")) {
+                            val (r, g, b) = tokens.subList(index - 3, index).map { (it as COSNumber).floatValue() }
+                            assertTrue(r == g && g == b, "non-gray color $r $g $b")
+                        }
+                    }
+                }
+            }
             val found = mutableListOf<Pair<Float, TextPosition>>()
             PdfFixtures.open(bytes) { pdf ->
                 object : PDFTextStripper() {

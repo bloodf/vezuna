@@ -18,10 +18,13 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
     private var temporaryCopy: URL?
     /// Identifies the current pick. A stopped extraction may still be unwinding; it must never touch a later pick.
     private var pickID = UUID()
+    /// The document vault keeps the file as it is: no text is extracted and nothing is read from it.
+    private var storeOnly = false
 
-    func pickSource(kind: String, completion: @escaping (PickedSource?, String?, String?) -> Void) {
+    func pickSource(kind: String, storeOnly: Bool, completion: @escaping (PickedSource?, String?, String?) -> Void) {
         guard self.completion == nil else { completion(nil, nil, nil); return }
         self.completion = completion
+        self.storeOnly = storeOnly
         pickID = UUID()
         photos = []
         DispatchQueue.main.async {
@@ -104,7 +107,8 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
 
     private func extractPhotos(_ pages: [Data]) {
         guard !pages.isEmpty else { return finish(nil) }
-        let name = pages.count == 1 ? "lab-image.jpg" : "lab-photos-\(pages.count).jpg"
+        let single = storeOnly ? "document.jpg" : "lab-image.jpg"
+        let name = pages.count == 1 ? single : "\(storeOnly ? "document" : "lab")-photos-\(pages.count).jpg"
         extract(name: name, mediaType: "image/jpeg", files: pages, texts: { progress in try await Self.texts(pages, progress: progress) })
     }
 
@@ -123,6 +127,9 @@ final class ComposeSourcePicker: NSObject, NativeSourcePicker {
     }
 
     private func extract(name: String, mediaType: String, files: [Data], texts: @escaping (@escaping (Int, Int) -> Void) async throws -> ExtractedSourceText) {
+        if storeOnly {
+            return finish(IosRuntime.shared.storedSource(fileName: name, mediaType: mediaType, pages: files.map { $0.kotlinBytes }))
+        }
         IosRuntime.shared.importReading(fileName: name)
         let id = pickID
         extraction = Task { @MainActor in

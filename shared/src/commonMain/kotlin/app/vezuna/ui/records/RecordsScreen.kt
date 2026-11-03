@@ -160,6 +160,7 @@ private fun RecordsList(
         verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
     ) {
         if (pendingTotal > 0) item { ReviewBanner(pendingTotal) { ctx.navigate(AppScreen.ImportReview) } }
+        item { DocumentsEntry(data.vaultDocuments.size) { ctx.navigate(AppScreen.Documents) } }
         if (libraryEmpty) {
             item {
                 EmptyState(

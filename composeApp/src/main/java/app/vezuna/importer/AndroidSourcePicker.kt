@@ -19,6 +19,7 @@ import app.vezuna.ui.entry.ImportFailure
 import app.vezuna.ui.entry.ImportFailureReason
 import app.vezuna.ui.entry.ImportSession
 import app.vezuna.ui.entry.SourceKind
+import app.vezuna.ui.records.sweepStaleSourceFiles
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ import java.io.File
 
 /**
  * Opens the system camera, photo picker or document picker for the source the shared Add a record screen asked
- * for, then extracts text on the device. Cancelling any system UI returns null; failures are [ImportFailure]s.
+ * for, then extracts text on the device (unless the session is store-only: the document vault keeps the file and
+ * reads nothing). Cancelling any system UI returns null; failures are [ImportFailure]s.
  */
 class AndroidSourcePicker(
     private val activity: ComponentActivity,
@@ -40,6 +42,16 @@ class AndroidSourcePicker(
     private var cameraUri: Uri? = null
     /** Photos of one report, in capture order; cleared whenever a pick ends. */
     private val photos = mutableListOf<ByteArray>()
+    /** Fixed when a pick starts: the shared session can be asked for another pick while this one is still reading. */
+    private var storeOnly = false
+
+    init {
+        // A shot or decrypted copy left by a process that died is unusable (nothing restores the pick) and is plaintext.
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            clearCameraCache()
+            sweepStaleSourceFiles()
+        }
+    }
 
     private val photoLauncher = activity.registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTOS)) { uris ->
         if (uris.isEmpty()) complete(null) else importPhotos(uris)
@@ -57,14 +69,16 @@ class AndroidSourcePicker(
         val result = CompletableDeferred<PickedSource?>()
         pending = result
         this.session = session
+        val request = session.pickRequest
+        storeOnly = request.storeOnly
         try {
-            when (session.requestedKind) {
+            when (request.kind) {
                 SourceKind.CAMERA -> launchCamera()
                 SourceKind.PHOTOS -> photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 SourceKind.FILE -> fileLauncher.launch(arrayOf("application/pdf", "image/*"))
             }
         } catch (error: ActivityNotFoundException) {
-            fail(ImportFailure(if (session.requestedKind == SourceKind.CAMERA) ImportFailureReason.CAMERA_UNAVAILABLE else ImportFailureReason.UNREADABLE))
+            fail(ImportFailure(if (request.kind == SourceKind.CAMERA) ImportFailureReason.CAMERA_UNAVAILABLE else ImportFailureReason.UNREADABLE))
         } catch (error: Exception) {
             fail(error)
         }
@@ -74,6 +88,7 @@ class AndroidSourcePicker(
             // The person stopped the import: end extraction (it deletes its own temporary copy) and keep nothing.
             extracting?.cancel()
             extracting = null
+            clearCameraCache()
             if (pending === result) {
                 pending = null
                 this.session = null
@@ -92,21 +107,34 @@ class AndroidSourcePicker(
         pending = null
         session = null
         photos.clear()
+        clearCameraCache()
     }
 
     private fun launchCamera() {
         val directory = File(activity.cacheDir, "camera").apply { mkdirs() }
-        val file = File.createTempFile("lab-", ".jpg", directory)
+        clearCameraCache()
+        val file = File.createTempFile("shot-", ".jpg", directory)
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
         cameraUri = uri
         cameraLauncher.launch(uri)
+    }
+
+    /** A shot is plaintext until it is read into memory; none may stay on disk after that. */
+    private fun clearCameraCache() {
+        File(activity.cacheDir, "camera").listFiles()?.forEach { it.delete() }
     }
 
     private fun addPhoto(uri: Uri) {
         if (pending == null) return
         activity.lifecycleScope.launch {
             try {
-                photos += withContext(Dispatchers.IO) { readBytes(uri, PHOTO_NAME) }
+                photos += withContext(Dispatchers.IO) {
+                    try {
+                        readBytes(uri, PHOTO_NAME)
+                    } finally {
+                        clearCameraCache()
+                    }
+                }
                 if (photos.size >= MAX_PHOTOS) finishPhotos() else askForAnotherPhoto()
             } catch (error: Throwable) {
                 fail(error)
@@ -138,21 +166,24 @@ class AndroidSourcePicker(
 
     /** One report from every photo taken so far; every page is stored with the document. */
     private fun finishPhotos() {
+        clearCameraCache()
         val taken = photos.toList()
         photos.clear()
         if (taken.isEmpty()) return complete(null)
         val owner = pending
         val picked = session
-        extracting = activity.lifecycleScope.launch { extractPhotos(taken, owner, picked) }
+        val keepOnly = storeOnly
+        extracting = activity.lifecycleScope.launch { extractPhotos(taken, owner, picked, keepOnly) }
     }
 
     private fun importPhotos(uris: List<Uri>) {
         val owner = pending
         val picked = session
+        val keepOnly = storeOnly
         extracting = activity.lifecycleScope.launch {
             try {
                 val pages = withContext(Dispatchers.IO) { uris.take(MAX_PHOTOS).map { readBytes(it, displayName(it) ?: PHOTO_NAME) } }
-                extractPhotos(pages, owner, picked)
+                extractPhotos(pages, owner, picked, keepOnly)
             } catch (error: Throwable) {
                 fail(error, owner = owner)
             }
@@ -160,7 +191,11 @@ class AndroidSourcePicker(
     }
 
     /** [owner] is the pick this extraction belongs to: a stopped extraction can never complete or fail a later pick. */
-    private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?) {
+    private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?, keepOnly: Boolean) {
+        if (keepOnly) {
+            val name = if (taken.size == 1) "document.jpg" else "document-${taken.size}-pages.jpg"
+            return complete(PickedSource(name, "image/jpeg", taken.first(), emptyList(), additionalPages = taken.drop(1)), owner)
+        }
         val name = if (taken.size == 1) PHOTO_NAME else "lab-photos-${taken.size}.jpg"
         try {
             if (pending === owner) picked?.reading(name)
@@ -178,13 +213,21 @@ class AndroidSourcePicker(
     private fun importFile(uri: Uri) {
         val owner = pending
         val picked = session
+        val keepOnly = storeOnly
         extracting = activity.lifecycleScope.launch {
             var name: String? = null
             try {
                 val type = activity.contentResolver.getType(uri)
                 val isPdf = type == "application/pdf"
-                name = displayName(uri) ?: if (isPdf) "lab.pdf" else PHOTO_NAME
+                name = displayName(uri) ?: when {
+                    keepOnly -> if (isPdf) "document.pdf" else "document.jpg"
+                    isPdf -> "lab.pdf"
+                    else -> PHOTO_NAME
+                }
                 val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
+                if (keepOnly) {
+                    return@launch complete(PickedSource(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, emptyList()), owner)
+                }
                 if (pending === owner) picked?.reading(name)
                 val extracted = if (isPdf) {
                     extraction.extractPdf(bytes, name) { page, count -> if (pending === owner) picked?.progress(page, count) }
@@ -224,6 +267,7 @@ class AndroidSourcePicker(
     private fun fail(error: Throwable, name: String? = null, owner: CompletableDeferred<PickedSource?>? = pending) {
         val result = pending ?: return
         if (owner !== result) return
+        clearCameraCache()
         pending = null
         session = null
         cameraUri = null

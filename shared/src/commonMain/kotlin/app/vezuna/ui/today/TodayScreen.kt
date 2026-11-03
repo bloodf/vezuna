@@ -26,7 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,9 +44,11 @@ import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
 import app.vezuna.platform.currentInstant
 import app.vezuna.ui.AppScreen
+import app.vezuna.ui.AppUiState
 import app.vezuna.ui.Category
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.CategoryPanel
+import app.vezuna.ui.components.EmptyState
 import app.vezuna.ui.components.GroupedRows
 import app.vezuna.ui.components.ListRow
 import app.vezuna.ui.components.PrimaryButton
@@ -71,6 +75,7 @@ import vezuna.shared.generated.resources.ic_lock
 import vezuna.shared.generated.resources.ic_plus
 import vezuna.shared.generated.resources.ic_upload
 import vezuna.shared.generated.resources.ill_capsule
+import vezuna.shared.generated.resources.ill_file_error
 import vezuna.shared.generated.resources.ill_record_empty
 
 /** The device's calendar day, formatted like other UI dates (which read calendar days as noon UTC). */
@@ -85,6 +90,7 @@ internal fun todayLabel(): String {
 internal fun TodayScreen(ctx: RouteContext) {
     val data = ctx.state.data
     val snapshot = ctx.state.dashboard
+    if (startupFailed(ctx.state)) return StartupFailed(ctx)
     if (data == null || snapshot == null) return ProgressState(vitaText(L10nKey.PLEASE_WAIT))
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow, vertical = VezunaTokens.SpaceMd),
@@ -99,6 +105,24 @@ internal fun TodayScreen(ctx: RouteContext) {
             PrimaryButton(vitaText(L10nKey.TODAY_ADD_RECORD), { addRecord(ctx) }, Modifier.fillMaxWidth(), icon = Res.drawable.ic_plus)
         }
         SavedOnDevice()
+    }
+}
+
+/** Loading ended with nothing to show: the load failed, so a spinner here would never finish. */
+internal fun startupFailed(state: AppUiState): Boolean = !state.loading && (state.data == null || state.dashboard == null)
+
+@Composable
+private fun StartupFailed(ctx: RouteContext) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.GutterNarrow)) {
+        EmptyState(
+            illustration = Res.drawable.ill_file_error,
+            title = vitaText(L10nKey.VAULT_RECOVERY_TITLE),
+            body = vitaText(L10nKey.VAULT_RECOVERY_BODY_UNAVAILABLE),
+            // Announced like the ProgressState it replaces, so a screen reader hears the wait end.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            actionLabel = vitaText(L10nKey.VAULT_RECOVERY_RETRY),
+            onAction = { ctx.scope.launch { ctx.controller.initialize() } },
+        )
     }
 }
 

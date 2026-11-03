@@ -39,25 +39,32 @@ private fun isIdField(key: String) = key != "recordId" && (key == "profileId" ||
  * (the profile being replaced) still holds that exact file; otherwise the key would dangle.
  */
 fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): ProfileData {
-    val available = existing?.documents?.mapNotNull { doc -> doc.vaultKey?.let { doc.documentId to it } }?.toSet().orEmpty()
-    return copy(documents = documents.map { doc ->
-        val current = existing?.documents?.firstOrNull { it.documentId == doc.documentId }
-        if (doc.vaultKey != null && (doc.documentId to doc.vaultKey) in available) {
-            doc.copy(pageVaultKeys = doc.pageVaultKeys.filter { it in current?.pageVaultKeys.orEmpty() })
-        } else doc.copy(vaultKey = null, pageVaultKeys = emptyList())
-    })
+    val held = existing?.allDocuments().orEmpty()
+    return copy(
+        documents = documents.map { it.keepingFileFrom(held) },
+        vaultDocuments = vaultDocuments.map { it.copy(source = it.source.keepingFileFrom(held)) },
+    )
+}
+
+private fun SourceDocument.keepingFileFrom(held: List<SourceDocument>): SourceDocument {
+    val current = held.firstOrNull { it.documentId == documentId }
+    return if (vaultKey != null && current?.vaultKey == vaultKey) {
+        copy(pageVaultKeys = pageVaultKeys.filter { it in current.pageVaultKeys })
+    } else {
+        copy(vaultKey = null, pageVaultKeys = emptyList())
+    }
 }
 
 /** True when every record belongs to the profile, IDs are unique per record type and references resolve inside it. */
 fun ProfileData.isInternallyConsistent(): Boolean {
     val id = profile.profileId
     fun <T> List<T>.unique(key: (T) -> String) = map(key).toSet().size == size
-    val ids = listOf(id) + documents.map { it.documentId } + reports.map { it.reportId } + observations.flatMap { o -> listOf(o.observationId) + o.revisions.map { it.revisionId } } +
+    val ids = listOf(id) + allDocuments().map { it.documentId } + reports.map { it.reportId } + observations.flatMap { o -> listOf(o.observationId) + o.revisions.map { it.revisionId } } +
         ocrCandidates.flatMap { c -> listOf(c.candidateId) + c.revisions.map { it.revisionId } } +
         medications.flatMap { m -> listOf(m.medicationId) + m.schedules.map { it.scheduleId } } +
         doseEvents.map { it.eventId } + chat.map { it.messageId } + healthRecords.map { it.id }
     return ids.all(::isValidId) &&
-        documents.unique { it.documentId } &&
+        allDocuments().unique { it.documentId } &&
         reports.unique { it.reportId } &&
         observations.unique { it.observationId } &&
         observations.all { o -> o.revisions.unique { it.revisionId } } &&
@@ -67,7 +74,7 @@ fun ProfileData.isInternallyConsistent(): Boolean {
         medications.flatMap { it.schedules }.unique { it.scheduleId } &&
         doseEvents.unique { it.eventId } &&
         chat.unique { it.messageId } &&
-        documents.all { it.profileId == id } &&
+        allDocuments().all { it.profileId == id } &&
         reports.all { r -> r.profileId == id && (r.sourceDocumentId == null || documents.any { it.documentId == r.sourceDocumentId }) } &&
         observations.all { o -> o.profileId == id && reports.any { it.reportId == o.reportId } } &&
         ocrCandidates.all { c -> c.profileId == id && documents.any { it.documentId == c.sourceDocumentId } } &&

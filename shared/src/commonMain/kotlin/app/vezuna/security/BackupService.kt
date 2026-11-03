@@ -1,7 +1,9 @@
 package app.vezuna.security
 
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.healthRecords
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.allDocuments
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
@@ -47,7 +49,7 @@ private data class BackupFileEntry(val documentId: String, val content: String)
 @Serializable
 private data class BackupMemberEntry(val data: ProfileData, val files: List<BackupFileEntry> = emptyList())
 
-/** Schema 4: several profiles, each with vitals (inside [ProfileData]) and its original source files. */
+/** Schema 4 (5 when vault documents or health records are present): several profiles, each with vitals (inside [ProfileData]) and its original source files. */
 @Serializable
 private data class HouseholdPayload(val schemaVersion: Int, val exportedAt: Instant, val members: List<BackupMemberEntry>)
 
@@ -83,8 +85,11 @@ class BackupService(
 
     /** Key stretching is deliberately slow, so this runs off the caller's thread. */
     suspend fun create(profileData: ProfileData, passphrase: CharArray): ByteArray = withContext(Dispatchers.Default) {
-        val payload = BackupPayload(SINGLE_SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData)
-        val plain = json.encodeToString(BackupPayload.serializer(), payload).encodeToByteArray()
+        val plain = if (profileData.needsNewerSchema()) {
+            json.encodeToString(HouseholdPayload.serializer(), HouseholdPayload(NEWER_SCHEMA_VERSION, currentInstant(), listOf(BackupMemberEntry(profileData))))
+        } else {
+            json.encodeToString(BackupPayload.serializer(), BackupPayload(SINGLE_SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData))
+        }.encodeToByteArray()
         try {
             PassphraseBackupCodec.seal(plain, passphrase)
         } finally {
@@ -102,7 +107,7 @@ class BackupService(
         val estimate = members.sumOf { member -> member.files.values.sumOf { (it.size + 2L) / 3 * 4 } }
         if (estimate > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
         val payload = HouseholdPayload(
-            SCHEMA_VERSION, currentInstant(),
+            if (members.any { it.data.needsNewerSchema() }) NEWER_SCHEMA_VERSION else SCHEMA_VERSION, currentInstant(),
             members.map { member ->
                 BackupMemberEntry(member.data, member.files.map { (documentId, bytes) -> BackupFileEntry(documentId, Base64.encode(bytes)) })
             },
@@ -155,7 +160,7 @@ class BackupService(
                     if (payload.profileId != payload.data.profile.profileId) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                     listOf(BackupMember(payload.data))
                 }
-                SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
+                SCHEMA_VERSION, NEWER_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
                     BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) })
                 }
                 else -> failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
@@ -180,8 +185,8 @@ class BackupService(
      */
     private fun BackupMember.isValid(): Boolean {
         if (!data.isInternallyConsistent()) return false
-        if (data.documents.any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
-        val allowed = data.documents.flatMapTo(HashSet()) { it.fileIds() }
+        if (data.allDocuments().any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
+        val allowed = data.allDocuments().flatMapTo(HashSet()) { it.fileIds() }
         return files.keys.all { it in allowed }
     }
 
@@ -203,7 +208,16 @@ class BackupService(
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
 
-        /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
+        /**
+         * Household payload written only when a profile holds vault documents or health records (#96): builds that predate
+         * them then answer "unsupported" instead of "damaged". Everything else is still written as 3 or 4. Versions 1-5 are accepted.
+         */
+        const val NEWER_SCHEMA_VERSION = 5
+
+        /**
+         * What [create] still writes. A profile with vault documents has a field builds before them refuse as invalid
+         * content; no such build has shipped. If that changes, bump the version so they say "update the app" instead.
+         */
         const val SINGLE_SCHEMA_VERSION = 3
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
         const val MAX_BACKUP_READ_BYTES = 64 * 1024 * 1024
@@ -213,3 +227,5 @@ class BackupService(
         const val FILE_EXTENSION = "vhbak"
     }
 }
+
+private fun ProfileData.needsNewerSchema(): Boolean = vaultDocuments.isNotEmpty() || healthRecords.isNotEmpty()

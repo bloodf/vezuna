@@ -37,6 +37,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -238,13 +241,69 @@ class HealthRecordsTest {
         assertEquals(data.allergies.map { it.substance to it.reaction }, copy.allergies.map { it.substance to it.reaction })
     }
 
+    private suspend fun backupSchemaOf(file: ByteArray): Int =
+        Json.parseToJsonElement(PassphraseBackupCodec.open(file, pass.copyOf()).decodeToString()).jsonObject.getValue("schemaVersion").jsonPrimitive.int
+
+    private suspend fun open(payload: String) = BackupService().open(PassphraseBackupCodec.seal(payload.encodeToByteArray(), pass.copyOf()), pass.copyOf())
+
     @Test
-    fun anOlderBuildRefusesAFileWithRecordsItDoesNotKnowInsteadOfDroppingThem() = runTest {
-        // What an older build does with a newer file: its ProfileData has no such key, and unknown keys fail the decode.
+    fun backupsWithRecordsAreWrittenAsSchema5SoOlderBuildsSayUnsupported() = runTest {
+        val service = BackupService()
+        val plain = sampleProfileData("A")
+        assertEquals(3, backupSchemaOf(service.create(plain, pass.copyOf())))
+        assertEquals(4, backupSchemaOf(service.createHousehold(listOf(BackupMember(plain)), pass.copyOf())))
+        val withRecords = withRecords(plain)
+        assertEquals(5, backupSchemaOf(service.create(withRecords, pass.copyOf())))
+        assertEquals(5, backupSchemaOf(service.createHousehold(listOf(BackupMember(plain), BackupMember(withRecords("B".let { sampleProfileData(it) }))), pass.copyOf())))
+        val vault = plain.copy(vaultDocuments = listOf(app.vezuna.domain.VaultDocument(app.vezuna.domain.SourceDocument(plain.profile.profileId, "v1", "rx.pdf", "application/pdf", "h", at, "k"))))
+        assertEquals(5, backupSchemaOf(service.create(vault, pass.copyOf())))
+    }
+
+    @Test
+    fun olderSchemasStillLoadAndANewerOneIsRefusedAsUnsupportedNotDamaged() = runTest {
+        val profile = """{"profileId":"p","displayName":"Ana","createdAt":"2026-03-10T12:00:00Z"}"""
+        listOf(1, 2, 3).forEach { v ->
+            assertEquals("p", open("""{"schemaVersion":$v,"profileId":"p","exportedAt":"2026-03-10T12:00:00Z","data":{"profile":$profile}}""").data.profile.profileId)
+        }
+        listOf(4, 5).forEach { v ->
+            val opened = open("""{"schemaVersion":$v,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
+            assertEquals(listOf("p"), opened.members.map { it.data.profile.profileId })
+        }
+        val failure = assertFailsWith<VitaMessageException> {
+            open("""{"schemaVersion":6,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
+        }
+        assertEquals(L10nKey.BACKUP_UNSUPPORTED_SCHEMA, failure.userText.key)
+    }
+
+    @Test
+    fun aBuildThatDoesNotKnowTheRecordKeysRefusesInsteadOfDroppingThem() = runTest {
+        // Defence in depth for a schema-3 file carrying keys from the future: unknown keys fail the decode, never get dropped.
         val payload = """{"schemaVersion":3,"profileId":"p","exportedAt":"2026-03-10T12:00:00Z","data":{"profile":{"profileId":"p","displayName":"Ana","createdAt":"2026-03-10T12:00:00Z"},"recordsFromTheFuture":[{"x":1}]}}"""
-        val file = PassphraseBackupCodec.seal(payload.encodeToByteArray(), pass.copyOf())
-        val failure = assertFailsWith<VitaMessageException> { BackupService().open(file, pass.copyOf()) }
+        val failure = assertFailsWith<VitaMessageException> { open(payload) }
         assertEquals(L10nKey.BACKUP_INVALID_CONTENT, failure.userText.key)
+    }
+
+    @Test
+    fun aVersion2VaultDocumentLoadsAndIsRestampedAsVersion3WithNoRecords() = runTest {
+        val vault = GenerationalMemoryVault()
+        val first = VaultBackedRepository(vault).also { it.load() }
+        first.createProfile(Profile("a", "Ana", createdAt = at))
+        // Rewrite every stored document the way a schema-2 build left it.
+        vault.current.keys.toList().forEach { key ->
+            val envelope = app.vezuna.security.CipherEnvelopeCodec.decode(vault.current.getValue(key))
+            val plain = vault.decrypt(envelope).decodeToString()
+            if ("\"schemaVersion\":3" in plain) {
+                val old = vault.encrypt(plain.replace("\"schemaVersion\":3", "\"schemaVersion\":2").encodeToByteArray(), envelope.associatedData)
+                vault.current[key] = app.vezuna.security.CipherEnvelopeCodec.encode(old)
+            }
+        }
+        val reopened = VaultBackedRepository(vault).also { it.load() }
+        assertTrue(reopened.readProfile("a").healthRecords.isEmpty())
+        reopened.addHealthRecord(AllergyRecord("a", "a1", "Latex"))
+        val stored = vault.current.getValue("repository-profile-a-v1")
+        val text = vault.decrypt(app.vezuna.security.CipherEnvelopeCodec.decode(stored)).decodeToString()
+        assertTrue("\"schemaVersion\":3" in text && "Latex" in text)
+        assertEquals("Latex", VaultBackedRepository(vault).also { it.load() }.readProfile("a").allergies.single().substance)
     }
 
     @Test

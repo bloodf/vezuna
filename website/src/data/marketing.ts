@@ -73,7 +73,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Medications', body: 'Schedules and reminders. Mark each dose as taken, skipped, or snoozed.' },
         { term: 'Weight, heart rate, steps', body: 'Type them in, or allow read-only import from Health Connect or Apple Health. Both are optional.' },
         { term: 'Exports', body: 'A PDF or CSV of confirmed results for an appointment, sent through your phone’s share sheet.' },
-        { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose, for one profile or the whole household, with vitals and original documents (up to 24 MB). Restore it on a new phone.' },
+        { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose, for one profile with its vitals, or the whole household with vitals, original report files and stored documents (up to 24 MB). Restore it on a new phone.' },
         { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. Screenshots are blocked while it is on.' },
       ],
       screen: { src: shots.settings, alt: 'Vezuna More screen with entries for Profiles, Exports, Backups, Privacy and app lock, Device connections, and Assistant and local models, with a bottom bar of Today, Records, Care, Trends and More.', caption: 'More: profiles, exports, backups and privacy controls. Exports never depend on an AI model.' },

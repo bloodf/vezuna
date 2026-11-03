@@ -334,7 +334,7 @@ iOS: %2$s</string>
     <string name="backup_strength_strong">Frase secreta forte</string>
     <string name="backup_create_action">Criar backup</string>
     <string name="backup_saved">Backup salvo. Guarde bem a frase secreta</string>
-    <string name="backup_too_large">Este backup é grande demais (mais de 24 MB com os arquivos originais). Faça o backup de um perfil por vez.</string>
+    <string name="backup_too_large">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). O backup de um perfil deixa esses arquivos de fora.</string>
     <string name="backup_include_household">Fazer backup de todos os perfis com os arquivos originais</string>
     <string name="backup_household_contents">Backup de %1$d perfis: %2$s</string>
     <string name="backup_enter_passphrase_title">Digite a frase secreta do backup</string>
@@ -992,7 +992,7 @@ iOS: %2$s</string>
     <string name="backup_item_medications">Medicamentos</string>
     <string name="backup_item_medications_count">%1$d medicamentos, %2$d doses registradas</string>
     <string name="backup_item_not_included">Não incluídos</string>
-    <string name="backup_item_originals">Arquivos originais dos laudos</string>
+    <string name="backup_item_originals">Arquivos originais</string>
     <string name="backup_item_originals_count">%1$d de %2$d incluídos</string>
     <string name="backup_item_reports">Laudos</string>
     <string name="backup_item_reports_count">%1$d laudos, %2$d resultados para revisar</string>
@@ -1008,7 +1008,7 @@ iOS: %2$s</string>
     <string name="backup_not_saved">Não salvo. O arquivo continua aqui: toque em Salvar backup para tentar de novo.</string>
     <string name="backup_open_failed_title">Não foi possível abrir este backup</string>
     <string name="backup_open_today">Ir para Hoje</string>
-    <string name="backup_originals_missing_body">Os laudos mantêm detalhes e resultados, mas o PDF ou a foto original não ficará disponível depois de restaurar.</string>
+    <string name="backup_originals_missing_body">Os laudos mantêm detalhes e resultados, e os documentos guardados mantêm nome e etiquetas, mas o PDF ou a foto original não ficará disponível depois de restaurar.</string>
     <string name="backup_originals_missing_title">Alguns arquivos originais não estão neste backup</string>
     <string name="backup_panel_body">Crie um arquivo protegido por frase-senha que você pode guardar onde quiser. Só essa frase-senha o abre.</string>
     <string name="backup_panel_title">Criptografado e portátil</string>
@@ -1034,9 +1034,9 @@ iOS: %2$s</string>
     <string name="backup_restoring_body">Mantenha o app aberto. Seus registros atuais continuam como estão até esta etapa terminar.</string>
     <string name="backup_save_action">Salvar backup</string>
     <string name="backup_scope_household">Todos os perfis com os arquivos originais</string>
-    <string name="backup_scope_household_body">Todos os perfis com registros, medicamentos, dados do aparelho e conversas, mais os arquivos originais dos laudos. O arquivo precisa ficar abaixo de 24 MB; um original que não puder ser lido fica de fora.</string>
+    <string name="backup_scope_household_body">Todos os perfis com registros, medicamentos, dados do aparelho e conversas, mais os arquivos originais dos laudos e os documentos guardados. O arquivo precisa ficar abaixo de 24 MB; um original de laudo que não puder ser lido fica de fora, e um documento guardado que não puder ser lido interrompe o backup.</string>
     <string name="backup_scope_profile">Um perfil</string>
-    <string name="backup_scope_profile_body">Registros, laudos, medicamentos, histórico de doses, dados do aparelho e conversas de um perfil. Os arquivos originais dos laudos (PDFs e fotos) não são incluídos.</string>
+    <string name="backup_scope_profile_body">Registros, laudos, medicamentos, histórico de doses, dados do aparelho e conversas de um perfil. Os arquivos originais dos laudos e os arquivos dos documentos guardados (PDFs e fotos) não são incluídos.</string>
     <string name="backup_scope_profile_named">Somente %1$s</string>
     <string name="backup_scope_title">O que incluir</string>
     <string name="backup_screen_title">Backups</string>
@@ -1286,4 +1286,61 @@ iOS: %2$s</string>
         <item quantity="other">%1$d itens</item>
     </plurals>
     <!-- /Health records -->
+    <!-- document vault -->
+    <string name="backup_too_large_named">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). "%1$s" é um dos maiores arquivos. O backup de um perfil deixa esses arquivos de fora.</string>
+    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes para criá-lo ou faça o backup de um perfil sem os arquivos.</string>
+    <string name="source_page_previous">Página anterior</string>
+    <string name="source_page_next">Próxima página</string>
+    <string name="backup_document_unreadable">Não foi possível ler "%1$s", então este backup não foi criado. Nada ficou de fora. Abra o documento para conferir ou exclua-o e tente de novo.</string>
+    <string name="backup_documents_left_out">Este perfil tem documentos guardados. O backup de um perfil mantém os nomes e as etiquetas, não os arquivos. Escolha todos os perfis para incluir os arquivos.</string>
+    <string name="documents_title">Documentos</string>
+    <string name="documents_entry_hint">Receitas, laudos de imagem e outros arquivos</string>
+    <string name="documents_empty_title">Nenhum documento ainda</string>
+    <string name="documents_empty_body">Guarde aqui receitas, laudos de imagem e arquivos parecidos, criptografados neste aparelho.</string>
+    <string name="documents_add">Adicionar documento</string>
+    <string name="documents_privacy_note">Guardados com criptografia neste aparelho. O Vezuna não lê esses arquivos, e eles nunca viram resultados nem tendências.</string>
+    <string name="documents_filter_by_tag">Filtrar por etiqueta</string>
+    <string name="documents_filter_all">Todos</string>
+    <string name="documents_no_file">Arquivo não está neste aparelho</string>
+    <string name="documents_source_camera_hint">Fotografe cada página (até 10)</string>
+    <string name="documents_source_photos_hint">Fotos de um documento da sua galeria (até 10)</string>
+    <string name="documents_source_file_hint">Um PDF ou imagem salvo em Arquivos</string>
+    <string name="documents_picker_unavailable">Adicionar arquivos não está disponível nesta versão.</string>
+    <string name="documents_not_found">Documento indisponível</string>
+    <string name="documents_not_found_body">Este documento não está mais neste perfil.</string>
+    <string name="documents_return">Voltar para documentos</string>
+    <string name="documents_added_on">Adicionado em %1$s</string>
+    <string name="documents_no_tags">Sem etiquetas</string>
+    <string name="documents_tags_list">Etiquetas: %1$s</string>
+    <string name="documents_view_file">Ver arquivo</string>
+    <string name="documents_file_missing_body">Este aparelho não tem uma cópia guardada deste arquivo. Backups de um único perfil mantêm o nome e as etiquetas, não o arquivo. Adicione o mesmo arquivo de novo para recuperá-lo.</string>
+    <string name="documents_file_unreadable_body">Não foi possível abrir o arquivo guardado neste aparelho. Ele não foi alterado.</string>
+    <string name="documents_edit">Editar nome e etiquetas</string>
+    <string name="documents_delete">Excluir documento</string>
+    <string name="documents_delete_title">Excluir %1$s?</string>
+    <string name="documents_delete_body">O arquivo criptografado neste aparelho também será excluído. Isso não pode ser desfeito. Backups já salvos não mudam.</string>
+    <string name="documents_remove_tag">Remover etiqueta %1$s</string>
+    <string name="documents_name_label">Nome</string>
+    <string name="documents_name_required">Digite um nome para este documento.</string>
+    <string name="documents_tags_heading">Etiquetas</string>
+    <string name="documents_new_tag_label">Nova etiqueta</string>
+    <string name="documents_add_tag">Adicionar</string>
+    <string name="documents_tag_suggestions">Sugestões</string>
+    <string name="documents_tag_prescription">Receita</string>
+    <string name="documents_tag_imaging">Imagem</string>
+    <string name="documents_tag_referral">Encaminhamento</string>
+    <string name="documents_tag_vaccination">Vacinação</string>
+    <string name="documents_tag_insurance">Convênio</string>
+    <string name="documents_save">Salvar</string>
+    <string name="documents_viewer_title">Documento</string>
+    <string name="documents_unreadable">Não foi possível abrir este arquivo. Ele pode estar danificado, protegido por senha ou em um formato sem suporte. Nada foi salvo.</string>
+    <string name="documents_added">Documento guardado.</string>
+    <string name="documents_already_stored">Este arquivo já está nos seus documentos.</string>
+    <string name="documents_file_restored">O arquivo voltou para este documento.</string>
+    <string name="documents_updated">Documento atualizado.</string>
+    <string name="documents_deleted">Documento excluído.</string>
+    <plurals name="documents_count">
+        <item quantity="one">%1$d documento</item>
+        <item quantity="other">%1$d documentos</item>
+    </plurals>
 </resources>
