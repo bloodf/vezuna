@@ -14,7 +14,7 @@ This document describes what the Vezuna source code does with data, as of this r
 
 | Data | Source | Where it goes |
 |---|---|---|
-| Profiles, lab results, OCR candidates, medications, dose events, chat messages | User input and imports | Encrypted vault on the device |
+| Profiles, lab results, OCR candidates, medications, dose events, allergies, conditions, vaccinations, chat messages | User input and imports | Encrypted vault on the device |
 | Imported PDFs, photos, camera captures | User-selected or camera | Processed on-device (PDF text extraction, ML Kit / Vision OCR); camera captures staged in app cache |
 | Heart rate, steps, weight | Health Connect (Android) / HealthKit (iOS), read-only, only after user permission | Encrypted on device |
 | Doctor exports (PDF/CSV) and encrypted backups | Generated on demand | The destination the user picks in the system share sheet |

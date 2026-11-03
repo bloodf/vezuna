@@ -17,4 +17,10 @@ object RecordsRoutes {
 
     @Composable
     fun ResultDetail(screen: AppScreen.ResultDetail, ctx: RouteContext) = ResultDetailPage(ctx, screen.observationId)
+
+    @Composable
+    fun HealthRecords(screen: AppScreen.HealthRecords, ctx: RouteContext) = HealthRecordListScreen(ctx, screen.kind)
+
+    @Composable
+    fun HealthRecordForm(screen: AppScreen.HealthRecordForm, ctx: RouteContext) = HealthRecordFormScreen(ctx, screen.kind, screen.recordId)
 }

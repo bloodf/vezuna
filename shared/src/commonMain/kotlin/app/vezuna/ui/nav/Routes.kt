@@ -1,6 +1,7 @@
 package app.vezuna.ui.nav
 
 import androidx.compose.runtime.Composable
+import app.vezuna.domain.HealthRecordKind
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.assistant.AssistantRoutes
 import app.vezuna.ui.care.CareRoutes
@@ -27,6 +28,8 @@ fun Route(screen: AppScreen, ctx: RouteContext) {
         is AppScreen.ReportDetail -> RecordsRoutes.ReportDetail(screen, ctx)
         is AppScreen.SourceViewer -> RecordsRoutes.SourceViewer(screen, ctx)
         is AppScreen.ResultDetail -> RecordsRoutes.ResultDetail(screen, ctx)
+        is AppScreen.HealthRecords -> RecordsRoutes.HealthRecords(screen, ctx)
+        is AppScreen.HealthRecordForm -> RecordsRoutes.HealthRecordForm(screen, ctx)
 
         AppScreen.ImportReview -> EntryRoutes.ImportReview(ctx)
         AppScreen.ImportSource -> EntryRoutes.ImportSource(ctx)
@@ -89,11 +92,15 @@ fun routeFromName(text: String): AppScreen? {
         AppScreen.AiChat, AppScreen.Models, AppScreen.Activation, AppScreen.ExportHub,
     )
     objects.firstOrNull { it.toString() == name }?.let { return it }
-    val withArg: Map<String, (String) -> AppScreen> = mapOf(
+    val kindOf = { value: String -> HealthRecordKind.entries.firstOrNull { it.name == value } }
+    val withArg: Map<String, (String) -> AppScreen?> = mapOf(
         "ProfileEdit" to AppScreen::ProfileEdit,
         "ReportDetail" to AppScreen::ReportDetail,
         "SourceViewer" to AppScreen::SourceViewer,
         "ResultDetail" to AppScreen::ResultDetail,
+        "HealthRecords" to { value -> kindOf(value)?.let { AppScreen.HealthRecords(it) } },
+        // KIND or KIND:recordId
+        "HealthRecordForm" to { value -> kindOf(value.substringBefore(':'))?.let { AppScreen.HealthRecordForm(it, value.substringAfter(':', "").ifEmpty { null }) } },
         "CandidateReview" to AppScreen::CandidateReview,
         "ResultEdit" to AppScreen::ResultEdit,
         "ResultHistory" to AppScreen::ResultHistory,

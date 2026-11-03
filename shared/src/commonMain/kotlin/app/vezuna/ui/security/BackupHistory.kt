@@ -1,6 +1,7 @@
 package app.vezuna.ui.security
 
 import app.vezuna.domain.ConfirmationStatus
+import app.vezuna.domain.healthRecords
 import app.vezuna.security.BackupMember
 import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
@@ -44,6 +45,8 @@ data class BackupContents(
     val doseEvents: Int,
     val hasDeviceData: Boolean,
     val chatMessages: Int,
+    /** Allergies, conditions and vaccinations. */
+    val healthRecords: Int,
     val documents: Int,
     /** Documents whose original file (first page) travels in the backup. */
     val originalFiles: Int,
@@ -58,6 +61,7 @@ data class BackupContents(
             doseEvents = members.sumOf { it.data.doseEvents.size },
             hasDeviceData = members.any { !it.data.vitals.isEmpty },
             chatMessages = members.sumOf { it.data.chat.size },
+            healthRecords = members.sumOf { it.data.healthRecords.size },
             documents = members.sumOf { it.data.documents.size },
             originalFiles = members.sumOf { m -> m.data.documents.count { it.documentId in m.files } },
         )

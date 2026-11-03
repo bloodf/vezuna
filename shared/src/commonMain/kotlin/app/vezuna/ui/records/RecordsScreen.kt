@@ -167,8 +167,10 @@ private fun RecordsList(
                     actionLabel = vitaText(L10nKey.RECORDS_ADD), onAction = addRecord,
                 )
             }
+            item { HealthRecordRows(ctx, data) }
             return@LazyColumn
         }
+        if (!filter.isActive) item { HealthRecordRows(ctx, data) }
         item { SearchAndFilters(filter, onQuery, onOpenFilters) }
         item {
             CategoryPanel(Category.RECORDS, illustration = Res.drawable.ill_records) {

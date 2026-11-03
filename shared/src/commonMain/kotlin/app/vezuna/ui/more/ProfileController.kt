@@ -3,6 +3,7 @@ package app.vezuna.ui.more
 import app.vezuna.domain.DefaultProfileName
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileAge
+import app.vezuna.domain.healthRecords
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.localization.ContentLanguage
 import app.vezuna.localization.L10nKey
@@ -52,7 +53,7 @@ internal class ProfileController(
             val me = repository.peekProfile(defaultId)
             val untouched = DefaultProfileName.isDefault(me.profile.displayName) && me.profile.birthDate == null &&
                 me.documents.isEmpty() && me.reports.isEmpty() && me.observations.isEmpty() && me.ocrCandidates.isEmpty() &&
-                me.medications.isEmpty() && me.doseEvents.isEmpty() && me.chat.isEmpty() && me.vitals.isEmpty &&
+                me.medications.isEmpty() && me.doseEvents.isEmpty() && me.chat.isEmpty() && me.healthRecords.isEmpty() && me.vitals.isEmpty &&
                 me.vitals.lastSync == null && repository.explicitHealthLinkId() != defaultId
             if (!untouched) return
             repository.deleteProfile(defaultId)
@@ -77,7 +78,7 @@ internal class ProfileController(
         core.loadProfile(profileId)
         // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
         val loaded = state.value.data
-        if (state.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty())) {
+        if (state.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty() || loaded.healthRecords.isNotEmpty())) {
             state.value = state.value.copy(onboarding = false)
         }
         modelManager.refresh()

@@ -48,7 +48,7 @@ import vezuna.shared.generated.resources.ill_file_error
 
 /** Form body: centered and width-limited on tablets, scrolls so the primary action is always reachable. */
 @Composable
-private fun FormColumn(content: @Composable ColumnScope.() -> Unit) {
+internal fun FormColumn(content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier.widthIn(max = 680.dp).fillMaxSize().verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceMd),
@@ -59,7 +59,7 @@ private fun FormColumn(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun FixFieldsNotice(visible: Boolean) {
+internal fun FixFieldsNotice(visible: Boolean) {
     if (!visible) return
     Text(
         vitaText(L10nKey.ENTRY_FIX_FIELDS),

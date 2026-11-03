@@ -249,6 +249,7 @@ internal fun ContentsRows(contents: BackupContents) {
         ListRow(vitaText(L10nKey.BACKUP_ITEM_REPORTS), supporting = vitaText(L10nKey.BACKUP_ITEM_REPORTS_COUNT, contents.reports, contents.resultsToReview), leadingIcon = Res.drawable.ic_records, category = Category.RECORDS)
         ListRow(vitaText(L10nKey.BACKUP_ITEM_RESULTS), supporting = contents.confirmedResults.toString(), leadingIcon = Res.drawable.ic_lab, category = Category.TRENDS)
         ListRow(vitaText(L10nKey.BACKUP_ITEM_MEDICATIONS), supporting = vitaText(L10nKey.BACKUP_ITEM_MEDICATIONS_COUNT, contents.medications, contents.doseEvents), leadingIcon = Res.drawable.ic_capsule, category = Category.CARE)
+        if (contents.healthRecords > 0) ListRow(vitaText(L10nKey.BACKUP_ITEM_HEALTH_RECORDS), supporting = contents.healthRecords.toString(), leadingIcon = Res.drawable.ic_file_text, category = Category.RECORDS)
         if (contents.hasDeviceData) ListRow(vitaText(L10nKey.BACKUP_ITEM_DEVICE), leadingIcon = Res.drawable.ic_pulse, category = Category.ACTIVITY)
         ListRow(vitaText(L10nKey.BACKUP_ITEM_CHAT), supporting = contents.chatMessages.toString(), leadingIcon = Res.drawable.ic_chat, category = Category.TRENDS)
         ListRow(

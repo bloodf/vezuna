@@ -121,6 +121,18 @@ class RestoreBackupControllerTest {
     }
 
     @Test
+    fun firstRunRestoreKeepsADefaultProfileThatOnlyHasHealthRecords() = runTest {
+        val repository = InMemoryVezunaRepository()
+        var defaultId = ""
+        firstRunRestore(repository) { id ->
+            defaultId = id
+            repository.addHealthRecord(app.vezuna.domain.AllergyRecord(id, "allergy-1", "Latex"))
+        }
+        assertTrue(defaultId in repository.ids(), "an allergy counts as touched")
+        assertEquals("Latex", repository.readProfile(defaultId).allergies.single().substance)
+    }
+
+    @Test
     fun localizedDefaultNamesCountAsUntouched() = runTest {
         val repository = InMemoryVezunaRepository()
         firstRunRestore(repository) { id -> repository.updateProfile(repository.profiles.value.single().copy(displayName = "Eu")) }

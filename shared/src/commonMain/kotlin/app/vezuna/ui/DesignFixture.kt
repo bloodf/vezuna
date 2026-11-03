@@ -1,6 +1,10 @@
 package app.vezuna.ui
 
 import app.vezuna.data.VezunaRepository
+import app.vezuna.domain.AllergyRecord
+import app.vezuna.domain.AllergySeverity
+import app.vezuna.domain.ConditionRecord
+import app.vezuna.domain.ConditionStatus
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEventStatus
@@ -11,12 +15,14 @@ import app.vezuna.domain.LabReport
 import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
+import app.vezuna.domain.PartialDate
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.Recurrence
 import app.vezuna.domain.ReferenceRange
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.StepsDay
+import app.vezuna.domain.VaccinationRecord
 import app.vezuna.domain.WeightReading
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
@@ -93,6 +99,20 @@ object DesignFixture {
                 )
             },
             vitals = vitals(),
+            allergies = listOf(
+                AllergyRecord(P, "allergy-penicillin", "Penicillin", reaction = "Hives on both arms", severity = AllergySeverity.MODERATE),
+                AllergyRecord(P, "allergy-lactose", "Lactose", reaction = "Bloating after milk", notes = "Yogurt is fine"),
+            ),
+            conditions = listOf(
+                ConditionRecord(P, "condition-rhinitis", "Seasonal rhinitis", onset = PartialDate(2015), status = ConditionStatus.ONGOING),
+                ConditionRecord(P, "condition-appendectomy", "Appendectomy", onset = PartialDate(2012, 6), status = ConditionStatus.RESOLVED),
+                ConditionRecord(P, "condition-migraine", "Migraine", notes = "Started in my teens, exact year unknown"),
+            ),
+            vaccinations = listOf(
+                VaccinationRecord(P, "vaccination-flu", "Influenza 2026", at("2026-04-20T12:00:00Z"), doseNumber = "1", lot = "FLU-2026-118"),
+                VaccinationRecord(P, "vaccination-hepb", "Hepatitis B", at("2019-03-02T12:00:00Z"), doseNumber = "3"),
+                VaccinationRecord(P, "vaccination-tetanus", "Tetanus", doseNumber = "Booster"),
+            ),
         )
     }
 

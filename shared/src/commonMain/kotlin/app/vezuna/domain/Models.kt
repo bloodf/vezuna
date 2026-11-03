@@ -3,6 +3,8 @@ package app.vezuna.domain
 import kotlinx.datetime.DayOfWeek
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -217,6 +219,7 @@ data class ChatMessage(
     enum class Role { USER, ASSISTANT }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ProfileData(
     val profile: Profile,
@@ -229,4 +232,9 @@ data class ProfileData(
     val chat: List<ChatMessage> = emptyList(),
     // Device health data (Health Connect / HealthKit); populated only for the linked profile.
     val vitals: ProfileVitals = ProfileVitals(),
+    // User-entered records (#96). Left out of the JSON while empty, so a profile without them stays readable by older builds;
+    // an older build refuses one that has them (unknown key), so nothing is ever silently dropped.
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val allergies: List<AllergyRecord> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val conditions: List<ConditionRecord> = emptyList(),
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val vaccinations: List<VaccinationRecord> = emptyList(),
 )

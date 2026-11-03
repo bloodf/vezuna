@@ -54,6 +54,7 @@ class AppController(
     private val profiles = ProfileController(core, modelManager, { onProfileChanged() }, warn)
     private val imports = ImportController(core, navigator)
     private val records = RecordsController(core, navigator)
+    private val healthRecords = app.vezuna.ui.records.HealthRecordsController(core)
     private val care = CareController(core)
     private val assistant = AssistantController(core, repository, chat)
     private val exports = ExportController(core, pdfExporter)
@@ -178,6 +179,8 @@ class AppController(
 
     /** Removes the report with its source document, stored file, draft candidates and confirmed results (repository cascade). */
     suspend fun deleteReport(reportId: String) = records.deleteReport(reportId)
+    internal suspend fun saveHealthRecord(recordId: String?, draft: app.vezuna.ui.records.HealthRecordDraft) = healthRecords.save(recordId, draft)
+    suspend fun deleteHealthRecord(recordId: String) = healthRecords.delete(recordId)
     suspend fun rejectCandidate(candidateId: String) = records.rejectCandidate(candidateId)
 
     /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
