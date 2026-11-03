@@ -90,4 +90,11 @@ class LicenseCheckRunnerTest {
     fun probeConstructionFailureDenies() = runTest {
         assertFalse(LicenseCheckRunner(FakePolicy(true)) { error("bad key") }.check())
     }
+
+    @Test
+    fun probeConstructionFailureIsReportedToTheLogger() = runTest {
+        val reported = mutableListOf<Throwable>()
+        assertFalse(LicenseCheckRunner(FakePolicy(true), { reported += it }) { error("bad key") }.check())
+        assertEquals(1, reported.size)
+    }
 }
