@@ -75,7 +75,8 @@ class AppExportInstrumentedTest {
         repeat(5) {
             if (device.hasObject(By.text("Create export"))) return
             device.pressBack()
-            device.waitForIdle()
+            // A busy host can take seconds to draw the previous page after a back press.
+            if (device.wait(Until.hasObject(By.text("Create export")), 5_000)) return
         }
         assertTrue("Export hub not reachable", device.hasObject(By.text("Create export")))
     }

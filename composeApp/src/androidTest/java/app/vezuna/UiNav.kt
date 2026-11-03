@@ -16,12 +16,13 @@ internal fun UiDevice.awaitToday(today: String = "Today"): Boolean = awaitText(t
 internal fun UiDevice.tapText(text: String, timeoutMs: Long = 10_000) {
     assertTrue("'$text' did not appear", awaitText(text, timeoutMs))
     // The page may recompose between lookup and click; look the node up again instead of keeping a stale handle.
-    repeat(5) {
+    repeat(10) {
         try {
             findObjects(By.text(text)).lastOrNull()?.let { it.click(); waitForIdle(); return }
         } catch (_: StaleObjectException) {
         }
         waitForIdle()
+        wait(Until.hasObject(By.text(text)), 500)
     }
     throw AssertionError("'$text' could not be clicked")
 }
