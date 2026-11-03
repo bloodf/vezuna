@@ -43,11 +43,13 @@ Local gates (all verification runs locally; there is no GitHub CI for these):
 
 ```bash
 bash scripts/check-all.sh            # localization, brand, lab importer, Gradle (incl. lint + release), iOS; fails fast, prints CHECK_ALL_PASSED
-bash scripts/check-ios.sh            # iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
+bash scripts/check-ios.sh            # :shared:iosSimulatorArm64Test + iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
 bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a device/emulator, else prints `ANDROID_DEVICE_CHECK_SKIPPED` and exits 2 (not a pass; 0 = passed, 1 = failed; `ANDROID_SERIAL=<id>` picks the device; with several attached and no `ANDROID_SERIAL` it exits 1 and lists them)
 ```
 
 `check-all.sh` also enforces the Kover coverage gate: 80% line coverage over `app.vezuna.domain`, `data`, `importer`, `export` and `health` (UI, Compose, serializers and Android platform glue excluded; see `shared/build.gradle.kts`). Run it alone with `./gradlew :shared:koverVerify`; the HTML report is `./gradlew :shared:koverHtmlReport` (`shared/build/reports/kover/html`).
+
+`:composeApp:koverVerify` also runs in `check-all.sh` over the Android shell's JVM unit tests (Composables and generated code excluded). It measured 11.5% line coverage, so the gate is a regression floor of 11%, not a target; most shell code is Activities and platform glue reached only by instrumented tests. Report: `./gradlew :composeApp:koverHtmlReport`.
 
 `check-all.sh` builds the release variant with a throwaway keystore, because release signing is required by design. Never use a real key there.
 

@@ -53,6 +53,11 @@ struct NotificationPlanner {
     let calendar: Calendar
 
     func reminders(for medications: [NativeMedication], after now: Date, horizonDays: Int = 60, limit: Int = 60) -> [DoseReminder] {
+        plan(for: medications, after: now, horizonDays: horizonDays, limit: limit).reminders
+    }
+
+    /// The nearest `limit` doses, plus whether more doses existed inside the horizon than the budget could hold.
+    func plan(for medications: [NativeMedication], after now: Date, horizonDays: Int = 60, limit: Int = 60) -> (reminders: [DoseReminder], truncated: Bool) {
         let horizon = calendar.date(byAdding: .day, value: horizonDays, to: now) ?? now
         var reminders: [DoseReminder] = []
         for medication in medications where medication.active {
@@ -86,13 +91,14 @@ struct NotificationPlanner {
         let ordered = reminders.sorted {
             ($0.scheduledAt, $0.profileId, $0.scheduleId) < ($1.scheduledAt, $1.profileId, $1.scheduleId)
         }
-        return Array(ordered.prefix(limit))
+        return (Array(ordered.prefix(limit)), ordered.count > limit)
     }
 
-    /// Latest moment up to which every dose is scheduled. A full budget ends at its last reminder; otherwise the horizon.
-    func coverageEnd(of reminders: [DoseReminder], after now: Date, horizonDays: Int = 60, limit: Int = 60) -> Date? {
+    /// Latest moment up to which every dose is scheduled. Doses cut by the budget end coverage at the last reminder;
+    /// a budget that exactly fits every dose (a course that ends) reaches the horizon.
+    func coverageEnd(of reminders: [DoseReminder], after now: Date, horizonDays: Int = 60, truncated: Bool = false) -> Date? {
         guard let last = reminders.last else { return nil }
-        if reminders.count >= limit { return last.scheduledAt }
+        if truncated { return last.scheduledAt }
         return calendar.date(byAdding: .day, value: horizonDays, to: now)
     }
 
