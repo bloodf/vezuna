@@ -176,6 +176,7 @@ private fun CandidateRow(candidate: OcrCandidate, hasDate: Boolean, onClick: () 
         onClick = onClick,
         supporting = (listOf(candidate.valueText()) + flags).joinToString("\n"),
         trailing = { StatusTag(vitaText(L10nKey.STATUS_NEEDS_REVIEW), if (flags.isEmpty()) StatusKind.NEEDS_REVIEW else StatusKind.WARNING) },
+        stackTrailing = true,
     )
 }
 

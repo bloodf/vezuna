@@ -1,5 +1,10 @@
 package app.vezuna.ui.nav
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -96,7 +101,7 @@ fun RootScaffold(ctx: RouteContext, title: String, subtitle: String? = null, con
             onManageProfiles = { ctx.navigate(AppScreen.Profiles) },
             onAddProfile = { ctx.navigate(AppScreen.AddProfile) },
         )
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        Box(Modifier.weight(1f).fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) { content() }
     }
 }
 

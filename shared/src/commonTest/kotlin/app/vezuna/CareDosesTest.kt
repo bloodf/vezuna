@@ -55,7 +55,7 @@ class CareDosesTest {
     }
 
     @Test
-    fun takingASnoozedDoseRecordsItAtTheSnoozedTime() {
+    fun anOldRecordAtAWholeMinuteSnoozeTimeStaysThere() {
         val original = Instant.parse("2026-11-01T08:00:00Z")
         val events = listOf(
             event("2026-11-01T08:10:00Z", DoseEventStatus.SCHEDULED, replaces = original),

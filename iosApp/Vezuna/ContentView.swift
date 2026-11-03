@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppShellModel
     @EnvironmentObject private var lock: AppLockObserver
     @StateObject private var nativeActions = NativeActionRouter()
+    @State private var topInset: CGFloat = 0
 
     var body: some View {
         Group {
@@ -21,13 +22,19 @@ struct ContentView: View {
                             .foregroundStyle(Color.vezunaDanger)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
-                            .background(.regularMaterial, ignoresSafeAreaEdges: .top)
+                            .background { GeometryReader { Color.clear.preference(key: TopInsetKey.self, value: $0.frame(in: .global).minY) } }
+                            .background(Color(uiColor: .systemBackground), ignoresSafeAreaEdges: [.top, .leading, .trailing])
+                            .zIndex(1)
                             // VoiceOver hears the banner when it appears or changes, without moving focus.
                             .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
                             .onChange(of: error) { UIAccessibility.post(notification: .announcement, argument: $0) }
                     }
+                    // SwiftUI still gives the host the status-bar inset the banner took, so Compose would pad its pine
+                    // headers a second time. The host starts that far above the banner's bottom edge instead, under
+                    // the banner, so its own inset lands exactly on the banner and nothing is doubled.
                     ComposeHostView()
-                        .ignoresSafeArea(.container, edges: error == nil ? .all : .bottom)
+                        .ignoresSafeArea(.container, edges: error == nil ? .all : [.bottom, .leading, .trailing])
+                        .padding(.top, error == nil ? 0 : -topInset)
                 }
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
@@ -50,8 +57,9 @@ struct ContentView: View {
             }
         }
         // The status bar always sits on pine, continuing the root and task headers, so its text is light
-        // (UIStatusBarStyleLightContent in Vezuna-Info.plist). A zero-height band grows into the top safe area.
+        // (LightStatusHostingController). A zero-height band grows into the top safe area.
         .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
+        .onPreferenceChange(TopInsetKey.self) { topInset = $0 }
         .task {
             IosRuntime.shared.nativeActionHandler = nativeActions
             // The fixture skips configure(), but its export preview still saves and shares through the system sheets.
@@ -114,6 +122,13 @@ enum DebugLaunch {
     #endif
 }
 
+/// Where the banner starts: the top safe-area inset it sits below. Measured in the view tree, so it follows rotation,
+/// the Dynamic Island and the status bar (0 in landscape on iPhone).
+private struct TopInsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
 struct DesignFixtureHostView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         ComposeBridgeKt.makeDesignFixtureViewController(route: DebugLaunch.route)
@@ -141,3 +156,4 @@ struct VaultRecoveryHostView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }
+
