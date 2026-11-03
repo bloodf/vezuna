@@ -43,7 +43,7 @@ Local gates (all verification runs locally; there is no GitHub CI for these):
 
 ```bash
 bash scripts/check-all.sh            # localization, brand, lab importer, Gradle (incl. lint + release), iOS; fails fast, prints CHECK_ALL_PASSED
-bash scripts/check-ios.sh            # iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
+bash scripts/check-ios.sh            # :shared:iosSimulatorArm64Test + iOS build + full XCTest on an available iPhone simulator; prints IOS_CHECK_PASSED
 bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a device/emulator, else prints `ANDROID_DEVICE_CHECK_SKIPPED` and exits 2 (not a pass; 0 = passed, 1 = failed; `ANDROID_SERIAL=<id>` picks the device; with several attached and no `ANDROID_SERIAL` it exits 1 and lists them)
 ```
 
