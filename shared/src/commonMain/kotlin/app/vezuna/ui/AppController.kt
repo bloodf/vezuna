@@ -23,6 +23,7 @@ import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
 import app.vezuna.ui.records.DocumentVaultController
 import app.vezuna.ui.records.RecordsController
+import app.vezuna.ui.records.storedFileOpens
 import app.vezuna.ui.security.BackupController
 import app.vezuna.ui.security.RestoreResult
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,8 @@ class AppController(
     val backup: BackupService? = null,
     sourceStore: SourceFileStore? = null,
     warn: (String, Throwable) -> Unit = { _, _ -> },
+    /** Whether a file for the document vault can be opened on this device: media type and pages. */
+    documentFileOpens: suspend (String, List<ByteArray>) -> Boolean = ::storedFileOpens,
 ) {
     private val core = ControllerCore(repository, clock, timeZone, sourceStore)
     val state: StateFlow<AppUiState> = core.mutableState.asStateFlow()
@@ -55,11 +58,11 @@ class AppController(
     private val profiles = ProfileController(core, modelManager, { onProfileChanged() }, warn)
     private val imports = ImportController(core, navigator)
     private val records = RecordsController(core, navigator)
-    private val documentVault = DocumentVaultController(core, navigator, imports.importSession)
     private val care = CareController(core)
     private val assistant = AssistantController(core, repository, chat)
     private val exports = ExportController(core, pdfExporter)
     private val backups = BackupController(core, profiles::switchProfile, profiles::discardUntouchedDefaultAfterRestore)
+    private val documentVault = DocumentVaultController(core, navigator, imports.importSession, backups::householdFitsBackup, documentFileOpens)
 
     /** Import journey state (chosen source, extraction phase, draft dates); cleared on profile change. */
     val importSession get() = imports.importSession

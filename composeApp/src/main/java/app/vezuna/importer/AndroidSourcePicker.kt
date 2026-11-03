@@ -19,6 +19,7 @@ import app.vezuna.ui.entry.ImportFailure
 import app.vezuna.ui.entry.ImportFailureReason
 import app.vezuna.ui.entry.ImportSession
 import app.vezuna.ui.entry.SourceKind
+import app.vezuna.ui.records.sweepStaleSourceFiles
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,16 @@ class AndroidSourcePicker(
     private var cameraUri: Uri? = null
     /** Photos of one report, in capture order; cleared whenever a pick ends. */
     private val photos = mutableListOf<ByteArray>()
+    /** Fixed when a pick starts: the shared session can be asked for another pick while this one is still reading. */
+    private var storeOnly = false
+
+    init {
+        // A shot or decrypted copy left by a process that died is unusable (nothing restores the pick) and is plaintext.
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            clearCameraCache()
+            sweepStaleSourceFiles()
+        }
+    }
 
     private val photoLauncher = activity.registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PHOTOS)) { uris ->
         if (uris.isEmpty()) complete(null) else importPhotos(uris)
@@ -58,14 +69,16 @@ class AndroidSourcePicker(
         val result = CompletableDeferred<PickedSource?>()
         pending = result
         this.session = session
+        val request = session.pickRequest
+        storeOnly = request.storeOnly
         try {
-            when (session.requestedKind) {
+            when (request.kind) {
                 SourceKind.CAMERA -> launchCamera()
                 SourceKind.PHOTOS -> photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 SourceKind.FILE -> fileLauncher.launch(arrayOf("application/pdf", "image/*"))
             }
         } catch (error: ActivityNotFoundException) {
-            fail(ImportFailure(if (session.requestedKind == SourceKind.CAMERA) ImportFailureReason.CAMERA_UNAVAILABLE else ImportFailureReason.UNREADABLE))
+            fail(ImportFailure(if (request.kind == SourceKind.CAMERA) ImportFailureReason.CAMERA_UNAVAILABLE else ImportFailureReason.UNREADABLE))
         } catch (error: Exception) {
             fail(error)
         }
@@ -115,7 +128,13 @@ class AndroidSourcePicker(
         if (pending == null) return
         activity.lifecycleScope.launch {
             try {
-                photos += withContext(Dispatchers.IO) { readBytes(uri, PHOTO_NAME) }
+                photos += withContext(Dispatchers.IO) {
+                    try {
+                        readBytes(uri, PHOTO_NAME)
+                    } finally {
+                        clearCameraCache()
+                    }
+                }
                 if (photos.size >= MAX_PHOTOS) finishPhotos() else askForAnotherPhoto()
             } catch (error: Throwable) {
                 fail(error)
@@ -153,16 +172,18 @@ class AndroidSourcePicker(
         if (taken.isEmpty()) return complete(null)
         val owner = pending
         val picked = session
-        extracting = activity.lifecycleScope.launch { extractPhotos(taken, owner, picked) }
+        val keepOnly = storeOnly
+        extracting = activity.lifecycleScope.launch { extractPhotos(taken, owner, picked, keepOnly) }
     }
 
     private fun importPhotos(uris: List<Uri>) {
         val owner = pending
         val picked = session
+        val keepOnly = storeOnly
         extracting = activity.lifecycleScope.launch {
             try {
                 val pages = withContext(Dispatchers.IO) { uris.take(MAX_PHOTOS).map { readBytes(it, displayName(it) ?: PHOTO_NAME) } }
-                extractPhotos(pages, owner, picked)
+                extractPhotos(pages, owner, picked, keepOnly)
             } catch (error: Throwable) {
                 fail(error, owner = owner)
             }
@@ -170,8 +191,8 @@ class AndroidSourcePicker(
     }
 
     /** [owner] is the pick this extraction belongs to: a stopped extraction can never complete or fail a later pick. */
-    private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?) {
-        if (picked?.storeOnly == true) {
+    private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?, keepOnly: Boolean) {
+        if (keepOnly) {
             val name = if (taken.size == 1) "document.jpg" else "document-${taken.size}-pages.jpg"
             return complete(PickedSource(name, "image/jpeg", taken.first(), emptyList(), additionalPages = taken.drop(1)), owner)
         }
@@ -192,19 +213,19 @@ class AndroidSourcePicker(
     private fun importFile(uri: Uri) {
         val owner = pending
         val picked = session
+        val keepOnly = storeOnly
         extracting = activity.lifecycleScope.launch {
             var name: String? = null
             try {
                 val type = activity.contentResolver.getType(uri)
                 val isPdf = type == "application/pdf"
-                val storeOnly = picked?.storeOnly == true
                 name = displayName(uri) ?: when {
-                    storeOnly -> if (isPdf) "document.pdf" else "document.jpg"
+                    keepOnly -> if (isPdf) "document.pdf" else "document.jpg"
                     isPdf -> "lab.pdf"
                     else -> PHOTO_NAME
                 }
                 val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
-                if (storeOnly) {
+                if (keepOnly) {
                     return@launch complete(PickedSource(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, emptyList()), owner)
                 }
                 if (pending === owner) picked?.reading(name)

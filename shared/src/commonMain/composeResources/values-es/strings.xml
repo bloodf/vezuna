@@ -1228,6 +1228,10 @@ iOS: %2$s</string>
     <string name="supply_refill_invalid">Introduce un número entero de unidades, 1 o más.</string>
     <string name="supply_not_tracked">Indica las unidades disponibles antes de registrar una reposición.</string>
     <!-- document vault -->
+    <string name="backup_too_large_named">Esta copia es demasiado grande (más de 24 MB con archivos originales y documentos guardados). "%1$s" es uno de los archivos más grandes. La copia de un perfil deja esos archivos fuera.</string>
+    <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles ya no cabe en el límite de 24 MB. Elimina archivos grandes para crearla o haz la copia de un perfil sin sus archivos.</string>
+    <string name="source_page_previous">Página anterior</string>
+    <string name="source_page_next">Página siguiente</string>
     <string name="backup_document_unreadable">No se pudo leer "%1$s", así que esta copia no se creó. No quedó nada fuera. Abre el documento para revisarlo o elimínalo e inténtalo de nuevo.</string>
     <string name="backup_documents_left_out">Este perfil tiene documentos guardados. La copia de un perfil conserva los nombres y las etiquetas, no los archivos. Elige todos los perfiles para incluir los archivos.</string>
     <string name="documents_title">Documentos</string>
@@ -1270,7 +1274,7 @@ iOS: %2$s</string>
     <string name="documents_tag_insurance">Seguro</string>
     <string name="documents_save">Guardar</string>
     <string name="documents_viewer_title">Documento</string>
-    <string name="documents_unreadable">No se pudo leer este archivo. Prueba con otra copia. No se guardó nada.</string>
+    <string name="documents_unreadable">No se pudo abrir este archivo. Puede estar dañado, protegido con contraseña o en un formato no compatible. No se guardó nada.</string>
     <string name="documents_added">Documento guardado.</string>
     <string name="documents_already_stored">Este archivo ya está en tus documentos.</string>
     <string name="documents_file_restored">El archivo volvió a este documento.</string>

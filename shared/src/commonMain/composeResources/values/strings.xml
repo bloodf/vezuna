@@ -1228,6 +1228,10 @@ iOS: %2$s</string>
     <string name="supply_refill_invalid">Enter a whole number of units, 1 or more.</string>
     <string name="supply_not_tracked">Set the units on hand before recording a refill.</string>
     <!-- document vault -->
+    <string name="backup_too_large_named">This backup is too large (over 24 MB with original files and stored documents). "%1$s" is one of the largest files. A backup of one profile leaves those files out.</string>
+    <string name="documents_stored_backup_full">Document stored, but a backup of every profile no longer fits the 24 MB limit. Delete large files to make one, or back up one profile without its files.</string>
+    <string name="source_page_previous">Previous page</string>
+    <string name="source_page_next">Next page</string>
     <string name="backup_document_unreadable">"%1$s" could not be read, so this backup was not created. Nothing was left out. Open the document to check it, or delete it and try again.</string>
     <string name="backup_documents_left_out">This profile has stored documents. A backup of one profile keeps their names and tags, not the files. Choose every profile to include the files.</string>
     <string name="documents_title">Documents</string>
@@ -1270,7 +1274,7 @@ iOS: %2$s</string>
     <string name="documents_tag_insurance">Insurance</string>
     <string name="documents_save">Save</string>
     <string name="documents_viewer_title">Document</string>
-    <string name="documents_unreadable">Could not read this file. Try another copy. Nothing was saved.</string>
+    <string name="documents_unreadable">Could not open this file. It may be damaged, password-protected or in an unsupported format. Nothing was saved.</string>
     <string name="documents_added">Document stored.</string>
     <string name="documents_already_stored">This file is already in your documents.</string>
     <string name="documents_file_restored">The file is back with this document.</string>

@@ -34,6 +34,10 @@ internal class DocumentVaultController(
     private val core: ControllerCore,
     private val navigator: Navigator,
     private val session: ImportSession,
+    /** Whether a household backup still fits, checked after a file is added. */
+    private val householdFitsBackup: suspend () -> Boolean,
+    /** Extraction used to reject files that cannot be opened; here this does, because a stored file has no other way out. */
+    private val fileOpens: suspend (String, List<ByteArray>) -> Boolean,
 ) {
     private val repository get() = core.repository
     private val mutableTagFilter = MutableStateFlow<String?>(null)
@@ -53,7 +57,7 @@ internal class DocumentVaultController(
     suspend fun addFrom(kind: SourceKind, picker: suspend () -> PickedSource?) {
         val profileId = core.mutableState.value.data?.profile?.profileId
         core.clearMessages()
-        session.start(kind, storeOnly = true)
+        session.requestFileOnly(kind)
         val source = try {
             picker()
         } catch (cancelled: CancellationException) {
@@ -64,8 +68,6 @@ internal class DocumentVaultController(
         } catch (error: Exception) {
             core.mutableState.value = core.mutableState.value.copy(error = message(L10nKey.DOCUMENTS_UNREADABLE))
             return
-        } finally {
-            session.idle()
         }
         if (source == null) return
         if (profileId == null || core.mutableState.value.data?.profile?.profileId != profileId) {
@@ -80,28 +82,44 @@ internal class DocumentVaultController(
         val profileId = data.profile.profileId
         val files = core.sourceStore
         if (files == null || source.fileName.isBlank() || source.bytes.isEmpty()) failMessage(L10nKey.DOCUMENTS_UNREADABLE)
+        if (!fileOpens(source.mediaType, listOf(source.bytes) + source.additionalPages)) failMessage(L10nKey.DOCUMENTS_UNREADABLE)
         val hash = sourceIdentity(source)
         val existing = data.vaultDocuments.firstOrNull { it.source.sha256 == hash }
         val documentId = existing?.source?.documentId ?: randomId()
+        // The record may have no file (a backup that carried none) or point at one that is gone or damaged: the same file fills the gap.
+        val refill = existing != null && !fileIsIntact(files, existing.source)
         when {
             existing == null -> saveFiles(files, profileId, documentId, source) { keys ->
+                val name = source.fileName.trim().take(DocumentTags.MAX_NAME_LENGTH)
                 repository.addVaultDocument(
-                    VaultDocument(SourceDocument(profileId, documentId, source.fileName.trim(), source.mediaType, hash, currentInstant(), keys.first(), keys.drop(1))),
+                    VaultDocument(SourceDocument(profileId, documentId, name, source.mediaType, hash, currentInstant(), keys.first(), keys.drop(1))),
                 )
             }
-            // Its record came back from a backup that carried no files: the same file fills the gap.
-            existing.source.vaultKey == null -> saveFiles(files, profileId, documentId, source) { keys ->
+            refill -> saveFiles(files, profileId, documentId, source) { keys ->
                 repository.updateVaultDocument(existing.copy(source = existing.source.copy(vaultKey = keys.first(), pageVaultKeys = keys.drop(1))))
             }
         }
         core.loadProfile(profileId)
         navigator.navigate(AppScreen.DocumentDetail(documentId))
+        val stored = existing == null || refill
         val notice = when {
+            stored && !householdFitsBackup() -> L10nKey.DOCUMENTS_STORED_BACKUP_FULL
             existing == null -> L10nKey.DOCUMENTS_ADDED
-            existing.source.vaultKey == null -> L10nKey.DOCUMENTS_FILE_RESTORED
+            refill -> L10nKey.DOCUMENTS_FILE_RESTORED
             else -> L10nKey.DOCUMENTS_ALREADY_STORED
         }
         core.mutableState.value = core.mutableState.value.copy(notice = message(notice))
+    }
+
+    private suspend fun fileIsIntact(files: SourceFileStore, source: SourceDocument): Boolean {
+        val keys = listOfNotNull(source.vaultKey) + source.pageVaultKeys
+        return try {
+            keys.isNotEmpty() && keys.withIndex().all { (index, key) -> files.load(source.profileId, backupFileId(source.documentId, index + 1), key) != null }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (unreadable: Exception) {
+            false
+        }
     }
 
     /** A stored file must never outlive a record that was not written. */
@@ -120,7 +138,7 @@ internal class DocumentVaultController(
     suspend fun update(documentId: String, name: String, tags: List<String>) = core.operation {
         val data = core.requireData()
         val current = data.vaultDocuments.firstOrNull { it.source.documentId == documentId } ?: failMessage(L10nKey.DOCUMENTS_NOT_FOUND)
-        val cleanName = name.trim()
+        val cleanName = name.trim().take(DocumentTags.MAX_NAME_LENGTH)
         if (cleanName.isEmpty()) failMessage(L10nKey.DOCUMENTS_NAME_REQUIRED)
         repository.updateVaultDocument(current.copy(source = current.source.copy(displayName = cleanName), tags = DocumentTags.clean(tags)))
         core.loadProfile(data.profile.profileId)
@@ -129,8 +147,8 @@ internal class DocumentVaultController(
 
     /**
      * The repository removes the record first and the encrypted file once that is durable, so a failed write keeps both.
-     * ponytail: a file delete that fails after the record is gone leaves one encrypted stray with no retry, like lab
-     * originals; add a key sweep at load if that ever shows up. The profile reloads either way, so the screen is never stale.
+     * ponytail: a file delete that fails after the record is gone leaves that encrypted stray with no retry, like lab
+     * originals (the person sees the error); add a key sweep at load if that ever shows up. The profile reloads either way.
      */
     suspend fun delete(documentId: String) = core.operation {
         val data = core.requireData()

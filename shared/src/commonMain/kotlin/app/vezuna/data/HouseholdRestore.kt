@@ -4,6 +4,7 @@ import app.vezuna.domain.allDocuments
 import app.vezuna.domain.keepingOnlyAvailableSourceFiles
 import app.vezuna.domain.remappedAsNew
 import app.vezuna.domain.vaultKeys
+import app.vezuna.domain.withCleanVaultText
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.BackupMember
 import app.vezuna.security.backupFileId
@@ -32,7 +33,7 @@ suspend fun VezunaRepository.restoreMembers(
     val stored = mutableListOf<String>()
     var allVitals = true
     members.forEach { member ->
-        val data = member.data
+        val data = member.data.withCleanVaultText()
         val existing = if (profiles.value.any { it.profileId == data.profile.profileId }) peekProfile(data.profile.profileId) else null
         // Original-file keys derive from the document ID plus the page, so compare file IDs, not document IDs: an incoming
         // "X-page-2" must not overwrite page 2 of another profile's document X (nor clash within this profile).

@@ -55,6 +55,7 @@ import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.components.PrimaryButton
 import app.vezuna.ui.components.ProgressState
 import app.vezuna.ui.components.SecondaryButton
+import app.vezuna.ui.entry.MAX_PDF_PAGES
 import app.vezuna.ui.nav.RouteContext
 import kotlin.math.ceil
 import kotlinx.coroutines.Dispatchers
@@ -175,7 +176,11 @@ private fun SourcePages(file: SourceFileRead.Available, fileName: String, onFail
                 }
             }
             ZoomControls(zoom) { zoom = it }
-            if (pageCount > 1) PagePicker(pageIndex, pageCount) { pageIndex = it }
+            when {
+                // Vault PDFs have no page cap, and one button per page would crowd out the page itself.
+                pageCount > MAX_PDF_PAGES -> PageStepper(pageIndex, pageCount) { pageIndex = it }
+                pageCount > 1 -> PagePicker(pageIndex, pageCount) { pageIndex = it }
+            }
         }
     }
 }
@@ -194,6 +199,17 @@ private fun ZoomControls(zoom: Float, onZoom: (Float) -> Unit) {
         IconButton({ onZoom((zoom + ZOOM_STEP).coerceAtMost(MAX_ZOOM)) }, enabled = zoom < MAX_ZOOM, modifier = Modifier.size(VezunaTokens.TouchTarget)) {
             Icon(painterResource(Res.drawable.ic_plus), contentDescription = vitaText(L10nKey.SOURCE_ZOOM_IN))
         }
+    }
+}
+
+@Composable
+private fun PageStepper(selected: Int, count: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = VezunaTokens.Gutter, vertical = VezunaTokens.SpaceSm),
+        horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm),
+    ) {
+        SecondaryButton(vitaText(L10nKey.SOURCE_PAGE_PREVIOUS), { onSelect(selected - 1) }, Modifier.weight(1f), enabled = selected > 0)
+        SecondaryButton(vitaText(L10nKey.SOURCE_PAGE_NEXT), { onSelect(selected + 1) }, Modifier.weight(1f), enabled = selected < count - 1)
     }
 }
 

@@ -253,6 +253,7 @@ data class VaultDocument(val source: SourceDocument, val tags: List<String> = em
 object DocumentTags {
     const val MAX_LENGTH = 40
     const val MAX_PER_DOCUMENT = 20
+    const val MAX_NAME_LENGTH = 255
 
     /** Trimmed, without blanks or case-insensitive repeats (the first spelling stays), capped. */
     fun clean(tags: List<String>): List<String> =

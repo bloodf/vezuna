@@ -204,7 +204,10 @@ class BackupService(
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
 
-        /** What [create] still writes, so single-profile files keep opening on builds that predate the household payload. */
+        /**
+         * What [create] still writes. A profile with vault documents has a field builds before them refuse as invalid
+         * content; no such build has shipped. If that changes, bump the version so they say "update the app" instead.
+         */
         const val SINGLE_SCHEMA_VERSION = 3
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
         const val MAX_BACKUP_READ_BYTES = 64 * 1024 * 1024

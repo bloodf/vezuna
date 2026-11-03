@@ -59,9 +59,9 @@ private class Fixture {
     val store = VaultSourceFileStore(vault)
     lateinit var controller: AppController
 
-    suspend fun start(): Fixture {
+    suspend fun start(fileOpens: suspend (String, List<ByteArray>) -> Boolean = { _, _ -> true }): Fixture {
         repository.load()
-        controller = labController(repository, store)
+        controller = labController(repository, store, fileOpens)
         controller.initialize()
         return this
     }
@@ -457,8 +457,130 @@ class DocumentVaultTest {
     fun aDocumentThatCannotFitStopsTheBackupWithItsReason() = runTest {
         val f = Fixture().start()
         f.add(pdf(bytes = ByteArray(BackupService.MAX_BACKUP_WRITE_BYTES)))
+        assertEquals(L10nKey.DOCUMENTS_STORED_BACKUP_FULL, (f.controller.state.value.notice as UserText.Key).key, "said when added, not first at backup time")
         val failure = assertFailsWith<VitaMessageException> { f.controller.householdForBackup() }
-        assertEquals(L10nKey.BACKUP_TOO_LARGE, failure.userText.key)
+        assertEquals(L10nKey.BACKUP_TOO_LARGE_NAMED, failure.userText.key)
+        assertEquals(listOf("rx.pdf"), failure.userText.args)
+    }
+
+    @Test
+    fun theLargestDocumentSoFarIsTheOneNamed() = runTest {
+        val f = Fixture().start()
+        val mib = 1024 * 1024
+        f.add(pdf("small.pdf", ByteArray(mib) { 1 }))
+        f.add(pdf("big.pdf", ByteArray(12 * mib) { 2 }))
+        f.add(pdf("medium.pdf", ByteArray(6 * mib) { 3 }))
+        val failure = assertFailsWith<VitaMessageException> { f.controller.householdForBackup() }
+        assertEquals(listOf("big.pdf"), failure.userText.args)
+    }
+
+    @Test
+    fun aFileThatDoesNotOpenIsNeverStored() = runTest {
+        var checked: Pair<String, Int>? = null
+        val f = Fixture().start { type, pages ->
+            checked = type to pages.size
+            false
+        }
+        f.add(pdf().copy(additionalPages = listOf(byteArrayOf(2))))
+        assertEquals("application/pdf" to 2, checked, "every page is checked")
+        assertEquals(L10nKey.DOCUMENTS_UNREADABLE, (f.controller.state.value.error as UserText.Key).key)
+        assertEquals(emptyList(), f.documents)
+        assertTrue(f.vault.current.keys.none { it.startsWith("source-document-") }, "nothing reached the vault")
+    }
+
+    @Test
+    fun aRecordWhoseFileIsGoneGetsItBackFromTheSameFile() = runTest {
+        val f = Fixture().start()
+        f.add(pdf(bytes = byteArrayOf(4, 4)))
+        val source = f.documents.single().source
+        f.vault.delete(source.vaultKey!!)
+        assertEquals(SourceFileRead.Missing, f.controller.readSourceFile(source.documentId))
+
+        f.add(pdf(bytes = byteArrayOf(4, 4)))
+
+        assertEquals(L10nKey.DOCUMENTS_FILE_RESTORED, (f.controller.state.value.notice as UserText.Key).key)
+        assertEquals(1, f.documents.size)
+        assertContentEquals(byteArrayOf(4, 4), assertIs<SourceFileRead.Available>(f.controller.readSourceFile(source.documentId)).pages.single())
+        assertEquals(1, f.controller.householdForBackup().single().files.size, "backups work again")
+    }
+
+    @Test
+    fun aRecordWhoseFileIsDamagedGetsItBackFromTheSameFile() = runTest {
+        val f = Fixture().start()
+        f.add(pdf(bytes = byteArrayOf(4, 4)))
+        val source = f.documents.single().source
+        f.vault.current[source.vaultKey!!] = byteArrayOf(0, 1, 2)
+        f.vault.previous.remove(source.vaultKey!!)
+        f.add(pdf(bytes = byteArrayOf(4, 4)))
+        assertEquals(L10nKey.DOCUMENTS_FILE_RESTORED, (f.controller.state.value.notice as UserText.Key).key)
+        assertContentEquals(byteArrayOf(4, 4), assertIs<SourceFileRead.Available>(f.controller.readSourceFile(source.documentId)).pages.single())
+    }
+
+    @Test
+    fun oneFailedFileDeleteStillRemovesTheOtherPages() = runTest {
+        val f = Fixture().start()
+        f.add(pdf().copy(additionalPages = listOf(byteArrayOf(5), byteArrayOf(6))))
+        val source = f.documents.single().source
+        f.vault.failingDeletes += source.vaultKey!!
+        f.controller.deleteDocument(source.documentId)
+        assertNotNull(f.controller.state.value.error, "the person is told")
+        assertEquals(emptyList(), f.documents)
+        source.pageVaultKeys.forEach { assertNull(f.vault.current[it]) }
+    }
+
+    @Test
+    fun aPickKeepsTheRequestItStartedWith() = runTest {
+        val f = Fixture().start()
+        val session = f.controller.importSession
+        session.requestFileOnly(SourceKind.PHOTOS)
+        val inFlight = session.pickRequest
+        // The person opens the lab import while the vault pick is still reading its file.
+        session.start(SourceKind.FILE)
+        assertTrue(inFlight.storeOnly, "the vault pick stays store-only, so its file never reaches OCR")
+        assertEquals(SourceKind.PHOTOS, inFlight.kind)
+        assertFalse(session.storeOnly, "and the lab import extracts")
+        session.requestFileOnly(SourceKind.FILE)
+        assertTrue(session.storeOnly)
+    }
+
+    @Test
+    fun addingADocumentLeavesALabReviewAlone() = runTest {
+        val f = Fixture().start()
+        val session = f.controller.importSession
+        session.start(SourceKind.FILE)
+        session.publish(app.vezuna.ui.entry.ExtractionDetails("lab.pdf", emptyList(), 2))
+        session.confirmed()
+        session.idle()
+        session.reading("lab.pdf")
+        f.add(pdf())
+        assertEquals(1, session.confirmedCount.value)
+        assertEquals("lab.pdf", session.details.value?.fileName)
+        assertEquals(app.vezuna.ui.entry.ImportPhase.Reading("lab.pdf"), session.phase.value)
+    }
+
+    @Test
+    fun restoredNamesAndTagsGetTheSameLimits() = runTest {
+        val long = "n".repeat(1000)
+        val f = Fixture().start()
+        val data = ProfileData(
+            Profile("r", "Ana", createdAt = t),
+            vaultDocuments = listOf(VaultDocument(vaultDoc("r", "v").source.copy(displayName = long), listOf(" a ", "A", "") + (1..50).map { "t$it" })),
+        )
+        f.controller.restoreHousehold(listOf(BackupMember(data)), RestoreMode.REPLACE_EXISTING)
+        val restored = f.repository.readProfile("r").vaultDocuments.single()
+        assertEquals(DocumentTags.MAX_NAME_LENGTH, restored.source.displayName.length)
+        assertEquals("a", restored.tags.first())
+        assertEquals(DocumentTags.MAX_PER_DOCUMENT, restored.tags.size)
+    }
+
+    @Test
+    fun longNamesAreCappedWhenAddedAndRenamed() = runTest {
+        val f = Fixture().start()
+        f.add(pdf("x".repeat(1000)))
+        val id = f.documents.single().source.documentId
+        assertEquals(DocumentTags.MAX_NAME_LENGTH, f.documents.single().source.displayName.length)
+        f.controller.updateDocument(id, "y".repeat(1000), emptyList())
+        assertEquals(DocumentTags.MAX_NAME_LENGTH, f.documents.single().source.displayName.length)
     }
 
     @Test

@@ -246,7 +246,7 @@ private fun EditDocumentSheet(document: VaultDocument, onDismiss: () -> Unit, on
         vitaText(L10nKey.DOCUMENTS_TAG_VACCINATION), vitaText(L10nKey.DOCUMENTS_TAG_INSURANCE),
     ).filter { suggestion -> tags.none { it.equals(suggestion, ignoreCase = true) } }
     VezunaSheet(vitaText(L10nKey.DOCUMENTS_EDIT), onDismiss) {
-        LabeledField(vitaText(L10nKey.DOCUMENTS_NAME_LABEL), name, { name = it }, error = if (nameMissing) vitaText(L10nKey.DOCUMENTS_NAME_REQUIRED) else null)
+        LabeledField(vitaText(L10nKey.DOCUMENTS_NAME_LABEL), name, { name = it.take(DocumentTags.MAX_NAME_LENGTH) }, error = if (nameMissing) vitaText(L10nKey.DOCUMENTS_NAME_REQUIRED) else null)
         SectionHeading(vitaText(L10nKey.DOCUMENTS_TAGS_HEADING))
         if (tags.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {

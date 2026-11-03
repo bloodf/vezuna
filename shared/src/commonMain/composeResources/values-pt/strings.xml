@@ -1228,6 +1228,10 @@ iOS: %2$s</string>
     <string name="supply_refill_invalid">Informe um número inteiro de unidades, 1 ou mais.</string>
     <string name="supply_not_tracked">Informe as unidades em mãos antes de registrar uma reposição.</string>
     <!-- document vault -->
+    <string name="backup_too_large_named">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). "%1$s" é um dos maiores arquivos. O backup de um perfil deixa esses arquivos de fora.</string>
+    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes para criá-lo ou faça o backup de um perfil sem os arquivos.</string>
+    <string name="source_page_previous">Página anterior</string>
+    <string name="source_page_next">Próxima página</string>
     <string name="backup_document_unreadable">Não foi possível ler "%1$s", então este backup não foi criado. Nada ficou de fora. Abra o documento para conferir ou exclua-o e tente de novo.</string>
     <string name="backup_documents_left_out">Este perfil tem documentos guardados. O backup de um perfil mantém os nomes e as etiquetas, não os arquivos. Escolha todos os perfis para incluir os arquivos.</string>
     <string name="documents_title">Documentos</string>
@@ -1270,7 +1274,7 @@ iOS: %2$s</string>
     <string name="documents_tag_insurance">Convênio</string>
     <string name="documents_save">Salvar</string>
     <string name="documents_viewer_title">Documento</string>
-    <string name="documents_unreadable">Não foi possível ler este arquivo. Tente outra cópia. Nada foi salvo.</string>
+    <string name="documents_unreadable">Não foi possível abrir este arquivo. Ele pode estar danificado, protegido por senha ou em um formato sem suporte. Nada foi salvo.</string>
     <string name="documents_added">Documento guardado.</string>
     <string name="documents_already_stored">Este arquivo já está nos seus documentos.</string>
     <string name="documents_file_restored">O arquivo voltou para este documento.</string>

@@ -280,7 +280,7 @@ class VaultBackedRepository(
             selectedProfileId = null
         }
         vault.delete(profileKey(profileId))
-        removed?.vaultKeys()?.forEach { vault.delete(it) }
+        removed?.vaultKeys()?.let { deleteFiles(it) }
         // Last, so a failure above leaves the vitals in place and the next load's sweep retries.
         vitalsStore.delete(profileId)
         changed()
@@ -397,7 +397,23 @@ class VaultBackedRepository(
         val updated = transform(current)
         commit(updated)
         // Source files orphaned by a cascading delete are removed only after the new records are durable.
-        (current.vaultKeys() - updated.vaultKeys()).forEach { vault.delete(it) }
+        deleteFiles(current.vaultKeys() - updated.vaultKeys())
+    }
+
+    /** Tries every key, so one failure does not strand the rest, then reports the first failure. */
+    private suspend fun deleteFiles(keys: Set<String>) {
+        var failure: Exception? = null
+        keys.forEach { key ->
+            try {
+                vault.delete(key)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                warn("Could not delete a source file", error)
+                if (failure == null) failure = error
+            }
+        }
+        failure?.let { throw it }
     }
 
     private suspend fun commit(data: ProfileData) {

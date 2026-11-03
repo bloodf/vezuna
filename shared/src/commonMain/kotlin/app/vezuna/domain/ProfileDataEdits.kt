@@ -23,6 +23,13 @@ fun ProfileData.withoutVaultDocument(documentId: String): ProfileData {
     require(vaultDocuments.any { it.source.documentId == documentId }) { "Document not found" }
     return copy(vaultDocuments = vaultDocuments.filterNot { it.source.documentId == documentId })
 }
+
+/** Backups are outside data: names and tags get the same limits as ones typed here. */
+fun ProfileData.withCleanVaultText(): ProfileData = copy(
+    vaultDocuments = vaultDocuments.map {
+        it.copy(source = it.source.copy(displayName = it.source.displayName.take(DocumentTags.MAX_NAME_LENGTH)), tags = DocumentTags.clean(it.tags))
+    },
+)
 // endregion document vault
 
 fun ProfileData.withProfile(updated: Profile): ProfileData {
