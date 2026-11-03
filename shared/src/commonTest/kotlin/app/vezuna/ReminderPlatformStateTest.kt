@@ -24,9 +24,15 @@ class ReminderPlatformStateTest {
     }
 
     @Test
-    fun coverageIsLowUnderThreeDays() {
+    fun coverageIsLowUnderFourteenDays() {
         val now = Instant.parse("2026-11-01T12:00:00Z")
-        assertTrue(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-04T11:59:59Z"), now))
-        assertFalse(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-04T12:00:00Z"), now))
+        assertTrue(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-15T11:59:59Z"), now))
+        assertFalse(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-15T12:00:00Z"), now))
+    }
+
+    @Test
+    fun noCoverageIsReportedUntilThePlatformSetsIt() {
+        // Android never schedules a limited window, so it never sets coverage and so never shows the low-coverage warning.
+        assertEquals(null, ReminderPlatformState().coverageUntil.value)
     }
 }

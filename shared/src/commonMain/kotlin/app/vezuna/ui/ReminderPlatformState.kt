@@ -45,7 +45,7 @@ class ReminderPlatformState(
     fun setCoverageUntil(until: Instant?) { coverage.value = until }
 
     companion object {
-        val LOW_COVERAGE = 3.days
+        val LOW_COVERAGE = 14.days
 
         fun isCoverageLow(until: Instant, now: Instant): Boolean = until - now < LOW_COVERAGE
     }
