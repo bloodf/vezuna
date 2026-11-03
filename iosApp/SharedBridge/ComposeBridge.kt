@@ -541,27 +541,27 @@ object IosRuntime {
         }
     }
 
-    /** Stores the same snooze event as the in-app snooze, so the dashboard and reconcile see one snoozed dose. */
+    /** Stores the same snooze event as the in-app snooze, so the dashboard and reconcile see one snoozed dose. Reports the second it landed on. */
     fun recordSnooze(
         profileId: String,
         medicationId: String,
         scheduleId: String,
         shownEpochSeconds: Long,
         snoozedEpochSeconds: Long,
-        completion: (NativeMessage?) -> Unit,
+        completion: (Long?, NativeMessage?) -> Unit,
     ) {
         if (!initialized) {
-            completion(nativeMessage("bridge_storage_not_ready"))
+            completion(null, nativeMessage("bridge_storage_not_ready"))
             return
         }
         scope.launch {
             try {
                 val data = repository.peekProfile(profileId)
                 if (data.medications.none { it.medicationId == medicationId && it.schedules.any { s -> s.scheduleId == scheduleId } }) {
-                    completion(nativeMessage("medication_schedule_missing"))
+                    completion(null, nativeMessage("medication_schedule_missing"))
                     return@launch
                 }
-                val snoozedAt = Instant.fromEpochSeconds(snoozedEpochSeconds)
+                val snoozedAt = DoseEvents.snoozeSlot(data.doseEvents, scheduleId, Instant.fromEpochSeconds(shownEpochSeconds), Instant.fromEpochSeconds(snoozedEpochSeconds))
                 val eventId = DoseEvents.snoozeIdFor(scheduleId, snoozedAt)
                 if (data.doseEvents.none { it.eventId == eventId }) {
                     repository.addDoseEvent(
@@ -569,15 +569,15 @@ object IosRuntime {
                     )
                     repositoryObserver?.repositoryDidChange()
                 }
-                completion(null)
+                completion(snoozedAt.epochSeconds, null)
             } catch (error: Throwable) {
-                completion(nativeMessage("dose_record_failed"))
+                completion(null, nativeMessage("dose_record_failed"))
             }
         }
     }
 
     /** Future snoozes (from any path) as JSON for the native scheduler; a closed one must not fire any more. */
-    fun listPendingSnoozes(completion: (String?, NativeMessage?) -> Unit) {
+    fun listStoredSnoozes(completion: (String?, NativeMessage?) -> Unit) {
         if (!initialized) {
             completion(null, nativeMessage("bridge_storage_not_ready"))
             return

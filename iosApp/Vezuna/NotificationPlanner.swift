@@ -28,7 +28,7 @@ struct DoseReminder: Equatable {
     let medicationId: String
     let medicationName: String
     let scheduleId: String
-    let scheduledAt: Date
+    var scheduledAt: Date
     /// A snoozed copy of a delivered reminder. Planning never replaces or removes it; only an inactive medication does.
     var isSnooze = false
     var profileName: String? = nil

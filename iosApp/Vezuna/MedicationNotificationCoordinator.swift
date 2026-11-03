@@ -302,10 +302,10 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             let outcome = await record(reminder, status: "SKIPPED")
             guard outcome == .done else { return clearDelivered(response, after: outcome) }
         case Self.snoozeAction:
-            let snoozed = planner.snooze(reminder, from: response.receivedAt)
+            var snoozed = planner.snooze(reminder, from: response.receivedAt)
             if snoozed.scheduledAt > Date() {
                 // Same stored event as the in-app snooze, so both paths look identical to the dashboard and to reconcile.
-                let outcome = await recordSnooze(reminder, snoozed: snoozed)
+                let outcome = await recordSnooze(reminder, snoozed: &snoozed)
                 guard outcome == .done else { return clearDelivered(response, after: outcome) }
                 do { try await center.add(request(for: snoozed, hidden: hideNames)) } catch { lastError = L10n.text(.action_failed); return .retry }
             }
@@ -359,20 +359,23 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
-    private func recordSnooze(_ reminder: DoseReminder, snoozed: DoseReminder) async -> Outcome {
+    /// `snoozed` moves to the second actually stored, which differs if another dose of the schedule already snoozed to it.
+    private func recordSnooze(_ reminder: DoseReminder, snoozed: inout DoseReminder) async -> Outcome {
         do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let requested = Int64(snoozed.scheduledAt.timeIntervalSince1970)
+            let stored = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int64, Error>) in
                 IosRuntime.shared.recordSnooze(
                     profileId: reminder.profileId,
                     medicationId: reminder.medicationId,
                     scheduleId: reminder.scheduleId,
                     shownEpochSeconds: Int64(reminder.scheduledAt.timeIntervalSince1970),
-                    snoozedEpochSeconds: Int64(snoozed.scheduledAt.timeIntervalSince1970)
-                ) { error in
-                    if let error { continuation.resume(throwing: BridgeError.message(error)) }
-                    else { continuation.resume() }
+                    snoozedEpochSeconds: requested
+                ) { seconds, error in
+                    if let seconds { continuation.resume(returning: seconds.int64Value) }
+                    else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "dose_record_failed", args: []))) }
                 }
             }
+            snoozed.scheduledAt = Date(timeIntervalSince1970: TimeInterval(stored))
             return .done
         } catch {
             if case BridgeError.message(let message) = error, message.key == "medication_schedule_missing" { return .drop }
@@ -387,7 +390,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         struct Stored: Decodable { let profileId: String; let medicationId: String; let scheduleId: String; let scheduledEpochSeconds: Int; let originalEpochSeconds: Int; let open: Bool }
         do {
             let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-                IosRuntime.shared.listPendingSnoozes { json, error in
+                IosRuntime.shared.listStoredSnoozes { json, error in
                     if let json { continuation.resume(returning: json) }
                     else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "action_failed", args: []))) }
                 }

@@ -58,6 +58,8 @@ data class DoctorDoseRow(
     val status: DoseEventStatus,
     /** Local "HH:mm" the user recorded the action; null for missed doses or when not recorded. */
     val recordedTime: String? = null,
+    /** The date of [recordedTime], only when it is not the row's date. */
+    val recordedDate: LocalDate? = null,
 )
 
 /**
@@ -254,6 +256,8 @@ object DoctorExportContent {
                     medication = names[event.medicationId].orEmpty(),
                     status = event.status,
                     recordedTime = event.recordedAt?.takeIf { event.status != DoseEventStatus.MISSED }?.let { localTime(it, zone) },
+                    recordedDate = event.recordedAt?.takeIf { event.status != DoseEventStatus.MISSED }?.toLocalDateTime(zone)?.date
+                        ?.takeIf { it != event.scheduledFor.toLocalDateTime(zone).date },
                 )
             }
     }

@@ -25,14 +25,40 @@ object DoseEvents {
         return Instant.fromEpochSeconds(if (at % 60 == 0L) at + 1 else at)
     }
 
-    /** Follows the snooze markers back: the time a dose at (schedule, time) was first due. No marker, same time. */
-    fun originals(events: List<DoseEvent>): (String, Instant) -> Instant {
+    /**
+     * The second to store a snooze of the dose shown at [replaces] at: [at] unless another dose of the schedule already
+     * snoozed to that second (taps a second apart can land there), then the next free one, still off the minute.
+     * The same snooze repeated keeps its second, so a double tap stays one snooze.
+     */
+    fun snoozeSlot(events: List<DoseEvent>, scheduleId: String, replaces: Instant, at: Instant): Instant {
+        val taken = events.filter { it.scheduleId == scheduleId && it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor?.epochSeconds != replaces.epochSeconds }
+            .map { it.scheduledFor.epochSeconds }.toSet()
+        return Instant.fromEpochSeconds(generateSequence(at.epochSeconds) { it + 1 }.first { it % 60 != 0L && it !in taken })
+    }
+
+    /**
+     * Follows the snooze markers back: the time a dose at (schedule, time) was first due. No marker, same time.
+     * Stops on reaching a whole minute: that time may be a real dose that an old marker also happens to name, and going
+     * on would tie this dose to another one.
+     */
+    fun originals(events: List<DoseEvent>): (String, Instant) -> Instant = walk(events, stopOnWholeMinute = true)
+
+    /**
+     * [originals] without the stop, for the supply count only: what it has always counted for old markers, so a stored
+     * history keeps its count. See MedicationSupplies for the known limit.
+     */
+    internal fun oldCountOriginals(events: List<DoseEvent>): (String, Instant) -> Instant = walk(events, stopOnWholeMinute = false)
+
+    private fun walk(events: List<DoseEvent>, stopOnWholeMinute: Boolean): (String, Instant) -> Instant {
         val replaced = events.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
             .associate { (it.scheduleId to it.scheduledFor.epochSeconds) to it.replacesScheduledFor!! }
         return { scheduleId, at ->
             var original = at
             val seen = mutableSetOf(at.epochSeconds)
-            while (true) original = replaced[scheduleId to original.epochSeconds]?.takeIf { seen.add(it.epochSeconds) } ?: break
+            while (true) {
+                original = replaced[scheduleId to original.epochSeconds]?.takeIf { seen.add(it.epochSeconds) } ?: break
+                if (stopOnWholeMinute && original.epochSeconds % 60 == 0L) break
+            }
             original
         }
     }
@@ -55,16 +81,19 @@ object DoseEvents {
     /**
      * Records [event], a new write. A snoozed dose stays tied to its original time, whichever path reports it and
      * however old its notification payload is. Stored events are never moved; [perDose] merges them for reading.
-     * Repeating a recorded status is a no-op, so the first recorded time stays.
+     * Repeating the status the person sees is a no-op, so the first recorded time stays, and so is MISSED over any record.
+     * A different status always writes, even if an older duplicate of this dose stored that status, so a row stays
+     * correctable. A repeated snooze marker is a no-op too.
      */
     fun merge(existing: List<DoseEvent>, event: DoseEvent): List<DoseEvent> {
-        if (!isTerminal(event.status)) return mergeStored(existing, event)
+        if (!isTerminal(event.status)) return if (existing.any { it.eventId == event.eventId }) existing else mergeStored(existing, event)
         val at = provenOriginal(originals(existing), event.scheduleId, event.scheduledFor)
         val rooted = if (at.epochSeconds == event.scheduledFor.epochSeconds) event else event.copy(scheduledFor = at, eventId = idFor(event.scheduleId, at))
-        val repeated = existing.any {
-            it.status == rooted.status && it.scheduleId == rooted.scheduleId && it.scheduledFor.epochSeconds == rooted.scheduledFor.epochSeconds
+        val shown = perDose(existing.filter { it.scheduleId == rooted.scheduleId }).firstOrNull {
+            isTerminal(it.status) && it.scheduledFor.epochSeconds == rooted.scheduledFor.epochSeconds
         }
-        return if (repeated) existing else mergeStored(existing, rooted)
+        val noOp = shown != null && (shown.status == rooted.status || rooted.status == DoseEventStatus.MISSED)
+        return if (noOp) existing else mergeStored(existing, rooted)
     }
 
     /**
@@ -72,7 +101,7 @@ object DoseEvents {
      * Rule: the latest user action (TAKEN or SKIPPED) wins, so a user can correct SKIPPED to TAKEN and back.
      * MISSED is a system inference: it never overrides a user action and is replaced by one.
      */
-    private fun mergeStored(existing: List<DoseEvent>, event: DoseEvent): List<DoseEvent> {
+    private fun mergeStored(existing: List<DoseEvent>, event: DoseEvent, keepFirstRepeat: Boolean = false): List<DoseEvent> {
         if (!isTerminal(event.status)) {
             require(existing.none { it.eventId == event.eventId })
             return existing + event
@@ -85,27 +114,32 @@ object DoseEvents {
                 require(existing.none { it.eventId == event.eventId })
                 existing + event
             }
-            event.status == DoseEventStatus.MISSED -> existing
+            event.status == DoseEventStatus.MISSED || (keepFirstRepeat && event.status == current.status) -> existing
             else -> existing.map { if (it === current) event else it }
         }
     }
 
     /** Collapses legacy stored events (older ID schemes) to one terminal event per dose, oldest write first. */
-    fun collapse(events: List<DoseEvent>): List<DoseEvent> =
+    fun collapse(events: List<DoseEvent>): List<DoseEvent> = collapse(events, keepFirstRepeat = false)
+
+    private fun collapse(events: List<DoseEvent>, keepFirstRepeat: Boolean): List<DoseEvent> =
         events.sortedBy { it.recordedAt?.epochSeconds ?: Long.MIN_VALUE }.fold(emptyList()) { acc, event ->
-            if (!isTerminal(event.status) && acc.any { it.eventId == event.eventId }) acc else mergeStored(acc, event)
+            if (!isTerminal(event.status) && acc.any { it.eventId == event.eventId }) acc else mergeStored(acc, event, keepFirstRepeat)
         }
 
     /**
      * What to read and show, never to store: [collapse], with terminal events older builds kept at a snoozed time moved
      * to the original time, so a dose recorded both ways is one row. See [provenOriginal] for what cannot be merged.
+     * Consecutive taps of one status show the first, the real time; [keepFirstRepeat] false keeps the last, which only
+     * the supply count wants (see MedicationSupplies).
      */
-    fun perDose(events: List<DoseEvent>): List<DoseEvent> {
+    fun perDose(events: List<DoseEvent>, keepFirstRepeat: Boolean = true): List<DoseEvent> {
         val original = originals(events)
         return collapse(
             events.map { event ->
                 if (isTerminal(event.status)) event.copy(scheduledFor = provenOriginal(original, event.scheduleId, event.scheduledFor)) else event
             },
+            keepFirstRepeat,
         )
     }
 

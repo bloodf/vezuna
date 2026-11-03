@@ -134,7 +134,7 @@ class SnoozedDoseTest {
     @Test
     fun oldDuplicatesReadAsOneRowAndAreNotRewritten() = runTest {
         val old = listOf(snooze(snoozed, original), terminal(original), terminal(snoozed, recorded = takenAt + 60.seconds))
-        assertOneRow(old, recordedAt = takenAt + 60.seconds)
+        assertOneRow(old, recordedAt = takenAt)
         assertEquals(9, MedicationSupplies.remaining(medication, old))
         assertEquals(old.toSet(), DoseEvents.collapse(old).toSet(), "the storage-level collapse keeps both")
 
@@ -161,6 +161,88 @@ class SnoozedDoseTest {
         // A new write at that time stays too, but a closed marker is closed either way.
         assertEquals(whole, DoseEvents.merge(listOf(snooze(whole, original)), terminal(whole)).last().scheduledFor)
         assertFalse(DoseEvents.isOpen(listOf(snooze(whole, original), terminal(original)), snooze(whole, original)))
+    }
+
+    @Test
+    fun aRowFromOldMixedDuplicatesCanAlwaysBeCorrected() {
+        val marker = snooze(snoozed, original)
+        // Shown SKIPPED, the latest action, with TAKEN stored at the original time.
+        val shownSkipped = listOf(marker, terminal(original), terminal(snoozed, DoseEventStatus.SKIPPED, takenAt + 30.seconds))
+        assertOneRow(shownSkipped, DoseState.SKIPPED, takenAt + 30.seconds)
+        assertEquals(10, MedicationSupplies.remaining(medication, shownSkipped))
+        val changedToTaken = DoseEvents.merge(shownSkipped, terminal(original, recorded = takenAt + 60.seconds))
+        assertOneRow(changedToTaken, DoseState.TAKEN, takenAt + 60.seconds)
+        assertEquals(9, MedicationSupplies.remaining(medication, changedToTaken))
+        assertTrue(terminal(snoozed, DoseEventStatus.SKIPPED, takenAt + 30.seconds) in changedToTaken, "the old event stays stored")
+
+        // The mirror: shown TAKEN, with SKIPPED stored at the original time.
+        val shownTaken = listOf(marker, terminal(original, DoseEventStatus.SKIPPED), terminal(snoozed, recorded = takenAt + 30.seconds))
+        assertEquals(9, MedicationSupplies.remaining(medication, shownTaken))
+        val changedToSkipped = DoseEvents.merge(shownTaken, terminal(original, DoseEventStatus.SKIPPED, takenAt + 60.seconds))
+        assertOneRow(changedToSkipped, DoseState.SKIPPED, takenAt + 60.seconds)
+        assertEquals(10, MedicationSupplies.remaining(medication, changedToSkipped))
+
+        // Repeating what is shown changes nothing, and MISSED never lands on a record.
+        assertEquals(shownSkipped, DoseEvents.merge(shownSkipped, terminal(snoozed, DoseEventStatus.SKIPPED, takenAt + 60.seconds)))
+        assertEquals(shownTaken, DoseEvents.merge(shownTaken, terminal(original, recorded = takenAt + 60.seconds)))
+        assertEquals(shownTaken, DoseEvents.merge(shownTaken, terminal(snoozed, DoseEventStatus.MISSED, takenAt + 60.seconds)))
+    }
+
+    @Test
+    fun aRealDoseSnoozedAfterAnOldMarkerNamedItsTimeStaysItsOwnDose() {
+        // An old snooze of 08:00 landed exactly on 12:00:00, also a real dose of this schedule. That real dose is snoozed now.
+        val real = Instant.parse("2026-11-01T12:00:00Z")
+        val newSnooze = Instant.parse("2026-11-01T12:10:07Z")
+        val oldMarker = snooze(real, original)
+        val marker = snooze(newSnooze, real)
+        val events = listOf(oldMarker, terminal(original), marker)
+        assertEquals(real, DoseEvents.originals(events)("s", newSnooze))
+        assertTrue(DoseEvents.isOpen(events, marker), "the first dose being recorded does not close the second")
+
+        val after = DoseEvents.merge(events, terminal(newSnooze, recorded = newSnooze + 60.seconds))
+        assertEquals(setOf(original, real), CareDoses.recorded(data(after)).map { it.dose.scheduledFor }.toSet())
+        assertFalse(DoseEvents.isOpen(after, marker))
+    }
+
+    @Test
+    fun oldDuplicatesKeepTheFirstTimeOfConsecutiveTapsButTheCountKeepsItsMeaning() {
+        val marker = snooze(snoozed, original)
+        val first = takenAt
+        val second = takenAt + 60.seconds
+        assertOneRow(listOf(marker, terminal(snoozed, recorded = second), terminal(original, recorded = first)), recordedAt = first)
+        // A recount between the two taps still counts the dose as used after it, as before.
+        val recounted = medication.copy(supply = MedicationSupply(10, first + 30.seconds))
+        assertEquals(9, MedicationSupplies.remaining(recounted, listOf(marker, terminal(original, recorded = first), terminal(snoozed, recorded = second))))
+    }
+
+    @Test
+    fun theExportNamesTheRecordedDateOnlyWhenItIsNotTheRowsDate() {
+        val sameDay = DoctorExportContent.doseRows(data(listOf(terminal(original))), ExportOptions(), zone).single()
+        assertEquals(null, sameDay.recordedDate)
+        val nextDay = DoctorExportContent.doseRows(data(listOf(terminal(original, recorded = Instant.parse("2026-11-02T00:06:00Z")))), ExportOptions(), zone).single()
+        assertEquals(LocalDate(2026, 11, 2), nextDay.recordedDate)
+        assertEquals("00:06", nextDay.recordedTime)
+    }
+
+    @Test
+    fun theSupplyCountIgnoresOtherMedications() {
+        val other = DoseEvent("p", "o", "other", "s9", original, DoseEventStatus.TAKEN, takenAt)
+        assertEquals(10, MedicationSupplies.remaining(medication, listOf(other)))
+    }
+
+    @Test
+    fun aSecondDoseSnoozedToATakenSecondMovesOnAndTheSameSnoozeStaysPut() {
+        val target = Instant.parse("2026-11-01T08:10:01Z")
+        val first = snooze(target, original)
+        val another = Instant.parse("2026-11-01T20:00:00Z")
+        assertEquals(target, DoseEvents.snoozeSlot(emptyList(), "s", original, target))
+        assertEquals(target + 1.seconds, DoseEvents.snoozeSlot(listOf(first), "s", another, target), "a different dose")
+        assertEquals(target, DoseEvents.snoozeSlot(listOf(first), "s", original, target), "the same snooze")
+        assertEquals(target, DoseEvents.snoozeSlot(listOf(first), "s2", another, target), "another schedule")
+        assertEquals(listOf(first), DoseEvents.merge(listOf(first), first), "a repeated marker does not throw")
+        // Never onto a whole minute, even when skipping a taken second would land there.
+        val edge = Instant.parse("2026-11-01T08:10:59Z")
+        assertEquals(Instant.parse("2026-11-01T08:11:01Z"), DoseEvents.snoozeSlot(listOf(snooze(edge, original)), "s", another, edge))
     }
 
     @Test

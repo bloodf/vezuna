@@ -509,7 +509,9 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
             DoseEventStatus.SKIPPED -> s.skipped
             else -> s.missed
         }
-        return listOfNotNull(status to false, row.recordedTime?.let { s.recordedAt.replace("{time}", it) to true })
+        return listOfNotNull(status to false, row.recordedTime?.let { time ->
+            s.recordedAt.replace("{time}", listOfNotNull(row.recordedDate?.let { DoctorReportFormat.shortDate(it, language) }, time).joinToString(" ")) to true
+        })
     }
 
     /** #56: every recorded dose in the period with plain counts; no percentage, no trend. */
