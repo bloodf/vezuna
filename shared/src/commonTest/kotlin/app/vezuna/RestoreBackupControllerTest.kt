@@ -12,9 +12,12 @@ import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelFileStore
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
+import app.vezuna.security.BackupMember
 import app.vezuna.ui.AppController
+import app.vezuna.ui.AppScreen
 import app.vezuna.ui.RestoreMode
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -206,6 +209,131 @@ class RestoreBackupControllerTest {
         assertEquals(listOf(data.profile.profileId), reopened.ids())
         assertEquals(data.profile.profileId, relaunched.state.value.data?.profile?.profileId)
         assertEquals(data.profile.profileId, reopened.linkedHealthProfileId())
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenAnyRecordTypeWasAdded() = runTest {
+        val me = sampleProfileData("ME")
+        val additions: Map<String, suspend (VezunaRepository, String) -> Unit> = mapOf(
+            "birthDate" to { r, id -> r.updateProfile(r.profiles.value.single { it.profileId == id }.copy(birthDate = LocalDate(1990, 1, 1))) },
+            "documents" to { r, id -> r.addDocument(me.documents.single().copy(profileId = id)) },
+            "reports" to { r, id -> r.addDocument(me.documents.single().copy(profileId = id)); r.addReport(me.reports.single().copy(profileId = id)) },
+            "observations" to { r, id ->
+                r.addDocument(me.documents.single().copy(profileId = id))
+                r.addReport(me.reports.single().copy(profileId = id))
+                r.addObservation(me.observations.single().copy(profileId = id))
+            },
+            "ocrCandidates" to { r, id -> r.addDocument(me.documents.single().copy(profileId = id)); r.addCandidate(me.ocrCandidates.single().copy(profileId = id)) },
+            "doseEvents" to { r, id ->
+                val medication = me.medications.single()
+                r.addMedication(medication.copy(profileId = id, schedules = medication.schedules.map { it.copy(profileId = id) }))
+                r.addDoseEvent(me.doseEvents.single().copy(profileId = id))
+            },
+        )
+        additions.forEach { (field, add) ->
+            val repository = InMemoryVezunaRepository()
+            firstRunRestore(repository) { id -> add(repository, id) }
+            assertEquals(2, repository.ids().size, "$field keeps the default profile")
+        }
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenTheBackupContainsItsOwnId() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        val defaultId = repository.ids().single()
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data.copy(profile = data.profile.copy(profileId = defaultId)), RestoreMode.REPLACE_EXISTING)
+        assertEquals(listOf(defaultId), repository.ids())
+        assertEquals(defaultId, controller.state.value.data?.profile?.profileId)
+    }
+
+    @Test
+    fun aRestoredProfileNamedMeSurvivesAndTheUntouchedDefaultGoes() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        val defaultId = repository.ids().single()
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data.copy(profile = data.profile.copy(displayName = "Me")), RestoreMode.REPLACE_EXISTING)
+        assertEquals(listOf(data.profile.profileId), repository.ids())
+        assertTrue(defaultId !in repository.ids())
+        assertEquals("Me", repository.peekProfile(data.profile.profileId).profile.displayName)
+    }
+
+    @Test
+    fun householdFirstRunRestoreKeepsEveryRestoredMemberAndDropsTheDefault() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.restoreHousehold(listOf(BackupMember(sampleProfileData("A")), BackupMember(sampleProfileData("B"))), RestoreMode.REPLACE_EXISTING)
+        assertEquals(setOf("A-profile", "B-profile"), repository.ids().toSet())
+        assertEquals(setOf("A-profile", "B-profile"), controller.state.value.profiles.map { it.profileId }.toSet())
+    }
+
+    @Test
+    fun defaultProfileIsKeptWhenSwitchingToTheRestoredProfileFails() = runTest {
+        val inner = InMemoryVezunaRepository()
+        val repository = object : VezunaRepository by inner {
+            override suspend fun readProfile(profileId: String): app.vezuna.domain.ProfileData =
+                if (profileId == data.profile.profileId) throw IllegalStateException("unreadable") else inner.readProfile(profileId)
+        }
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(2, inner.profiles.value.size)
+        assertEquals(inner.profiles.value.map { it.profileId }.toSet(), controller.state.value.profiles.map { it.profileId }.toSet())
+    }
+
+    @Test
+    fun leavingBackupsDisarmsTheFirstRunRestore() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.navigate(AppScreen.Backups)
+        controller.back() // Welcome > Restore, then out again
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING) // a later restore from More
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun navigatingAwayFromBackupsDisarmsTheFirstRunRestore() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.navigate(AppScreen.Backups)
+        controller.selectRoot(app.vezuna.ui.nav.Destination.entries.first())
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(2, repository.ids().size)
+    }
+
+    @Test
+    fun retryingFromBackupsAfterAWrongPassphraseStillRemovesTheDefault() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        controller.startFirstRunRestore()
+        controller.navigate(AppScreen.Backups)
+        // A wrong passphrase never reaches restoreBackup and the person stays on Backups; the screen re-navigates only when elsewhere.
+        controller.navigate(AppScreen.Backups)
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(listOf(data.profile.profileId), repository.ids())
+    }
+
+    @Test
+    fun aFailedCleanupIsReportedAndTheProfileListStaysCurrent() = runTest {
+        val inner = InMemoryVezunaRepository()
+        val repository = object : VezunaRepository by inner {
+            override suspend fun deleteProfile(profileId: String) = throw IllegalStateException("tombstone write failed")
+        }
+        val warnings = mutableListOf<String>()
+        val controller = AppController(
+            repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModels, NoLlm), LocalHealthChat(repository, NoLlm),
+            warn = { message, _ -> warnings += message },
+        ).also { it.initialize() }
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertEquals(1, warnings.size)
+        assertEquals(2, controller.state.value.profiles.size)
+        assertNull(controller.state.value.error)
     }
 
     private object NoModels : ModelFileStore {

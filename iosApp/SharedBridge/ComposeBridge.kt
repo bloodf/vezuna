@@ -349,7 +349,8 @@ object IosRuntime {
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
             val manager = InstalledModelManager(catalog, files, llm, IosDeviceCapacity())
-            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault))
+            controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault),
+                warn = { message, error -> println("Vezuna: $message (${error::class.simpleName})") })
             initialized = true
             controller.initialize()
             // Edits and deletes made in Compose reload the controller after the repository commit; notify native

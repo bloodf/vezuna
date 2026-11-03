@@ -233,6 +233,97 @@ class VaultOrphanRecoveryTest {
     }
 
     @Test
+    fun replacedTombstoneFileKeepsRecordRecoveryOffEvenAfterANewDeleteIsRecorded() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("b", "Bia", createdAt = created))
+        val survivingB = vault.current.getValue(recordKey("b")).copyOf()
+        repository.deleteProfile("b")
+        vault.current[recordKey("b")] = survivingB // b's record outlived its delete
+        vault.current["repository-deleted-profiles-v1"] = "garbage".encodeToByteArray() // the tombstone naming b is lost
+
+        val reopened = open()
+        reopened.createProfile(Profile("d", "Dee", createdAt = created))
+        reopened.deleteProfile("a") // replaces the unreadable tombstone file with one naming only a
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        val again = open()
+
+        assertTrue(again.openedFromPreviousGeneration.value)
+        assertEquals(listOf("d"), ids(again), "b is not recovered: the earlier tombstones are gone")
+        assertContentEquals(survivingB, vault.current.getValue(recordKey("b")), "the file is left alone, not deleted")
+    }
+
+    @Test
+    fun deletedProfileListedByAPreviousGenerationIndexStaysDeletedAndKeepsItsTombstone() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("b", "Bia", createdAt = created))
+        val survivingB = vault.current.getValue(recordKey("b")).copyOf()
+        repository.deleteProfile("b")
+        vault.current[recordKey("b")] = survivingB // the delete finished except for removing the record
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray() // the previous index still lists b
+
+        val reopened = open()
+
+        assertTrue(reopened.openedFromPreviousGeneration.value)
+        assertEquals(listOf("a"), ids(reopened))
+        assertContentEquals(survivingB, vault.current.getValue(recordKey("b")), "the file is left alone, not deleted")
+        // The tombstone survived: a later previous-generation load does not recover b as an orphan either.
+        reopened.createProfile(Profile("c", "Cy", createdAt = created))
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+        assertEquals(listOf("a", "c"), ids(open()))
+    }
+
+    @Test
+    fun aFailedDeleteLeavesTheProfileLiveEvenWhenTheNextLaunchUsesAPreviousIndex() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("x", "Xu", createdAt = created))
+        val vitals = sampleProfileData("V").vitals
+        repository.replaceVitals("x", vitals)
+        repository.updateProfile(Profile("a", "Ana", createdAt = created)) // both index generations now list x
+        vault.failingWrites += INDEX_KEY
+        assertFailsWith<IllegalStateException> { repository.deleteProfile("x") }
+        vault.failingWrites.clear()
+        vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertTrue(reopened.openedFromPreviousGeneration.value)
+        assertEquals(listOf("a", "x"), ids(reopened))
+        assertEquals(vitals.steps, reopened.readProfile("x").vitals.steps)
+    }
+
+    @Test
+    fun aTombstonedListedProfileStaysLiveWhenOnlyAnotherRecordFellBackToItsPreviousCopy() = runTest {
+        val repository = open()
+        repository.createProfile(Profile("a", "Ana", createdAt = created))
+        repository.createProfile(Profile("x", "Xu", createdAt = created))
+        val vitals = sampleProfileData("V").vitals
+        repository.replaceVitals("x", vitals)
+        val indexWithX = vault.current.getValue(INDEX_KEY).copyOf()
+        val recordA = vault.current.getValue(recordKey("a")).copyOf()
+        val recordX = vault.current.getValue(recordKey("x")).copyOf()
+        val vitalsKey = vault.current.keys.single { it.startsWith("repository-vitals-x") }
+        val vitalsX = vault.current.getValue(vitalsKey).copyOf()
+        repository.deleteProfile("x")
+        // A crash after the tombstone but before the index write: x is listed, tombstoned and fully intact.
+        vault.current[INDEX_KEY] = indexWithX
+        vault.current[recordKey("x")] = recordX
+        vault.current[vitalsKey] = vitalsX
+        // a's current record is corrupt with a good previous copy, which sets the live "previous generation" flag.
+        vault.previous[recordKey("a")] = recordA
+        vault.current[recordKey("a")] = "garbage".encodeToByteArray()
+
+        val reopened = open()
+
+        assertEquals(listOf("a", "x"), ids(reopened))
+        assertEquals(vitals.steps, reopened.readProfile("x").vitals.steps)
+        assertNotNull(vault.read(vitalsKey), "vitals of a live profile are not swept")
+    }
+
+    @Test
     fun vitalsOfAnUnreadableUnlistedRecordSurviveEveryLaterLaunch() = runTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = created))

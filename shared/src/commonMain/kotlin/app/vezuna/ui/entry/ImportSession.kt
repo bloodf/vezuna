@@ -26,8 +26,9 @@ data class ExtractionDetails(val fileName: String, val pages: List<ExtractedPage
 /** Where the current import stands. Waiting on the OS picker shows as [Reading] under the system UI. */
 sealed interface ImportPhase {
     data object Idle : ImportPhase
-    /** [page] of [pageCount] is 0 of 0 until the page count is known. */
-    /** [cancellable] is false once extraction is done and the result is being saved: that step always completes. */
+    /**
+     * [page] of [pageCount] is 0 of 0 until the page count is known. [cancellable] is false once extraction is done and the result is being saved: that step always completes.
+     */
     data class Reading(val fileName: String?, val page: Int = 0, val pageCount: Int = 0, val cancellable: Boolean = true) : ImportPhase
     data class Failed(val reason: ImportFailureReason, val fileName: String?, val kind: SourceKind) : ImportPhase
     data class NoResults(val fileName: String, val kind: SourceKind) : ImportPhase
