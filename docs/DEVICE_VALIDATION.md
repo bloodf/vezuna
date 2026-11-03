@@ -131,6 +131,7 @@ Repeat per language (change device language, relaunch).
 | 10.2 | Uninstall and reinstall | Starts clean; restore from backup works |
 | 10.3 | Release build identity | Package/bundle ID `app.vezuna`, version and build number match the RC |
 | 10.4 | Release build has no debug menus or logging of health data | Confirmed via logcat / Console during a full pass |
+| 10.5 | iOS: install a build from before the UIKit scene delegate (SwiftUI `App` entry, before 2a1fa98), launch, create data, then install the current build over it (no uninstall) and launch twice | App shows the Today screen on the first launch, not a black screen; data intact (#148). `Info.plist` must keep an explicit `UIApplicationSceneManifest` naming `SceneDelegate`: the generated manifest has no configurations and leaves the old saved scene session without a window |
 
 ## Results template
 
