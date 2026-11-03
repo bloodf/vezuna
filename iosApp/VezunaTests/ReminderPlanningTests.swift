@@ -38,6 +38,33 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(Dictionary(grouping: reminders, by: \.profileId).mapValues(\.count), ["p1": 3, "p2": 3])
     }
 
+    func testDosesStayAtTheLocalWallClockTimeOutsideUtc() throws {
+        var local = Calendar(identifier: .gregorian)
+        local.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Sao_Paulo"))
+        let start = try XCTUnwrap(local.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 6)))
+        let reminders = NotificationPlanner(calendar: local).reminders(for: [medication("a", profile: "p1", times: ["08:00"])], after: start, horizonDays: 2, limit: 10)
+        XCTAssertEqual(reminders.count, 2)
+        for reminder in reminders {
+            let parts = local.dateComponents([.hour, .minute], from: reminder.scheduledAt)
+            XCTAssertEqual(parts.hour, 8)
+            XCTAssertEqual(parts.minute, 0)
+        }
+    }
+
+    func testDosesKeepTheirLocalTimeAcrossADaylightSavingChange() throws {
+        var local = Calendar(identifier: .gregorian)
+        local.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        // US clocks jump forward on 2026-03-08, so the second dose is 23 hours after the first, not 24.
+        let start = try XCTUnwrap(local.date(from: DateComponents(year: 2026, month: 3, day: 7, hour: 6)))
+        var meds = [medication("a", profile: "p1", times: ["08:00"])]
+        meds = meds.map { NativeMedication(medicationId: $0.medicationId, displayName: $0.displayName, strength: nil, instructions: nil,
+            schedules: $0.schedules.map { NativeDoseSchedule(profileId: $0.profileId, scheduleId: $0.scheduleId, medicationId: $0.medicationId, recurrence: "DAILY", intervalDays: 1, daysOfWeek: [], startDate: "2026-03-01", endDate: nil, timesLocal: $0.timesLocal) }, active: true) }
+        let reminders = NotificationPlanner(calendar: local).reminders(for: meds, after: start, horizonDays: 3, limit: 10)
+        XCTAssertGreaterThanOrEqual(reminders.count, 2)
+        XCTAssertEqual(reminders.prefix(3).map { local.component(.hour, from: $0.scheduledAt) }, [8, 8, 8])
+        XCTAssertEqual(reminders[1].scheduledAt.timeIntervalSince(reminders[0].scheduledAt), 23 * 3600)
+    }
+
     func testCoverageEndsAtLastScheduledDoseWhenBudgetIsFull() {
         let planner = NotificationPlanner(calendar: calendar)
         let meds = [medication("a", profile: "p1", times: ["08:00", "12:00", "16:00", "20:00"])]
