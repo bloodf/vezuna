@@ -122,7 +122,7 @@ internal fun DocumentsScreen(ctx: RouteContext) = FocusedTaskScaffold(title = vi
 private fun TagFilter(tags: List<String>, selected: String?, onSelect: (String?) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
         Text(vitaText(L10nKey.DOCUMENTS_FILTER_BY_TAG), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
             TagChip(vitaText(L10nKey.DOCUMENTS_FILTER_ALL), selected == null) { onSelect(null) }
             tags.forEach { tag -> TagChip(tag, tag == selected) { onSelect(tag) } }
         }
@@ -249,7 +249,7 @@ private fun EditDocumentSheet(document: VaultDocument, onDismiss: () -> Unit, on
         LabeledField(vitaText(L10nKey.DOCUMENTS_NAME_LABEL), name, { name = it }, error = if (nameMissing) vitaText(L10nKey.DOCUMENTS_NAME_REQUIRED) else null)
         SectionHeading(vitaText(L10nKey.DOCUMENTS_TAGS_HEADING))
         if (tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
                 tags.forEach { tag ->
                     val remove = vitaText(L10nKey.DOCUMENTS_REMOVE_TAG, tag)
                     InputChip(
@@ -268,7 +268,7 @@ private fun EditDocumentSheet(document: VaultDocument, onDismiss: () -> Unit, on
         }
         if (suggestions.isNotEmpty()) {
             Text(vitaText(L10nKey.DOCUMENTS_TAG_SUGGESTIONS), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }.padding(top = 4.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
                 suggestions.forEach { suggestion -> TagChip(suggestion, false) { addTag(suggestion) } }
             }
         }
