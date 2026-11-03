@@ -52,6 +52,24 @@ class MedicationSupplyTest {
         DoseEvent("p", id, "m", "s", at, status, recorded)
 
     @Test
+    fun aSnoozedDoseTakenTwiceUsesOneUnit() {
+        val original = counted.plus(kotlin.time.Duration.parse("1h"))
+        val snoozedAt = original.plus(kotlin.time.Duration.parse("10m"))
+        val snoozedAgain = snoozedAt.plus(kotlin.time.Duration.parse("10m"))
+        val snooze = DoseEvent("p", "sn", "m", "s", snoozedAt, DoseEventStatus.SCHEDULED, original, replacesScheduledFor = original)
+        val snoozeAgain = DoseEvent("p", "sn2", "m", "s", snoozedAgain, DoseEventStatus.SCHEDULED, snoozedAt, replacesScheduledFor = snoozedAt)
+        val med = medication(units = 10)
+        // notification TAKEN at the original time plus a later TAKEN at the snoozed time: one dose
+        assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, event("a", DoseEventStatus.TAKEN, original), event("b", DoseEventStatus.TAKEN, snoozedAt, snoozedAt))))
+        // chained snoozes collapse to the original too
+        assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, snoozeAgain, event("a", DoseEventStatus.TAKEN, original), event("c", DoseEventStatus.TAKEN, snoozedAgain, snoozedAgain))))
+        // the snoozed dose alone still uses its unit
+        assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, event("b", DoseEventStatus.TAKEN, snoozedAt, snoozedAt))))
+        // a different dose of the same schedule is a different unit
+        assertEquals(8, MedicationSupplies.remaining(med, listOf(snooze, event("a", DoseEventStatus.TAKEN, original), event("d", DoseEventStatus.TAKEN, original.plus(kotlin.time.Duration.parse("24h"))))))
+    }
+
+    @Test
     fun onlyTakenDosesAfterTheCountUseAUnit() {
         val events = listOf(
             event("t", DoseEventStatus.TAKEN),
