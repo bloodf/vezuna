@@ -89,7 +89,10 @@ class VaultBackedRepository(
     private val skipped = mutableMapOf<String, Profile>()
     // Ids of profiles the user deleted. Null when the tombstone file is unreadable: then nothing is recovered from orphans.
     private var deletedProfileIds: Set<String>? = emptySet()
-    // Set once an unreadable tombstone file was replaced: earlier deletes were lost, so record files are never recovered as orphans.
+    // Set once an unreadable tombstone file was replaced: earlier deletes were lost, so record files without vitals are not
+    // recovered as orphans. Sticky by design: a real newest profile (no vitals) that a previous-generation index does not
+    // list then stays hidden, file kept, until a recovery path exists. Fails safe: nothing is deleted. Profiles with vitals
+    // can still be recovered, because delete removes the record before the vitals.
     private var deletedReset = false
     private var initialized = false
     private var selectedProfileId: String? = null
@@ -250,6 +253,15 @@ class VaultBackedRepository(
             writeIndex(records.values.map { it.profile }.filter { it.profileId != profileId })
         } catch (error: Throwable) {
             unavailable?.let { skipped[profileId] = it }
+            // The profile stays live, so it must not stay tombstoned. Best effort; the original error is what the caller sees.
+            // ponytail: a hard crash between recordDeleted and here, followed by a corrupt index on the very next launch, still hides it.
+            try {
+                forgetDeleted(profileId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (forgetFailure: Exception) {
+                warn("Could not clear the tombstone after a failed delete", forgetFailure)
+            }
             throw error
         }
         records.remove(profileId)
@@ -462,9 +474,11 @@ class VaultBackedRepository(
         val unreadableUnlisted = mutableSetOf<String>()
         val listed = index.orEmpty().associateBy { it.profileId }
         // A previous-generation index is one write behind: records it does not list are recovered, unless the user deleted them.
-        val extra = if (mutableOpenedFromPrevious.value) orphanIds(listed.keys) else emptyList()
+        // Captured now: reading a profile record can also fall back to its previous copy and flip the live flag.
+        val indexFromPrevious = mutableOpenedFromPrevious.value
+        val extra = if (indexFromPrevious) orphanIds(listed.keys) else emptyList()
         (listed.keys + extra).forEach { id ->
-            if (id in listed && mutableOpenedFromPrevious.value && deletedProfileIds?.contains(id) == true) {
+            if (id in listed && indexFromPrevious && deletedProfileIds?.contains(id) == true) {
                 // A previous-generation index is a write behind: an id the user deleted may still be listed, with its record
                 // left behind by a delete that did not finish. Leave it deleted; the index is rewritten without it.
                 indexStale = true
