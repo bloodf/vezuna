@@ -63,6 +63,9 @@ class MedicationSupplyTest {
         assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, event("a", DoseEventStatus.TAKEN, original), event("b", DoseEventStatus.TAKEN, snoozedAt, snoozedAt))))
         // chained snoozes collapse to the original too
         assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, snoozeAgain, event("a", DoseEventStatus.TAKEN, original), event("c", DoseEventStatus.TAKEN, snoozedAgain, snoozedAgain))))
+        // another schedule at the same time is a different dose
+        val other = event("o", DoseEventStatus.TAKEN, original).copy(scheduleId = "s2")
+        assertEquals(8, MedicationSupplies.remaining(med, listOf(snooze, event("a", DoseEventStatus.TAKEN, original), other)))
         // the snoozed dose alone still uses its unit
         assertEquals(9, MedicationSupplies.remaining(med, listOf(snooze, event("b", DoseEventStatus.TAKEN, snoozedAt, snoozedAt))))
         // a different dose of the same schedule is a different unit

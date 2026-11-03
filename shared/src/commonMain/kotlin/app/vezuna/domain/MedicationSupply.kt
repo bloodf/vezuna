@@ -52,6 +52,7 @@ object MedicationSupplies {
     /**
      * One unit per dose. A dose snoozed and then taken records at the snoozed time, a different event key from the
      * original; both TAKEN rows (notification and in-app) are the same dose, so they are counted by the original time.
+     * Known limit: a separate real dose of the same schedule on the exact second of a snooze target would count once.
      */
     private fun takenSinceCount(supply: MedicationSupply, medicationId: String, events: List<DoseEvent>): Int {
         val replaced = events.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
