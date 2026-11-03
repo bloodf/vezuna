@@ -20,10 +20,6 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Vezuna uses Face ID to unlock the app lock you turn on in Settings.</string>
-	<key>UIStatusBarStyle</key>
-	<string>UIStatusBarStyleLightContent</string>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
 	<key>UIAppFonts</key>
 	<array>
 		<string>NotoSans-Regular.ttf</string>

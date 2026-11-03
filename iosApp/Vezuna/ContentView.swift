@@ -23,7 +23,7 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
                             .background { GeometryReader { Color.clear.preference(key: TopInsetKey.self, value: $0.frame(in: .global).minY) } }
-                            .background(Color(uiColor: .systemBackground), ignoresSafeAreaEdges: .top)
+                            .background(Color(uiColor: .systemBackground), ignoresSafeAreaEdges: [.top, .leading, .trailing])
                             .zIndex(1)
                             // VoiceOver hears the banner when it appears or changes, without moving focus.
                             .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
@@ -33,7 +33,7 @@ struct ContentView: View {
                     // headers a second time. The host starts that far above the banner's bottom edge instead, under
                     // the banner, so its own inset lands exactly on the banner and nothing is doubled.
                     ComposeHostView()
-                        .ignoresSafeArea(.container, edges: error == nil ? .all : .bottom)
+                        .ignoresSafeArea(.container, edges: error == nil ? .all : [.bottom, .leading, .trailing])
                         .padding(.top, error == nil ? 0 : -topInset)
                 }
             } else if model.needsVaultRecovery {
