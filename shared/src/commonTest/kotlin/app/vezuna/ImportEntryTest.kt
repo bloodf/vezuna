@@ -1,6 +1,7 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.ConfirmationStatus
 import app.vezuna.domain.ObservationRevision
 import app.vezuna.domain.OcrCandidate
@@ -23,7 +24,9 @@ import app.vezuna.ui.entry.reviewGroups
 import app.vezuna.ui.entry.sameDayResults
 import app.vezuna.ui.entry.toDraft
 import app.vezuna.ui.entry.validate
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import kotlin.test.Test
@@ -146,6 +149,34 @@ class ImportEntryTest {
         session.reading("a.pdf")
         session.saving()
         assertEquals(ImportPhase.Reading("a.pdf", 0, 0, cancellable = false), session.phase.value)
+    }
+
+    @Test
+    fun cancellingWhileTheSaveIsUnderwayStillStoresEverythingOrNothing() = runTest {
+        val inner = InMemoryVezunaRepository()
+        val release = CompletableDeferred<Unit>()
+        var added = 0
+        val repository = object : VezunaRepository by inner {
+            override suspend fun addCandidate(candidate: OcrCandidate) {
+                inner.addCandidate(candidate)
+                if (++added == 1) release.await()
+            }
+        }
+        val controller = labController(repository)
+        controller.initialize()
+        val job = launch {
+            controller.importFrom(SourceKind.FILE) {
+                source(ExtractedCandidate("GLU", "Fasting glucose", "96", "mg/dL"), ExtractedCandidate("HGB", "Hemoglobin", "13.5", "g/dL"))
+            }
+        }
+        runCurrent()
+        assertEquals(1, added, "paused after the first candidate")
+        job.cancel()
+        release.complete(Unit)
+        job.join()
+        val data = inner.readProfile(inner.profiles.value.single().profileId)
+        assertEquals(2, data.ocrCandidates.size)
+        assertEquals(1, data.documents.size)
     }
 
     @Test

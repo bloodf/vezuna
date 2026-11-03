@@ -1,5 +1,6 @@
 package app.vezuna
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.vezuna.license.PlayLvlLicenseGate
@@ -34,6 +35,7 @@ class AndroidSessionViewModel(
         LocalHealthChat(app.repository, llm),
         backup = BackupService(app.vault),
         sourceStore = VaultSourceFileStore(app.vault),
+        warn = { message, error -> Log.w("AndroidSession", "$message (${error::class.java.name})") },
     )
 
     init {

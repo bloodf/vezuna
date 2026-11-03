@@ -2,6 +2,7 @@ package app.vezuna.license
 
 import android.content.Context
 import android.provider.Settings
+import android.util.Log
 import app.vezuna.BuildConfig
 import com.google.android.vending.licensing.AESObfuscator
 import com.google.android.vending.licensing.LicenseChecker
@@ -29,13 +30,14 @@ internal interface LicenseProbe {
  */
 internal class LicenseCheckRunner(
     private val policy: Policy,
+    private val onProbeFailure: (Throwable) -> Unit = {},
     private val newProbe: () -> LicenseProbe,
 ) {
     private val mutex = Mutex()
 
     suspend fun check(): Boolean = mutex.withLock {
         // A malformed public key makes the checker constructor throw; deny instead of escaping premiumAllowed().
-        val probe = try { newProbe() } catch (_: Throwable) { return@withLock false }
+        val probe = try { newProbe() } catch (error: Throwable) { onProbeFailure(error); return@withLock false }
         // finally covers result, cancellation and failure, so the probe never outlives its check.
         try {
             suspendCancellableCoroutine { continuation ->
@@ -68,7 +70,7 @@ class PlayLvlLicenseGate(context: Context) : PremiumLicenseGate {
         appContext,
         AESObfuscator(SALT, appContext.packageName, Settings.Secure.getString(appContext.contentResolver, Settings.Secure.ANDROID_ID).orEmpty()),
     )
-    private val runner = LicenseCheckRunner(policy) {
+    private val runner = LicenseCheckRunner(policy, { error -> Log.w(TAG, "License checker could not start: ${error::class.java.name}") }) {
         val checker = LicenseChecker(appContext, policy, BuildConfig.LVL_PUBLIC_KEY)
         object : LicenseProbe {
             override fun checkAccess(callback: LicenseCheckerCallback) = checker.checkAccess(callback)
@@ -83,6 +85,7 @@ class PlayLvlLicenseGate(context: Context) : PremiumLicenseGate {
     }
 
     private companion object {
+        const val TAG = "PlayLvlLicenseGate"
         val SALT = byteArrayOf(41, -91, 17, 63, -78, 102, 38, 88, -12, 7, 19, 73, -33, 96, 22, 54, 81, -27, 44, 100)
     }
 }

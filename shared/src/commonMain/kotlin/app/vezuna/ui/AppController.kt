@@ -43,6 +43,7 @@ class AppController(
     /** Null when the platform offers no backup file access (previews, tests). */
     val backup: BackupService? = null,
     sourceStore: SourceFileStore? = null,
+    warn: (String, Throwable) -> Unit = { _, _ -> },
 ) {
     private val core = ControllerCore(repository, clock, timeZone, sourceStore)
     val state: StateFlow<AppUiState> = core.mutableState.asStateFlow()
@@ -50,7 +51,7 @@ class AppController(
     /** Back stacks for the five root destinations; the shell renders [Navigator.state]. */
     val navigator = Navigator()
 
-    private val profiles = ProfileController(core, modelManager) { onProfileChanged() }
+    private val profiles = ProfileController(core, modelManager, { onProfileChanged() }, warn)
     private val imports = ImportController(core, navigator)
     private val records = RecordsController(core, navigator)
     private val care = CareController(core)
@@ -85,16 +86,23 @@ class AppController(
 
     fun navigate(screen: AppScreen) {
         navigator.navigate(screen)
+        profiles.onRouteChanged(navigator.current)
         clearMessages()
     }
 
     fun selectRoot(destination: Destination) {
         navigator.selectRoot(destination)
+        profiles.onRouteChanged(navigator.current)
         clearMessages()
     }
 
     /** False when there is nothing to go back to inside the app. */
-    fun back(): Boolean = navigator.back().also { if (it) clearMessages() }
+    fun back(): Boolean = navigator.back().also {
+        if (it) {
+            profiles.onRouteChanged(navigator.current)
+            clearMessages()
+        }
+    }
 
     fun clearMessages() = core.clearMessages()
 
