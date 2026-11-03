@@ -46,6 +46,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 class HealthRecordsTest {
@@ -248,7 +249,7 @@ class HealthRecordsTest {
     private suspend fun open(payload: String) = BackupService().open(PassphraseBackupCodec.seal(payload.encodeToByteArray(), pass.copyOf()), pass.copyOf())
 
     @Test
-    fun backupsWithRecordsAreWrittenAsSchema5SoOlderBuildsSayUnsupported() = runTest {
+    fun backupsWithRecordsAreWrittenAsSchema5SoOlderBuildsSayUnsupported() = runTest(timeout = 5.minutes) {
         val service = BackupService()
         val plain = sampleProfileData("A")
         assertEquals(3, backupSchemaOf(service.create(plain, pass.copyOf())))
@@ -261,7 +262,7 @@ class HealthRecordsTest {
     }
 
     @Test
-    fun olderSchemasStillLoadAndANewerOneIsRefusedAsUnsupportedNotDamaged() = runTest {
+    fun olderSchemasStillLoadAndANewerOneIsRefusedAsUnsupportedNotDamaged() = runTest(timeout = 5.minutes) {
         val profile = """{"profileId":"p","displayName":"Ana","createdAt":"2026-03-10T12:00:00Z"}"""
         listOf(1, 2, 3).forEach { v ->
             assertEquals("p", open("""{"schemaVersion":$v,"profileId":"p","exportedAt":"2026-03-10T12:00:00Z","data":{"profile":$profile}}""").data.profile.profileId)
