@@ -51,6 +51,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * The one write-through repository for Android and iOS. Every successful mutation is encrypted before it becomes visible.
@@ -86,6 +89,11 @@ class VaultBackedRepository(
     private val skipped = mutableMapOf<String, Profile>()
     // Ids of profiles the user deleted. Null when the tombstone file is unreadable: then nothing is recovered from orphans.
     private var deletedProfileIds: Set<String>? = emptySet()
+    // Set once an unreadable tombstone file was replaced: earlier deletes were lost, so record files without vitals are not
+    // recovered as orphans. Sticky by design: a real newest profile (no vitals) that a previous-generation index does not
+    // list then stays hidden, file kept, until a recovery path exists. Fails safe: nothing is deleted. Profiles with vitals
+    // can still be recovered, because delete removes the record before the vitals.
+    private var deletedReset = false
     private var initialized = false
     private var selectedProfileId: String? = null
     private var healthLinkId: String? = null
@@ -245,6 +253,15 @@ class VaultBackedRepository(
             writeIndex(records.values.map { it.profile }.filter { it.profileId != profileId })
         } catch (error: Throwable) {
             unavailable?.let { skipped[profileId] = it }
+            // The profile stays live, so it must not stay tombstoned. Best effort; the original error is what the caller sees.
+            // ponytail: a hard crash between recordDeleted and here, followed by a corrupt index on the very next launch, still hides it.
+            try {
+                forgetDeleted(profileId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (forgetFailure: Exception) {
+                warn("Could not clear the tombstone after a failed delete", forgetFailure)
+            }
             throw error
         }
         records.remove(profileId)
@@ -434,6 +451,7 @@ class VaultBackedRepository(
         pendingQuarantine.clear()
         skipped.clear()
         mutableOpenedFromPrevious.value = false
+        deletedReset = false
         deletedProfileIds = readDeleted()
         selectedProfileId = vault.read(SELECTION_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
         healthLinkId = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
@@ -456,8 +474,16 @@ class VaultBackedRepository(
         val unreadableUnlisted = mutableSetOf<String>()
         val listed = index.orEmpty().associateBy { it.profileId }
         // A previous-generation index is one write behind: records it does not list are recovered, unless the user deleted them.
-        val extra = if (mutableOpenedFromPrevious.value) orphanIds(listed.keys) else emptyList()
+        // Captured now: reading a profile record can also fall back to its previous copy and flip the live flag.
+        val indexFromPrevious = mutableOpenedFromPrevious.value
+        val extra = if (indexFromPrevious) orphanIds(listed.keys) else emptyList()
         (listed.keys + extra).forEach { id ->
+            if (id in listed && indexFromPrevious && deletedProfileIds?.contains(id) == true) {
+                // A previous-generation index is a write behind: an id the user deleted may still be listed, with its record
+                // left behind by a delete that did not finish. Leave it deleted; the index is rewritten without it.
+                indexStale = true
+                return@forEach
+            }
             val data = if (id in listed) {
                 readDocument(profileKey(id), profileAssociatedData(id)) { parseProfile(id, it) }
             } else {
@@ -511,7 +537,7 @@ class VaultBackedRepository(
     private suspend fun orphanIds(listed: Set<String>): List<String> {
         val deleted = deletedProfileIds
         val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted.orEmpty() && vault.read(profileKey(it)) != null }
-        if (deleted == null) return withVitals
+        if (deleted == null || deletedReset) return withVitals
         val byKey = vault.listKeys().orEmpty().mapNotNull(::profileIdOf)
         val byAssociatedData = vault.storedAssociatedData().orEmpty().mapNotNull { profileIdFromAssociatedData(it) }
         // Candidates only: each one is read through its own key, so a planted or renamed file cannot inject a record.
@@ -538,7 +564,10 @@ class VaultBackedRepository(
     private suspend fun readDeleted(): Set<String>? {
         val flagBefore = mutableOpenedFromPrevious.value
         val result = try {
-            readDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, ::parseDeleted)?.toSet() ?: emptySet()
+            readDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, ::parseDeleted)?.let { (ids, reset) ->
+                deletedReset = reset
+                ids.toSet()
+            } ?: emptySet()
         } catch (error: CancellationException) {
             throw error
         } catch (error: VaultUnreadableException) {
@@ -554,11 +583,15 @@ class VaultBackedRepository(
         return result
     }
 
-    private fun parseDeleted(element: JsonElement): List<String> =
-        json.decodeFromJsonElement(ListSerializer(String.serializer()), StorageSchema.migrate(element as JsonObject).getValue(INDEX_DELETED))
+    private fun parseDeleted(element: JsonElement): Pair<List<String>, Boolean> {
+        val document = StorageSchema.migrate(element as JsonObject)
+        val ids = json.decodeFromJsonElement(ListSerializer(String.serializer()), document.getValue(INDEX_DELETED))
+        return ids to (document[DELETED_RESET]?.jsonPrimitive?.booleanOrNull == true)
+    }
 
     private suspend fun writeDeleted(ids: Set<String>) {
-        val document = StorageSchema.stamp(JsonObject(mapOf(INDEX_DELETED to json.encodeToJsonElement(ListSerializer(String.serializer()), ids.sorted()))))
+        val entries = mapOf(INDEX_DELETED to json.encodeToJsonElement(ListSerializer(String.serializer()), ids.sorted()))
+        val document = StorageSchema.stamp(JsonObject(if (deletedReset) entries + (DELETED_RESET to JsonPrimitive(true)) else entries))
         writeDocument(DELETED_KEY, DELETED_ASSOCIATED_DATA, document)
         deletedProfileIds = ids
     }
@@ -566,7 +599,10 @@ class VaultBackedRepository(
     private suspend fun recordDeleted(profileId: String) {
         val known = deletedProfileIds
         // Unreadable tombstones are replaced (the unreadable file is quarantined first), starting again from this id.
-        if (known == null) pendingQuarantine += DELETED_KEY
+        if (known == null) {
+            pendingQuarantine += DELETED_KEY
+            deletedReset = true
+        }
         writeDeleted(known.orEmpty() + profileId)
     }
 
@@ -696,6 +732,7 @@ class VaultBackedRepository(
         private const val DELETED_KEY = "repository-deleted-profiles-v1"
         private const val DELETED_ASSOCIATED_DATA = "Vezuna repository deleted profiles v1"
         private const val INDEX_DELETED = "deleted"
+        private const val DELETED_RESET = "reset"
         private const val PROFILE_PREFIX = "repository-profile-"
         private const val PROFILE_SUFFIX = "-v1"
         private fun profileKey(profileId: String) = "$PROFILE_PREFIX$profileId$PROFILE_SUFFIX"

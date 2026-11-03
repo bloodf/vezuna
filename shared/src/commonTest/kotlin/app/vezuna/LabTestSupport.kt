@@ -1,6 +1,6 @@
 package app.vezuna
 
-import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.data.VezunaRepository
 import app.vezuna.llm.InstalledModel
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LlmGenerationSettings
@@ -11,7 +11,7 @@ import app.vezuna.llm.ModelFileStore
 import app.vezuna.ui.AppController
 import app.vezuna.ui.SourceFileStore
 
-internal fun labController(repository: InMemoryVezunaRepository, sourceStore: SourceFileStore? = null): AppController {
+internal fun labController(repository: VezunaRepository, sourceStore: SourceFileStore? = null): AppController {
     val llm = LabTestLlm()
     return AppController(
         repository,

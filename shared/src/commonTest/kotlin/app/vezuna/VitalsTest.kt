@@ -55,6 +55,13 @@ class VitalsTest {
     }
 
     @Test
+    fun legacyDailySummariesAloneAreNotEmpty() {
+        val legacy = json.decodeFromString(ProfileVitals.serializer(), """{"dailySummaries":[{"metric":"STEPS","date":"2026-09-01","value":10.0,"count":1}]}""")
+        assertTrue(!legacy.isEmpty)
+        assertTrue(ProfileVitals().isEmpty)
+    }
+
+    @Test
     fun stepsAreStoredAsAggregatedDaysAndReReadReplacesNotSums() {
         val batch = VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(StepsDay(LocalDate(2026, 10, 30), 8000), StepsDay(LocalDate(2026, 10, 31), 6000)))
         val first = DeviceVitals.ingest(ProfileVitals(), batch, now, utc)

@@ -117,7 +117,12 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
             guard allowed else {
                 lastError = L10n.text(.notification_permission_off)
-                await clearLowSupply()
+                // Pending requests go. Fire times already in the past stay (that notice fired, so it must not repeat once
+                // notifications are back); future ones are dropped, because they never fired and must be planned again.
+                await removePendingLowSupply()
+                let nowSeconds = Int64(Date().timeIntervalSince1970)
+                let delivered = (defaults.dictionary(forKey: Self.lowSupplyKey) as? [String: Int64] ?? [:]).filter { $0.value <= nowSeconds }
+                defaults.set(delivered, forKey: Self.lowSupplyKey)
                 IosRuntime.shared.setReminderCoverage(untilEpochSeconds: -1)
                 return
             }
@@ -186,11 +191,15 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         }
     }
 
-    /// No active medication or no permission: nothing may fire later for a medication that is gone or paused.
+    /// No active medication: nothing may fire later for a medication that is gone or paused.
     private func clearLowSupply() async {
+        await removePendingLowSupply()
+        defaults.removeObject(forKey: Self.lowSupplyKey)
+    }
+
+    private func removePendingLowSupply() async {
         let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.supply.") }
         center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier))
-        defaults.removeObject(forKey: Self.lowSupplyKey)
     }
 
     static func supplyRequest(for notice: LowSupplyNotice, at date: Date, hidingName: Bool, calendar: Calendar) -> UNNotificationRequest {
