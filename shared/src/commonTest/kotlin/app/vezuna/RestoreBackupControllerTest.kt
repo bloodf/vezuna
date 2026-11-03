@@ -249,6 +249,19 @@ class RestoreBackupControllerTest {
     }
 
     @Test
+    fun defaultProfileHoldingADocumentCountsAsTouched() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val controller = controller(repository)
+        val defaultId = repository.ids().single()
+        repository.addVaultDocument(
+            app.vezuna.domain.VaultDocument(app.vezuna.domain.SourceDocument(defaultId, "kept", "rx.pdf", "application/pdf", "h", kotlin.time.Instant.parse("2026-01-01T00:00:00Z"), "k")),
+        )
+        controller.startFirstRunRestore()
+        controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
+        assertTrue(defaultId in repository.ids())
+    }
+
+    @Test
     fun aRestoredProfileNamedMeSurvivesAndTheUntouchedDefaultGoes() = runTest {
         val repository = InMemoryVezunaRepository()
         val controller = controller(repository)

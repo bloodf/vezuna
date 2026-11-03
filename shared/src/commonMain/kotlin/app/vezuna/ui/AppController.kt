@@ -21,6 +21,7 @@ import app.vezuna.ui.export.ExportController
 import app.vezuna.ui.more.ProfileController
 import app.vezuna.ui.nav.Destination
 import app.vezuna.ui.nav.Navigator
+import app.vezuna.ui.records.DocumentVaultController
 import app.vezuna.ui.records.RecordsController
 import app.vezuna.ui.security.BackupController
 import app.vezuna.ui.security.RestoreResult
@@ -54,6 +55,7 @@ class AppController(
     private val profiles = ProfileController(core, modelManager, { onProfileChanged() }, warn)
     private val imports = ImportController(core, navigator)
     private val records = RecordsController(core, navigator)
+    private val documentVault = DocumentVaultController(core, navigator, imports.importSession)
     private val care = CareController(core)
     private val assistant = AssistantController(core, repository, chat)
     private val exports = ExportController(core, pdfExporter)
@@ -77,6 +79,7 @@ class AppController(
     private fun onProfileChanged() {
         core.mutableState.value = core.mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
         imports.importSession.clear()
+        documentVault.onProfileChanged()
         backups.onProfileChanged()
         navigator.resetToRoots()
     }
@@ -189,6 +192,15 @@ class AppController(
 
     /** Decrypts every stored page of the document's original file. Never throws; a failure is a [SourceFileRead]. */
     suspend fun readSourceFile(documentId: String): SourceFileRead = records.readSourceFile(documentId)
+
+    // region document vault
+    /** The tag the Documents list is filtered by; cleared on profile change. */
+    val documentTagFilter: StateFlow<String?> get() = documentVault.tagFilter
+    fun filterDocumentsByTag(tag: String?) = documentVault.filterByTag(tag)
+    suspend fun addDocumentFrom(kind: app.vezuna.ui.entry.SourceKind, picker: suspend () -> PickedSource?) = documentVault.addFrom(kind, picker)
+    suspend fun updateDocument(documentId: String, name: String, tags: List<String>) = documentVault.update(documentId, name, tags)
+    suspend fun deleteDocument(documentId: String) = documentVault.delete(documentId)
+    // endregion document vault
 
     // medications and doses
     suspend fun addMedication(name: String, strength: String, instructions: String, time: String) = care.addMedication(name, strength, instructions, time)

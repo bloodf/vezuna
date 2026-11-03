@@ -29,7 +29,7 @@
     <string name="take_photo">Tirar foto</string>
     <string name="add_another_photo">Adicionar página</string>
     <string name="photos_done">Usar estas fotos</string>
-    <string name="photo_added_message">Fotos neste laudo: %1$d. Adicionar outra página?</string>
+    <string name="photo_added_message">Fotos adicionadas: %1$d. Adicionar outra página?</string>
     <string name="image_empty">A imagem selecionada está vazia.</string>
     <string name="image_unreadable">O arquivo selecionado não é uma imagem legível.</string>
     <string name="pdf_empty">O PDF selecionado está vazio.</string>

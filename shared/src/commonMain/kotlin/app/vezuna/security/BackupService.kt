@@ -2,6 +2,7 @@ package app.vezuna.security
 
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.allDocuments
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
@@ -180,8 +181,8 @@ class BackupService(
      */
     private fun BackupMember.isValid(): Boolean {
         if (!data.isInternallyConsistent()) return false
-        if (data.documents.any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
-        val allowed = data.documents.flatMapTo(HashSet()) { it.fileIds() }
+        if (data.allDocuments().any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
+        val allowed = data.allDocuments().flatMapTo(HashSet()) { it.fileIds() }
         return files.keys.all { it in allowed }
     }
 

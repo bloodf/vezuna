@@ -27,6 +27,8 @@ fun Route(screen: AppScreen, ctx: RouteContext) {
         is AppScreen.ReportDetail -> RecordsRoutes.ReportDetail(screen, ctx)
         is AppScreen.SourceViewer -> RecordsRoutes.SourceViewer(screen, ctx)
         is AppScreen.ResultDetail -> RecordsRoutes.ResultDetail(screen, ctx)
+        AppScreen.Documents -> RecordsRoutes.Documents(ctx)
+        is AppScreen.DocumentDetail -> RecordsRoutes.DocumentDetail(screen, ctx)
 
         AppScreen.ImportReview -> EntryRoutes.ImportReview(ctx)
         AppScreen.ImportSource -> EntryRoutes.ImportSource(ctx)
@@ -81,7 +83,7 @@ fun routeFromName(text: String): AppScreen? {
     val arg = text.substringAfter(':', "").trim()
     val objects = listOf(
         AppScreen.Dashboard, AppScreen.Welcome, AppScreen.FirstProfile, AppScreen.Profiles, AppScreen.AddProfile,
-        AppScreen.Labs, AppScreen.ImportReview, AppScreen.ImportSource, AppScreen.ImportExtract, AppScreen.ManualEntry,
+        AppScreen.Labs, AppScreen.Documents, AppScreen.ImportReview, AppScreen.ImportSource, AppScreen.ImportExtract, AppScreen.ManualEntry,
         AppScreen.Medications, AppScreen.Trends, AppScreen.Vitals, AppScreen.Connections,
         AppScreen.Backups, AppScreen.LockSettings, AppScreen.DataPrivacy,
         AppScreen.More, AppScreen.Settings, AppScreen.Appearance, AppScreen.Language, AppScreen.About,
@@ -94,6 +96,7 @@ fun routeFromName(text: String): AppScreen? {
         "ReportDetail" to AppScreen::ReportDetail,
         "SourceViewer" to AppScreen::SourceViewer,
         "ResultDetail" to AppScreen::ResultDetail,
+        "DocumentDetail" to AppScreen::DocumentDetail,
         "CandidateReview" to AppScreen::CandidateReview,
         "ResultEdit" to AppScreen::ResultEdit,
         "ResultHistory" to AppScreen::ResultHistory,

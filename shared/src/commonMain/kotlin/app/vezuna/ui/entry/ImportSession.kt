@@ -59,8 +59,13 @@ class ImportSession {
     var requestedKind: SourceKind = SourceKind.FILE
         private set
 
-    fun start(kind: SourceKind) {
+    /** True when the platform picker must only hand over the file: no text extraction, nothing read from it (document vault). */
+    var storeOnly: Boolean = false
+        private set
+
+    fun start(kind: SourceKind, storeOnly: Boolean = false) {
         requestedKind = kind
+        this.storeOnly = storeOnly
         mutableDetails.value = null
         mutableConfirmed.value = 0
         mutablePhase.value = ImportPhase.Reading(null)
@@ -111,5 +116,6 @@ class ImportSession {
         mutableDates.value = emptyMap()
         mutableConfirmed.value = 0
         requestedKind = SourceKind.FILE
+        storeOnly = false
     }
 }

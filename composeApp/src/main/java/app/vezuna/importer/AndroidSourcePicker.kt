@@ -29,7 +29,8 @@ import java.io.File
 
 /**
  * Opens the system camera, photo picker or document picker for the source the shared Add a record screen asked
- * for, then extracts text on the device. Cancelling any system UI returns null; failures are [ImportFailure]s.
+ * for, then extracts text on the device (unless the session is store-only: the document vault keeps the file and
+ * reads nothing). Cancelling any system UI returns null; failures are [ImportFailure]s.
  */
 class AndroidSourcePicker(
     private val activity: ComponentActivity,
@@ -74,6 +75,7 @@ class AndroidSourcePicker(
             // The person stopped the import: end extraction (it deletes its own temporary copy) and keep nothing.
             extracting?.cancel()
             extracting = null
+            clearCameraCache()
             if (pending === result) {
                 pending = null
                 this.session = null
@@ -92,14 +94,21 @@ class AndroidSourcePicker(
         pending = null
         session = null
         photos.clear()
+        clearCameraCache()
     }
 
     private fun launchCamera() {
         val directory = File(activity.cacheDir, "camera").apply { mkdirs() }
-        val file = File.createTempFile("lab-", ".jpg", directory)
+        clearCameraCache()
+        val file = File.createTempFile("shot-", ".jpg", directory)
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
         cameraUri = uri
         cameraLauncher.launch(uri)
+    }
+
+    /** A shot is plaintext until it is read into memory; none may stay on disk after that. */
+    private fun clearCameraCache() {
+        File(activity.cacheDir, "camera").listFiles()?.forEach { it.delete() }
     }
 
     private fun addPhoto(uri: Uri) {
@@ -138,6 +147,7 @@ class AndroidSourcePicker(
 
     /** One report from every photo taken so far; every page is stored with the document. */
     private fun finishPhotos() {
+        clearCameraCache()
         val taken = photos.toList()
         photos.clear()
         if (taken.isEmpty()) return complete(null)
@@ -161,6 +171,10 @@ class AndroidSourcePicker(
 
     /** [owner] is the pick this extraction belongs to: a stopped extraction can never complete or fail a later pick. */
     private suspend fun extractPhotos(taken: List<ByteArray>, owner: CompletableDeferred<PickedSource?>?, picked: ImportSession?) {
+        if (picked?.storeOnly == true) {
+            val name = if (taken.size == 1) "document.jpg" else "document-${taken.size}-pages.jpg"
+            return complete(PickedSource(name, "image/jpeg", taken.first(), emptyList(), additionalPages = taken.drop(1)), owner)
+        }
         val name = if (taken.size == 1) PHOTO_NAME else "lab-photos-${taken.size}.jpg"
         try {
             if (pending === owner) picked?.reading(name)
@@ -183,8 +197,16 @@ class AndroidSourcePicker(
             try {
                 val type = activity.contentResolver.getType(uri)
                 val isPdf = type == "application/pdf"
-                name = displayName(uri) ?: if (isPdf) "lab.pdf" else PHOTO_NAME
+                val storeOnly = picked?.storeOnly == true
+                name = displayName(uri) ?: when {
+                    storeOnly -> if (isPdf) "document.pdf" else "document.jpg"
+                    isPdf -> "lab.pdf"
+                    else -> PHOTO_NAME
+                }
                 val bytes = withContext(Dispatchers.IO) { readBytes(uri, name) }
+                if (storeOnly) {
+                    return@launch complete(PickedSource(name, if (isPdf) "application/pdf" else (type ?: "image/jpeg"), bytes, emptyList()), owner)
+                }
                 if (pending === owner) picked?.reading(name)
                 val extracted = if (isPdf) {
                     extraction.extractPdf(bytes, name) { page, count -> if (pending === owner) picked?.progress(page, count) }
@@ -224,6 +246,7 @@ class AndroidSourcePicker(
     private fun fail(error: Throwable, name: String? = null, owner: CompletableDeferred<PickedSource?>? = pending) {
         val result = pending ?: return
         if (owner !== result) return
+        clearCameraCache()
         pending = null
         session = null
         cameraUri = null

@@ -22,6 +22,10 @@ sealed interface AppScreen {
     data class ReportDetail(val reportId: String) : AppScreen
     data class SourceViewer(val documentId: String) : AppScreen
     data class ResultDetail(val observationId: String) : AppScreen
+    // region document vault
+    data object Documents : AppScreen
+    data class DocumentDetail(val documentId: String) : AppScreen
+    // endregion document vault
 
     // Import, review and result entry (L3)
     data object ImportReview : AppScreen

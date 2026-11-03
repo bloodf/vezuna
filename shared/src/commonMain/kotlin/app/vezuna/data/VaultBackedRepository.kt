@@ -15,6 +15,10 @@ import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.VaultDocument
+import app.vezuna.domain.addingVaultDocument
+import app.vezuna.domain.withVaultDocument
+import app.vezuna.domain.withoutVaultDocument
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
@@ -285,6 +289,14 @@ class VaultBackedRepository(
     override suspend fun updateDocument(document: SourceDocument) = mutate(document.profileId) { it.withDocument(document) }
 
     override suspend fun deleteDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutDocument(documentId) }
+
+    // region document vault
+    override suspend fun addVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.addingVaultDocument(document) }
+
+    override suspend fun updateVaultDocument(document: VaultDocument) = mutate(document.source.profileId) { it.withVaultDocument(document) }
+
+    override suspend fun deleteVaultDocument(profileId: String, documentId: String) = mutate(profileId) { it.withoutVaultDocument(documentId) }
+    // endregion document vault
 
     override suspend fun updateReport(report: LabReport) = mutate(report.profileId) { it.withReport(report) }
 

@@ -2,7 +2,28 @@ package app.vezuna.domain
 
 /** Pure update/delete transitions shared by every repository implementation. */
 
-fun ProfileData.vaultKeys(): Set<String> = documents.flatMap { listOfNotNull(it.vaultKey) + it.pageVaultKeys }.toSet()
+fun ProfileData.vaultKeys(): Set<String> = allDocuments().flatMap { listOfNotNull(it.vaultKey) + it.pageVaultKeys }.toSet()
+
+/** Every stored file record: lab sources and vault documents. Only for file handling; lab logic reads [ProfileData.documents]. */
+fun ProfileData.allDocuments(): List<SourceDocument> = documents + vaultDocuments.map { it.source }
+
+// region document vault
+fun ProfileData.addingVaultDocument(document: VaultDocument): ProfileData {
+    require(document.source.profileId == profile.profileId) { "Document belongs to another profile" }
+    require(allDocuments().none { it.documentId == document.source.documentId }) { "Document already exists" }
+    return copy(vaultDocuments = vaultDocuments + document)
+}
+
+fun ProfileData.withVaultDocument(updated: VaultDocument): ProfileData {
+    require(vaultDocuments.any { it.source.documentId == updated.source.documentId }) { "Document not found" }
+    return copy(vaultDocuments = vaultDocuments.map { if (it.source.documentId == updated.source.documentId) updated else it })
+}
+
+fun ProfileData.withoutVaultDocument(documentId: String): ProfileData {
+    require(vaultDocuments.any { it.source.documentId == documentId }) { "Document not found" }
+    return copy(vaultDocuments = vaultDocuments.filterNot { it.source.documentId == documentId })
+}
+// endregion document vault
 
 fun ProfileData.withProfile(updated: Profile): ProfileData {
     require(updated.profileId == profile.profileId)
