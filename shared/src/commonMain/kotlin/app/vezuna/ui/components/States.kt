@@ -1,5 +1,10 @@
 package app.vezuna.ui.components
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.runtime.remember
@@ -181,7 +186,7 @@ fun FocusedTaskScaffold(
     Column(modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.vezuna.header, contentColor = MaterialTheme.vezuna.onHeader) {
             Row(
-                Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
+                Modifier.fillMaxWidth().statusBarsPadding().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(horizontal = VezunaTokens.SpaceXs, vertical = VezunaTokens.SpaceXs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
@@ -195,7 +200,7 @@ fun FocusedTaskScaffold(
                 }
             }
         }
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        Box(Modifier.weight(1f).fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) { content() }
     }
 }
 

@@ -1,5 +1,10 @@
 package app.vezuna.ui.components
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -110,7 +115,7 @@ fun RootHeader(
                 )
             }
             // The band reaches under the status bar; its content starts below it.
-            Column(Modifier.statusBarsPadding().padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceSm, bottom = VezunaTokens.SpaceLg)) {
+            Column(Modifier.statusBarsPadding().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).padding(start = VezunaTokens.Gutter, end = VezunaTokens.SpaceMd, top = VezunaTokens.SpaceSm, bottom = VezunaTokens.SpaceLg)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     val current = profiles.firstOrNull { it.profileId == currentProfileId }
                     // The name may take the whole row at large text sizes; actions keep their own width.
