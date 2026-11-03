@@ -21,13 +21,18 @@ struct ContentView: View {
                             .foregroundStyle(Color.vezunaDanger)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
-                            .background(.regularMaterial, ignoresSafeAreaEdges: .top)
+                            .background(Color(uiColor: .systemBackground), ignoresSafeAreaEdges: .top)
+                            .zIndex(1)
                             // VoiceOver hears the banner when it appears or changes, without moving focus.
                             .onAppear { UIAccessibility.post(notification: .announcement, argument: error) }
                             .onChange(of: error) { UIAccessibility.post(notification: .announcement, argument: $0) }
                     }
+                    // SwiftUI still gives the host the status-bar inset the banner took, so Compose would pad its pine
+                    // headers a second time. The host starts that far above the banner's bottom edge instead, under
+                    // the banner, so its own inset lands exactly on the banner and nothing is doubled.
                     ComposeHostView()
                         .ignoresSafeArea(.container, edges: error == nil ? .all : .bottom)
+                        .padding(.top, error == nil ? 0 : -StatusBar.height)
                 }
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
@@ -114,6 +119,13 @@ enum DebugLaunch {
     static let fixture = false
     static let route: String? = nil
     #endif
+}
+
+enum StatusBar {
+    /// Height of the status-bar safe area of the key window.
+    static var height: CGFloat {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.safeAreaInsets.top ?? 0
+    }
 }
 
 struct DesignFixtureHostView: UIViewControllerRepresentable {
