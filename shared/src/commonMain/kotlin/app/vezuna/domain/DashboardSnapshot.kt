@@ -45,7 +45,7 @@ object DashboardSnapshotFactory {
 
     fun create(data: ProfileData, now: Instant, zone: TimeZone): DashboardSnapshot {
         val localToday = now.toLocalDateTime(zone).date
-        val terminal = data.doseEvents.filter { it.profileId == data.profile.profileId && it.status in terminalStatuses }
+        val terminal = DoseEvents.perDose(data.doseEvents).filter { it.profileId == data.profile.profileId && it.status in terminalStatuses }
         val snoozes = data.doseEvents.filter {
             it.profileId == data.profile.profileId && it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null
         }
@@ -77,8 +77,7 @@ object DashboardSnapshotFactory {
 
         data.doseEvents.filter { event ->
             event.profileId == data.profile.profileId && event.status == DoseEventStatus.SCHEDULED && event.scheduledFor >= now &&
-                terminal.none { it.scheduleId == event.scheduleId && it.scheduledFor == event.scheduledFor } &&
-                snoozes.none { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
+                DoseEvents.isOpen(data.doseEvents, event)
         }.forEach { event ->
             val medication = data.medications.firstOrNull { it.profileId == event.profileId && it.medicationId == event.medicationId && it.active }
             if (medication != null) {

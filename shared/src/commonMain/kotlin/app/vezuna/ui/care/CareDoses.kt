@@ -35,12 +35,13 @@ val Medication.status: MedicationStatus
 
 object CareDoses {
     /**
-     * Today's doses of active medications in time order, each with its recorded state. A snoozed dose appears once,
-     * at its snoozed time; a recorded dose keeps the latest user action (taken or skipped) over MISSED.
+     * Today's doses of active medications in time order, each with its recorded state. A snoozed dose appears once:
+     * at its snoozed time while waiting, at its original time once recorded; a recorded dose keeps the latest user action (taken or skipped) over MISSED.
      */
     fun today(data: ProfileData, now: Instant, zone: TimeZone): List<CareDose> {
         val today = now.toLocalDateTime(zone).date
-        val events = DoseEvents.collapse(data.doseEvents).filter { it.profileId == data.profile.profileId }
+        val events = DoseEvents.perDose(data.doseEvents).filter { it.profileId == data.profile.profileId }
+        val original = DoseEvents.originals(events)
         val terminal = events.filter { DoseEvents.isTerminal(it.status) }.associateBy { it.scheduleId to it.scheduledFor.epochSeconds }
         val snoozes = events.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
         val superseded = snoozes.map { it.scheduleId to it.replacesScheduledFor!!.epochSeconds }.toSet()
@@ -63,14 +64,16 @@ object CareDoses {
             }
         }
         snoozes.filter { it.scheduledFor.toLocalDateTime(zone).date == today }.forEach { snooze ->
-            active.firstOrNull { it.medicationId == snooze.medicationId }?.let { add(it, snooze.scheduleId, snooze.scheduledFor, snoozed = true) }
+            val first = original(snooze.scheduleId, snooze.scheduledFor)
+            val at = if ((snooze.scheduleId to first.epochSeconds) in terminal) first else snooze.scheduledFor
+            active.firstOrNull { it.medicationId == snooze.medicationId }?.let { add(it, snooze.scheduleId, at, snoozed = true) }
         }
         return result.values.sortedWith(compareBy({ it.dose.scheduledFor }, { it.dose.medicationName }))
     }
 
     /** Recorded doses (one per dose, latest action wins), newest first, for one medication or the whole profile. */
     fun recorded(data: ProfileData, medicationId: String? = null): List<CareDose> =
-        DoseEvents.collapse(data.doseEvents)
+        DoseEvents.perDose(data.doseEvents)
             .filter { it.profileId == data.profile.profileId && DoseEvents.isTerminal(it.status) && (medicationId == null || it.medicationId == medicationId) }
             .mapNotNull { event ->
                 val medication = data.medications.firstOrNull { it.medicationId == event.medicationId } ?: return@mapNotNull null
