@@ -45,11 +45,20 @@ class ReminderPlatformState(
     fun setCoverageUntil(until: Instant?) { coverage.value = until }
 
     companion object {
-        val LOW_COVERAGE = 3.days
+        /** Under this, the status card explains the iOS limit in a neutral tone; a big household can sit here permanently. */
+        val SHORT_COVERAGE = 14.days
+        /** Under this, reminders are about to stop: the card turns into a warning that says to open the app. */
+        val URGENT_COVERAGE = 3.days
 
-        fun isCoverageLow(until: Instant, now: Instant): Boolean = until - now < LOW_COVERAGE
+        fun coverageLevel(until: Instant, now: Instant): CoverageLevel = when {
+            until - now < URGENT_COVERAGE -> CoverageLevel.URGENT
+            until - now < SHORT_COVERAGE -> CoverageLevel.SHORT
+            else -> CoverageLevel.OK
+        }
     }
 }
+
+enum class CoverageLevel { OK, SHORT, URGENT }
 
 /** System notification permission as the platform reports it. UNKNOWN shows nothing rather than guessing. */
 enum class NotificationAccess { UNKNOWN, NOT_REQUESTED, ALLOWED, DENIED }

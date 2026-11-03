@@ -20,7 +20,7 @@ gradle_all() {
     -alias check -keyalg RSA -keysize 2048 -validity 1 -dname 'CN=check' >/dev/null || return 1
   VEZUNA_UPLOAD_STORE_FILE="$TMP/check.jks" VEZUNA_UPLOAD_STORE_PASSWORD=check-throwaway \
   VEZUNA_UPLOAD_KEY_ALIAS=check VEZUNA_UPLOAD_KEY_PASSWORD=check-throwaway \
-    ./gradlew :shared:jvmTest :shared:koverVerify :composeApp:assembleDebug :composeApp:testDebugUnitTest \
+    ./gradlew :shared:jvmTest :shared:koverVerify :composeApp:assembleDebug :composeApp:testDebugUnitTest :composeApp:koverVerify \
       :composeApp:assembleDebugAndroidTest :composeApp:lintDebug :composeApp:assembleRelease -PVEZUNA_VERSION_CODE=1 -PVEZUNA_VERSION_NAME=1.0 --console=plain
 }
 

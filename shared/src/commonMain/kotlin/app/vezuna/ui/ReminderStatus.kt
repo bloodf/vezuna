@@ -39,12 +39,16 @@ internal fun ReminderStatus(reminders: ReminderPlatformState) {
     val coverageUntil by reminders.coverageUntil.collectAsState()
     val denied by reminders.exactAlarmsDenied.collectAsState()
     coverageUntil?.let { until ->
-        val low = ReminderPlatformState.isCoverageLow(until, currentInstant())
+        val level = ReminderPlatformState.coverageLevel(until, currentInstant())
         StatusCard(
-            icon = if (low) Icons.Rounded.Warning else Icons.Rounded.Schedule,
+            icon = if (level == CoverageLevel.URGENT) Icons.Rounded.Warning else Icons.Rounded.Schedule,
             title = vitaText(L10nKey.REMINDERS_SCHEDULED_UNTIL, formatUiDate(until)),
-            body = if (low) vitaText(L10nKey.REMINDERS_COVERAGE_LOW) else null,
-            warning = low,
+            body = when (level) {
+                CoverageLevel.OK -> null
+                CoverageLevel.SHORT -> vitaText(L10nKey.REMINDERS_COVERAGE_LOW)
+                CoverageLevel.URGENT -> vitaText(L10nKey.REMINDERS_COVERAGE_URGENT)
+            },
+            warning = level == CoverageLevel.URGENT,
         )
     }
     val openSettings = reminders.openExactAlarmSettings

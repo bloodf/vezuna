@@ -65,6 +65,11 @@ kotlin {
     }
 }
 
+// Kotlin/Native simulator tests borrow an existing simulator; SIMULATOR_ID pins it so parallel lanes do not share one.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest>().configureEach {
+    providers.environmentVariable("SIMULATOR_ID").orNull?.let { device.set(it) }
+}
+
 afterEvaluate {
     tasks.named("copyAndroidMainComposeResourcesToAndroidAssets").configure {
         (property("outputDirectory") as DirectoryProperty).set(layout.buildDirectory.dir("intermediates/assets/androidMain"))

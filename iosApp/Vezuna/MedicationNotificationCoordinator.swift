@@ -127,7 +127,8 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 return
             }
             let now = Date()
-            let reminders = planner.reminders(for: medications, after: now)
+            let plan = planner.plan(for: medications, after: now)
+            let reminders = plan.reminders
             let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.dose.") }
             let desired = Set(reminders.map { $0.identifier(hidingName: hidden) })
             // Stored snoozes are matched by (schedule, time), not identifier: the name hashed into it may have changed since.
@@ -154,7 +155,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             for snoozed in stored.open where !coveredSnoozes.contains(snoozeKey(snoozed)) {
                 try await center.add(request(for: snoozed, hidden: hidden))
             }
-            let coverage = planner.coverageEnd(of: reminders, after: now)
+            let coverage = planner.coverageEnd(of: reminders, after: now, truncated: plan.truncated)
             IosRuntime.shared.setReminderCoverage(untilEpochSeconds: coverage.map { Int64($0.timeIntervalSince1970) } ?? -1)
             await planLowSupply(hidden: hidden)
             lastError = nil
