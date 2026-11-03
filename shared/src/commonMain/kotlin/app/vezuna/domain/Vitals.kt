@@ -66,7 +66,8 @@ data class ProfileVitals(
     val samples: List<VitalSample> = emptyList(),
     val dailySummaries: List<VitalDailySummary> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = steps.isEmpty() && heartRateHourly.isEmpty() && heartRateDaily.isEmpty() && weights.isEmpty() && samples.isEmpty()
+    val isEmpty: Boolean get() = steps.isEmpty() && heartRateHourly.isEmpty() && heartRateDaily.isEmpty() && weights.isEmpty() && samples.isEmpty() &&
+        dailySummaries.isEmpty()
 
     /**
      * Moves the raw first-format samples into the current representation. Raw steps and heart rate are dropped:
