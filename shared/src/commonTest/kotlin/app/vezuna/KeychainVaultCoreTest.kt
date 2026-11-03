@@ -1,6 +1,7 @@
 package app.vezuna
 
 import app.vezuna.security.CipherEnvelope
+import app.vezuna.security.CipherEnvelopeCodec
 import app.vezuna.security.KeyFileVaultCore
 import app.vezuna.security.KeyStoreRead
 import app.vezuna.security.KeyStoreStatus
@@ -76,6 +77,28 @@ class KeychainVaultCoreTest {
 
     private fun encrypt(c: KeyFileVaultCore = core) = c.encrypt(byteArrayOf(1), byteArrayOf())
     private fun failure(action: () -> Unit) = assertFailsWith<VaultUnreadableException> { action() }.failure
+
+    /** The format the app really writes, as opposed to the legacy JSON of [envelopeFile]. */
+    private fun version2File(key: ByteArray) =
+        CipherEnvelopeCodec.encode(CipherEnvelope("ALG", "ID", byteArrayOf(1), byteArrayOf(key[0], 5), byteArrayOf()))
+
+    @Test
+    fun aMissingKeyWithVersion2DataIsAFailureNotANewKey() {
+        files.data["data"] = version2File(fileKey)
+
+        assertEquals(VaultFailure.KEY_UNAVAILABLE, failure { encrypt() })
+        assertNull(store.key)
+    }
+
+    @Test
+    fun migrationDeletesTheKeyFileOnceVersion2DataDecrypts() {
+        files.data["key"] = fileKey
+        files.data["data"] = version2File(fileKey)
+
+        encrypt()
+
+        assertEquals(listOf("key"), files.deleted)
+    }
 
     @Test
     fun migrationDeletesFileOnlyAfterDataDecryptsWithStoredKey() {
