@@ -91,7 +91,12 @@ object DesignFixture {
             ).map { (code, name, value) ->
                 OcrCandidate(P, "candidate-${code.lowercase()}", reviewDocument.documentId, code, name, value.first, value.second, value.third, at8("2026-10-30"), collectedAtKnown = true)
             },
-            medications = listOf(Medication(P, "med-vitamin-d", "Vitamin D", strength = "1,000 IU", instructions = "1 capsule", schedules = listOf(schedule))),
+            medications = listOf(
+                Medication(P, "med-vitamin-d", "Vitamin D", strength = "1,000 IU", instructions = "1 capsule", schedules = listOf(schedule)),
+                // Paused reminders and a course that starts later, for the emergency card.
+                Medication(P, "med-warfarin", "Warfarin", strength = "5 mg", active = false, schedules = listOf(DoseSchedule(P, "schedule-warfarin", "med-warfarin", Recurrence.DAILY, startDate = LocalDate(2026, 3, 1), timesLocal = listOf("20:00")))),
+                Medication(P, "med-amoxicillin", "Amoxicillin", strength = "500 mg", schedules = listOf(DoseSchedule(P, "schedule-amoxicillin", "med-amoxicillin", Recurrence.DAILY, startDate = LocalDate(2027, 1, 15), timesLocal = listOf("09:00")))),
+            ),
             doseEvents = doseHistory.map { (dayStatus, time) ->
                 val (day, status) = dayStatus
                 DoseEvent(
@@ -102,6 +107,7 @@ object DesignFixture {
             vitals = vitals(),
             allergies = listOf(
                 AllergyRecord(P, "allergy-penicillin", "Penicillin", reaction = "Hives on both arms", severity = AllergySeverity.MODERATE),
+                AllergyRecord(P, "allergy-peanut", "Peanut", reaction = "Throat swelling", severity = AllergySeverity.SEVERE),
                 AllergyRecord(P, "allergy-lactose", "Lactose", reaction = "Bloating after milk", notes = "Yogurt is fine"),
             ),
             conditions = listOf(

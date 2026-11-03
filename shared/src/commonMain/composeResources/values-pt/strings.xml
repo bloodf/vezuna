@@ -1345,24 +1345,38 @@ iOS: %2$s</string>
     </plurals>
     <!-- Emergency card (#102) -->
     <string name="em_title">Cartão de emergência</string>
-    <string name="em_more_sub">Alergias, condições e medicamentos num relance</string>
-    <string name="em_intro">Um resumo somente leitura do que está registrado para %1$s. Fica neste aparelho e não aparece na tela de bloqueio.</string>
     <string name="em_born">Nascimento: %1$s</string>
-    <string name="em_born_age">Nascimento: %1$s (%2$d anos)</string>
     <string name="em_allergies">Alergias</string>
-    <string name="em_conditions">Condições em curso</string>
     <string name="em_medications">Medicamentos atuais</string>
-    <string name="em_none_allergies">Nenhuma alergia registrada. Isso não significa que não existam.</string>
-    <string name="em_none_conditions">Nenhuma condição em curso registrada.</string>
-    <string name="em_none_medications">Nenhum medicamento ativo registrado.</string>
     <string name="em_empty_title">Nada registrado ainda</string>
     <string name="em_empty_body">Nada foi registrado para %1$s. Isso não significa que não haja alergias, condições ou medicamentos.</string>
-    <string name="em_card_a11y">Cartão de emergência de %1$s</string>
     <string name="em_phone_title">Informações de emergência do celular</string>
-    <string name="em_phone_android">Socorristas acessam as Informações de emergência na tela de bloqueio. Você pode copiar estes dados em Configurações &gt; Segurança e emergência.</string>
-    <string name="em_phone_ios">Socorristas acessam a Ficha Médica na tela de bloqueio. Você pode copiar estes dados no app Saúde: foto do perfil &gt; Ficha Médica.</string>
     <string name="em_phone_open_android">Abrir configurações de informações de emergência</string>
     <string name="em_phone_open_ios">Abrir o app Saúde</string>
     <string name="more_emergency">Cartão de emergência</string>
-    <!-- /Emergency card -->
+        <plurals name="em_age_years">
+        <item quantity="one">%1$d ano</item>
+        <item quantity="other">%1$d anos</item>
+    </plurals>
+    <plurals name="em_age_months">
+        <item quantity="one">%1$d mês</item>
+        <item quantity="other">%1$d meses</item>
+    </plurals>
+    <string name="em_born_age">Nascimento: %1$s (%2$s)</string>
+    <string name="em_severity_unknown">Gravidade não informada</string>
+    <string name="em_condition_unknown">Situação não informada</string>
+    <string name="em_dose_none">Dose não registrada</string>
+    <string name="em_med_paused">Lembretes pausados</string>
+    <string name="em_med_starts">Começa em %1$s</string>
+    <string name="em_phone_open_failed">Não foi possível abrir daqui. Siga os passos acima.</string>
+    <string name="em_conditions">Condições</string>
+    <string name="em_none_allergies">Nenhuma alergia registrada. Isso não significa que não existam.</string>
+    <string name="em_none_conditions">Nenhuma condição atual registrada. Isso não significa que não existam.</string>
+    <string name="em_none_medications">Nenhum medicamento atual registrado. Isso não significa que não existam.</string>
+    <string name="em_partial_note">Nada aqui é atual, mas há registros antigos.</string>
+    <string name="em_intro">Um resumo somente leitura do que está registrado para %1$s. Fica neste aparelho e não aparece na tela de bloqueio.</string>
+    <string name="em_phone_android">As informações de emergência podem ficar acessíveis na tela de bloqueio, conforme as configurações do celular. Nas Configurações, busque por “emergência” (geralmente em Segurança e emergência) e copie estes dados lá.</string>
+    <string name="em_phone_ios">A Ficha Médica pode ficar acessível na tela de bloqueio se “Mostrar quando bloqueado” estiver ativado. Copie estes dados nela no app Saúde: foto do perfil &gt; Ficha Médica.</string>
+    <string name="em_more_sub">Alergias, condições e medicamentos de relance</string>
+<!-- /Emergency card -->
 </resources>

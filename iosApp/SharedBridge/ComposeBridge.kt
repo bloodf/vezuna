@@ -844,7 +844,10 @@ private fun installMorePlatformIos() {
     }
     app.vezuna.ui.more.MorePlatform.openUrl = ::open
     app.vezuna.ui.more.MorePlatform.phoneIsIos = true
-    app.vezuna.ui.more.MorePlatform.openEmergencyInfo = { open("x-apple-health://") }
+    app.vezuna.ui.more.MorePlatform.openEmergencyInfo = { onResult ->
+        val url = platform.Foundation.NSURL.URLWithString("x-apple-health://")
+        if (url == null) onResult(false) else platform.UIKit.UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any?>()) { ok -> onResult(ok) }
+    }
     app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
 }
 
