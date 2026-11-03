@@ -70,6 +70,11 @@ tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimu
     providers.environmentVariable("SIMULATOR_ID").orNull?.let { device.set(it) }
 }
 
+// Tests that seal backups run real key stretching; runTest's 60 s default is too short when the machine is busy.
+tasks.withType<Test>().configureEach {
+    systemProperty("kotlinx.coroutines.test.default_timeout", "5m")
+}
+
 afterEvaluate {
     tasks.named("copyAndroidMainComposeResourcesToAndroidAssets").configure {
         (property("outputDirectory") as DirectoryProperty).set(layout.buildDirectory.dir("intermediates/assets/androidMain"))
