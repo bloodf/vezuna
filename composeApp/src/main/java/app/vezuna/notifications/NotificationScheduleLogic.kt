@@ -37,6 +37,12 @@ object NotificationScheduleLogic {
             medication.medicationId == medicationId && medication.active && medication.schedules.any { it.scheduleId == scheduleId }
         } == true
 
+    /** False once the appointment was deleted or moved, or its reminder switched off, after the alarm was armed. */
+    fun isAppointmentReminderCurrent(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Boolean =
+        data?.appointments?.any {
+            it.appointmentId == appointmentId && it.reminderMinutesBefore != null && it.at.toEpochMilliseconds() == appointmentAtMillis
+        } == true
+
     fun nextOccurrences(schedule: DoseSchedule, now: Instant, zone: ZoneId): List<ZonedDateTime> {
         val localNow = now.atZone(zone)
         val start = LocalDate.ofEpochDay(schedule.startDate.toEpochDays())

@@ -1286,6 +1286,42 @@ iOS: %2$s</string>
         <item quantity="other">%1$d itens</item>
     </plurals>
     <!-- /Health records -->
+    <!-- Appointments and visits (#101) -->
+    <string name="appt_title">Consultas</string>
+    <string name="appt_intro">Acompanhe consultas futuras e passadas. Os lembretes ficam só neste aparelho.</string>
+    <string name="appt_upcoming">Próximas</string>
+    <string name="appt_past">Anteriores</string>
+    <string name="appt_empty_title">Nenhuma consulta ainda</string>
+    <string name="appt_empty_body">Adicione uma consulta com a data, com quem será e suas anotações.</string>
+    <string name="appt_add">Adicionar consulta</string>
+    <string name="appt_edit">Editar consulta</string>
+    <string name="appt_field_clinician">Profissional de saúde</string>
+    <string name="appt_field_date">Data</string>
+    <string name="appt_date_help">O dia da consulta.</string>
+    <string name="appt_field_time">Horário</string>
+    <string name="appt_field_notes">Anotações (opcional)</string>
+    <string name="appt_clinician_required">Informe com quem será a consulta para salvar.</string>
+    <string name="appt_date_required">Escolha a data da consulta.</string>
+    <string name="appt_reminder">Lembrete</string>
+    <string name="appt_reminder_off">Sem lembrete</string>
+    <string name="appt_reminder_15m">15 minutos antes</string>
+    <string name="appt_reminder_1h">1 hora antes</string>
+    <string name="appt_reminder_1d">1 dia antes</string>
+    <string name="appt_reminder_minutes">%1$d minutos antes</string>
+    <string name="appt_reminder_note">Os lembretes são definidos só neste aparelho. Nada é enviado pela rede.</string>
+    <string name="appt_reminder_passed">Esse horário de lembrete já passou. Escolha um tempo menor ou desative o lembrete.</string>
+    <string name="appt_reminder_summary">Lembrete: %1$s</string>
+    <string name="appt_saved">Salvo.</string>
+    <string name="appt_deleted">Excluído.</string>
+    <string name="appt_not_found">Esta consulta não está mais disponível.</string>
+    <string name="appt_delete">Excluir consulta com %1$s</string>
+    <string name="appt_delete_body">Será removida deste perfil e o lembrete será cancelado. Isso não pode ser desfeito.</string>
+    <string name="appt_time_label">Horário: %1$s</string>
+    <plurals name="appt_count">
+        <item quantity="one">%1$d consulta</item>
+        <item quantity="other">%1$d consultas</item>
+    </plurals>
+    <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). "%1$s" é um dos maiores arquivos. O backup de um perfil deixa esses arquivos de fora.</string>
     <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes para criá-lo ou faça o backup de um perfil sem os arquivos.</string>

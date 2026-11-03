@@ -96,6 +96,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         let hidden = hideNames
         lastHideNames = hidden
         defer { scheduleBackgroundRefresh() }
+        await planAppointments(hidden: hidden)
         do {
             // Every active medication of every profile, not just the selected one (household reminders).
             let medications = try await loadMedications()
@@ -163,6 +164,57 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Visit reminders: the list comes from shared code and is the whole truth. Whatever is pending but absent from it (deleted
+    /// appointment, reminder switched off, time moved) is cancelled. Local notifications only; nothing leaves the device.
+    private func planAppointments(hidden: Bool) async {
+        do {
+            let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                IosRuntime.shared.planAppointmentReminders { json, error in
+                    if let json { continuation.resume(returning: json) }
+                    else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "action_failed", args: []))) }
+                }
+            }
+            let notices = try JSONDecoder().decode([AppointmentNotice].self, from: Data(json.utf8))
+            let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.appointment.") }
+            var allowed = false
+            if !notices.isEmpty {
+                var authorization = await center.notificationSettings().authorizationStatus
+                if authorization == .notDetermined {
+                    authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
+                }
+                allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
+            }
+            let wanted = allowed ? Set(notices.map(\.identifier)) : []
+            center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter { !wanted.contains($0) })
+            guard allowed else { return }
+            for notice in notices {
+                try await center.add(Self.appointmentRequest(for: notice, hidingName: hidden, calendar: planner.calendar))
+            }
+        } catch {
+            log.error("Could not plan appointment reminders: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    static func appointmentRequest(for notice: AppointmentNotice, hidingName: Bool, calendar: Calendar) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.text(.appointment_reminder_title)
+        if hidingName {
+            content.body = L10n.text(.appointment_reminder_generic_text)
+        } else {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            content.body = L10n.text(.appointment_reminder_text, notice.clinician, formatter.string(from: Date(timeIntervalSince1970: TimeInterval(notice.appointmentEpochSeconds))))
+            if let profileName = notice.profileName { content.subtitle = L10n.text(.reminder_for_profile, profileName) }
+        }
+        content.sound = .default
+        content.userInfo = ["appointmentId": notice.appointmentId]
+        let fire = Date(timeIntervalSince1970: TimeInterval(notice.fireEpochSeconds))
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fire)
+        return UNNotificationRequest(identifier: notice.identifier, content: content, trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
     }
 
     /// Low-supply reminders: the schedule comes from shared code; the fire time stored per key keeps a delivered one from repeating.

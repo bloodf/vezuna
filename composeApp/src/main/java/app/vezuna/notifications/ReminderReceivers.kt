@@ -177,6 +177,32 @@ class SupplyReceiver : BroadcastReceiver() {
     }
 }
 
+/** Delivers a visit reminder. The appointment is re-read first, so a deleted, moved or switched-off reminder stays quiet. */
+class AppointmentReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as VezunaApplication
+        guarded(app, goAsync(), "AppointmentReceiver") {
+            if (!app.awaitRepository()) return@guarded
+            val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return@guarded
+            val appointmentId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_ID) ?: return@guarded
+            val clinician = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_CLINICIAN) ?: return@guarded
+            val atMillis = intent.getLongExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_AT, -1L)
+            val data = try {
+                app.repository.peekProfile(profileId)
+            } catch (missing: NoSuchElementException) {
+                return@guarded
+            }
+            if (NotificationScheduleLogic.isAppointmentReminderCurrent(data, appointmentId, atMillis)) {
+                app.notifications.showAppointmentReminder(
+                    appointmentId, clinician, atMillis,
+                    data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
+                )
+            }
+            app.notifications.rescheduleAll(app.repository)
+        }
+    }
+}
+
 class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as VezunaApplication

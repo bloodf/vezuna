@@ -237,6 +237,8 @@ data class ProfileData(
     @EncodeDefault(EncodeDefault.Mode.NEVER) val allergies: List<AllergyRecord> = emptyList(),
     @EncodeDefault(EncodeDefault.Mode.NEVER) val conditions: List<ConditionRecord> = emptyList(),
     @EncodeDefault(EncodeDefault.Mode.NEVER) val vaccinations: List<VaccinationRecord> = emptyList(),
+    // Visits (#101): same rule as the lists above; part of the same unreleased storage v3 / backup v5.
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val appointments: List<Appointment> = emptyList(),
     // region document vault
     /** Non-lab files. Left out of the JSON while empty, so a profile without any serializes exactly as before. */
     @OptIn(ExperimentalSerializationApi::class)

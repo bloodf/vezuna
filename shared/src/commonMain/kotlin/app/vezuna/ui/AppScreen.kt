@@ -26,6 +26,10 @@ sealed interface AppScreen {
 
     /** Null adds a record. */
     data class HealthRecordForm(val kind: app.vezuna.domain.HealthRecordKind, val recordId: String? = null) : AppScreen
+    data object Appointments : AppScreen
+
+    /** Null adds a visit. */
+    data class AppointmentForm(val appointmentId: String? = null) : AppScreen
     // region document vault
     data object Documents : AppScreen
     data class DocumentDetail(val documentId: String) : AppScreen

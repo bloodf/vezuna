@@ -1,5 +1,6 @@
 package app.vezuna
 
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.Medication
 import app.vezuna.domain.Profile
@@ -12,10 +13,29 @@ import java.time.Instant
 import java.time.ZoneId
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NotificationScheduleLogicTest {
     private val utc: ZoneId = ZoneId.of("UTC")
+
+    @Test
+    fun anAppointmentReminderIsCurrentOnlyWhileItStillExistsWithTheSameTimeAndOptedIn() {
+        val at = kotlin.time.Instant.parse("2026-11-10T14:30:00Z")
+        val data = ProfileData(Profile("p", "Ana", createdAt = at), appointments = listOf(Appointment("p", "a1", at, "Dr. Silva", reminderMinutesBefore = 60)))
+        val millis = at.toEpochMilliseconds()
+        assertTrue(NotificationScheduleLogic.isAppointmentReminderCurrent(data, "a1", millis))
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(data, "a1", millis + 1), "moved")
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(data, "other", millis), "deleted")
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(null, "a1", millis), "profile gone")
+        val off = data.copy(appointments = data.appointments.map { it.copy(reminderMinutesBefore = null) })
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderCurrent(off, "a1", millis), "reminder switched off")
+    }
+
+    @Test
+    fun anAlarmArmedForADeletedOrSwitchedOffAppointmentIsStale() {
+        assertEquals(setOf("gone"), NotificationScheduleLogic.staleArmedKeys(setOf("kept", "gone"), setOf("kept")))
+    }
 
     @Test
     fun dailyTimesUseTheNextFutureLocalOccurrence() {

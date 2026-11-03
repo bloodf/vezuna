@@ -61,3 +61,6 @@
 "supply_low_text" = "%1$@: %2$d left";
 "supply_low_generic_text" = "A medication is running low";
 "supply_low_soon_text" = "%@ is running low";
+"appointment_reminder_title" = "Upcoming visit";
+"appointment_reminder_text" = "%@, %@";
+"appointment_reminder_generic_text" = "You have an upcoming visit";

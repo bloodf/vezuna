@@ -1,3 +1,4 @@
+import UserNotifications
 import XCTest
 @testable import Vezuna
 
@@ -194,6 +195,18 @@ final class ReminderPlanningTests: XCTestCase {
         )
         XCTAssertFalse(response.isExpired(now: received.addingTimeInterval(6 * 24 * 3600)))
         XCTAssertTrue(response.isExpired(now: received.addingTimeInterval(8 * 24 * 3600)))
+    }
+
+    func testAppointmentNoticeSchedulesOneLocalRequestAndHidesTheClinicianWhenAsked() throws {
+        let json = #"[{"profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":null}]"#
+        let notices = try JSONDecoder().decode([AppointmentNotice].self, from: Data(json.utf8))
+        XCTAssertEqual(notices.map(\.identifier), ["vezuna.appointment.a1"])
+        let named = MedicationNotificationCoordinator.appointmentRequest(for: notices[0], hidingName: false, calendar: calendar)
+        XCTAssertTrue(named.content.body.contains("Dr. Silva"))
+        XCTAssertTrue(named.trigger is UNCalendarNotificationTrigger)
+        XCTAssertFalse((named.trigger as? UNCalendarNotificationTrigger)?.repeats ?? true)
+        let hidden = MedicationNotificationCoordinator.appointmentRequest(for: notices[0], hidingName: true, calendar: calendar)
+        XCTAssertFalse(hidden.content.body.contains("Dr. Silva"))
     }
 
     func testLowSupplyNoticeDecodesAndSchedulesOneRequestPerMedication() throws {

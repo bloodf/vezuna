@@ -1286,6 +1286,42 @@ iOS: %2$s</string>
         <item quantity="other">%1$d entradas</item>
     </plurals>
     <!-- /Health records -->
+    <!-- Appointments and visits (#101) -->
+    <string name="appt_title">Consultas</string>
+    <string name="appt_intro">Lleva el control de las consultas futuras y pasadas. Los recordatorios se quedan solo en este dispositivo.</string>
+    <string name="appt_upcoming">Próximas</string>
+    <string name="appt_past">Anteriores</string>
+    <string name="appt_empty_title">Aún no hay consultas</string>
+    <string name="appt_empty_body">Añade una consulta con la fecha, con quién es y tus notas.</string>
+    <string name="appt_add">Añadir consulta</string>
+    <string name="appt_edit">Editar consulta</string>
+    <string name="appt_field_clinician">Profesional de la salud</string>
+    <string name="appt_field_date">Fecha</string>
+    <string name="appt_date_help">El día de la consulta.</string>
+    <string name="appt_field_time">Hora</string>
+    <string name="appt_field_notes">Notas (opcional)</string>
+    <string name="appt_clinician_required">Indica con quién es la consulta para guardarla.</string>
+    <string name="appt_date_required">Elige la fecha de la consulta.</string>
+    <string name="appt_reminder">Recordatorio</string>
+    <string name="appt_reminder_off">Sin recordatorio</string>
+    <string name="appt_reminder_15m">15 minutos antes</string>
+    <string name="appt_reminder_1h">1 hora antes</string>
+    <string name="appt_reminder_1d">1 día antes</string>
+    <string name="appt_reminder_minutes">%1$d minutos antes</string>
+    <string name="appt_reminder_note">Los recordatorios se programan solo en este dispositivo. No se envía nada por la red.</string>
+    <string name="appt_reminder_passed">Esa hora de recordatorio ya pasó. Elige un tiempo menor o desactiva el recordatorio.</string>
+    <string name="appt_reminder_summary">Recordatorio: %1$s</string>
+    <string name="appt_saved">Guardado.</string>
+    <string name="appt_deleted">Eliminado.</string>
+    <string name="appt_not_found">Esta consulta ya no está disponible.</string>
+    <string name="appt_delete">Eliminar consulta con %1$s</string>
+    <string name="appt_delete_body">Se eliminará de este perfil y se cancelará su recordatorio. No se puede deshacer.</string>
+    <string name="appt_time_label">Hora: %1$s</string>
+    <plurals name="appt_count">
+        <item quantity="one">%1$d consulta</item>
+        <item quantity="other">%1$d consultas</item>
+    </plurals>
+    <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Esta copia es demasiado grande (más de 24 MB con archivos originales y documentos guardados). "%1$s" es uno de los archivos más grandes. La copia de un perfil deja esos archivos fuera.</string>
     <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles ya no cabe en el límite de 24 MB. Elimina archivos grandes para crearla o haz la copia de un perfil sin sus archivos.</string>

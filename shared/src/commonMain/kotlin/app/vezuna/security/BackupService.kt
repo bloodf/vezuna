@@ -228,4 +228,4 @@ class BackupService(
     }
 }
 
-private fun ProfileData.needsNewerSchema(): Boolean = vaultDocuments.isNotEmpty() || healthRecords.isNotEmpty()
+private fun ProfileData.needsNewerSchema(): Boolean = vaultDocuments.isNotEmpty() || healthRecords.isNotEmpty() || appointments.isNotEmpty()

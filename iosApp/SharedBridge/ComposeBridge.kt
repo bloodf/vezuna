@@ -4,6 +4,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.VaultSourceFileStore
 import app.vezuna.data.restoreMembers
+import app.vezuna.domain.AppointmentReminders
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
@@ -502,6 +503,45 @@ object IosRuntime {
                                     "remaining" to JsonPrimitive(notice.remaining),
                                     "lowNow" to JsonPrimitive(notice.lowNow),
                                     "fireEpochSeconds" to (MedicationSupplies.fireTime(notice, previous[notice.key], now)?.let { JsonPrimitive(it) } ?: JsonNull),
+                                    "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
+                                ),
+                            )
+                        },
+                    ).toString(),
+                    null,
+                )
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
+    /**
+     * Visit reminders of every profile as JSON: one entry per appointment that opted in and whose reminder time is still ahead.
+     * Anything absent (deleted, reminder switched off, already due) is what the native side cancels.
+     */
+    fun planAppointmentReminders(completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val now = currentInstant()
+                val profiles = repository.profiles.value
+                val notices = profiles.flatMap { profile ->
+                    AppointmentReminders.notices(repository.peekProfile(profile.profileId), now).map { profile to it }
+                }
+                completion(
+                    JsonArray(
+                        notices.map { (profile, notice) ->
+                            JsonObject(
+                                mapOf(
+                                    "profileId" to JsonPrimitive(notice.profileId),
+                                    "appointmentId" to JsonPrimitive(notice.appointmentId),
+                                    "clinician" to JsonPrimitive(notice.clinician),
+                                    "appointmentEpochSeconds" to JsonPrimitive(notice.appointmentAt.epochSeconds),
+                                    "fireEpochSeconds" to JsonPrimitive(notice.fireAt.epochSeconds),
                                     "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
                                 ),
                             )
