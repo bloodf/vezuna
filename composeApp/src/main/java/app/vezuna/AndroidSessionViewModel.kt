@@ -35,7 +35,7 @@ class AndroidSessionViewModel(
         LocalHealthChat(app.repository, llm),
         backup = BackupService(app.vault),
         sourceStore = VaultSourceFileStore(app.vault),
-        warn = { message, error -> Log.w("AndroidSession", message, error) },
+        warn = { message, error -> Log.w("AndroidSession", "$message (${error::class.java.name})") },
     )
 
     init {
