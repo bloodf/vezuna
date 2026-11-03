@@ -34,6 +34,8 @@ case "$MODE" in
     "${GRADLE[@]}" "$TASK"
     PLATFORM_NAME=iphonesimulator ARCHS=arm64 "$ROOT/gradlew" -p "$ROOT" :shared:syncComposeResourcesForIos
     copy_framework "$ROOT/shared/build/bin/iosSimulatorArm64/$KIND/VezunaShared.framework" "$CONFIGURATION/iphonesimulator"
+    # Ad-hoc signed, not unsigned: an app without a signature has no Keychain access group, so the simulator refuses
+    # every Keychain call (-34018), the vault key stays unavailable and the first run never leaves "Please wait".
     xcodebuild \
       -project "$ROOT/iosApp/Vezuna.xcodeproj" \
       -scheme Vezuna \
@@ -41,7 +43,7 @@ case "$MODE" in
       -sdk iphonesimulator \
       -destination 'generic/platform=iOS Simulator' \
       -derivedDataPath "$ROOT/iosApp/.ios-build/derived-data/$CONFIGURATION" \
-      CODE_SIGNING_ALLOWED=NO \
+      CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
       ARCHS=arm64 \
       build
     python3 "$ROOT/tools/release/check_ios_metadata.py" "$ROOT/iosApp/.ios-build/derived-data/$CONFIGURATION/Build/Products/$CONFIGURATION-iphonesimulator/Vezuna.app"
