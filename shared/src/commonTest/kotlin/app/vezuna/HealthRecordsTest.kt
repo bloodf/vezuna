@@ -3,6 +3,7 @@ package app.vezuna
 import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.data.StorageSchema
 import app.vezuna.data.VaultBackedRepository
+import app.vezuna.data.restoreMembers
 import app.vezuna.domain.AllergyRecord
 import app.vezuna.domain.AllergySeverity
 import app.vezuna.domain.ConditionRecord
@@ -29,6 +30,7 @@ import app.vezuna.security.BackupMember
 import app.vezuna.security.BackupService
 import app.vezuna.security.PassphraseBackupCodec
 import app.vezuna.ui.AppScreen
+import app.vezuna.ui.RestoreMode
 import app.vezuna.ui.export.ExportScope
 import app.vezuna.ui.nav.routeFromName
 import app.vezuna.ui.records.HealthRecordDraft
@@ -309,6 +311,41 @@ class HealthRecordsTest {
     }
 
     @Test
+    fun aStoredProfileHoldingAnotherProfilesRecordIsNotLoaded() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repo = VaultBackedRepository(vault).also { it.load() }
+        repo.createProfile(Profile("a", "Ana", createdAt = at))
+        repo.addHealthRecord(AllergyRecord("a", "a1", "Latex"))
+        val key = "repository-profile-a-v1"
+        val envelope = app.vezuna.security.CipherEnvelopeCodec.decode(vault.current.getValue(key))
+        val forged = vault.decrypt(envelope).decodeToString().replace("\"profileId\":\"a\",\"allergyId\"", "\"profileId\":\"b\",\"allergyId\"")
+        assertTrue(forged != vault.decrypt(envelope).decodeToString(), "the record was rewritten")
+        vault.current[key] = app.vezuna.security.CipherEnvelopeCodec.encode(vault.encrypt(forged.encodeToByteArray(), envelope.associatedData))
+        vault.previous.remove(key)
+        val reopened = VaultBackedRepository(vault).also { runCatching { it.load() } }
+        assertTrue(runCatching { reopened.readProfile("a").healthRecords }.getOrNull().orEmpty().isEmpty(), "another profile's record must not load into a")
+    }
+
+    @Test
+    fun restoreMembersKeepsRecordsInTheVaultBackedRepositoryAfterReopening() = runTest(timeout = 5.minutes) {
+        listOf(RestoreMode.REPLACE_EXISTING, RestoreMode.RESTORE_AS_NEW).forEach { mode ->
+            val vault = GenerationalMemoryVault()
+            val repo = VaultBackedRepository(vault).also { it.load() }
+            val data = withRecords(sampleProfileData("A"))
+            val service = BackupService()
+            val opened = service.open(service.createHousehold(listOf(BackupMember(data)), pass.copyOf()), pass.copyOf())
+            var next = 0
+            val outcome = repo.restoreMembers(opened.members, mode, null) { "new-${next++}" }
+            val reopened = VaultBackedRepository(vault).also { it.load() }
+            val restored = reopened.readProfile(outcome.profileIds.single())
+            assertEquals(data.allergies.map { Triple(it.substance, it.reaction, it.severity) }.toSet(), restored.allergies.map { Triple(it.substance, it.reaction, it.severity) }.toSet())
+            assertEquals(data.conditions.map { it.name to it.onset to it.status }.toSet(), restored.conditions.map { it.name to it.onset to it.status }.toSet())
+            assertEquals(data.vaccinations.map { it.vaccine to it.date to it.doseNumber to it.lot }.toSet(), restored.vaccinations.map { it.vaccine to it.date to it.doseNumber to it.lot }.toSet())
+            assertTrue(restored.isInternallyConsistent())
+        }
+    }
+
+    @Test
     fun forgedRecordsAreRefused() = runTest {
         val base = sampleProfileData("A")
         val p = base.profile.profileId
@@ -345,7 +382,8 @@ class HealthRecordsTest {
     fun csvCarriesEachNonEmptyKindAsItsOwnBlockExactlyAsEntered() {
         val data = withRecords()
         val csv = CsvDoctorExporter().export(data, ContentLanguage.EN, ExportOptions(includeAllergies = true, includeConditions = true, includeVaccinations = true))
-        assertTrue("substance,reaction,severity,notes\n\"Penicilina\"" in csv.replace("\r", "") || "\"Penicilina\",\"Urticária nos braços\",\"Severe\"" in csv, csv)
+        assertTrue("substance,reaction,severity,notes" in csv.replace("\r", ""), csv)
+        assertTrue("\"Penicilina\",\"Urticária nos braços\",\"Severe\"" in csv, csv)
         assertTrue("\"Rhinitis\",\"2015-03\",\"Ongoing\",\"\"" in csv, csv)
         assertTrue("\"Migraine\",\"\",\"\",\"'=exact year unknown\"" in csv, "formula protection applies: $csv")
         assertTrue("\"Influenza\",\"2026-03-10\",\"1\",\"FLU-118\"" in csv, csv)

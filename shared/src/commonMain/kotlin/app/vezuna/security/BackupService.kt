@@ -98,7 +98,7 @@ class BackupService(
     }
 
     /**
-     * Backs up every profile with its vitals and original source files (schema 4). The file must stay under
+     * Backs up every profile with its vitals and original source files (schema 4, or 5 when see [needsNewerSchema]). The file must stay under
      * [MAX_BACKUP_WRITE_BYTES] (files are Base64 inside the sealed payload); beyond that, [L10nKey.BACKUP_TOO_LARGE] and nothing is written.
      */
     @OptIn(ExperimentalEncodingApi::class)
@@ -203,7 +203,7 @@ class BackupService(
     companion object {
         /**
          * Highest payload version this build reads. 2 added the vitals section; 3 is the last single-profile shape;
-         * 4 is the household payload (several profiles, original source files). Versions 1-4 are all accepted.
+         * 4 is the household payload (several profiles, original source files). 5 is the household payload written when a profile has vault documents or health records. Versions 1-5 are all accepted.
          */
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
@@ -215,8 +215,8 @@ class BackupService(
         const val NEWER_SCHEMA_VERSION = 5
 
         /**
-         * What [create] still writes. A profile with vault documents has a field builds before them refuse as invalid
-         * content; no such build has shipped. If that changes, bump the version so they say "update the app" instead.
+         * What [create] writes for a profile without vault documents or health records; with them it writes
+         * [NEWER_SCHEMA_VERSION] (see [needsNewerSchema]), so older builds answer "unsupported" instead of "damaged".
          */
         const val SINGLE_SCHEMA_VERSION = 3
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */

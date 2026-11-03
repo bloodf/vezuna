@@ -14,6 +14,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.OcrCandidate
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.healthRecords
 import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.VaultDocument
@@ -756,7 +757,9 @@ class VaultBackedRepository(
             ocrCandidates.all { it.profileId == profileId } &&
             medications.all { it.profileId == profileId } &&
             doseEvents.all { it.profileId == profileId } &&
-            chat.all { it.profileId == profileId }
+            chat.all { it.profileId == profileId } &&
+            healthRecords.all { it.profileId == profileId } &&
+            vaultDocuments.all { it.source.profileId == profileId }
 
     companion object {
         /** iOS-style entry point. */

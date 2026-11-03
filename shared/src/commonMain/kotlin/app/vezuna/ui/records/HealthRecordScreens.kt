@@ -188,7 +188,7 @@ internal fun HealthRecordFormScreen(ctx: RouteContext, kind: HealthRecordKind, r
             when (kind) {
                 HealthRecordKind.ALLERGY -> AllergyFields(draft) { draft = it }
                 HealthRecordKind.CONDITION -> ConditionFields(draft, onsetError = showErrors && draft.onsetInvalid(today)) { draft = it }
-                HealthRecordKind.VACCINATION -> VaccinationFields(draft) { draft = it }
+                HealthRecordKind.VACCINATION -> VaccinationFields(draft, dateError = showErrors && draft.dateInFuture(today)) { draft = it }
             }
             FixFieldsNotice(showErrors && !draft.isValid(today))
             PrimaryButton(
@@ -250,9 +250,9 @@ private fun ConditionFields(draft: HealthRecordDraft, onsetError: Boolean, onCha
 }
 
 @Composable
-private fun VaccinationFields(draft: HealthRecordDraft, onChange: (HealthRecordDraft) -> Unit) {
+private fun VaccinationFields(draft: HealthRecordDraft, dateError: Boolean, onChange: (HealthRecordDraft) -> Unit) {
     Column {
-        CollectionDateField(draft.date, { date, _ -> onChange(draft.copy(date = date)) }, label = vitaText(L10nKey.HR_FIELD_DATE), help = vitaText(L10nKey.HR_DATE_HELP))
+        CollectionDateField(draft.date, { date, _ -> onChange(draft.copy(date = date)) }, error = vitaText(L10nKey.HR_DATE_FUTURE).takeIf { dateError }, label = vitaText(L10nKey.HR_FIELD_DATE), help = vitaText(L10nKey.HR_DATE_HELP))
         if (draft.date != null) TertiaryButton(vitaText(L10nKey.CLEAR_DATE), { onChange(draft.copy(date = null)) })
     }
     LabeledField(vitaText(L10nKey.HR_FIELD_DOSE), draft.dose, { onChange(draft.copy(dose = it)) })
