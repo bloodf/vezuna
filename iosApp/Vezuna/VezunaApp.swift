@@ -1,43 +1,50 @@
 import SwiftUI
 import VezunaShared
 
-@main
-struct VezunaApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = AppDelegate.model
-    @StateObject private var lock = AppLockObserver()
-    @Environment(\.scenePhase) private var scenePhase
+/// UIKit scene lifecycle instead of SwiftUI's `App`/`WindowGroup`: the scene delegate owns the root hosting
+/// controller, which is the only supported place to choose the status bar style (see `LightStatusHostingController`).
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    private var lock: AppLockObserver?
 
-    /// Unit tests use the app only as a host: do not boot the real vault/runtime.
-    private static let isHostingTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-
-    init() {
-        guard !Self.isHostingTests else { return }
-        IosRuntime.shared.deviceAuthenticator = AppLockAuthenticator()
-        IosRuntime.shared.appLock.refresh()
-        PrivacyCover.shared.start()
-    }
-
-    var body: some Scene {
-        WindowGroup {
-            if Self.isHostingTests {
-                Color.clear
-            } else {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
+        guard let windowScene = scene as? UIWindowScene else { return }
+        let root: AnyView
+        if AppShellModel.isHostingTests {
+            // Unit tests use the app only as a host: do not boot the real vault/runtime.
+            root = AnyView(Color.clear)
+        } else {
+            let lock = AppLockObserver()
+            self.lock = lock
+            root = AnyView(
                 ContentView()
                     .font(.vezunaBody)
                     .tint(Color.vezunaAction)
-                    .environmentObject(model)
+                    .environmentObject(AppDelegate.model)
                     .environmentObject(lock)
-                    .onChange(of: scenePhase) { phase in
-                        if phase == .active {
-                            IosRuntime.shared.appLock.refresh()
-                            IosRuntime.shared.appLock.onForeground()
-                            model.sceneBecameActive()
-                        } else if phase == .background {
-                            IosRuntime.shared.appLock.onBackground()
-                        }
-                    }
-            }
+            )
         }
+        let window = UIWindow(windowScene: windowScene)
+        window.rootViewController = LightStatusHostingController(rootView: root)
+        window.makeKeyAndVisible()
+        self.window = window
     }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        guard !AppShellModel.isHostingTests else { return }
+        IosRuntime.shared.appLock.refresh()
+        IosRuntime.shared.appLock.onForeground()
+        AppDelegate.model.sceneBecameActive()
+    }
+
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        guard !AppShellModel.isHostingTests else { return }
+        IosRuntime.shared.appLock.onBackground()
+    }
+}
+
+/// Every screen starts with a pine header or status band, in light and dark appearance alike, so the status bar
+/// content is always light. SwiftUI would otherwise derive the style from the colour scheme (dark text on pine).
+final class LightStatusHostingController<Content: View>: UIHostingController<Content> {
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
 }

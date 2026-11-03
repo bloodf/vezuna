@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: AppShellModel
     @EnvironmentObject private var lock: AppLockObserver
     @StateObject private var nativeActions = NativeActionRouter()
+    @State private var topInset: CGFloat = 0
 
     var body: some View {
         Group {
@@ -21,6 +22,7 @@ struct ContentView: View {
                             .foregroundStyle(Color.vezunaDanger)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
+                            .background { GeometryReader { Color.clear.preference(key: TopInsetKey.self, value: $0.frame(in: .global).minY) } }
                             .background(Color(uiColor: .systemBackground), ignoresSafeAreaEdges: .top)
                             .zIndex(1)
                             // VoiceOver hears the banner when it appears or changes, without moving focus.
@@ -32,7 +34,7 @@ struct ContentView: View {
                     // the banner, so its own inset lands exactly on the banner and nothing is doubled.
                     ComposeHostView()
                         .ignoresSafeArea(.container, edges: error == nil ? .all : .bottom)
-                        .padding(.top, error == nil ? 0 : -StatusBar.height)
+                        .padding(.top, error == nil ? 0 : -topInset)
                 }
             } else if model.needsVaultRecovery {
                 VaultRecoveryHostView(
@@ -54,11 +56,10 @@ struct ContentView: View {
                 ProgressView(L10n.text(.opening_storage))
             }
         }
-        // The status bar always sits on pine, continuing the root and task headers, so its text is light.
-        // A zero-height band grows into the top safe area; the probe forces the light style, which SwiftUI would
-        // otherwise derive from the colour scheme (dark text on pine in light mode).
+        // The status bar always sits on pine, continuing the root and task headers, so its text is light
+        // (LightStatusHostingController). A zero-height band grows into the top safe area.
         .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
-        .background { LightStatusBarProbe().frame(width: 0, height: 0) }
+        .onPreferenceChange(TopInsetKey.self) { topInset = $0 }
         .task {
             IosRuntime.shared.nativeActionHandler = nativeActions
             // The fixture skips configure(), but its export preview still saves and shares through the system sheets.
@@ -121,11 +122,11 @@ enum DebugLaunch {
     #endif
 }
 
-enum StatusBar {
-    /// Height of the status-bar safe area of the key window.
-    static var height: CGFloat {
-        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.safeAreaInsets.top ?? 0
-    }
+/// Where the banner starts: the top safe-area inset it sits below. Measured in the view tree, so it follows rotation,
+/// the Dynamic Island and the status bar (0 in landscape on iPhone).
+private struct TopInsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 struct DesignFixtureHostView: UIViewControllerRepresentable {
@@ -156,30 +157,3 @@ struct VaultRecoveryHostView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }
 
-/// Makes the window's root hosting controller report a light status bar. SwiftUI's `App` lifecycle offers no hook for
-/// this: Vezuna-Info.plist's `UIStatusBarStyle` is ignored by scene-based apps, so the controller's class is
-/// replaced once, in place, by a subclass that overrides `preferredStatusBarStyle`.
-private struct LightStatusBarProbe: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView { Probe() }
-    func updateUIView(_ uiView: UIView, context: Context) {}
-
-    private final class Probe: UIView {
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            guard let root = window?.rootViewController else { return }
-            let base: AnyClass = type(of: root)
-            let name = "\(NSStringFromClass(base))_LightStatusBar"
-            let light: AnyClass? = NSClassFromString(name) ?? {
-                guard let created = objc_allocateClassPair(base, name, 0) else { return nil }
-                let style: @convention(block) (AnyObject) -> Int = { _ in UIStatusBarStyle.lightContent.rawValue }
-                class_addMethod(created, #selector(getter: UIViewController.preferredStatusBarStyle),
-                                imp_implementationWithBlock(style), "q@:")
-                objc_registerClassPair(created)
-                return created
-            }()
-            guard let light, !(root.isKind(of: light)) else { return }
-            object_setClass(root, light)
-            root.setNeedsStatusBarAppearanceUpdate()
-        }
-    }
-}
