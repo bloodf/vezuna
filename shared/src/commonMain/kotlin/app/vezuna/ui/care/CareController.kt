@@ -156,7 +156,7 @@ internal class CareController(private val core: ControllerCore) {
         val data = core.requireData()
         require(dose.profileId == data.profile.profileId)
         val now = currentInstant()
-        val snoozedAt = kotlin.time.Instant.fromEpochSeconds(now.epochSeconds + 600)
+        val snoozedAt = DoseEvents.snoozeUntil(now)
         val event = DoseEvent(
             profileId = data.profile.profileId,
             eventId = DoseEvents.snoozeIdFor(dose.scheduleId, snoozedAt),

@@ -105,7 +105,7 @@ class DoseActionReceiver : BroadcastReceiver() {
         val shownFor = intent.getLongExtra(MedicationNotificationScheduler.EXTRA_SCHEDULED_FOR, -1L)
         if (shownFor < 0) return
         val now = System.currentTimeMillis()
-        val snoozedAt = Instant.fromEpochSeconds(now / 1000 + MedicationNotificationScheduler.SNOOZE_MS / 1000)
+        val snoozedAt = DoseEvents.snoozeUntil(Instant.fromEpochMilliseconds(now))
         app.repository.addDoseEvent(
             DoseEvent(
                 profileId = profileId,

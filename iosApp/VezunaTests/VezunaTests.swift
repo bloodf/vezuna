@@ -74,7 +74,7 @@ final class VezunaTests: XCTestCase {
         XCTAssertEqual(reminders.filter { $0.scheduleId == "weekly" }.count, 1)
         XCTAssertEqual(calendar.component(.weekday, from: try XCTUnwrap(reminders.first { $0.scheduleId == "weekly" }?.scheduledAt)), 2)
         let snoozed = NotificationPlanner(calendar: calendar).snooze(reminders[0], from: now)
-        XCTAssertEqual(snoozed.scheduledAt.timeIntervalSince(now), 600, accuracy: 0.001)
+        XCTAssertEqual(snoozed.scheduledAt.timeIntervalSince(now), 601, accuracy: 0.001, "a whole-minute target moves off the minute")
     }
 
     func testProtectedFilePersistenceAndBackupExclusion() throws {

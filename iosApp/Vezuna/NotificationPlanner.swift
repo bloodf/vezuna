@@ -32,6 +32,11 @@ struct DoseReminder: Equatable {
     /// A snoozed copy of a delivered reminder. Planning never replaces or removes it; only an inactive medication does.
     var isSnooze = false
     var profileName: String? = nil
+    /// The time this dose was first due, when `scheduledAt` is a snoozed time. Nil on notifications from before this field.
+    var originalScheduledAt: Date? = nil
+
+    /// The time to record this dose at: one real dose is recorded once, at its original time.
+    var doseTime: Date { originalScheduledAt ?? scheduledAt }
 
     /// The name is part of the identifier so renaming a medication replaces its already scheduled requests.
     var identifier: String { identifier(hidingName: false) }
@@ -102,9 +107,10 @@ struct NotificationPlanner {
             medicationId: reminder.medicationId,
             medicationName: reminder.medicationName,
             scheduleId: reminder.scheduleId,
-            scheduledAt: now.addingTimeInterval(delay).roundedDownToSecond,
+            scheduledAt: now.addingTimeInterval(delay).roundedDownToSecond.offTheMinute,
             isSnooze: true,
-            profileName: reminder.profileName
+            profileName: reminder.profileName,
+            originalScheduledAt: reminder.doseTime
         )
     }
 
@@ -140,6 +146,9 @@ struct NotificationPlanner {
 extension Date {
     /// Dose events store whole seconds, so a snooze time must not carry a fraction the stored event cannot.
     var roundedDownToSecond: Date { Date(timeIntervalSince1970: timeIntervalSince1970.rounded(.down)) }
+
+    /// Schedule times are whole minutes, so shared code can prove a time off the minute is a snooze (DoseEvents.snoozeUntil).
+    var offTheMinute: Date { Int(timeIntervalSince1970) % 60 == 0 ? addingTimeInterval(1) : self }
 }
 
 /// A low-supply reminder planned by shared code. `fireEpochSeconds` is nil once the notice was already delivered.

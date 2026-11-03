@@ -18,6 +18,7 @@ import app.vezuna.nativeMessage
 import app.vezuna.resolve
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.domain.DoseEventStatus
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.Medication
 import app.vezuna.domain.MedicationSupplies
 import app.vezuna.domain.MissedDoses
@@ -190,16 +191,16 @@ class MedicationNotificationScheduler(private val context: Context) {
                 }
             }
         }
+        val original = DoseEvents.originals(data.doseEvents)
         scheduledEvents.distinctBy { it.scheduleId to it.scheduledFor }.forEach { event ->
             val medication = data.medications.firstOrNull { it.medicationId == event.medicationId } ?: return@forEach
             val at = java.time.Instant.ofEpochSecond(event.scheduledFor.epochSeconds)
             val alarmId = NotificationScheduleLogic.alarmId(event.scheduleId, at)
             cancelAlarm(medication, event.scheduleId, at, alarmId)
-            val completed = terminalEvents.any { it.scheduleId == event.scheduleId && it.scheduledFor == event.scheduledFor }
-            val superseded = scheduledEvents.any { it.scheduleId == event.scheduleId && it.replacesScheduledFor == event.scheduledFor }
-            if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && !completed && !superseded) {
+            if (medication.active && event.scheduledFor.epochSeconds > now.epochSecond && DoseEvents.isOpen(data.doseEvents, event)) {
                 armed += armedKey(medication.medicationId, alarmId)
-                setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId, profileName))
+                val first = java.time.Instant.ofEpochSecond(original(event.scheduleId, event.scheduledFor).epochSeconds)
+                setAlarm(at.toEpochMilli(), showIntent(medication, event.scheduleId, at, PendingIntent.FLAG_UPDATE_CURRENT, alarmId, profileName, first))
             }
         }
     }
@@ -320,9 +321,9 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     fun cancel(notificationId: Int) = NotificationManagerCompat.from(context).cancel(notificationId)
 
-    private fun showIntent(medication: Medication, scheduleId: String, at: Instant, flags: Int, alarmId: String = scheduleId, profileName: String? = null): PendingIntent {
+    private fun showIntent(medication: Medication, scheduleId: String, at: Instant, flags: Int, alarmId: String = scheduleId, profileName: String? = null, original: Instant = at): PendingIntent {
         val notificationId = alarmId.hashCode()
-        return PendingIntent.getBroadcast(context, notificationId, reminderIntent(medication, scheduleId, at, alarmId, profileName), flags or PendingIntent.FLAG_IMMUTABLE)
+        return PendingIntent.getBroadcast(context, notificationId, reminderIntent(medication, scheduleId, at, alarmId, profileName, original), flags or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun cancelAlarm(medication: Medication, scheduleId: String, at: Instant, alarmId: String) {
@@ -337,7 +338,7 @@ class MedicationNotificationScheduler(private val context: Context) {
         pending.cancel()
     }
 
-    private fun reminderIntent(medication: Medication, scheduleId: String, at: Instant, alarmId: String, profileName: String? = null): Intent {
+    private fun reminderIntent(medication: Medication, scheduleId: String, at: Instant, alarmId: String, profileName: String? = null, original: Instant = at): Intent {
         val notificationId = alarmId.hashCode()
         return Intent(context, ReminderReceiver::class.java).apply {
             action = ACTION_SHOW
@@ -348,7 +349,7 @@ class MedicationNotificationScheduler(private val context: Context) {
             profileName?.let { putExtra(EXTRA_PROFILE_NAME, it) }
             putExtra(EXTRA_SCHEDULE_ID, scheduleId)
             putExtra(EXTRA_SCHEDULED_FOR, at.toEpochMilli())
-            putExtra(EXTRA_ORIGINAL_SCHEDULED_FOR, at.toEpochMilli())
+            putExtra(EXTRA_ORIGINAL_SCHEDULED_FOR, original.toEpochMilli())
             putExtra(EXTRA_NOTIFICATION_ID, notificationId)
         }
     }

@@ -32,7 +32,7 @@ data class DoseHistory(
 
 object DoseHistoryFactory {
     fun create(data: ProfileData, now: Instant, zone: TimeZone): DoseHistory {
-        val terminal = DoseEvents.collapse(data.doseEvents)
+        val terminal = DoseEvents.perDose(data.doseEvents)
             .filter { it.profileId == data.profile.profileId && DoseEvents.isTerminal(it.status) && it.scheduledFor <= now }
         fun counts(events: List<DoseEvent>, days: Int): DoseCounts {
             val start = now.minus(days, DateTimeUnit.DAY, zone)
@@ -60,7 +60,7 @@ object MissedDoses {
     fun stampLegacy(data: ProfileData, now: Instant): List<DoseSchedule> =
         data.medications.flatMap { it.schedules }.filter { it.trackedSince == null }.map { it.copy(trackedSince = now) }
 
-    /** MISSED events to record now. Only active medications; snoozed doses are judged at their snoozed time. */
+    /** MISSED events to record now. Only active medications; snoozed doses are judged at their snoozed time and [DoseEvents.merge] files the result at the original time. */
     fun pending(data: ProfileData, now: Instant, zone: TimeZone): List<DoseEvent> {
         val cutoff = Instant.fromEpochSeconds(now.epochSeconds - GRACE_SECONDS)
         val earliest = now.minus(LOOKBACK_DAYS, DateTimeUnit.DAY, zone)
@@ -70,6 +70,7 @@ object MissedDoses {
         val snoozes = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
         val superseded = snoozes.map { it.scheduleId to it.replacesScheduledFor!!.epochSeconds }.toSet()
         val snoozeTimes = snoozes.map { it.scheduledFor.epochSeconds }.toSet()
+        val original = DoseEvents.originals(data.doseEvents)
         val result = linkedMapOf<String, DoseEvent>()
 
         fun consider(medication: Medication, scheduleId: String, at: Instant) {
@@ -106,6 +107,7 @@ object MissedDoses {
         }
         snoozes.forEach { snooze ->
             val medication = data.medications.firstOrNull { it.medicationId == snooze.medicationId && it.active } ?: return@forEach
+            if ((snooze.scheduleId to original(snooze.scheduleId, snooze.scheduledFor).epochSeconds) in terminal) return@forEach
             consider(medication, snooze.scheduleId, snooze.scheduledFor)
         }
         return result.values.toList()

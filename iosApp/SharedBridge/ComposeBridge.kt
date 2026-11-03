@@ -576,7 +576,7 @@ object IosRuntime {
         }
     }
 
-    /** Future snoozes (from any path) whose dose is still open, as JSON for the native scheduler. */
+    /** Future snoozes (from any path) as JSON for the native scheduler; a closed one must not fire any more. */
     fun listPendingSnoozes(completion: (String?, NativeMessage?) -> Unit) {
         if (!initialized) {
             completion(null, nativeMessage("bridge_storage_not_ready"))
@@ -585,28 +585,24 @@ object IosRuntime {
         scope.launch {
             try {
                 val now = currentInstant()
-                val pending = repository.profiles.value.flatMap { profile ->
-                    val data = repository.peekProfile(profile.profileId)
-                    val snoozes = data.doseEvents.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null }
-                    snoozes.filter { snooze ->
-                        snooze.scheduledFor > now &&
-                            data.doseEvents.none { DoseEvents.isTerminal(it.status) && it.scheduleId == snooze.scheduleId && it.scheduledFor == snooze.scheduledFor } &&
-                            snoozes.none { it.scheduleId == snooze.scheduleId && it.replacesScheduledFor == snooze.scheduledFor }
+                val snoozes = repository.profiles.value.flatMap { profile ->
+                    val events = repository.peekProfile(profile.profileId).doseEvents
+                    val original = DoseEvents.originals(events)
+                    events.filter { it.status == DoseEventStatus.SCHEDULED && it.replacesScheduledFor != null && it.scheduledFor > now }.map {
+                        JsonObject(
+                            mapOf(
+                                "profileId" to JsonPrimitive(it.profileId),
+                                "medicationId" to JsonPrimitive(it.medicationId),
+                                "scheduleId" to JsonPrimitive(it.scheduleId),
+                                "scheduledEpochSeconds" to JsonPrimitive(it.scheduledFor.epochSeconds),
+                                "originalEpochSeconds" to JsonPrimitive(original(it.scheduleId, it.scheduledFor).epochSeconds),
+                                "open" to JsonPrimitive(DoseEvents.isOpen(events, it)),
+                            ),
+                        )
                     }
                 }
                 completion(
-                    JsonArray(
-                        pending.map {
-                            JsonObject(
-                                mapOf(
-                                    "profileId" to JsonPrimitive(it.profileId),
-                                    "medicationId" to JsonPrimitive(it.medicationId),
-                                    "scheduleId" to JsonPrimitive(it.scheduleId),
-                                    "scheduledEpochSeconds" to JsonPrimitive(it.scheduledFor.epochSeconds),
-                                ),
-                            )
-                        },
-                    ).toString(),
+                    JsonArray(snoozes).toString(),
                     null,
                 )
             } catch (error: Throwable) {

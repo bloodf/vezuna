@@ -77,6 +77,29 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(snoozed.scheduledAt.timeIntervalSince1970, snoozed.scheduledAt.timeIntervalSince1970.rounded(.down))
     }
 
+    func testASnoozeCarriesTheOriginalTimeThroughThePayloadAndASecondSnoozeDoesNotDrift() throws {
+        let planner = NotificationPlanner(calendar: calendar)
+        let original = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = planner.snooze(DoseReminder(profileId: "p", medicationId: "m", medicationName: "Aspirin", scheduleId: "s", scheduledAt: original), from: original)
+        XCTAssertNotEqual(Int(first.scheduledAt.timeIntervalSince1970) % 60, 0)
+        XCTAssertEqual(first.originalScheduledAt, original)
+        let shown = try XCTUnwrap(MedicationNotificationCoordinator.reminder(from: MedicationNotificationCoordinator.content(for: first, hidingName: true).userInfo))
+        XCTAssertEqual(shown.doseTime, original)
+        let second = planner.snooze(shown, from: first.scheduledAt)
+        XCTAssertEqual(second.doseTime, original)
+        XCTAssertNotEqual(second.scheduledAt, first.scheduledAt)
+    }
+
+    func testAPayloadFromBeforeTheUpdateRecordsAtItsShownTimeForSharedCodeToResolve() throws {
+        let at = Date(timeIntervalSince1970: 1_800_000_601)
+        let old: [AnyHashable: Any] = ["profileId": "p", "medicationId": "m", "medicationName": "Aspirin", "scheduleId": "s", "scheduledEpochSeconds": Int(at.timeIntervalSince1970)]
+        let reminder = try XCTUnwrap(MedicationNotificationCoordinator.reminder(from: old))
+        XCTAssertNil(reminder.originalScheduledAt)
+        XCTAssertEqual(reminder.doseTime, at)
+        let saved = #"{"notificationIdentifier":"n","action":"a","profileId":"p","medicationId":"m","medicationName":"x","scheduleId":"s","scheduledEpochSeconds":1,"receivedAt":0}"#
+        XCTAssertNil(try JSONDecoder().decode(PendingDoseResponse.self, from: Data(saved.utf8)).originalEpochSeconds)
+    }
+
     func testPendingResponsesSurviveARestartAndAreNotDuplicated() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("responses.json")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

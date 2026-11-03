@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEventStatus
+import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.Medication
 import app.vezuna.domain.Profile
@@ -27,6 +28,7 @@ import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -77,6 +79,53 @@ class MedicationNotificationSchedulerInstrumentedTest {
             cancelAlarm(fixture, fixture.baseAt)
             cancelAlarm(fixture, firstAt)
             cancelAlarm(fixture, secondAt)
+        }
+    }
+
+    @Test
+    fun takenFromASnoozedNotificationRecordsOneDoseAtTheOriginalTime() = runBlocking {
+        val fixture = createFixture()
+        val snoozedAt = fixture.baseAt.plusSeconds(601)
+        val kBase = kotlin.time.Instant.fromEpochSeconds(fixture.baseAt.epochSecond)
+        try {
+            app.repository.addDoseEvent(fixture.event(snoozedAt, DoseEventStatus.SCHEDULED, fixture.baseAt))
+            app.notifications.rescheduleAll(app.repository, fixture.now)
+            assertNotNull(findAlarm(fixture, snoozedAt))
+
+            // A notification posted before the update: its payload only knows the snoozed time.
+            sendTaken(fixture, snoozedAt)
+            await { app.repository.readProfile(fixture.profileId).doseEvents.any { it.status == DoseEventStatus.TAKEN } }
+            await { findAlarm(fixture, snoozedAt) == null }
+            // The same dose again, in the app.
+            app.repository.addDoseEvent(fixture.event(fixture.baseAt, DoseEventStatus.TAKEN))
+
+            val taken = app.repository.readProfile(fixture.profileId).doseEvents.filter { DoseEvents.isTerminal(it.status) }
+            assertEquals(listOf(kBase), taken.map { it.scheduledFor })
+        } finally {
+            cancelAlarm(fixture, fixture.baseAt)
+            cancelAlarm(fixture, snoozedAt)
+            app.repository.deleteProfile(fixture.profileId)
+        }
+    }
+
+    private fun sendTaken(fixture: Fixture, at: Instant) {
+        context.sendBroadcast(
+            Intent(context, DoseActionReceiver::class.java).apply {
+                action = "TAKEN"
+                putExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID, fixture.profileId)
+                putExtra(MedicationNotificationScheduler.EXTRA_MEDICATION_ID, fixture.medicationId)
+                putExtra(MedicationNotificationScheduler.EXTRA_SCHEDULE_ID, fixture.scheduleId)
+                putExtra(MedicationNotificationScheduler.EXTRA_SCHEDULED_FOR, at.toEpochMilli())
+                putExtra(MedicationNotificationScheduler.EXTRA_ORIGINAL_SCHEDULED_FOR, at.toEpochMilli())
+            },
+        )
+    }
+
+    private suspend fun await(condition: suspend () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!condition()) {
+            assertTrue("Timed out", System.currentTimeMillis() < deadline)
+            kotlinx.coroutines.delay(100)
         }
     }
 

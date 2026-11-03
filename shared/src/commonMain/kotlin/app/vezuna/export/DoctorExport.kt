@@ -239,11 +239,11 @@ object DoctorExportContent {
 
     private fun inPeriod(day: LocalDate, options: ExportOptions) = (options.from == null || day >= options.from) && (options.to == null || day <= options.to)
 
-    /** Terminal dose events of the profile inside the period, one per dose (the same collapse as the dose history screen). */
+    /** Terminal dose events of the profile inside the period, one per dose (the same view as the dose history screen). */
     fun doseRows(data: ProfileData, options: ExportOptions, zone: TimeZone): List<DoctorDoseRow> {
         val names = data.medications.filter { it.profileId == data.profile.profileId }.associate { it.medicationId to it.displayName }
         val medications = if (options.activeMedicationsOnly) data.medications.filter { it.active }.map { it.medicationId }.toSet() else names.keys
-        return DoseEvents.collapse(data.doseEvents)
+        return DoseEvents.perDose(data.doseEvents)
             .filter { it.profileId == data.profile.profileId && DoseEvents.isTerminal(it.status) && it.medicationId in medications }
             .filter { inPeriod(it.scheduledFor.toLocalDateTime(zone).date, options) }
             .sortedWith(compareBy({ it.scheduledFor }, { names[it.medicationId].orEmpty() }))
