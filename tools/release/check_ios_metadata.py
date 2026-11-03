@@ -55,6 +55,12 @@ def check(app):
     for key, value in expected.items():
         if type(info.get(key)) is not type(value) or info.get(key) != value:
             raise ValueError(f"{key}: expected {value!r}, got {info.get(key)!r}")
+    # Without a manifest naming SceneDelegate, an upgrade over a SwiftUI-`App` build restores the old saved scene
+    # session with no window (permanent black screen, #148).
+    configs = info.get("UIApplicationSceneManifest", {}).get("UISceneConfigurations", {})
+    if not any(c.get("UISceneConfigurationName") == "Default" and c.get("UISceneDelegateClassName") == "Vezuna.SceneDelegate"
+               for c in configs.get("UIWindowSceneSessionRoleApplication", [])):
+        raise ValueError("UIApplicationSceneManifest must name Vezuna.SceneDelegate under a Default configuration")
     for font in info["UIAppFonts"]:
         if not (app / font).is_file():
             raise ValueError(f"font declared but absent from bundle: {font}")
