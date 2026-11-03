@@ -347,7 +347,7 @@ class VaultBackedRepositoryStorageTest {
     }
 
     @Test
-    fun committingFiveThousandObservationsIsFastAndOnlyRewritesOneProfile() = runTest {
+    fun committingFiveThousandObservationsOnlyRewritesOneProfile() = runTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = t))
         repository.createProfile(Profile("b", "Bia", createdAt = t))
@@ -365,7 +365,7 @@ class VaultBackedRepositoryStorageTest {
         val elapsed = started.elapsedNow()
 
         assertContentEquals(otherBefore, vault.current.getValue(profileKey("b")))
-        assertTrue(profileKey("a") in vault.writes && profileKey("b") !in vault.writes, "wrote ${vault.writes}")
+        assertEquals(listOf(profileKey("a")), vault.writes)
         // Wall clock only catches a hang: this runs on shared, loaded machines. The writes above are the real guard
         // against rewriting everything. The 200 ms target (the issue's) is for a release build on a device.
         assertTrue(elapsed.inWholeSeconds < 30, "commit took $elapsed")

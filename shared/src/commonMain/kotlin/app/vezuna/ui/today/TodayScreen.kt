@@ -26,7 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -116,6 +118,8 @@ private fun StartupFailed(ctx: RouteContext) {
             illustration = Res.drawable.ill_file_error,
             title = vitaText(L10nKey.VAULT_RECOVERY_TITLE),
             body = vitaText(L10nKey.VAULT_RECOVERY_BODY_UNAVAILABLE),
+            // Announced like the ProgressState it replaces, so a screen reader hears the wait end.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             actionLabel = vitaText(L10nKey.VAULT_RECOVERY_RETRY),
             onAction = { ctx.scope.launch { ctx.controller.initialize() } },
         )
