@@ -49,7 +49,9 @@ class DashboardControllerTest {
         assertEquals(next.medicationId, snooze.medicationId)
         assertEquals(next.scheduledFor, snooze.replacesScheduledFor)
         assertTrue(snooze.scheduledFor.epochSeconds >= beforeSnooze.epochSeconds + 600)
-        assertTrue(snooze.scheduledFor.epochSeconds <= afterSnooze.epochSeconds + 600)
+        // snoozeSlot moves a snooze that would land on a whole minute forward one second.
+        assertTrue(snooze.scheduledFor.epochSeconds <= afterSnooze.epochSeconds + 601)
+        assertTrue(snooze.scheduledFor.epochSeconds % 60 != 0L)
         assertTrue(repository.readProfile("other").doseEvents.isEmpty())
     }
 
