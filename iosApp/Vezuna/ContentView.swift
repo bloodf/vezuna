@@ -49,9 +49,11 @@ struct ContentView: View {
                 ProgressView(L10n.text(.opening_storage))
             }
         }
-        // The status bar always sits on pine, continuing the root and task headers, so its text is light
-        // (UIStatusBarStyleLightContent in Vezuna-Info.plist). A zero-height band grows into the top safe area.
+        // The status bar always sits on pine, continuing the root and task headers, so its text is light.
+        // A zero-height band grows into the top safe area; the probe forces the light style, which SwiftUI would
+        // otherwise derive from the colour scheme (dark text on pine in light mode).
         .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
+        .background { LightStatusBarProbe().frame(width: 0, height: 0) }
         .task {
             IosRuntime.shared.nativeActionHandler = nativeActions
             // The fixture skips configure(), but its export preview still saves and shares through the system sheets.
@@ -140,4 +142,32 @@ struct VaultRecoveryHostView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
+/// Makes the window's root hosting controller report a light status bar. SwiftUI's `App` lifecycle offers no hook for
+/// this: Vezuna-Info.plist's `UIStatusBarStyle` is ignored by scene-based apps, so the controller's class is
+/// replaced once, in place, by a subclass that overrides `preferredStatusBarStyle`.
+private struct LightStatusBarProbe: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { Probe() }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class Probe: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard let root = window?.rootViewController else { return }
+            let base: AnyClass = type(of: root)
+            let name = "\(NSStringFromClass(base))_LightStatusBar"
+            let light: AnyClass? = NSClassFromString(name) ?? {
+                guard let created = objc_allocateClassPair(base, name, 0) else { return nil }
+                let style: @convention(block) (AnyObject) -> Int = { _ in UIStatusBarStyle.lightContent.rawValue }
+                class_addMethod(created, #selector(getter: UIViewController.preferredStatusBarStyle),
+                                imp_implementationWithBlock(style), "q@:")
+                objc_registerClassPair(created)
+                return created
+            }()
+            guard let light, !(root.isKind(of: light)) else { return }
+            object_setClass(root, light)
+            root.setNeedsStatusBarAppearanceUpdate()
+        }
+    }
 }
