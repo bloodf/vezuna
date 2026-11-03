@@ -8,12 +8,12 @@ final class ReminderPlanningTests: XCTestCase {
         return calendar
     }()
 
-    private func medication(_ id: String, profile: String, times: [String]) -> NativeMedication {
+    private func medication(_ id: String, profile: String, times: [String], startDate: String = "2026-11-01", endDate: String? = nil) -> NativeMedication {
         NativeMedication(
             medicationId: id, displayName: "Med \(id)", strength: nil, instructions: nil,
             schedules: [NativeDoseSchedule(
                 profileId: profile, scheduleId: "s-\(id)", medicationId: id, recurrence: "DAILY", intervalDays: 1,
-                daysOfWeek: [], startDate: "2026-11-01", endDate: nil, timesLocal: times
+                daysOfWeek: [], startDate: startDate, endDate: endDate, timesLocal: times
             )],
             active: true
         )
@@ -56,9 +56,7 @@ final class ReminderPlanningTests: XCTestCase {
         local.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
         // US clocks jump forward on 2026-03-08, so the second dose is 23 hours after the first, not 24.
         let start = try XCTUnwrap(local.date(from: DateComponents(year: 2026, month: 3, day: 7, hour: 6)))
-        var meds = [medication("a", profile: "p1", times: ["08:00"])]
-        meds = meds.map { NativeMedication(medicationId: $0.medicationId, displayName: $0.displayName, strength: nil, instructions: nil,
-            schedules: $0.schedules.map { NativeDoseSchedule(profileId: $0.profileId, scheduleId: $0.scheduleId, medicationId: $0.medicationId, recurrence: "DAILY", intervalDays: 1, daysOfWeek: [], startDate: "2026-03-01", endDate: nil, timesLocal: $0.timesLocal) }, active: true) }
+        let meds = [medication("a", profile: "p1", times: ["08:00"], startDate: "2026-03-01")]
         let reminders = NotificationPlanner(calendar: local).reminders(for: meds, after: start, horizonDays: 3, limit: 10)
         XCTAssertGreaterThanOrEqual(reminders.count, 2)
         XCTAssertEqual(reminders.prefix(3).map { local.component(.hour, from: $0.scheduledAt) }, [8, 8, 8])
@@ -68,11 +66,39 @@ final class ReminderPlanningTests: XCTestCase {
     func testCoverageEndsAtLastScheduledDoseWhenBudgetIsFull() {
         let planner = NotificationPlanner(calendar: calendar)
         let meds = [medication("a", profile: "p1", times: ["08:00", "12:00", "16:00", "20:00"])]
-        let full = planner.reminders(for: meds, after: now, limit: 8)
-        XCTAssertEqual(planner.coverageEnd(of: full, after: now, limit: 8), full.last?.scheduledAt)
-        let few = planner.reminders(for: meds, after: now, horizonDays: 1, limit: 60)
-        XCTAssertEqual(planner.coverageEnd(of: few, after: now, horizonDays: 1, limit: 60), calendar.date(byAdding: .day, value: 1, to: now))
+        let full = planner.plan(for: meds, after: now, limit: 8)
+        XCTAssertTrue(full.truncated)
+        XCTAssertEqual(planner.coverageEnd(of: full.reminders, after: now, truncated: full.truncated), full.reminders.last?.scheduledAt)
+        let few = planner.plan(for: meds, after: now, horizonDays: 1, limit: 60)
+        XCTAssertFalse(few.truncated)
+        XCTAssertEqual(planner.coverageEnd(of: few.reminders, after: now, horizonDays: 1, truncated: few.truncated), calendar.date(byAdding: .day, value: 1, to: now))
         XCTAssertNil(planner.coverageEnd(of: [], after: now))
+    }
+
+    func testCoverageReachesTheHorizonWhenTheScheduleEndsBeforeIt() {
+        let planner = NotificationPlanner(calendar: calendar)
+        let meds = [medication("a", profile: "p1", times: ["08:00"], endDate: "2026-11-06")]
+        let plan = planner.plan(for: meds, after: now, horizonDays: 14, limit: 60)
+        XCTAssertEqual(plan.reminders.count, 6)
+        XCTAssertFalse(plan.truncated)
+        XCTAssertEqual(planner.coverageEnd(of: plan.reminders, after: now, horizonDays: 14, truncated: plan.truncated), calendar.date(byAdding: .day, value: 14, to: now))
+    }
+
+    func testExactlyFullBudgetOnAScheduleThatEndsIsNotTruncated() {
+        let planner = NotificationPlanner(calendar: calendar)
+        // 6 doses a day for 10 days is exactly the 60-notification budget.
+        let meds = [medication("a", profile: "p1", times: ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00"], endDate: "2026-11-10")]
+        let plan = planner.plan(for: meds, after: now, horizonDays: 14, limit: 60)
+        XCTAssertEqual(plan.reminders.count, 60)
+        XCTAssertFalse(plan.truncated)
+        XCTAssertEqual(planner.coverageEnd(of: plan.reminders, after: now, horizonDays: 14, truncated: plan.truncated), calendar.date(byAdding: .day, value: 14, to: now))
+    }
+
+    func testOneDoseOverTheBudgetIsTruncated() {
+        let planner = NotificationPlanner(calendar: calendar)
+        let meds = [medication("a", profile: "p1", times: ["07:00", "09:00", "11:00", "13:00", "15:00", "17:00"], endDate: "2026-11-10")]
+        let plan = planner.plan(for: meds, after: now, horizonDays: 14, limit: 59)
+        XCTAssertTrue(plan.truncated)
     }
 
     func testPrivacyModeAndSnoozeChangeTheRequestIdentifier() {

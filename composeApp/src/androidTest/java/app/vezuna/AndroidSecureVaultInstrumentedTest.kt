@@ -101,7 +101,7 @@ class AndroidSecureVaultInstrumentedTest {
     }
 
     @Test
-    fun foreignAlgorithmOrKeyIdIsRejectedWithoutTouchingTheKey() {
+    fun foreignAlgorithmOrKeyIdIsRejectedAsCorrupt() {
         val envelope = runBlocking { vault.encrypt(plain, aad) }
         assertEquals(VaultFailure.CORRUPT, failureOf { vault.decrypt(envelope.copy(algorithm = "AES-128-CBC")) })
         assertEquals(VaultFailure.CORRUPT, failureOf { vault.decrypt(envelope.copy(keyId = "someone-else")) })
@@ -110,11 +110,11 @@ class AndroidSecureVaultInstrumentedTest {
     @Test
     fun keySurvivesANewVaultInstance() = runBlocking {
         val envelope = vault.encrypt(plain, aad)
-        assertArrayEquals(plain, AndroidSecureVault(File(context.cacheDir, "other-${UUID.randomUUID()}")).decrypt(envelope, aad))
+        assertArrayEquals(plain, AndroidSecureVault(dir).decrypt(envelope, aad))
     }
 
     @Test
-    fun concurrentFirstUseAllSharesOneKey() {
+    fun concurrentUseOfOneKeyFromManyInstancesAlwaysDecrypts() {
         val threads = 16
         val pool = Executors.newFixedThreadPool(threads)
         val ready = CountDownLatch(threads)
@@ -130,7 +130,7 @@ class AndroidSecureVaultInstrumentedTest {
             assertTrue(ready.await(10, TimeUnit.SECONDS))
             go.countDown()
             val envelopes = futures.map { it.get(30, TimeUnit.SECONDS) }
-            // One key means every envelope opens with a fresh instance; competing keys would fail here.
+            // Not a cold-start race proof: the alias normally exists already. It only shows concurrent users share one key.
             envelopes.forEach { assertArrayEquals(plain, runBlocking { vault.decrypt(it, aad) }) }
         } finally {
             pool.shutdownNow()
@@ -200,6 +200,8 @@ class AndroidSecureVaultInstrumentedTest {
         assertNotNull(dir.listFiles { f -> f.isDirectory }?.firstOrNull())
     }
 
+    // Not proven here: a missing alias mapping to KEY_INVALIDATED and discarding an invalidated key need a Keystore
+    // entry the test may not destroy (the app shares it). Only the healthy path is covered; #106 stays open for those.
     @Test
     fun healthyKeyIsNotDiscarded() = runBlocking {
         val envelope = vault.encrypt(plain, aad)

@@ -1,5 +1,6 @@
 package app.vezuna
 
+import app.vezuna.ui.CoverageLevel
 import app.vezuna.ui.ReminderPlatformState
 import kotlin.time.Instant
 import kotlin.test.Test
@@ -23,16 +24,27 @@ class ReminderPlatformStateTest {
         assertTrue(ReminderPlatformState(hideMedicationNames = true).hideMedicationNames.value)
     }
 
+    private val now = Instant.parse("2026-11-01T12:00:00Z")
+
     @Test
-    fun coverageIsLowUnderFourteenDays() {
-        val now = Instant.parse("2026-11-01T12:00:00Z")
-        assertTrue(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-15T11:59:59Z"), now))
-        assertFalse(ReminderPlatformState.isCoverageLow(Instant.parse("2026-11-15T12:00:00Z"), now))
+    fun coverageOfFourteenDaysOrMoreNeedsNoNote() {
+        assertEquals(CoverageLevel.OK, ReminderPlatformState.coverageLevel(Instant.parse("2026-11-15T12:00:00Z"), now))
+    }
+
+    @Test
+    fun coverageUnderFourteenDaysIsOnlyAnInformationalNote() {
+        assertEquals(CoverageLevel.SHORT, ReminderPlatformState.coverageLevel(Instant.parse("2026-11-15T11:59:59Z"), now))
+        assertEquals(CoverageLevel.SHORT, ReminderPlatformState.coverageLevel(Instant.parse("2026-11-04T12:00:00Z"), now))
+    }
+
+    @Test
+    fun coverageUnderThreeDaysIsUrgent() {
+        assertEquals(CoverageLevel.URGENT, ReminderPlatformState.coverageLevel(Instant.parse("2026-11-04T11:59:59Z"), now))
+        assertEquals(CoverageLevel.URGENT, ReminderPlatformState.coverageLevel(Instant.parse("2026-10-31T12:00:00Z"), now))
     }
 
     @Test
     fun noCoverageIsReportedUntilThePlatformSetsIt() {
-        // Android never schedules a limited window, so it never sets coverage and so never shows the low-coverage warning.
         assertEquals(null, ReminderPlatformState().coverageUntil.value)
     }
 }
