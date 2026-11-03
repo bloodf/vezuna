@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Optional: runs connectedDebugAndroidTest when an emulator/device is attached.
-# Exit codes: 0 = ran and passed, 1 = tests failed or ambiguous device choice, 2 = SKIPPED (no device; NOT a pass).
+# Exit codes: 0 = ran and passed, 1 = tests failed or ambiguous device choice, 2 = SKIPPED (no device; NOT a pass). Prints ANDROID_DEVICE_CHECK_PASSED or ANDROID_DEVICE_CHECK_FAILED. Refuses emulator-5554.
 # Honors ANDROID_SERIAL=<id>. With several devices attached and no ANDROID_SERIAL it fails and lists them.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,6 +19,10 @@ elif [[ ${#DEVICES[@]} -gt 1 ]]; then
   echo "Multiple devices attached: ${DEVICES[*]}. Set ANDROID_SERIAL=<id> to choose one." >&2
   exit 1
 fi
+if [[ "${ANDROID_SERIAL:-}" == emulator-5554 || ( -z "${ANDROID_SERIAL:-}" && "${DEVICES[0]}" == emulator-5554 ) ]]; then
+  echo "ANDROID_DEVICE_CHECK_FAILED: refusing emulator-5554 (reserved for manual use). Set ANDROID_SERIAL to another device." >&2
+  exit 1
+fi
 # Emulator prep (target device only): system ANR dialogs and animations break UiAutomator tests on a loaded host.
 TARGET="${ANDROID_SERIAL:-${DEVICES[0]}}"
 if [[ "$TARGET" == emulator-* ]]; then
@@ -26,6 +30,9 @@ if [[ "$TARGET" == emulator-* ]]; then
   adb -s "$TARGET" shell settings put global hide_error_dialogs 1 || true
   adb -s "$TARGET" shell pm disable-user --user 0 com.google.android.gms >/dev/null 2>&1 || true
 fi
+export ANDROID_SERIAL="$TARGET"
+trap 'rc=$?; [[ $rc -ne 0 ]] && echo "ANDROID_DEVICE_CHECK_FAILED" >&2' EXIT
 "$ROOT/gradlew" -p "$ROOT" :composeApp:connectedDebugAndroidTest --console=plain
 python3 "$ROOT/tools/localization/check_test_results.py" --instrumentation
+trap - EXIT
 echo "ANDROID_DEVICE_CHECK_PASSED"
