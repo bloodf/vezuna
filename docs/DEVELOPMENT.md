@@ -49,6 +49,8 @@ bash scripts/check-android-device.sh # connectedDebugAndroidTest if adb sees a d
 
 `check-all.sh` also enforces the Kover coverage gate: 80% line coverage over `app.vezuna.domain`, `data`, `importer`, `export` and `health` (UI, Compose, serializers and Android platform glue excluded; see `shared/build.gradle.kts`). Run it alone with `./gradlew :shared:koverVerify`; the HTML report is `./gradlew :shared:koverHtmlReport` (`shared/build/reports/kover/html`).
 
+`:composeApp:koverVerify` also runs in `check-all.sh` over the Android shell's JVM unit tests (Composables and generated code excluded). It measured 11.5% line coverage, so the gate is a regression floor of 11%, not a target; most shell code is Activities and platform glue reached only by instrumented tests. Report: `./gradlew :composeApp:koverHtmlReport`.
+
 `check-all.sh` builds the release variant with a throwaway keystore, because release signing is required by design. Never use a real key there.
 
 iOS XCTest suite (run the build first; it produces the shared framework):
