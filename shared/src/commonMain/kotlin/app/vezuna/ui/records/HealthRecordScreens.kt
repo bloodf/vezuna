@@ -147,7 +147,7 @@ private fun onsetText(onset: PartialDate): String = when {
     else -> formatUiDate(LocalDate(onset.year, onset.month, onset.day).atNoonUtc())
 }
 
-private fun severityKey(value: AllergySeverity) = when (value) {
+internal fun severityKey(value: AllergySeverity) = when (value) {
     AllergySeverity.MILD -> L10nKey.HR_SEVERITY_MILD
     AllergySeverity.MODERATE -> L10nKey.HR_SEVERITY_MODERATE
     AllergySeverity.SEVERE -> L10nKey.HR_SEVERITY_SEVERE

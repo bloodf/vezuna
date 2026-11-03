@@ -8,6 +8,26 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 private val stringResources = mapOf<L10nKey, StringResource>(
+    L10nKey.EM_TITLE to Res.string.em_title,
+    L10nKey.EM_MORE_SUB to Res.string.em_more_sub,
+    L10nKey.EM_INTRO to Res.string.em_intro,
+    L10nKey.EM_BORN to Res.string.em_born,
+    L10nKey.EM_BORN_AGE to Res.string.em_born_age,
+    L10nKey.EM_ALLERGIES to Res.string.em_allergies,
+    L10nKey.EM_CONDITIONS to Res.string.em_conditions,
+    L10nKey.EM_MEDICATIONS to Res.string.em_medications,
+    L10nKey.EM_NONE_ALLERGIES to Res.string.em_none_allergies,
+    L10nKey.EM_NONE_CONDITIONS to Res.string.em_none_conditions,
+    L10nKey.EM_NONE_MEDICATIONS to Res.string.em_none_medications,
+    L10nKey.EM_EMPTY_TITLE to Res.string.em_empty_title,
+    L10nKey.EM_EMPTY_BODY to Res.string.em_empty_body,
+    L10nKey.EM_CARD_A11Y to Res.string.em_card_a11y,
+    L10nKey.EM_PHONE_TITLE to Res.string.em_phone_title,
+    L10nKey.EM_PHONE_ANDROID to Res.string.em_phone_android,
+    L10nKey.EM_PHONE_IOS to Res.string.em_phone_ios,
+    L10nKey.EM_PHONE_OPEN_ANDROID to Res.string.em_phone_open_android,
+    L10nKey.EM_PHONE_OPEN_IOS to Res.string.em_phone_open_ios,
+    L10nKey.MORE_EMERGENCY to Res.string.more_emergency,
     // Health records (#96)
     L10nKey.HR_SECTION to Res.string.hr_section,
     L10nKey.HR_ALLERGIES to Res.string.hr_allergies,

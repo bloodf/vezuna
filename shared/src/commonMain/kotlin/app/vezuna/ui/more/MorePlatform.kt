@@ -32,6 +32,10 @@ object MorePlatform {
     var openLanguageSettings: (() -> Unit)? = null
     var openUrl: ((String) -> Unit)? = null
 
+    /** Opens the phone's own emergency info (Android settings, Health app on iOS); null when the platform cannot, so the card shows steps only. */
+    var openEmergencyInfo: (() -> Unit)? = null
+    var phoneIsIos: Boolean = false
+
     fun restoreTheme(mode: ThemeMode) {
         themeMode = mode
     }

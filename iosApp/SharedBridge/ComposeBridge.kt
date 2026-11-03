@@ -843,6 +843,8 @@ private fun installMorePlatformIos() {
         }
     }
     app.vezuna.ui.more.MorePlatform.openUrl = ::open
+    app.vezuna.ui.more.MorePlatform.phoneIsIos = true
+    app.vezuna.ui.more.MorePlatform.openEmergencyInfo = { open("x-apple-health://") }
     app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
 }
 

@@ -1343,4 +1343,26 @@ iOS: %2$s</string>
         <item quantity="one">%1$d documento</item>
         <item quantity="other">%1$d documentos</item>
     </plurals>
+    <!-- Emergency card (#102) -->
+    <string name="em_title">Tarjeta de emergencia</string>
+    <string name="em_more_sub">Alergias, afecciones y medicamentos de un vistazo</string>
+    <string name="em_intro">Un resumen de solo lectura de lo registrado para %1$s. Se queda en este dispositivo y no aparece en la pantalla de bloqueo.</string>
+    <string name="em_born">Nacimiento: %1$s</string>
+    <string name="em_born_age">Nacimiento: %1$s (%2$d años)</string>
+    <string name="em_allergies">Alergias</string>
+    <string name="em_conditions">Afecciones en curso</string>
+    <string name="em_medications">Medicamentos actuales</string>
+    <string name="em_none_allergies">No hay alergias registradas. Eso no significa que no existan.</string>
+    <string name="em_none_conditions">No hay afecciones en curso registradas.</string>
+    <string name="em_none_medications">No hay medicamentos activos registrados.</string>
+    <string name="em_empty_title">Aún no hay nada registrado</string>
+    <string name="em_empty_body">No se ha registrado nada para %1$s. Eso no significa que no haya alergias, afecciones ni medicamentos.</string>
+    <string name="em_card_a11y">Tarjeta de emergencia de %1$s</string>
+    <string name="em_phone_title">La información de emergencia del teléfono</string>
+    <string name="em_phone_android">Los servicios de emergencia acceden a la Información de emergencia desde la pantalla de bloqueo. Puedes copiar estos datos en Ajustes &gt; Seguridad y emergencia.</string>
+    <string name="em_phone_ios">Los servicios de emergencia acceden a la Ficha médica desde la pantalla de bloqueo. Puedes copiar estos datos en la app Salud: foto de perfil &gt; Ficha médica.</string>
+    <string name="em_phone_open_android">Abrir los ajustes de información de emergencia</string>
+    <string name="em_phone_open_ios">Abrir la app Salud</string>
+    <string name="more_emergency">Tarjeta de emergencia</string>
+    <!-- /Emergency card -->
 </resources>

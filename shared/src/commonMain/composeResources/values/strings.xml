@@ -1343,4 +1343,26 @@ iOS: %2$s</string>
         <item quantity="one">%1$d document</item>
         <item quantity="other">%1$d documents</item>
     </plurals>
+    <!-- Emergency card (#102) -->
+    <string name="em_title">Emergency card</string>
+    <string name="em_more_sub">Allergies, conditions and medications at a glance</string>
+    <string name="em_intro">A read-only summary of what is recorded for %1$s. It stays on this device and is not shown on the lock screen.</string>
+    <string name="em_born">Born %1$s</string>
+    <string name="em_born_age">Born %1$s (%2$d years old)</string>
+    <string name="em_allergies">Allergies</string>
+    <string name="em_conditions">Ongoing conditions</string>
+    <string name="em_medications">Current medications</string>
+    <string name="em_none_allergies">No allergies recorded. This does not mean there are none.</string>
+    <string name="em_none_conditions">No ongoing conditions recorded.</string>
+    <string name="em_none_medications">No active medications recorded.</string>
+    <string name="em_empty_title">Nothing recorded yet</string>
+    <string name="em_empty_body">Nothing has been recorded for %1$s. This does not mean there are no allergies, conditions or medications.</string>
+    <string name="em_card_a11y">Emergency card for %1$s</string>
+    <string name="em_phone_title">Your phone's emergency info</string>
+    <string name="em_phone_android">Responders can reach Emergency information from the lock screen. You can copy these details into it under Settings > Safety &amp; emergency.</string>
+    <string name="em_phone_ios">Responders can reach Medical ID from the lock screen. You can copy these details into it in the Health app: profile picture > Medical ID.</string>
+    <string name="em_phone_open_android">Open emergency information settings</string>
+    <string name="em_phone_open_ios">Open the Health app</string>
+    <string name="more_emergency">Emergency card</string>
+    <!-- /Emergency card -->
 </resources>

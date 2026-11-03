@@ -26,6 +26,11 @@ internal fun installMorePlatform(context: Context) {
             start(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null)))
         if (!appLocale) start(Intent(Settings.ACTION_LOCALE_SETTINGS))
     }
+    MorePlatform.openEmergencyInfo = {
+        fun start(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+        // No public action for this screen; where the OEM does not handle it, fall back to the top-level settings.
+        if (!start(Intent("android.settings.EDIT_EMERGENCY_INFO"))) start(Intent(Settings.ACTION_SETTINGS))
+    }
     MorePlatform.openUrl = { url ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }

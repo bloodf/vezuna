@@ -54,4 +54,7 @@ object MoreRoutes {
 
     @Composable
     fun Help(ctx: RouteContext) = HelpScreen(ctx)
+
+    @Composable
+    fun EmergencyCard(ctx: RouteContext) = EmergencyCardScreen(ctx)
 }
