@@ -33,7 +33,7 @@ final class PdfExportTests: XCTestCase {
                 selectedFrom: nil, selectedTo: nil, availableFirst: nil, availableLast: nil, excludedUnreviewed: 3, medicationsIncluded: true,
                 labsIncluded: true, doseHistoryIncluded: false, deviceIncluded: false, deviceLastSync: nil, sourceAppendixIncluded: false
             ),
-            family: .labHistory, doseRows: [], deviceRows: [], sourceRows: []
+            family: .labHistory, doseRows: [], deviceRows: [], sourceRows: [], allergies: [], conditions: [], vaccinations: []
         )
     }
 
