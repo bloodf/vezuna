@@ -81,7 +81,10 @@ fun ListRow(
     trailing: (@Composable () -> Unit)? = null,
     showChevron: Boolean = onClick != null,
     enabled: Boolean = true,
+    /** Puts a wide [trailing] tag under the text from font scale 1.3 so the name keeps its width. */
+    stackTrailing: Boolean = false,
 ) {
+    val stacked = stackTrailing && trailing != null && LocalDensity.current.fontScale >= 1.3f
     // One focus stop per row: clickable merges its children; a static row merges explicitly.
     val clickable = if (onClick != null) {
         Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -111,8 +114,9 @@ fun ListRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
             supporting?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (stacked) Box(Modifier.padding(top = VezunaTokens.SpaceXs)) { trailing?.invoke() }
         }
-        trailing?.invoke()
+        if (!stacked) trailing?.invoke()
         if (showChevron) {
             Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
