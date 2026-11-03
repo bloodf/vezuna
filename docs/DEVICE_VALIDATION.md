@@ -14,7 +14,7 @@ Record before starting, in the results table at the end:
 
 ## Emulator runs (instrumented tests)
 
-`scripts/check-android-device.sh` runs `connectedDebugAndroidTest`. On an emulator it first sets `hide_error_dialogs=1`, the three animation scales to 0 and disables Google Play services (target `ANDROID_SERIAL` only), because a loaded host produces "Process system isn't responding" dialogs that cover the app and fail unrelated UI tests. Wait for `sys.boot_completed` plus a short idle after boot. `LocalLlmInstrumentedTest` is skipped (and reported) unless `tools/release/stage_smoke_model.py` staged the smoke model; never commit `models/`.
+`ANDROID_SERIAL=<id> scripts/check-android-device.sh` runs `connectedDebugAndroidTest`, refuses `emulator-5554` and prints `ANDROID_DEVICE_CHECK_PASSED` or `ANDROID_DEVICE_CHECK_FAILED` (it needs a device, so `check-all.sh` does not run it). On an emulator it first sets `hide_error_dialogs=1`, the three animation scales to 0 and disables Google Play services (target `ANDROID_SERIAL` only), because a loaded host produces "Process system isn't responding" dialogs that cover the app and fail unrelated UI tests. Wait for `sys.boot_completed` plus a short idle after boot. `LocalLlmInstrumentedTest` is skipped (and reported) unless `tools/release/stage_smoke_model.py` staged the smoke model; never commit `models/`.
 
 ## 1. Notifications and reminders (blocker)
 

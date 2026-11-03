@@ -69,7 +69,8 @@ class AppLaunchInstrumentedTest {
     /** Today's profile chip opens the switcher sheet; its last row leads to More > Profiles. */
     private fun openManageProfiles(device: UiDevice) {
         device.wait(Until.findObject(By.descContains("Switch profile")), 5_000).click()
-        device.wait(Until.findObject(By.text("Manage profiles")), 5_000).click()
+        // With many profiles the sheet scrolls, so the last row is below the fold.
+        device.scrollAndTapText("Manage profiles")
         assertTrue("Profiles page did not open", device.wait(Until.hasObject(By.text("New profile name")), 5_000))
     }
 }

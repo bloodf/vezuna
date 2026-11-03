@@ -24,13 +24,15 @@ class PrivacyPolicyInstrumentedTest {
     fun policyOpensFromMoreAndReturns() {
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales en-US")
         ActivityScenario.launch(AndroidMainActivity::class.java).use {
-            assertTrue(device.wait(Until.hasObject(By.textContains("Household")), 15_000))
-            device.findObject(By.text("More").clickable(true)).click()
-            assertTrue(device.wait(Until.hasObject(By.text("Privacy policy")), 5_000))
-            device.findObject(By.text("Privacy policy").clickable(true)).click()
+            assertTrue(device.awaitToday())
+            device.tapText("More")
+            device.tapText("Privacy and app lock")
+            device.tapText("Privacy policy")
+            // The in-app page offers the packaged policy through its button.
+            device.tapText("Privacy policy")
             assertPolicyVisible()
             device.findObject(By.text("Close")).click()
-            assertTrue(device.wait(Until.hasObject(By.text("Privacy policy")), 5_000))
+            assertTrue(device.awaitText("Privacy policy"))
         }
     }
 

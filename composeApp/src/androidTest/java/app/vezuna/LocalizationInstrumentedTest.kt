@@ -4,9 +4,7 @@ import android.content.res.Configuration
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.Until
 import java.io.File
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -44,9 +42,9 @@ class LocalizationInstrumentedTest {
     fun portugueseSpanishEnglishFallbackRecreationAndLargeTextNavigate() {
         var scenario: ActivityScenario<AndroidMainActivity>? = null
         try {
-            verifyLanguage("pt-BR", "Família", "Ajustes", "Ajustes e exportação", "Cuidados", "Medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("es-ES", "Hogar", "Ajustes", "Ajustes y exportación", "Cuidados", "Medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("fr-FR", "Household", "Settings", "Settings & export", "Care", "Medications", scenario = null) { scenario = it }
+            verifyLanguage("pt-BR", "Hoje", "Mais", "Ajustes e preferências", "Cuidados", "Agenda de medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("es-ES", "Hoy", "Más", "Ajustes y preferencias", "Cuidados", "Horario de medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("fr-FR", "Today", "More", "Settings and preferences", "Care", "Medication schedule", scenario = null) { scenario = it }
             println("LOCALE_NAVIGATION_RECREATION_LARGE_TEXT_PASSED")
         } finally {
             scenario?.close()
@@ -57,32 +55,30 @@ class LocalizationInstrumentedTest {
 
     private fun verifyLanguage(
         tag: String,
-        homeMarker: String,
-        settings: String,
-        settingsTitle: String,
+        todayTab: String,
+        moreTab: String,
+        moreSubtitle: String,
         careTab: String,
-        medicationsTitle: String,
+        careSubtitle: String,
         scenario: ActivityScenario<AndroidMainActivity>?,
         assign: (ActivityScenario<AndroidMainActivity>) -> Unit,
     ) {
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales $tag")
-        var current = scenario ?: ActivityScenario.launch(AndroidMainActivity::class.java).also(assign)
-        assertTrue("Home did not render for $tag", device.wait(Until.hasObject(By.textContains(homeMarker)), 15_000))
+        val current = scenario ?: ActivityScenario.launch(AndroidMainActivity::class.java).also(assign)
+        assertTrue("Home did not render for $tag", device.awaitToday(todayTab))
         capture("localization-$tag-home.png")
-        device.findObjects(By.desc(settings)).first().click()
-        assertTrue(device.wait(Until.hasObject(By.text(settingsTitle)), 5_000))
+        device.tapText(moreTab)
+        assertTrue(device.awaitText(moreSubtitle))
         current.recreate()
-        // The session is retained across recreation, so the selected Settings screen stays, in the same language.
-        assertTrue("Recreation lost $tag", device.wait(Until.hasObject(By.text(settingsTitle)), 10_000))
-        device.findObjects(By.desc(settings)).first().click()
-        assertTrue(device.wait(Until.hasObject(By.text(settingsTitle)), 5_000))
-        device.findObject(By.text(careTab).clickable(true)).click()
-        assertTrue(device.wait(Until.hasObject(By.text(medicationsTitle)), 5_000))
+        // The session is retained across recreation, so the selected More page stays, in the same language.
+        assertTrue("Recreation lost $tag", device.awaitText(moreSubtitle, 10_000))
+        device.tapText(careTab)
+        assertTrue(device.awaitText(careSubtitle, 5_000))
         device.executeShellCommand("settings put system font_scale 1.3")
         device.waitForIdle()
-        assertTrue("Large text broke $tag", device.wait(Until.hasObject(By.text(medicationsTitle)), 10_000))
-        device.findObject(By.text(careTab).clickable(true)).click()
-        assertTrue(device.wait(Until.hasObject(By.text(medicationsTitle)), 5_000))
+        assertTrue("Large text broke $tag", device.awaitText(careSubtitle, 10_000))
+        device.tapText(careTab)
+        assertTrue(device.awaitText(careSubtitle, 5_000))
         capture("localization-$tag-large-text.png")
         device.executeShellCommand("settings put system font_scale 1.0")
         current.close()

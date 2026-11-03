@@ -138,7 +138,7 @@ class DashboardDataInstrumentedTest {
             scenario.onActivity { activity ->
                 runBlocking { activity.controller.switchProfile(profileId) }
             }
-            assertTrue(device.wait(Until.hasObject(By.textContains("Dashboard QA")), 15_000))
+            assertTrue(device.wait(Until.hasObject(By.descContains("Dashboard QA")), 15_000))
             assertTrue(device.wait(Until.hasObject(By.text(medicationName)), 15_000))
             val directory = context.getExternalFilesDir(null)!!
             device.takeScreenshot(java.io.File(directory, "dashboard-populated.png"))
@@ -189,7 +189,13 @@ class DashboardDataInstrumentedTest {
             scenario.close()
             val emptyScenario = ActivityScenario.launch(AndroidMainActivity::class.java)
             try {
-                assertTrue("Empty profile did not become active", device.wait(Until.hasObject(By.text(emptyName)), 10_000))
+                // The selected profile is remembered: a profile created behind the app's back does not take over.
+                assertTrue("Selected profile was not restored", device.wait(Until.hasObject(By.descContains("Dashboard QA")), 10_000))
+                emptyScenario.onActivity { activity ->
+                    runBlocking { activity.controller.switchProfile("dashboard-empty-$suffix") }
+                }
+                assertTrue("Empty profile did not become active", device.wait(Until.hasObject(By.descContains(emptyName)), 10_000))
+                assertTrue("Other profile's medication leaked into the empty profile", !device.hasObject(By.text(medicationName)))
             } finally {
                 emptyScenario.close()
             }
