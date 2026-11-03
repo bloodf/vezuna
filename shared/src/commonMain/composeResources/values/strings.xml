@@ -389,7 +389,8 @@ iOS: %2$s</string>
     <string name="backup_restored_without_vitals">Backup restored, but the device health data could not be restored</string>
     <!-- reminders lane -->
     <string name="reminders_scheduled_until">Reminders scheduled until %1$s</string>
-    <string name="reminders_coverage_low">Reminders cover fewer than 3 days. Open Vezuna to schedule more.</string>
+    <string name="reminders_coverage_low">iOS limits how many reminders can wait at once, so Vezuna schedules the next ones each time you open it. Nothing is broken.</string>
+    <string name="reminders_coverage_urgent">Reminders run out in less than 3 days. Open Vezuna now to schedule more.</string>
     <string name="exact_alarms_off_title">Reminders may arrive late</string>
     <string name="exact_alarms_off_explanation">Exact alarms are off, so Android may delay dose reminders to save battery. Allow alarms and reminders for Vezuna in system settings to get them on time.</string>
     <string name="open_alarm_settings">Open alarm settings</string>

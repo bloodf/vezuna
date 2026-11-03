@@ -371,6 +371,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     // reminders lane
     L10nKey.REMINDERS_SCHEDULED_UNTIL to Res.string.reminders_scheduled_until,
     L10nKey.REMINDERS_COVERAGE_LOW to Res.string.reminders_coverage_low,
+    L10nKey.REMINDERS_COVERAGE_URGENT to Res.string.reminders_coverage_urgent,
     L10nKey.EXACT_ALARMS_OFF_TITLE to Res.string.exact_alarms_off_title,
     L10nKey.EXACT_ALARMS_OFF_EXPLANATION to Res.string.exact_alarms_off_explanation,
     L10nKey.OPEN_ALARM_SETTINGS to Res.string.open_alarm_settings,

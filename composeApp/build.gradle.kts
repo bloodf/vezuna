@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jetbrains.compose") version "1.12.2"
+    alias(libs.plugins.kover)
 }
 
 val lvlPublicKey = providers.gradleProperty("VEZUNA_LVL_PUBLIC_KEY")
@@ -145,3 +146,20 @@ tasks.configureEach {
 
 // Proves streaming model installs never need a model-sized heap.
 tasks.withType<Test>().configureEach { maxHeapSize = "512m" }
+
+// Coverage of the Android shell (JVM unit tests only; instrumented tests are not measured). UI and generated code are excluded.
+kover {
+    reports {
+        filters {
+            excludes {
+                annotatedBy("androidx.compose.runtime.Composable")
+                classes("*.BuildConfig", "*.R", "*.R\$*", "*ComposableSingletons*", "*\$\$serializer")
+            }
+        }
+        // Measured 11.5% line coverage on 2026-11-02: most of the shell is Activities and platform glue that only instrumented
+        // tests reach. The floor stops regressions; raise it as JVM tests are added. The 80% gate stays on :shared domain/data.
+        verify {
+            rule { minBound(11) }
+        }
+    }
+}
