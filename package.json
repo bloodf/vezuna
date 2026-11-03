@@ -8,6 +8,6 @@
     "submit:ios": "eas submit --platform ios --profile production --path"
   },
   "devDependencies": {
-    "eas-cli": "27.3.0"
+    "eas-cli": "27.4.0"
   }
 }
