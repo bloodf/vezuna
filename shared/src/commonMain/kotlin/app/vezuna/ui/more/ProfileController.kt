@@ -9,6 +9,7 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import app.vezuna.platform.currentInstant
 import app.vezuna.platform.randomId
+import app.vezuna.ui.AppScreen
 import app.vezuna.ui.ControllerCore
 import kotlinx.datetime.LocalDate
 
@@ -17,12 +18,19 @@ internal class ProfileController(
     private val modelManager: InstalledModelManager,
     /** Clears everything bound to the previous profile; see AppController. */
     private val onProfileChanged: () -> Unit,
+    /** Reports a failure that is otherwise absorbed; the platform decides where it is logged. */
+    private val warn: (String, Throwable) -> Unit = { _, _ -> },
 ) {
     private val repository get() = core.repository
     private val state get() = core.mutableState
 
     /** Set only by the Welcome screen's Restore; memory-only so a relaunch before the restore safely drops it. */
     private var firstRunRestoreProfileId: String? = null
+
+    /** The first-run restore is only armed while the person stays on the Backups route; anything else disarms it. */
+    fun onRouteChanged(current: AppScreen) {
+        if (current != AppScreen.Backups) firstRunRestoreProfileId = null
+    }
 
     /** Welcome > Restore: ends onboarding and remembers the only profile (the auto-created default) as removable after a successful restore. */
     fun startFirstRunRestore() {
@@ -48,11 +56,13 @@ internal class ProfileController(
                 me.vitals.lastSync == null && repository.explicitHealthLinkId() != defaultId
             if (!untouched) return
             repository.deleteProfile(defaultId)
-            state.value = state.value.copy(profiles = repository.profiles.value, healthLinkedProfileId = repository.linkedHealthProfileId())
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             throw cancelled
         } catch (failed: Exception) {
             // The restore already succeeded; a failed cleanup just keeps the default profile.
+            warn("First-run restore could not remove the untouched default profile", failed)
+        } finally {
+            state.value = state.value.copy(profiles = repository.profiles.value, healthLinkedProfileId = repository.linkedHealthProfileId())
         }
     }
 

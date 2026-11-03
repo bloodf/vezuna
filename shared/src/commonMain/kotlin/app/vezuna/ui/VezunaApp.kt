@@ -146,7 +146,7 @@ fun VezunaApp(
 ) {
     val llm = remember { llamatikLocalLlm() }
     val controller = remember(repository, modelFiles, catalog) {
-        AppController(repository, InstalledModelManager(catalog, modelFiles, llm), LocalHealthChat(repository, llm))
+        AppController(repository, InstalledModelManager(catalog, modelFiles, llm), LocalHealthChat(repository, llm), warn = { message, error -> println("Vezuna: $message (${error::class.simpleName})") })
     }
     val scope = rememberCoroutineScope()
     LaunchedEffect(controller) { controller.initialize() }
