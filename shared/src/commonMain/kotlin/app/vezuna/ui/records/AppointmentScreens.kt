@@ -77,6 +77,11 @@ internal fun AppointmentListScreen(ctx: RouteContext) {
             if (data.appointments.isEmpty()) {
                 EmptyState(Res.drawable.ill_record_empty, vitaText(L10nKey.APPT_EMPTY_TITLE), vitaText(L10nKey.APPT_EMPTY_BODY), actionLabel = vitaText(L10nKey.APPT_ADD), onAction = add)
             } else {
+                val access by (ctx.reminders?.notificationAccess ?: remember { MutableStateFlow(NotificationAccess.UNKNOWN) }).collectAsState()
+                if (access == NotificationAccess.DENIED && upcoming.any { it.reminderMinutesBefore != null }) {
+                    Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    ctx.reminders?.openNotificationSettings?.let { TertiaryButton(vitaText(L10nKey.CARE_OPEN_DEVICE_SETTINGS), it) }
+                }
                 if (upcoming.isNotEmpty()) AppointmentRows(ctx, vitaText(L10nKey.APPT_UPCOMING), upcoming)
                 if (past.isNotEmpty()) AppointmentRows(ctx, vitaText(L10nKey.APPT_PAST), past)
                 PrimaryButton(vitaText(L10nKey.APPT_ADD), add, Modifier.fillMaxWidth(), icon = Res.drawable.ic_plus)

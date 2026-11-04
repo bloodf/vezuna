@@ -34,6 +34,13 @@ class NotificationScheduleLogicTest {
     }
 
     @Test
+    fun aVisitReminderIsNotShownOnceTheVisitHasStarted() {
+        assertTrue(NotificationScheduleLogic.isAppointmentReminderDue(2_000L, 1_999L))
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderDue(2_000L, 2_000L))
+        assertFalse(NotificationScheduleLogic.isAppointmentReminderDue(2_000L, 9_000L))
+    }
+
+    @Test
     fun aDeliveredVisitReminderIsPrunedWhenItsAppointmentIsGoneMovedOrSwitchedOffOrItsProfileIsRemoved() {
         val at = kotlin.time.Instant.parse("2026-11-10T14:30:00Z")
         val millis = at.toEpochMilliseconds()

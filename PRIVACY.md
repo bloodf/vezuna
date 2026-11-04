@@ -19,7 +19,7 @@ This document describes what the Vezuna source code does with data, as of this r
 | Stored documents (prescriptions, imaging reports and similar) | User-selected or camera | Never read or OCRed; encrypted into the vault after a local check that the file opens; camera captures staged in app cache until read |
 | Heart rate, steps, weight | Health Connect (Android) / HealthKit (iOS), read-only, only after user permission | Encrypted on device |
 | Doctor exports (PDF/CSV) and encrypted backups | Generated on demand | The destination the user picks in the system share sheet |
-| Language and reminders (dose, low-supply and optional per-visit reminders) | Device settings | Local notifications only; a visit reminder shows the clinician name unless the lock-screen setting hides it |
+| Language and reminders (dose, low-supply and optional per-visit reminders) | Device settings | Local notifications only; a visit reminder shows the clinician name unless the lock-screen setting hides it. Outside the vault, the app keeps only a list of visit id and reminder time pairs (Android app preferences, iOS user defaults) so a reminder is not shown twice; it holds no clinician, notes or profile name |
 
 ## Permissions
 

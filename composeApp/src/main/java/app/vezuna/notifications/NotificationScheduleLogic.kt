@@ -46,6 +46,9 @@ object NotificationScheduleLogic {
             it.appointmentId == appointmentId && it.reminderMinutesBefore != null && it.at.toEpochMilliseconds() == appointmentAtMillis
         }
 
+    /** A reminder is useless once the visit has started, however late the alarm ran. */
+    fun isAppointmentReminderDue(appointmentAtMillis: Long, nowMillis: Long): Boolean = nowMillis < appointmentAtMillis
+
     fun isAppointmentReminderCurrent(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Boolean =
         currentAppointment(data, appointmentId, appointmentAtMillis) != null
 

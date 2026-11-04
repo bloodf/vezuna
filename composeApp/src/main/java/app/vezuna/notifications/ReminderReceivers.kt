@@ -194,12 +194,13 @@ class AppointmentReceiver : BroadcastReceiver() {
             }
             // The stored record is the source of the clinician and of whether this alarm is still wanted.
             val appointment = NotificationScheduleLogic.currentAppointment(data, appointmentId, atMillis)
-            if (appointment != null) {
-                app.notifications.showAppointmentReminder(
+            if (appointment != null && NotificationScheduleLogic.isAppointmentReminderDue(atMillis, System.currentTimeMillis())) {
+                val shown = app.notifications.showAppointmentReminder(
                     profileId, appointmentId, appointment.clinician, atMillis,
                     data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
                 )
-                app.notifications.markAppointmentDelivered(noticeKey)
+                // Only a reminder the user could see counts as delivered; with notifications off it stays due while the visit is ahead.
+                if (shown) app.notifications.markAppointmentDelivered(noticeKey)
             }
             app.notifications.rescheduleAll(app.repository)
         }

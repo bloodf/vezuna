@@ -187,27 +187,30 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             let notices = Array(plan.notices.prefix(Self.maxAppointmentReminders))
             let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.appointment.") }
             var allowed = false
-            if !notices.isEmpty {
+            if !notices.isEmpty || !pending.isEmpty || !plan.aheadIds.isEmpty {
                 var authorization = await center.notificationSettings().authorizationStatus
-                if authorization == .notDetermined {
+                if authorization == .notDetermined && !notices.isEmpty {
                     authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
                 }
                 allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
                 IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
             }
-            let wanted: Set<String> = allowed ? Set(notices.map(\.identifier)) : []
+            // A request already handed to the system for a visit still ahead stays, so the next pass cannot cancel a late reminder
+            // that is about to fire.
+            let wanted = allowed ? Self.wantedAppointmentIdentifiers(notices: notices.map(\.identifier), pending: pending.map(\.identifier), aheadIds: Set(plan.aheadIds)) : []
             center.removePendingNotificationRequests(withIdentifiers: Self.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted))
             let delivered = await center.deliveredNotifications().map { $0.request.identifier }.filter { $0.hasPrefix("vezuna.appointment.") }
             center.removeDeliveredNotifications(withIdentifiers: Self.staleDeliveredAppointmentIdentifiers(delivered: delivered, reminderIds: Set(plan.reminderIds)))
-            guard allowed else { return 0 }
+            // Handled keys of visits still ahead only; without permission, also those whose request was just removed, so they can be planned again.
+            var kept = Self.keptHandledKeys(handled, aheadIds: Set(plan.aheadIds), removedPending: allowed ? [] : pending.map(\.identifier))
+            guard allowed else { defaults.set(kept, forKey: Self.appointmentHandledKey); return 0 }
             let now = Date(timeIntervalSince1970: TimeInterval(plan.nowEpochSeconds))
-            var kept = handled.filter { key in plan.reminderIds.contains { key.hasPrefix($0 + ":") } }
             for notice in notices {
                 try await center.add(Self.appointmentRequest(for: notice, hidingName: hidden, now: now))
                 if !kept.contains(notice.key) { kept.append(notice.key) }
             }
             defaults.set(kept, forKey: Self.appointmentHandledKey)
-            return notices.count
+            return wanted.count
         } catch {
             log.error("Could not plan appointment reminders: \(error.localizedDescription, privacy: .public)")
             return 0
@@ -217,6 +220,20 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     /// Pending visit requests that the plan no longer wants.
     static func staleAppointmentIdentifiers(pending: [String], wanted: Set<String>) -> [String] {
         pending.filter { !wanted.contains($0) }
+    }
+
+    /// Identifiers to keep: everything planned, plus pending requests of visits that have not started.
+    static func wantedAppointmentIdentifiers(notices: [String], pending: [String], aheadIds: Set<String>) -> Set<String> {
+        Set(notices).union(pending.filter { aheadIds.contains(String($0.dropFirst("vezuna.appointment.".count))) })
+    }
+
+    /// Handled keys worth remembering: visits still ahead, minus those whose pending request was removed (they were never delivered).
+    static func keptHandledKeys(_ handled: [String], aheadIds: Set<String>, removedPending: [String]) -> [String] {
+        let removed = Set(removedPending.map { String($0.dropFirst("vezuna.appointment.".count)) })
+        return handled.filter { key in
+            guard let id = key.split(separator: ":", maxSplits: 1).first.map(String.init) else { return false }
+            return aheadIds.contains(id) && !removed.contains(id)
+        }
     }
 
     /// Delivered visit notifications whose appointment was deleted or has its reminder switched off.

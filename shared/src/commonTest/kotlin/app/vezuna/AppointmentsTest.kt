@@ -36,6 +36,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -335,6 +337,16 @@ class AppointmentsTest {
         val moved = data.copy(appointments = data.appointments.map { if (it.appointmentId == "A-profile-next") it.copy(at = soon + 60.minutes) else it })
         assertEquals(1, AppointmentReminders.notices(moved, late, handled = setOf(notice.key)).size, "a moved visit is reminded again")
         assertEquals(setOf("A-profile-next"), AppointmentReminders.reminderIds(data))
+    }
+
+    @Test
+    fun theNearestRemindersOfAHouseholdComeFirstWhateverTheProfileOrder() {
+        val first = ProfileData(Profile("p1", "Ana", createdAt = soon), appointments = listOf(Appointment("p1", "far", soon + 90.days, "Dr. A", reminderMinutesBefore = 60)))
+        val second = ProfileData(Profile("p2", "Bia", createdAt = soon), appointments = listOf(Appointment("p2", "near", soon + 2.hours, "Dr. B", reminderMinutesBefore = 60)))
+        val now = soon - 1.hours
+        assertEquals(listOf("near", "far"), AppointmentReminders.noticesOf(listOf(first, second), now).map { it.appointmentId })
+        assertEquals(setOf("far"), AppointmentReminders.aheadIds(first, now))
+        assertTrue(AppointmentReminders.aheadIds(first, soon + 365.days).isEmpty(), "a visit that started is no longer ahead")
     }
 
     @Test

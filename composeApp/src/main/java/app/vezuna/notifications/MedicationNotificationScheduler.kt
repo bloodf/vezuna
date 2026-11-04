@@ -149,7 +149,7 @@ class MedicationNotificationScheduler(private val context: Context) {
 
     private fun appointmentNotificationId(appointmentId: String): Int = "appointment:$appointmentId".hashCode()
 
-    /** Called once a visit reminder was shown, so a later pass does not fire it again. */
+    /** Called once a visit reminder was shown (see [showAppointmentReminder]), so a later pass does not fire it again. */
     fun markAppointmentDelivered(noticeKey: String) {
         deliveredStore.edit().putStringSet(ARMED_KEY, deliveredStore.getStringSet(ARMED_KEY, emptySet()).orEmpty() + noticeKey).apply()
     }
@@ -159,7 +159,7 @@ class MedicationNotificationScheduler(private val context: Context) {
      * stored record by the caller, never from the alarm. Always private on the lock screen: the public version says only that a
      * visit is coming, and the setting that hides names makes the private version generic too.
      */
-    fun showAppointmentReminder(profileId: String, appointmentId: String, clinician: String, appointmentAtMillis: Long, profileName: String? = null) {
+    fun showAppointmentReminder(profileId: String, appointmentId: String, clinician: String, appointmentAtMillis: Long, profileName: String? = null): Boolean {
         val hideName = preferences.hideMedicationNames
         val title = nativeMessage(NativeKey.APPOINTMENT_REMINDER_TITLE).resolve(context)
         val generic = nativeMessage(NativeKey.APPOINTMENT_REMINDER_GENERIC_TEXT).resolve(context)
@@ -189,9 +189,9 @@ class MedicationNotificationScheduler(private val context: Context) {
             )
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-            NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
-        }
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
+        return true
     }
 
     /** Delivered visit reminders whose appointment was deleted, moved, switched off or whose profile was removed leave the shade. */

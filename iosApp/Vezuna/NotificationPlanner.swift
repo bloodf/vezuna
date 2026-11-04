@@ -175,6 +175,8 @@ struct AppointmentNotice: Codable, Equatable {
 struct AppointmentPlan: Codable, Equatable {
     let notices: [AppointmentNotice]
     let reminderIds: [String]
+    /// Appointments with a reminder on whose visit has not started.
+    let aheadIds: [String]
     let nowEpochSeconds: Int64
 }
 

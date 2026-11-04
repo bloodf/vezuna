@@ -198,7 +198,7 @@ final class ReminderPlanningTests: XCTestCase {
     }
 
     func testAppointmentPlanDecodesAndSchedulesOneIntervalRequestThatHidesWhatTheSettingHides() throws {
-        let json = #"{"notices":[{"key":"a1:1793606400","profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":"Ana"}],"reminderIds":["a1","a2"],"nowEpochSeconds":1793600000}"#
+        let json = #"{"notices":[{"key":"a1:1793606400","profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":"Ana"}],"reminderIds":["a1","a2"],"aheadIds":["a1"],"nowEpochSeconds":1793600000}"#
         let plan = try JSONDecoder().decode(AppointmentPlan.self, from: Data(json.utf8))
         let notice = plan.notices[0]
         XCTAssertEqual(notice.identifier, "vezuna.appointment.a1")
@@ -213,6 +213,16 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertFalse(hidden.content.body.contains("Dr. Silva"))
         XCTAssertTrue(hidden.content.subtitle.isEmpty, "the profile name is hidden too")
         XCTAssertEqual(hidden.content.userInfo as? [String: String], ["appointmentId": "a1"])
+    }
+
+    func testAPendingLateReminderOfAVisitStillAheadIsKeptAndItsHandledKeyOnlyWhileTheRequestLives() {
+        let pending = ["vezuna.appointment.late", "vezuna.appointment.gone", "vezuna.appointment.started"]
+        let wanted = MedicationNotificationCoordinator.wantedAppointmentIdentifiers(notices: ["vezuna.appointment.new"], pending: pending, aheadIds: ["late", "new"])
+        XCTAssertEqual(wanted, ["vezuna.appointment.new", "vezuna.appointment.late"], "the next pass must not cancel a late request that is about to fire")
+        XCTAssertEqual(MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: pending, wanted: wanted), ["vezuna.appointment.gone", "vezuna.appointment.started"])
+        let handled = ["late:100", "past:50", "other:7"]
+        XCTAssertEqual(MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "other"], removedPending: []), ["late:100", "other:7"], "visits that started are forgotten")
+        XCTAssertEqual(MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "other"], removedPending: ["vezuna.appointment.late"]), ["other:7"], "a request removed without permission is planned again")
     }
 
     func testAnOverdueAppointmentReminderFiresWithinSeconds() throws {

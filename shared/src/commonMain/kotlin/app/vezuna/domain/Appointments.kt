@@ -79,6 +79,14 @@ object AppointmentReminders {
         notice.takeIf { fireAt > now || it.key !in handled }
     }.sortedBy { it.fireAt }
 
+    /** Notices of every profile, soonest first across all of them, so a cap keeps the nearest reminders of the household. */
+    fun noticesOf(profiles: List<ProfileData>, now: Instant, handled: Set<String> = emptySet()): List<Notice> =
+        profiles.flatMap { notices(it, now, handled) }.sortedBy { it.fireAt }
+
+    /** Appointments with a reminder on whose visit has not started: the ones a pending request or a handled key may still serve. */
+    fun aheadIds(data: ProfileData, now: Instant): Set<String> =
+        data.appointments.filter { it.reminderMinutesBefore != null && it.at > now }.map { it.appointmentId }.toSet()
+
     /** Every appointment that currently has a reminder switched on, whether or not it is due: what a delivered notification must still match. */
     fun reminderIds(data: ProfileData): Set<String> = data.appointments.filter { it.reminderMinutesBefore != null }.map { it.appointmentId }.toSet()
 }
