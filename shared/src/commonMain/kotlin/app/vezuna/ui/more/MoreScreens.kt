@@ -55,6 +55,7 @@ import vezuna.shared.generated.resources.ic_connect
 import vezuna.shared.generated.resources.ic_error
 import vezuna.shared.generated.resources.ic_external_link
 import vezuna.shared.generated.resources.ic_file_text
+import vezuna.shared.generated.resources.ic_heart
 import vezuna.shared.generated.resources.ic_help
 import vezuna.shared.generated.resources.ic_info
 import vezuna.shared.generated.resources.ic_language
@@ -238,6 +239,7 @@ private fun PanelRow(title: String, supporting: String, icon: DrawableResource, 
 internal fun MoreRows(ctx: RouteContext) {
     val nav = ctx::navigate
     CategoryPanel(Category.RECORDS) {
+        PanelRow(vitaText(L10nKey.MORE_EMERGENCY), vitaText(L10nKey.EM_MORE_SUB), Res.drawable.ic_heart) { nav(AppScreen.EmergencyCard) }
         PanelRow(vitaText(L10nKey.MORE_PROFILES), vitaText(L10nKey.MORE_PROFILES_SUB), Res.drawable.ic_users) { nav(AppScreen.Profiles) }
         PanelRow(vitaText(L10nKey.MORE_EXPORTS), vitaText(L10nKey.MORE_EXPORTS_SUB), Res.drawable.ic_share) { nav(AppScreen.ExportHub) }
         PanelRow(vitaText(L10nKey.MORE_BACKUPS), vitaText(L10nKey.MORE_BACKUPS_SUB), Res.drawable.ic_storage) { nav(AppScreen.Backups) }

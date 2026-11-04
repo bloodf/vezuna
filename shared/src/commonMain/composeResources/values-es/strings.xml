@@ -1395,4 +1395,47 @@ iOS: %2$s</string>
         <item quantity="one">%1$d documento</item>
         <item quantity="other">%1$d documentos</item>
     </plurals>
+    <!-- Emergency card (#102) -->
+    <string name="em_title">Tarjeta de emergencia</string>
+    <string name="em_born">Nacimiento: %1$s</string>
+    <string name="em_allergies">Alergias</string>
+    <string name="em_medications">Medicamentos</string>
+    <string name="em_empty_title">Aún no hay nada registrado</string>
+    <string name="em_empty_body">No se ha registrado nada para %1$s. Eso no significa que no haya alergias, afecciones ni medicamentos.</string>
+    <string name="em_phone_title">La información de emergencia del teléfono</string>
+    <string name="em_phone_open_android">Abrir los ajustes de información de emergencia</string>
+    <string name="em_phone_open_ios">Abrir la app Salud</string>
+    <string name="more_emergency">Tarjeta de emergencia</string>
+        <plurals name="em_age_years">
+        <item quantity="one">%1$d año</item>
+        <item quantity="other">%1$d años</item>
+    </plurals>
+    <plurals name="em_age_months">
+        <item quantity="one">%1$d mes</item>
+        <item quantity="other">%1$d meses</item>
+    </plurals>
+    <string name="em_born_age">Nacimiento: %1$s (%2$s)</string>
+    <string name="em_severity_unknown">Gravedad no indicada</string>
+    <string name="em_condition_unknown">Estado no indicado</string>
+    <string name="em_dose_none">Dosis no registrada</string>
+    <string name="em_med_paused">Recordatorios en pausa; puede que no lo esté tomando</string>
+    <string name="em_med_ended_today">Suspendido o en pausa hoy</string>
+    <string name="em_meds_later">Para empezar más tarde</string>
+    <plurals name="em_age_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <string name="em_load_failed">No se pudo cargar esta tarjeta. Vuelve e inténtalo de nuevo.</string>
+    <string name="em_med_starts">Empieza el %1$s</string>
+    <string name="em_phone_open_failed">No se pudo abrir desde aquí. Sigue los pasos de arriba.</string>
+    <string name="em_conditions">Afecciones</string>
+    <string name="em_none_allergies">No hay alergias registradas. Eso no significa que no existan.</string>
+    <string name="em_none_conditions">No hay afecciones actuales registradas. Eso no significa que no existan.</string>
+    <string name="em_none_medications">No hay medicamentos actuales registrados. Eso no significa que no existan.</string>
+    <string name="em_partial_note">Nada de esto es actual, pero hay registros anteriores.</string>
+    <string name="em_intro">Un resumen de solo lectura de lo registrado para %1$s. Se queda en este dispositivo y no aparece en la pantalla de bloqueo.</string>
+    <string name="em_phone_android">La información de emergencia puede ser accesible desde la pantalla de bloqueo, según los ajustes del teléfono. En Ajustes, busca “emergencia” (suele estar en Seguridad y emergencia) y copia estos datos allí.</string>
+    <string name="em_phone_ios">La Ficha médica puede ser accesible desde la pantalla de bloqueo si “Mostrar con pantalla bloqueada” está activado. Copia estos datos en la app Salud: foto de perfil &gt; Ficha médica.</string>
+    <string name="em_more_sub">Alergias, afecciones y medicamentos de un vistazo</string>
+<!-- /Emergency card -->
 </resources>

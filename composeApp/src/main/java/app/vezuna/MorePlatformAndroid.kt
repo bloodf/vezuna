@@ -26,6 +26,13 @@ internal fun installMorePlatform(context: Context) {
             start(Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null)))
         if (!appLocale) start(Intent(Settings.ACTION_LOCALE_SETTINGS))
     }
+    MorePlatform.openEmergencyInfo = { onResult ->
+        fun start(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+        // No public action for this screen, and older versions lack it. When the phone does not handle it, open Settings and say so.
+        val opened = start(Intent("android.settings.EDIT_EMERGENCY_INFO"))
+        if (!opened) start(Intent(Settings.ACTION_SETTINGS))
+        onResult(opened)
+    }
     MorePlatform.openUrl = { url ->
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
