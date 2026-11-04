@@ -5,6 +5,9 @@ import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.VaultSourceFileStore
 import app.vezuna.domain.Profile
 import app.vezuna.domain.SourceDocument
+import app.vezuna.domain.keepingOnlyAvailableSourceFiles
+import app.vezuna.ui.SourceFileRead
+import kotlin.test.assertIs
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.VitaMessageException
 import app.vezuna.security.BackupMember
@@ -236,6 +239,64 @@ class BackupLeaveOutTest {
         assertEquals(1, target.data.vaultDocuments.size)
         assertTrue(target.data.vaultDocuments.single().source.vaultKey != null)
         assertTrue(target.controller.householdForBackup().all { it.omitted.isEmpty() })
+    }
+
+    @Test
+    fun replacingAMissingBackupAfterRefillKeepsEveryLocalPage() = runTest(timeout = 10.minutes) {
+        for (additionalPages in listOf(emptyList(), listOf(byteArrayOf(2), byteArrayOf(3)))) {
+            val h = Household().start()
+            val source = PickedSource("a.pdf", "application/pdf", byteArrayOf(1), additionalPages = additionalPages)
+            h.controller.addDocumentFrom(SourceKind.FILE) { source }
+            val doc = h.data.vaultDocuments.single().source
+            val omitted = listOf(BackupMember(h.data, emptyMap(), listOf(OmittedDocument(doc.documentId, "a.pdf"))))
+            val original = service.open(service.createHousehold(omitted, pass.copyOf()), pass.copyOf())
+            val target = Household().start()
+            target.controller.restoreHousehold(original.members, RestoreMode.REPLACE_EXISTING)
+            assertNull(target.controller.state.value.error)
+            assertNull(target.data.vaultDocuments.single().source.vaultKey)
+
+            val missingMembers = target.controller.householdForBackup().filter { it.data.profile.profileId == doc.profileId }
+            val missing = service.open(service.createHousehold(missingMembers, pass.copyOf()), pass.copyOf())
+            assertNull(missing.members.single().data.vaultDocuments.single().source.vaultKey)
+            assertEquals(doc.documentId, missing.members.single().omitted.single().documentId)
+            target.controller.addDocumentFrom(SourceKind.FILE) { source }
+            assertNull(target.controller.state.value.error)
+            val refilled = target.data.vaultDocuments.single().source
+            assertEquals(additionalPages.size, refilled.pageVaultKeys.size)
+            assertTrue(refilled.vaultKey != null)
+
+            target.controller.restoreHousehold(missing.members, RestoreMode.REPLACE_EXISTING)
+            assertNull(target.controller.state.value.error)
+            val kept = target.repository.readProfile(doc.profileId).vaultDocuments.single().source
+            assertEquals(refilled.vaultKey, kept.vaultKey)
+            assertEquals(refilled.pageVaultKeys, kept.pageVaultKeys)
+            val read = assertIs<SourceFileRead.Available>(target.controller.readSourceFile(doc.documentId))
+            assertEquals(1 + additionalPages.size, read.pages.size)
+            (listOf(source.bytes) + additionalPages).zip(read.pages).forEach { (expected, actual) -> assertContentEquals(expected, actual) }
+        }
+    }
+
+    @Test
+    fun retentionRequiresMatchingProfileDocumentAndNonblankContentHash() = runTest {
+        val h = Household().start()
+        h.add("a.pdf", 10, 1)
+        val current = h.data.vaultDocuments.single().source
+        for (different in listOf(
+            current.copy(sha256 = "different"),
+            current.copy(sha256 = ""),
+            current.copy(sha256 = " "),
+            current.copy(profileId = "other"),
+            current.copy(documentId = "other"),
+        )) {
+            val incoming = h.data.copy(documents = listOf(different), vaultDocuments = emptyList())
+            val result = incoming.keepingOnlyAvailableSourceFiles(h.data).documents.single()
+            assertNull(result.vaultKey)
+            assertTrue(result.pageVaultKeys.isEmpty())
+        }
+        val blank = h.data.copy(documents = listOf(current.copy(sha256 = " ")), vaultDocuments = emptyList())
+        assertNull(blank.keepingOnlyAvailableSourceFiles(blank).documents.single().vaultKey, "equal blank hashes are not content identity")
+        val incoming = h.data.copy(documents = listOf(current.copy(vaultKey = null, pageVaultKeys = emptyList())), vaultDocuments = emptyList())
+        assertEquals(current.vaultKey, incoming.keepingOnlyAvailableSourceFiles(h.data).documents.single().vaultKey, "lab and vault documents share retention")
     }
 
     @Test

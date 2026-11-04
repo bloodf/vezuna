@@ -47,9 +47,9 @@ fun ProfileData.keepingOnlyAvailableSourceFiles(existing: ProfileData?): Profile
 }
 
 private fun SourceDocument.keepingFileFrom(held: List<SourceDocument>): SourceDocument {
-    val current = held.firstOrNull { it.documentId == documentId }
-    return if (vaultKey != null && current?.vaultKey == vaultKey) {
-        copy(pageVaultKeys = pageVaultKeys.filter { it in current.pageVaultKeys })
+    val current = held.firstOrNull { it.profileId == profileId && it.documentId == documentId && sha256.isNotBlank() && it.sha256 == sha256 }
+    return if (current != null && !current.vaultKey.isNullOrBlank()) {
+        copy(vaultKey = current.vaultKey, pageVaultKeys = current.pageVaultKeys)
     } else {
         copy(vaultKey = null, pageVaultKeys = emptyList())
     }
