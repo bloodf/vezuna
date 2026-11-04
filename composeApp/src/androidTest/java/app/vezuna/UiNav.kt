@@ -9,8 +9,11 @@ import org.junit.Assert.assertTrue
 /** Shared navigation for the redesigned shell: bottom tabs (Today, Records, Care, Trends, More) and pushed pages. */
 internal fun UiDevice.awaitText(text: String, timeoutMs: Long = 10_000): Boolean = wait(Until.hasObject(By.text(text)), timeoutMs)
 
-/** Home is ready when the Today title is on screen. */
-internal fun UiDevice.awaitToday(today: String = "Today"): Boolean = awaitText(today, 15_000)
+/**
+ * Home is ready when the Today screen's own footer is on screen. The "Today" label alone is also a bottom tab, so it shows
+ * before the screen has loaded; the footer renders only once the profile and dashboard are in.
+ */
+internal fun UiDevice.awaitToday(savedOnDevice: String = "Saved on this device"): Boolean = awaitText(savedOnDevice, 15_000)
 
 /** Clicks the last node with this text: on pushed pages a heading and a button can share a label, the button is below. */
 internal fun UiDevice.tapText(text: String, timeoutMs: Long = 10_000) {
