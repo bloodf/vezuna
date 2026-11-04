@@ -32,6 +32,8 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EM_DOSE_NONE to Res.string.em_dose_none,
     L10nKey.EM_MED_PAUSED to Res.string.em_med_paused,
     L10nKey.EM_MED_STARTS to Res.string.em_med_starts,
+    L10nKey.EM_MED_ENDED_TODAY to Res.string.em_med_ended_today,
+    L10nKey.EM_MEDS_LATER to Res.string.em_meds_later,
     L10nKey.EM_PHONE_OPEN_FAILED to Res.string.em_phone_open_failed,
     L10nKey.EM_PARTIAL_NOTE to Res.string.em_partial_note,
     // Health records (#96)
@@ -1261,6 +1263,7 @@ private val pluralResources = mapOf<L10nKey, PluralStringResource>(
     L10nKey.HR_COUNT to Res.plurals.hr_count,
     L10nKey.EM_AGE_YEARS to Res.plurals.em_age_years,
     L10nKey.EM_AGE_MONTHS to Res.plurals.em_age_months,
+    L10nKey.EM_AGE_DAYS to Res.plurals.em_age_days,
     L10nKey.APPT_COUNT to Res.plurals.appt_count,
     L10nKey.APPT_REMINDER_MINUTES to Res.plurals.appt_reminder_minutes,
     L10nKey.CONFIRMED_POINTS to Res.plurals.confirmed_points,

@@ -12,7 +12,13 @@ import app.vezuna.domain.Recurrence
 import app.vezuna.domain.emergencySummary
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.nav.routeFromName
+import app.vezuna.localization.L10nKey
+import app.vezuna.ui.more.EmergencyLine
+import app.vezuna.ui.more.conditionLines
+import app.vezuna.ui.more.medicationLines
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -103,16 +109,97 @@ class EmergencySummaryTest {
     }
 
     @Test
-    fun stoppedMedicationIsLeftOutTodayAndLater() {
-        assertEquals(emptyList(), names(data(medications = listOf(med("Aspirin").stopped()))))
-        val later = LocalDate(2026, 11, 20)
-        val stoppedToday = med("Aspirin").stopped()
-        assertEquals(emptyList(), data(medications = listOf(stoppedToday)).emergencySummary(later).medications)
+    fun medicationStoppedTodayStaysUntilMidnightFlaggedAndIsGoneTomorrow() {
+        val stopped = med("Aspirin").stopped()
+        val s = data(medications = listOf(stopped)).emergencySummary(today)
+        assertEquals(listOf(true to false), s.medications.map { it.endedToday to it.paused })
+        assertEquals(emptyList(), data(medications = listOf(stopped)).emergencySummary(today.plus(1, DateTimeUnit.DAY)).medications)
     }
 
     @Test
-    fun medicationStoppedBeforeItStartedIsLeftOut() {
-        assertEquals(emptyList(), names(data(medications = listOf(med("Course", start = LocalDate(2026, 12, 1)).stopped()))))
+    fun pausedMedicationEndingTodayStaysListed() {
+        assertEquals(listOf("Bridge"), names(data(medications = listOf(med("Bridge", end = today).paused()))))
+    }
+
+    @Test
+    fun pausedOneDayCourseInTheFutureStaysListedAsUpcoming() {
+        val day = LocalDate(2026, 12, 1)
+        val s = data(medications = listOf(med("Once", start = day, end = day).paused())).emergencySummary(today)
+        assertEquals(listOf(day), s.medications.map { it.startsOn })
+    }
+
+    @Test
+    fun medicationStoppedBeforeItStartedStaysListedAsUpcomingNotCurrent() {
+        val start = LocalDate(2026, 12, 1)
+        val s = data(medications = listOf(med("Course", start = start).stopped())).emergencySummary(today)
+        assertEquals(listOf(start), s.medications.map { it.startsOn })
+    }
+
+    @Test
+    fun endedCourseDoesNotCountAsCurrentWhenAFutureOneIsLeft() {
+        val future = LocalDate(2026, 12, 1)
+        val m = med("Prednisone", end = LocalDate(2026, 1, 10)).let { it.copy(schedules = it.schedules + schedule("p2", start = future)) }
+        assertEquals(listOf(future), data(medications = listOf(m)).emergencySummary(today).medications.map { it.startsOn })
+    }
+
+    @Test
+    fun futureAndCurrentScheduleIsCurrent() {
+        val m = med("Dual").let { it.copy(schedules = it.schedules + schedule("d2", start = LocalDate(2026, 12, 1))) }
+        assertEquals(listOf(null), data(medications = listOf(m)).emergencySummary(today).medications.map { it.startsOn })
+    }
+
+    @Test
+    fun endedAndCurrentScheduleIsCurrent() {
+        val m = med("Back", end = LocalDate(2026, 1, 10)).let { it.copy(schedules = it.schedules + schedule("b2", start = LocalDate(2026, 5, 1))) }
+        assertEquals(listOf(null), data(medications = listOf(m)).emergencySummary(today).medications.map { it.startsOn })
+    }
+
+    @Test
+    fun courseStartingTodayIsCurrentNotUpcoming() {
+        assertEquals(listOf(null), data(medications = listOf(med("Now", start = today))).emergencySummary(today).medications.map { it.startsOn })
+    }
+
+    @Test
+    fun courseStartingTomorrowIsUpcoming() {
+        val tomorrow = today.plus(1, DateTimeUnit.DAY)
+        assertEquals(listOf(tomorrow), data(medications = listOf(med("Soon", start = tomorrow))).emergencySummary(today).medications.map { it.startsOn })
+    }
+
+    @Test
+    fun medicationLinesCarryTheHonestLabels() {
+        val s = data(medications = listOf(
+            med("Nodose", strength = null),
+            med("Paused").paused(),
+            med("Later", start = LocalDate(2026, 12, 1)),
+            med("Gone").stopped(),
+        )).emergencySummary(today).medications.associateBy { it.medication.displayName }
+        assertEquals(listOf(EmergencyLine(L10nKey.EM_DOSE_NONE)), medicationLines(s.getValue("Nodose")))
+        assertEquals(listOf(EmergencyLine(text = "10 mg"), EmergencyLine(L10nKey.EM_MED_PAUSED)), medicationLines(s.getValue("Paused")))
+        assertEquals(listOf(EmergencyLine(text = "10 mg"), EmergencyLine(L10nKey.EM_MED_STARTS, LocalDate(2026, 12, 1))), medicationLines(s.getValue("Later")))
+        assertEquals(listOf(EmergencyLine(text = "10 mg"), EmergencyLine(L10nKey.EM_MED_ENDED_TODAY)), medicationLines(s.getValue("Gone")))
+    }
+
+    @Test
+    fun conditionLinesLabelAnUnstatedStatus() {
+        assertEquals(listOf(EmergencyLine(L10nKey.EM_CONDITION_UNKNOWN)), conditionLines(condition("Flu", null)))
+        assertEquals(listOf(EmergencyLine(L10nKey.HR_STATUS_ONGOING)), conditionLines(condition("Flu", ConditionStatus.ONGOING)))
+    }
+
+    @Test
+    fun anotherProfilesRecordsAloneStillMeanNothingRecorded() {
+        val s = data(allergies = listOf(allergy("Theirs", profile = "B-profile")), medications = listOf(med("Theirs", profile = "B-profile"))).emergencySummary(today)
+        assertTrue(s.nothingRecorded)
+    }
+
+    @Test
+    fun ageInMonthsStopsAtTwoYearsAndBabiesUnderAMonthGetDays() {
+        val twoYears = data(birth = LocalDate(2024, 11, 3)).emergencySummary(today)
+        assertEquals(2, twoYears.ageYears); assertNull(twoYears.ageMonths)
+        val almost = data(birth = LocalDate(2024, 11, 4)).emergencySummary(today)
+        assertEquals(1, almost.ageYears); assertEquals(23, almost.ageMonths)
+        val newborn = data(birth = LocalDate(2026, 10, 25)).emergencySummary(today)
+        assertEquals(0, newborn.ageMonths); assertEquals(9, newborn.ageDays)
+        assertNull(almost.ageDays)
     }
 
     @Test
@@ -154,8 +241,8 @@ class EmergencySummaryTest {
     }
 
     @Test
-    fun onlyResolvedOrStoppedRecordsAreNotReportedAsNothingRecorded() {
-        val s = data(conditions = listOf(condition("Chickenpox", ConditionStatus.RESOLVED)), medications = listOf(med("Aspirin").stopped())).emergencySummary(today)
+    fun onlyResolvedOrEndedRecordsAreNotReportedAsNothingRecorded() {
+        val s = data(conditions = listOf(condition("Chickenpox", ConditionStatus.RESOLVED)), medications = listOf(med("Aspirin", end = LocalDate(2026, 1, 5)))).emergencySummary(today)
         assertFalse(s.nothingRecorded)
         assertTrue(s.conditions.isEmpty() && s.medications.isEmpty() && s.allergies.isEmpty())
     }

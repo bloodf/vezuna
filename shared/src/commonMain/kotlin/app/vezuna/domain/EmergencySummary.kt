@@ -1,11 +1,15 @@
 package app.vezuna.domain
 
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.monthsUntil
 
-/** A medication on the emergency card: [paused] means reminders are off (the person may still take it); [startsOn] is set for a course that has not begun. */
-data class EmergencyMedication(val medication: Medication, val paused: Boolean, val startsOn: LocalDate?)
+/**
+ * A medication on the emergency card. [paused]: reminders are off, which may or may not mean the person stopped.
+ * [endedToday]: inactive with its last day today, so stopped or paused today; kept until midnight because listing too much
+ * is the safer mistake. [startsOn] is set for a course that has not begun.
+ */
+data class EmergencyMedication(val medication: Medication, val paused: Boolean, val endedToday: Boolean, val startsOn: LocalDate?)
 
 /**
  * What the in-app emergency card shows (#102): only what the person entered for this profile.
@@ -17,6 +21,8 @@ data class EmergencySummary(
     val ageYears: Int?,
     /** Completed months, only for a child under 2, where months matter more than years. */
     val ageMonths: Int?,
+    /** Whole days, only for a baby under one month. */
+    val ageDays: Int?,
     val allergies: List<AllergyRecord>,
     /** Everything not resolved; a condition with no stated status stays. */
     val conditions: List<ConditionRecord>,
@@ -31,11 +37,13 @@ fun ProfileData.emergencySummary(today: LocalDate): EmergencySummary {
     val ownConditions = conditions.filter { it.profileId == id }
     val ownMedications = medications.filter { it.profileId == id }
     val years = ProfileAge.years(profile.birthDate, today)
+    val months = if (years != null && years < 2) profile.birthDate?.monthsUntil(today) else null
     return EmergencySummary(
         profileName = profile.displayName,
         birthDate = profile.birthDate,
         ageYears = years,
-        ageMonths = if (years != null && years < 2) profile.birthDate?.monthsUntil(today) else null,
+        ageMonths = months,
+        ageDays = if (months == 0) profile.birthDate?.daysUntil(today) else null,
         // Severe first; an unstated severity ranks above mild, because unknown must not look safe.
         allergies = ownAllergies.sortedWith(compareBy<AllergyRecord> { it.severity.rank() }.thenBy { it.substance.lowercase() }),
         conditions = ownConditions.filter { it.status != ConditionStatus.RESOLVED }.sortedBy { it.name.lowercase() },
@@ -53,15 +61,15 @@ private fun AllergySeverity?.rank() = when (this) {
 }
 
 /**
- * Null when the medication is over. Pausing (reminders off, no end date) keeps it on the card; stopping ends the schedules
- * (`endDate = max(today, start)`, see CareController.stopMedication). A paused medication whose end date is still ahead is not
- * a stopped one, so it stays. A course whose schedules all start later is listed with its start date.
+ * Null when the medication is over: every schedule ended before today. Inactive with its last day today is kept and flagged
+ * [EmergencyMedication.endedToday], because stopping (`endDate = max(today, start)`, see CareController.stopMedication) and
+ * pausing cannot be told apart from the dates. Only schedules not yet ended count towards "upcoming", so an old course plus
+ * a future one is upcoming, not current.
  */
 private fun Medication.onEmergencyCard(today: LocalDate): EmergencyMedication? {
-    if (schedules.isNotEmpty()) {
-        if (schedules.all { it.endDate != null && it.endDate < today }) return null
-        if (!active && schedules.all { it.endDate != null && it.endDate <= maxOf(today, it.startDate) }) return null
-    }
-    val upcoming = schedules.takeIf { it.isNotEmpty() && it.all { s -> s.startDate > today } }?.minOf { it.startDate }
-    return EmergencyMedication(this, paused = !active, startsOn = upcoming)
+    val remaining = schedules.filter { it.endDate == null || it.endDate >= today }
+    if (schedules.isNotEmpty() && remaining.isEmpty()) return null
+    val endedToday = !active && remaining.isNotEmpty() && remaining.all { it.endDate != null && it.endDate <= maxOf(today, it.startDate) }
+    val upcoming = remaining.takeIf { it.isNotEmpty() && it.all { s -> s.startDate > today } }?.minOf { it.startDate }
+    return EmergencyMedication(this, paused = !active && !endedToday, endedToday = endedToday, startsOn = upcoming)
 }

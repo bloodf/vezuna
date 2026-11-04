@@ -1387,7 +1387,7 @@ iOS: %2$s</string>
     <string name="em_title">Emergency card</string>
     <string name="em_born">Born %1$s</string>
     <string name="em_allergies">Allergies</string>
-    <string name="em_medications">Current medications</string>
+    <string name="em_medications">Medications</string>
     <string name="em_empty_title">Nothing recorded yet</string>
     <string name="em_empty_body">Nothing has been recorded for %1$s. This does not mean there are no allergies, conditions or medications.</string>
     <string name="em_phone_title">Your phone's emergency info</string>
@@ -1406,13 +1406,19 @@ iOS: %2$s</string>
     <string name="em_severity_unknown">Severity not stated</string>
     <string name="em_condition_unknown">Status not stated</string>
     <string name="em_dose_none">Dose not recorded</string>
-    <string name="em_med_paused">Reminders paused</string>
+    <string name="em_med_paused">Reminders paused; may not be taking this</string>
+    <string name="em_med_ended_today">Stopped or paused today</string>
+    <string name="em_meds_later">Starting later</string>
+    <plurals name="em_age_days">
+        <item quantity="one">%1$d day old</item>
+        <item quantity="other">%1$d days old</item>
+    </plurals>
     <string name="em_med_starts">Starts on %1$s</string>
     <string name="em_phone_open_failed">Couldn't open it from here. Follow the steps above.</string>
     <string name="em_conditions">Conditions</string>
     <string name="em_none_allergies">No allergies recorded. This does not mean there are none.</string>
     <string name="em_none_conditions">No conditions recorded as current. This does not mean there are none.</string>
-    <string name="em_none_medications">No current medications recorded. This does not mean there are none.</string>
+    <string name="em_none_medications">No medications recorded. This does not mean there are none.</string>
     <string name="em_partial_note">Nothing here is current, but older records exist.</string>
     <string name="em_intro">A read-only summary of what is recorded for %1$s. It stays on this device and is not shown on the lock screen.</string>
     <string name="em_phone_android">Emergency information can be reachable from the lock screen, depending on your phone's settings. In your phone's Settings, search for “emergency” (often under Safety &amp; emergency) and copy these details there.</string>
