@@ -63,7 +63,8 @@ internal class ProfileController(
             // The restore already succeeded; a failed cleanup just keeps the default profile.
             warn("First-run restore could not remove the untouched default profile", failed)
         } finally {
-            state.value = state.value.copy(profiles = repository.profiles.value, healthLinkedProfileId = repository.linkedHealthProfileId())
+            val link = repository.linkedHealthProfileId()
+            state.value = state.value.copy(profiles = repository.profiles.value, healthLinkedProfileId = link)
         }
     }
 
@@ -74,11 +75,11 @@ internal class ProfileController(
             repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
         state.value = state.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || state.value.onboarding)
-        val profileId = state.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
-        core.loadProfile(profileId)
+        val profileId = core.openingProfileId ?: state.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
+        val applied = core.openProfile(profileId)
         // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
         val loaded = state.value.data
-        if (state.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.vaultDocuments.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty() || loaded.healthRecords.isNotEmpty() || loaded.appointments.isNotEmpty())) {
+        if (state.value.onboarding && (repository.profiles.value.size > 1 || applied && (loaded == null || loaded.documents.isNotEmpty() || loaded.vaultDocuments.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty() || loaded.healthRecords.isNotEmpty() || loaded.appointments.isNotEmpty()))) {
             state.value = state.value.copy(onboarding = false)
         }
         modelManager.refresh()
@@ -87,7 +88,7 @@ internal class ProfileController(
     suspend fun switchProfile(profileId: String) = core.operation {
         if (repository.profiles.value.none { it.profileId == profileId }) failMessage(L10nKey.SELECT_PROFILE_FIRST)
         onProfileChanged()
-        core.loadProfile(profileId)
+        core.openProfile(profileId)
     }
 
     suspend fun createProfile(displayName: String) = core.operation {
@@ -140,9 +141,9 @@ internal class ProfileController(
         val currentId = state.value.data?.profile?.profileId
         if (currentId == null || currentId == profileId) {
             onProfileChanged()
-            core.loadProfile(remaining.first().profileId)
+            core.openProfile(remaining.first().profileId)
         } else {
-            core.loadProfile(currentId)
+            core.reloadCurrentProfile()
         }
     }
 

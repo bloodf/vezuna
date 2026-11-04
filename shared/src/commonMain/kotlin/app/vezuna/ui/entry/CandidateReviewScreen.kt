@@ -138,6 +138,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
                 candidateId, submitted.value, submitted.unit, submitted.lower, submitted.upper, submitted.date,
                 submitted.code, submitted.name, submitted.asText, submitted.rangeText,
             )
+            if (ctx.controller.state.value.data?.profile?.profileId != data.profile.profileId) return@launch // switched while saving
             if (ctx.controller.state.value.error == null) {
                 session.confirmed()
                 moveOn()
@@ -153,6 +154,7 @@ internal fun CandidateReviewScreen(ctx: RouteContext, candidateId: String) {
         busy = true
         ctx.scope.launch {
             ctx.controller.rejectCandidate(candidateId)
+            if (ctx.controller.state.value.data?.profile?.profileId != data.profile.profileId) return@launch
             if (ctx.controller.state.value.error == null) moveOn() else busy = false
         }
     }

@@ -25,7 +25,8 @@ internal class AppointmentsController(private val core: ControllerCore) {
             if (data.appointments.none { it.appointmentId == appointmentId }) failMessage(L10nKey.APPT_NOT_FOUND)
             repository.updateAppointment(draft.toAppointment(profileId, appointmentId, zone))
         }
-        core.loadProfile(profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.APPT_SAVED))
     }
 
@@ -33,7 +34,8 @@ internal class AppointmentsController(private val core: ControllerCore) {
         val data = core.requireData()
         if (data.appointments.none { it.appointmentId == appointmentId }) failMessage(L10nKey.APPT_NOT_FOUND)
         repository.deleteAppointment(data.profile.profileId, appointmentId)
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.APPT_DELETED))
     }
 }

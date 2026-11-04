@@ -31,7 +31,7 @@ internal class CareController(private val core: ControllerCore) {
         val schedules = buildSchedules(data.profile.profileId, medicationId, drafts)
         val supply = parseSupply(supplyUnits, lowThreshold)?.let { (units, threshold) -> MedicationSupply(units, core.clock(), threshold) }
         repository.addMedication(Medication(data.profile.profileId, medicationId, name.trim(), strength.trim().ifBlank { null }, instructions.trim().ifBlank { null }, schedules, supply = supply))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     private fun buildSchedules(profileId: String, medicationId: String, drafts: List<ScheduleDraft>, previous: List<DoseSchedule> = emptyList()): List<DoseSchedule> {
@@ -66,7 +66,7 @@ internal class CareController(private val core: ControllerCore) {
                 supply = supply,
             ),
         )
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** Adds [added] units to what is left now and restarts the count; only a medication that tracks supply can be refilled. */
@@ -77,7 +77,7 @@ internal class CareController(private val core: ControllerCore) {
         if (medication.supply == null) failMessage(L10nKey.SUPPLY_NOT_TRACKED)
         if ((MedicationSupplies.remaining(medication, data.doseEvents) ?: 0) + units > MAX_SUPPLY) failMessage(L10nKey.SUPPLY_REFILL_INVALID)
         repository.updateMedication(medication.copy(supply = MedicationSupplies.refilled(medication, data.doseEvents, units, core.clock())))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** Blank units means no tracking; the threshold is optional and ignored without units. */
@@ -110,7 +110,7 @@ internal class CareController(private val core: ControllerCore) {
                 schedules = schedules,
             ),
         )
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** Pausing keeps history; resuming also clears an end date that has already passed (a stopped medication). */
@@ -125,7 +125,7 @@ internal class CareController(private val core: ControllerCore) {
             medication.schedules
         }
         repository.updateMedication(medication.copy(active = active, schedules = schedules))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** Stopping ends the schedules today (never before they start) and deactivates reminders immediately. */
@@ -135,14 +135,14 @@ internal class CareController(private val core: ControllerCore) {
         val today = core.clock().toLocalDateTime(core.timeZone()).date
         val schedules = medication.schedules.map { it.copy(endDate = maxOf(today, it.startDate)) }
         repository.updateMedication(medication.copy(active = false, schedules = schedules))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     suspend fun deleteMedication(medicationId: String) = core.operation {
         val data = core.requireData()
         findMedication(data, medicationId)
         repository.deleteMedication(data.profile.profileId, medicationId)
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     private fun findMedication(data: ProfileData, medicationId: String): Medication =
@@ -168,7 +168,7 @@ internal class CareController(private val core: ControllerCore) {
             replacesScheduledFor = dose.scheduledFor,
         )
         if (data.doseEvents.none { it.eventId == event.eventId }) repository.addDoseEvent(event)
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     private suspend fun recordTerminalDose(dose: DashboardDose, status: DoseEventStatus) = core.operation {
@@ -185,7 +185,7 @@ internal class CareController(private val core: ControllerCore) {
                 recordedAt = currentInstant(),
             ),
         )
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 }
 
