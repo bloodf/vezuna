@@ -264,6 +264,10 @@ object DocumentTags {
     const val MAX_PER_DOCUMENT = 20
     const val MAX_NAME_LENGTH = 255
 
+    /** File labels cannot hide text with control characters or bidirectional formatting. */
+    fun cleanName(name: String): String = name.filterNot { it.category == CharCategory.CONTROL || it.category == CharCategory.FORMAT }
+        .trim().take(MAX_NAME_LENGTH).trim()
+
     /** Trimmed, without blanks or case-insensitive repeats (the first spelling stays), capped. */
     fun clean(tags: List<String>): List<String> =
         tags.map { it.trim().take(MAX_LENGTH).trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.take(MAX_PER_DOCUMENT)

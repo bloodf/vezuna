@@ -1022,6 +1022,7 @@ iOS: %2$s</string>
     <string name="backup_replace_body">Elimina los registros actuales de %1$s y pone la copia en su lugar.</string>
     <string name="backup_restore_as_new_body">Añade la copia como un perfil aparte. Los registros existentes no cambian.</string>
     <string name="backup_restore_done_title">Restauración completada</string>
+    <string name="backup_restore_file_conflict">Esta copia sobrescribiría un archivo original diferente en este dispositivo. Nada cambió. Elige Restaurar como nuevo para conservar ambos.</string>
     <string name="backup_restore_failed_kept">Los perfiles que ya estaban en este dispositivo no cambiaron por el paso que falló.</string>
     <string name="backup_restore_failed_partial">Esta copia tiene varios perfiles. Los restaurados antes del problema se quedan en este dispositivo.</string>
     <string name="backup_restore_failed_title">La restauración no terminó</string>
@@ -1328,9 +1329,21 @@ iOS: %2$s</string>
     <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Esta copia es demasiado grande (más de 24 MB con archivos originales y documentos guardados). "%1$s" es uno de los archivos más grandes. La copia de un perfil deja esos archivos fuera.</string>
-    <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles ya no cabe en el límite de 24 MB. Elimina archivos grandes para crearla o haz la copia de un perfil sin sus archivos.</string>
+    <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles supera 24 MB. Elige qué archivos dejar fuera o crea una copia de un perfil, sin archivos.</string>
     <string name="source_page_previous">Página anterior</string>
     <string name="source_page_next">Página siguiente</string>
+    <string name="backup_leave_out_title">Algunos archivos no caben en esta copia</string>
+    <string name="backup_leave_out_body">La copia cifrada, con registros y archivos, debe caber en 24 MB. Los archivos más grandes se dejan fuera primero hasta que quepa. Nada se deja fuera sin tu acuerdo.</string>
+    <string name="backup_leave_out_row">%1$s · %2$s</string>
+    <string name="backup_leave_out_stays">Los registros, nombres y etiquetas siguen en la copia. Los archivos siguen en este dispositivo. Reemplazar en el mismo dispositivo conserva los archivos locales correspondientes; en otro dispositivo quedan registros sin archivo que puedes rellenar. Cancelar no escribe nada.</string>
+    <string name="backup_leave_out_confirm">Hacer la copia sin estos archivos</string>
+    <string name="backup_leave_out_confirm_a11y">Hacer la copia sin estos archivos</string>
+    <string name="backup_cannot_fit">Esta copia no cabe en 24 MB ni siquiera sin los archivos guardados. No se creó ninguna copia. Crea una copia de un perfil, sin archivos. Conserva los originales de tus análisis.</string>
+    <string name="backup_ready_left_out">Copia parcial: faltan algunos archivos</string>
+    <string name="backup_restore_left_out_title">Copia parcial: faltan estos archivos</string>
+    <string name="backup_restore_left_out_body">Los registros, nombres y etiquetas están incluidos. Reemplazar en el mismo dispositivo conserva los archivos locales correspondientes. En otro dispositivo, añade los originales otra vez para rellenar los registros.</string>
+    <string name="backup_restore_left_out_replace">Reemplazar %1$s conserva los archivos locales correspondientes. Esta copia no recupera archivos ausentes en otro dispositivo.</string>
+    <string name="backup_result_left_out">Copia parcial restaurada. Los registros y archivos locales correspondientes se conservaron. Añade los originales ausentes otra vez para rellenar estos registros:</string>
     <string name="backup_document_unreadable">No se pudo leer "%1$s", así que esta copia no se creó. No quedó nada fuera. Abre el documento para revisarlo o elimínalo e inténtalo de nuevo.</string>
     <string name="backup_documents_left_out">Este perfil tiene documentos guardados. La copia de un perfil conserva los nombres y las etiquetas, no los archivos. Elige todos los perfiles para incluir los archivos.</string>
     <string name="documents_title">Documentos</string>

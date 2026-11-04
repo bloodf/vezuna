@@ -73,4 +73,16 @@ class BackupHistoryTest {
         val opened = service.open(service.create(stripped.data, pass.toCharArray()), pass.toCharArray())
         assertEquals(stripped.data, opened.data)
     }
+    @Test
+    fun partialHistoryDoesNotResetFullBackupReminder() {
+        val never = BackupHistory().recordSaved(now, true, true)
+        assertTrue(never.partial)
+        assertTrue(never.reminderDue(now, true))
+        assertEquals(never, BackupHistory.decode(never.encode()))
+        val old = BackupHistory(savedAt = now - 40.days).recordSaved(now, true, true)
+        assertTrue(old.reminderDue(now, true))
+        assertFalse(old.recordSaved(now, true, false).reminderDue(now, true))
+        assertEquals(now, BackupHistory.decode("${now.epochSeconds}|household|remind").fullSavedAt)
+    }
+
 }
