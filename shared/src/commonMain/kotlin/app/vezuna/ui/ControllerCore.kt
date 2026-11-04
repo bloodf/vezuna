@@ -37,8 +37,15 @@ internal class ControllerCore(
         loadProfile(profileId)
     }
 
+    // Counts loads so a read that finished after a newer one began (a profile switch during a refresh) cannot overwrite it.
+    // Controllers run on the main dispatcher, so a plain counter is enough.
+    private var latestLoad = 0
+
     suspend fun loadProfile(profileId: String) {
-        val data = repository.readProfile(profileId)
+        val ticket = ++latestLoad
+        // Re-reading the open profile must not move the repository's persisted selection: a stale one could undo a newer switch.
+        val data = if (mutableState.value.data?.profile?.profileId == profileId) repository.peekProfile(profileId) else repository.readProfile(profileId)
+        if (ticket != latestLoad) return
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
