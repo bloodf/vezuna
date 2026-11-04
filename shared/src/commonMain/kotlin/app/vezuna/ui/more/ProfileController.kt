@@ -148,18 +148,17 @@ internal class ProfileController(
     }
 
     /** Optional setup never replaces another profile's device link or imports after a profile switch. */
-    suspend fun linkOnboardingHealthProfile(profileId: String): Boolean {
-        if (!state.value.onboarding || !core.isOpen(profileId)) return false
-        var saved = false
+    suspend fun linkOnboardingHealthProfile(profileId: String): app.vezuna.data.VitalsSyncContext? {
+        if (!state.value.onboarding || !core.isOpen(profileId)) return null
+        var captured: app.vezuna.data.VitalsSyncContext? = null
         core.operation {
-            val linked = repository.linkedHealthProfileId()
-            if (!state.value.onboarding || !core.isOpen(profileId) || linked != null && linked != profileId) return@operation
-            repository.setLinkedHealthProfile(profileId)
-            saved = true
+            val expected = repository.linkOnboardingHealthProfile(profileId, core.timeZone()) ?: return@operation
             core.reloadCurrentProfile()
+            val current = repository.captureVitalsSync(expected.zone)
+            captured = expected.takeIf { current.profileId == it.profileId && current.generation == it.generation }
         }
-        return saved && state.value.onboarding && core.openingProfileId == null && core.isOpen(profileId) &&
-            state.value.error == null && state.value.healthLinkedProfileId == profileId
+        if (!state.value.onboarding || core.openingProfileId != null || !core.isOpen(profileId) || state.value.error != null) return null
+        return captured
     }
 
     suspend fun setLinkedHealthProfile(profileId: String) = core.operation {

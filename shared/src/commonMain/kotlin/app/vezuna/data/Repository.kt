@@ -111,6 +111,8 @@ interface VezunaRepository {
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
     suspend fun setLinkedHealthProfile(profileId: String)
+    /** Pins only the already resolved target; never replaces another profile's link. Returns the same-lock sync context. */
+    suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext?
     /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
     suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
     /** Atomically captures the resolved link, its generation and the stored sync window. */
@@ -281,6 +283,12 @@ class InMemoryVezunaRepository : VezunaRepository {
         require(records.containsKey(profileId)) { "Profile not found" }
         if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != profileId) vitalsSyncGeneration += 1
         healthLink = profileId
+    }
+
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != profileId) return@withLock null
+        healthLink = profileId
+        VitalsSyncContext(profileId, vitalsSyncGeneration, records.getValue(profileId).vitals.lastSync, zone)
     }
 
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {

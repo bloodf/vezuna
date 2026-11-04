@@ -399,6 +399,13 @@ class VaultBackedRepository(
         if (changed) vitalsSyncGeneration += 1
     }
 
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        ensureInitialized()
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) != profileId) return@withLock null
+        persistHealthLink(profileId)
+        VitalsSyncContext(profileId, vitalsSyncGeneration, vitals[profileId]?.lastSync, zone)
+    }
+
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
         ensureInitialized()
         require(records.containsKey(profileId)) { "Profile not found" }

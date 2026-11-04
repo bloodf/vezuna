@@ -19,9 +19,15 @@ protocol HealthImporting {
 /// Weight is sparse and read as individual samples. Values are validated on the Kotlin side.
 final class HealthKitImporter: HealthImporting {
     private let store: HKHealthStore
+    private var expected: VitalsSyncContext?
+    private let requiresExpected: Bool
+    private let requestLock = NSLock()
+    private var invalidated = false
 
-    init(store: HKHealthStore = .init()) {
+    init(store: HKHealthStore = .init(), expected: VitalsSyncContext? = nil) {
         self.store = store
+        self.expected = expected
+        self.requiresExpected = expected != nil
     }
 
     static var supported: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -32,18 +38,47 @@ final class HealthKitImporter: HealthImporting {
         HKObjectType.quantityType(forIdentifier: .bodyMass)
     ].compactMap { $0 })
 
+    func invalidate() {
+        requestLock.withLock {
+            invalidated = true
+            expected = nil
+        }
+    }
+
+    private func checkRequest() throws {
+        try Task.checkCancellation()
+        guard requestLock.withLock({ !invalidated }) else { throw CancellationError() }
+    }
+
     func authorizeReadOnly() async throws {
-        try await store.requestAuthorization(toShare: [], read: Self.readTypes)
+        do {
+            try checkRequest()
+            guard !requiresExpected || requestLock.withLock({ expected != nil }) else { throw HealthImportError.unavailable }
+            try await store.requestAuthorization(toShare: [], read: Self.readTypes)
+            try checkRequest()
+        } catch {
+            if requiresExpected { invalidate() }
+            throw error
+        }
     }
 
     func importRecent() async throws -> HealthSampleBatch {
-        let window = try await syncWindow()
+        try checkRequest()
+        let captured = requestLock.withLock { () -> VitalsSyncContext? in
+            let captured = expected
+            expected = nil
+            return captured
+        }
+        guard !requiresExpected || captured != nil else { throw HealthImportError.unavailable }
+        let window = try await syncWindow(expected: captured)
+        try checkRequest()
         let from = Date(timeIntervalSince1970: TimeInterval(window.replaceFrom))
         let weightsFrom = Date(timeIntervalSince1970: TimeInterval(window.weightsFrom))
         async let steps = dailySteps(from: from)
         async let heart = hourlyHeartRate(from: from)
         async let weights = weightSamples(from: weightsFrom)
         let batch = Payload(profileId: window.profileId, generation: window.generation, zoneId: window.zoneId, replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
+        try checkRequest()
         try await persist(batch)
         return HealthSampleBatch(heartRate: batch.heartRate.count, steps: batch.steps.count, weight: batch.weights.count)
     }
@@ -122,9 +157,9 @@ final class HealthKitImporter: HealthImporting {
         return samples.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
     }
 
-    private func syncWindow() async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
+    private func syncWindow(expected: VitalsSyncContext?) async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
         try await withCheckedThrowingContinuation { continuation in
-            IosRuntime.shared.vitalsSyncWindow { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
+            IosRuntime.shared.vitalsSyncWindow(expected: expected) { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
                 if let message {
                     continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
                 } else {

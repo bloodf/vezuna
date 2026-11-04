@@ -9,6 +9,12 @@ import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,6 +102,75 @@ class VitalsSyncContextTest {
             assertEquals("a", repository.linkedHealthProfileId())
             assertFailsWith<IllegalStateException> { repository.ingestDeviceVitals(context, batch, now) }
             assertEquals(ProfileVitals(), repository.peekProfile("a").vitals)
+        }
+    }
+
+    @Test
+    fun onboardingLinkIsConditionalAndCapturedContextRejectsPermissionDelayAndAba() = runTest {
+        for (repository in repositories()) {
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a"))
+            assertEquals("a", repository.explicitHealthLinkId())
+            repository.setLinkedHealthProfile("b")
+            kotlin.test.assertNull(repository.linkOnboardingHealthProfile("a"))
+            assertEquals("b", repository.explicitHealthLinkId())
+            var reads = 0
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    reads++
+                    return batch
+                }
+            }
+            val sync = app.vezuna.health.DeviceVitalsSync(source, repository, { now })
+            assertFailsWith<IllegalStateException> { sync.synchronize(expected) }
+            repository.setLinkedHealthProfile("a")
+            assertFailsWith<IllegalStateException> { sync.synchronize(expected) }
+            assertEquals(0, reads)
+            assertEquals(1, sync.synchronize())
+            assertEquals(1, reads)
+        }
+    }
+
+    @Test
+    fun cancellationAfterPlatformReadDoesNotCommit() = runTest {
+        for (repository in repositories()) {
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a"))
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    currentCoroutineContext().cancel()
+                    return batch
+                }
+            }
+            val job = launch { app.vezuna.health.DeviceVitalsSync(source, repository, { now }).synchronize(expected) }
+            job.join()
+            kotlin.test.assertTrue(job.isCancelled)
+            assertEquals(ProfileVitals(), repository.peekProfile("a").vitals)
+            assertEquals(expected, repository.captureVitalsSync(expected.zone))
+        }
+    }
+
+    @Test
+    fun relinkWhileReadingRejectsCommitAndReadUsesCapturedZone() = runTest {
+        for (repository in repositories()) {
+            val zone = TimeZone.of("America/Sao_Paulo")
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a", zone))
+            val reading = CompletableDeferred<Unit>()
+            val resume = CompletableDeferred<Unit>()
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    assertEquals(zone, request.zone)
+                    reading.complete(Unit)
+                    resume.await()
+                    return batch
+                }
+            }
+            val sync = app.vezuna.health.DeviceVitalsSync(source, repository, { now }, { TimeZone.UTC })
+            val job = launch { assertFailsWith<IllegalStateException> { sync.synchronize(expected) } }
+            withTimeout(5_000) { reading.await() }
+            repository.setLinkedHealthProfile("b")
+            resume.complete(Unit)
+            withTimeout(5_000) { job.join() }
+            assertEquals(ProfileVitals(), repository.peekProfile("a").vitals)
+            assertEquals(ProfileVitals(), repository.peekProfile("b").vitals)
         }
     }
 

@@ -101,8 +101,8 @@ class ProfileOnboardingTest {
         c.completeOnboarding("Ana", null, finish = false)
         val id = c.state.value.data!!.profile.profileId
         var requestedProfile: String? = null
-        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), perform = {
-            requestedProfile = c.state.value.healthLinkedProfileId
+        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = {
+            requestedProfile = it.profileId
         }), NativeAction.HEALTH, id)
         assertEquals(id, requestedProfile)
         assertEquals(id, repository.explicitHealthLinkId())
@@ -120,9 +120,18 @@ class ProfileOnboardingTest {
         var requests = 0
         requestOnboardingOption(c, NativeActions(perform = { requests++ }), NativeAction.HEALTH, id)
         requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), enabled = emptySet(), perform = { requests++ }), NativeAction.HEALTH, id)
+        val normalOnly = NativeActions(setOf(NativeAction.HEALTH), perform = { requests++ })
+        assertFalse(normalOnly.supportsOnboarding(NativeAction.HEALTH))
+        assertTrue(NativeAction.HEALTH in normalOnly)
+        assertFalse(NativeActions(performHealth = {}).supportsOnboarding(NativeAction.HEALTH))
+        requestOnboardingOption(c, normalOnly, NativeAction.HEALTH, id)
         assertEquals(0, requests)
         assertNull(repository.explicitHealthLinkId())
-        val denied = NativeActions(setOf(NativeAction.HEALTH), perform = { requests++ })
+        normalOnly.perform(NativeAction.HEALTH)
+        assertEquals(1, requests)
+        requests = 0
+        val denied = NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ })
+        assertTrue(denied.supportsOnboarding(NativeAction.HEALTH))
         requestOnboardingOption(c, denied, NativeAction.HEALTH, id)
         assertEquals(1, requests)
         assertEquals(id, repository.explicitHealthLinkId())
@@ -142,7 +151,7 @@ class ProfileOnboardingTest {
         repository.createProfile(Profile("other", "Other", createdAt = Instant.parse("2099-01-01T00:00:00Z")))
         repository.setLinkedHealthProfile("other")
         var requests = 0
-        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), perform = { requests++ }), NativeAction.HEALTH, id)
+        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
         assertEquals("other", repository.explicitHealthLinkId())
         assertEquals(0, requests)
         c.skipOnboarding()
@@ -155,10 +164,10 @@ class ProfileOnboardingTest {
         val linking = CompletableDeferred<Unit>()
         val resume = CompletableDeferred<Unit>()
         val delayed = object : VezunaRepository by repository {
-            override suspend fun setLinkedHealthProfile(profileId: String) {
+            override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): app.vezuna.data.VitalsSyncContext? {
                 linking.complete(Unit)
                 resume.await()
-                repository.setLinkedHealthProfile(profileId)
+                return repository.linkOnboardingHealthProfile(profileId, zone)
             }
         }
         val c = controller(delayed)
@@ -167,7 +176,7 @@ class ProfileOnboardingTest {
         repository.createProfile(Profile("other", "Other", createdAt = Instant.parse("2099-01-01T00:00:00Z")))
         var requests = 0
         val request = launch {
-            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), perform = { requests++ }), NativeAction.HEALTH, id)
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
         }
         withTimeout(5_000) { linking.await() }
         c.switchProfile("other")
@@ -176,6 +185,139 @@ class ProfileOnboardingTest {
         assertEquals("other", c.state.value.data!!.profile.profileId)
         assertEquals(id, repository.explicitHealthLinkId())
         assertEquals(0, requests)
+    }
+
+    @Test
+    fun competingLinkWriterCannotBeOverwrittenByOnboarding() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val linking = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): app.vezuna.data.VitalsSyncContext? {
+                linking.complete(Unit)
+                resume.await()
+                return repository.linkOnboardingHealthProfile(profileId, zone)
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        repository.createProfile(Profile("other", "Other", createdAt = Instant.parse("2099-01-01T00:00:00Z")))
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { linking.await() }
+        repository.setLinkedHealthProfile("other")
+        resume.complete(Unit)
+        withTimeout(5_000) { request.join() }
+        assertEquals("other", repository.explicitHealthLinkId())
+        assertEquals(0, requests)
+    }
+
+    @Test
+    fun relinkDuringCachedReloadCannotApproveWrongNativeTarget() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val reading = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        var delay = false
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun peekProfile(profileId: String): app.vezuna.domain.ProfileData {
+                if (delay) {
+                    reading.complete(Unit)
+                    resume.await()
+                }
+                return repository.peekProfile(profileId)
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        repository.createProfile(Profile("other", "Other", createdAt = Instant.parse("2099-01-01T00:00:00Z")))
+        delay = true
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { reading.await() }
+        repository.setLinkedHealthProfile("other")
+        resume.complete(Unit)
+        withTimeout(5_000) { request.join() }
+        assertEquals("other", repository.explicitHealthLinkId())
+        assertEquals(0, requests)
+    }
+
+    @Test
+    fun failedConditionalLinkSaveNeverDispatchesAndCompletionRemainsAvailable() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = app.vezuna.data.VaultBackedRepository(vault)
+        repository.load()
+        val c = controller(repository)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        vault.failingWrites += "repository-health-link-v1"
+        var requests = 0
+        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        assertEquals(0, requests)
+        assertNull(repository.explicitHealthLinkId())
+        assertTrue(repository.peekProfile(id).vitals.isEmpty)
+        assertTrue(c.state.value.error != null)
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
+    }
+
+    @Test
+    fun cancellationDuringConditionalLinkDoesNotDispatchOrPin() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val linking = CompletableDeferred<Unit>()
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): app.vezuna.data.VitalsSyncContext? {
+                linking.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { linking.await() }
+        request.cancel()
+        withTimeout(5_000) { request.join() }
+        assertEquals(0, requests)
+        assertNull(repository.explicitHealthLinkId())
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
+    }
+
+    @Test
+    fun cancellationAfterLinkSaveDoesNotLaunchNativePermission() = runTest {
+        val repository = InMemoryVezunaRepository()
+        var cancelCapture = false
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun captureVitalsSync(zone: TimeZone): app.vezuna.data.VitalsSyncContext {
+                val context = repository.captureVitalsSync(zone)
+                if (cancelCapture) kotlinx.coroutines.currentCoroutineContext().let { it[kotlinx.coroutines.Job]!!.cancel() }
+                return context
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        cancelCapture = true
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { request.join() }
+        assertTrue(request.isCancelled)
+        assertEquals(id, repository.explicitHealthLinkId())
+        assertEquals(0, requests)
+        assertTrue(repository.peekProfile(id).vitals.isEmpty)
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
     }
 
     @Test

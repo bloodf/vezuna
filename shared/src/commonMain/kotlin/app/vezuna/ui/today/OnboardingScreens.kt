@@ -62,6 +62,8 @@ import app.vezuna.ui.nav.NativeAction
 import app.vezuna.ui.nav.LocalRouteFocus
 import app.vezuna.ui.vezuna
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
@@ -97,6 +99,7 @@ private fun OptionalSetupScreen(ctx: RouteContext, notifications: Boolean, onNex
     val notificationAccess = ctx.reminders?.notificationAccess?.collectAsState()?.value
     val linked = ctx.state.healthLinkedProfileId
     val linkedElsewhere = !notifications && linked != null && linked != current?.profileId
+    val available = ctx.nativeActions.supportsOnboarding(action)
     var busy by remember { mutableStateOf(false) }
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState())
@@ -117,8 +120,11 @@ private fun OptionalSetupScreen(ctx: RouteContext, notifications: Boolean, onNex
         }
         if (!notifications) {
             Text(vitaText(L10nKey.TR_PERMISSION_NOTE), style = MaterialTheme.typography.bodyLarge)
+            if (current != null && !linkedElsewhere) {
+                Text(vitaText(L10nKey.ONBOARDING_HEALTH_LINK_NOTE, current.displayName), style = MaterialTheme.typography.bodyLarge)
+            }
         }
-        if (action !in ctx.nativeActions.available && !notifications) {
+        if (!available && !notifications) {
             Text(vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_BODY), style = MaterialTheme.typography.bodyLarge)
         }
         ctx.state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
@@ -126,7 +132,7 @@ private fun OptionalSetupScreen(ctx: RouteContext, notifications: Boolean, onNex
             val linkedName = ctx.state.profiles.firstOrNull { it.profileId == linked }?.displayName.orEmpty()
             Text(vitaText(L10nKey.LINKED_PROFILE_CURRENT, linkedName), style = MaterialTheme.typography.bodyLarge)
         }
-        if (action in ctx.nativeActions.enabled && !linkedElsewhere && (notifications || current != null)) {
+        if (available && action in ctx.nativeActions.enabled && !linkedElsewhere && (notifications || current != null)) {
             val label = if (notifications) vitaText(L10nKey.CARE_ENABLE_REMINDERS)
                 else vitaText(L10nKey.TR_IMPORT_NOW)
             PrimaryButton(label, {
@@ -144,10 +150,16 @@ private fun OptionalSetupScreen(ctx: RouteContext, notifications: Boolean, onNex
 
 /** Invoked only by an explicit optional-setup tap; skipping never reaches a native action. */
 internal suspend fun requestOnboardingOption(controller: AppController, actions: NativeActions, action: NativeAction, profileId: String?) {
-    if (!controller.state.value.onboarding || action !in actions.available || action !in actions.enabled) return
+    if (!controller.state.value.onboarding || !actions.supportsOnboarding(action) || action !in actions.enabled) return
     when (action) {
         NativeAction.REMINDERS -> actions.perform(action)
-        NativeAction.HEALTH -> if (profileId != null && controller.linkOnboardingHealthProfile(profileId)) actions.perform(action)
+        NativeAction.HEALTH -> {
+            val perform = actions.performHealth ?: return
+            if (profileId != null) controller.linkOnboardingHealthProfile(profileId)?.let {
+                currentCoroutineContext().ensureActive()
+                perform(it)
+            }
+        }
         else -> Unit
     }
 }
