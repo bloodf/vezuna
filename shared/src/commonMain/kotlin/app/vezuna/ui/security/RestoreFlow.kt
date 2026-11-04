@@ -180,10 +180,13 @@ private fun PassphrasePage(file: ByteArray, service: BackupService, onOpened: (O
 }
 
 @Composable
-private fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean, recovery: Boolean, onRestore: (RestoreMode) -> Unit) {
+internal fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean, recovery: Boolean, onRestore: (RestoreMode) -> Unit) {
     val names = opened.members.joinToString(", ") { it.data.profile.displayName }
     val existing = opened.members.filter { profileExists(it.data.profile.profileId) }.joinToString(", ") { it.data.profile.displayName }
     val contents = remember(opened) { BackupContents.of(opened.members) }
+    val leftOut = remember(opened) { opened.members.leftOutLines() }
+    // Replacing a profile that has left-out documents can lose the copies on this device, so the confirmation says so.
+    val replacedWithLeftOut = opened.members.replacedWithLeftOut(profileExists).joinToString(", ")
     var mode by remember { mutableStateOf(RestoreMode.RESTORE_AS_NEW) }
     var confirmingReplace by remember { mutableStateOf(false) }
     SecurityPage {
@@ -205,6 +208,9 @@ private fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean
         if (contents.documents > 0 && contents.originalFiles < contents.documents) {
             SecurityNotice(vitaText(L10nKey.BACKUP_ORIGINALS_MISSING_TITLE), StatusKind.INFO, detail = vitaText(L10nKey.BACKUP_ORIGINALS_MISSING_BODY))
         }
+        if (leftOut.isNotEmpty()) {
+            SecurityNotice(vitaText(L10nKey.BACKUP_RESTORE_LEFT_OUT_TITLE), StatusKind.WARNING, detail = vitaText(L10nKey.BACKUP_RESTORE_LEFT_OUT_BODY) + "\n" + leftOut.joinToString("\n"))
+        }
         if (recovery) SecurityNotice(vitaText(L10nKey.BACKUP_RECOVERY_CONFIRM_BODY), StatusKind.INFO)
         if (existing.isNotEmpty() && !recovery) {
             Text(vitaText(L10nKey.BACKUP_ALREADY_EXISTS, existing), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = VezunaTokens.SpaceSm))
@@ -223,7 +229,8 @@ private fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean
     if (confirmingReplace) {
         ConfirmDialog(
             title = vitaText(L10nKey.BACKUP_PROFILE_EXISTS_TITLE),
-            body = vitaText(L10nKey.BACKUP_PROFILE_EXISTS_BODY, existing),
+            body = vitaText(L10nKey.BACKUP_PROFILE_EXISTS_BODY, existing) +
+                if (replacedWithLeftOut.isEmpty()) "" else "\n\n" + vitaText(L10nKey.BACKUP_RESTORE_LEFT_OUT_REPLACE, replacedWithLeftOut),
             confirmLabel = vitaText(L10nKey.BACKUP_REPLACE),
             onConfirm = { confirmingReplace = false; onRestore(RestoreMode.REPLACE_EXISTING) },
             onDismiss = { confirmingReplace = false },

@@ -817,6 +817,9 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
  * screenshot harness. Swift skips opening the vault in this mode, and model files are never touched.
  */
 fun makeDesignFixtureViewController(route: String?): UIViewController {
+    NSUserDefaults.standardUserDefaults.stringForKey("VezunaBackupPreview")?.let { kind ->
+        return ComposeUIViewController { app.vezuna.ui.security.BackupLeaveOutPreview(kind) }
+    }
     val repository = InMemoryVezunaRepository()
     val llm = llamatikLocalLlm()
     val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))

@@ -275,7 +275,7 @@ class HealthRecordsTest {
             assertEquals(listOf("p"), opened.members.map { it.data.profile.profileId })
         }
         val failure = assertFailsWith<VitaMessageException> {
-            open("""{"schemaVersion":7,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
+            open("""{"schemaVersion":8,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""")
         }
         assertEquals(L10nKey.BACKUP_UNSUPPORTED_SCHEMA, failure.userText.key)
     }

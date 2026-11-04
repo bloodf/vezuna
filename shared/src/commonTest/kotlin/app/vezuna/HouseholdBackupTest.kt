@@ -337,6 +337,68 @@ class MultiPageDocumentTest {
     }
 
     @Test
+    fun conflictingFullReplacementFailsBeforeAnyMemberWritesAndKeepsOriginals() = runTest {
+        for (failure in listOf("repository-profile-p-v1", "source-document-d-page-3")) {
+            val vault = GenerationalMemoryVault()
+            val repository = VaultBackedRepository(vault).also { it.load() }
+            val store = VaultSourceFileStore(vault)
+            val original = threePages("p")
+            repository.restoreMembers(listOf(BackupMember(original, pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+            val before = repository.readProfile("p")
+            val writes = vault.writes.toList()
+            vault.failingWrites += failure
+            val changed = original.copy(documents = original.documents.map { it.copy(sha256 = "different") })
+            val error = assertFailsWith<Exception> {
+                repository.restoreMembers(listOf(
+                    BackupMember(threePages("q", "e"), pageFiles("e")),
+                    BackupMember(changed, pageFiles().mapValues { byteArrayOf(9) }),
+                ), RestoreMode.REPLACE_EXISTING, store, ::newId)
+            }
+            // Check the actual bytes before checking the error: failed rollback must not erase either vault generation.
+            pageFiles().forEach { (id, bytes) -> assertContentEquals(bytes, store.load("p", id, "source-document-$id")) }
+            assertEquals(before, repository.readProfile("p"))
+            assertEquals(writes, vault.writes, "all members are checked before any files or records are written")
+            assertEquals(L10nKey.BACKUP_RESTORE_FILE_CONFLICT, (error as VitaMessageException).userText.key)
+            assertEquals(listOf("p"), repository.profiles.value.map { it.profileId })
+        }
+    }
+
+    @Test
+    fun anIncludedDocumentCannotOverwriteOnlyAnExistingPage() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        val original = threePages("p")
+        repository.restoreMembers(listOf(BackupMember(original, pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val incoming = original.copy(documents = listOf(original.documents.single().copy(documentId = "d-page-2", sha256 = "different", pageVaultKeys = emptyList())))
+        val writes = vault.writes.toList()
+        assertEquals(L10nKey.BACKUP_RESTORE_FILE_CONFLICT, assertFailsWith<VitaMessageException> {
+            repository.restoreMembers(listOf(BackupMember(incoming, mapOf("d-page-2" to byteArrayOf(9)))), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        }.userText.key)
+        assertEquals(writes, vault.writes)
+        pageFiles().forEach { (id, bytes) -> assertContentEquals(bytes, store.load("p", id, "source-document-$id")) }
+    }
+
+    @Test
+    fun sameContentFullReplaceKeepsLocalFilesAndDifferentContentCanRestoreAsNew() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        val original = threePages("p")
+        repository.restoreMembers(listOf(BackupMember(original, pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        val before = repository.readProfile("p")
+        val writes = vault.writes.size
+        repository.restoreMembers(listOf(BackupMember(original, pageFiles())), RestoreMode.REPLACE_EXISTING, store, ::newId)
+        assertTrue(vault.writes.drop(writes).none { it.startsWith("source-document-") })
+        val changed = original.copy(documents = original.documents.map { it.copy(sha256 = "different") })
+        val fresh = repository.restoreMembers(listOf(BackupMember(changed, pageFiles().mapValues { byteArrayOf(9) })), RestoreMode.RESTORE_AS_NEW, store, ::newId).profileIds.single()
+        val doc = repository.readProfile(fresh).documents.single()
+        assertContentEquals(byteArrayOf(9), store.load(fresh, doc.documentId, assertNotNull(doc.vaultKey)))
+        assertEquals(before, repository.readProfile("p"))
+        pageFiles().forEach { (id, bytes) -> assertContentEquals(bytes, store.load("p", id, "source-document-$id")) }
+    }
+
+    @Test
     fun incompletePagesAreDroppedRatherThanMisnumbered() = runTest {
         val vault = GenerationalMemoryVault()
         val repository = VaultBackedRepository(vault).also { it.load() }

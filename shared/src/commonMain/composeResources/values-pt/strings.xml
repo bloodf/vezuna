@@ -1022,6 +1022,7 @@ iOS: %2$s</string>
     <string name="backup_replace_body">Remove os registros atuais de %1$s e coloca o backup no lugar.</string>
     <string name="backup_restore_as_new_body">Adiciona o backup como um perfil separado. Os registros existentes não mudam.</string>
     <string name="backup_restore_done_title">Restauração concluída</string>
+    <string name="backup_restore_file_conflict">Este backup substituiria um arquivo original diferente neste aparelho. Nada foi alterado. Escolha Restaurar como novo para manter os dois.</string>
     <string name="backup_restore_failed_kept">Os perfis que já estavam neste aparelho não foram alterados pela etapa que falhou.</string>
     <string name="backup_restore_failed_partial">Este backup tem vários perfis. Os restaurados antes do problema continuam neste aparelho.</string>
     <string name="backup_restore_failed_title">A restauração não terminou</string>
@@ -1328,9 +1329,21 @@ iOS: %2$s</string>
     <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). "%1$s" é um dos maiores arquivos. O backup de um perfil deixa esses arquivos de fora.</string>
-    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes para criá-lo ou faça o backup de um perfil sem os arquivos.</string>
+    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis ultrapassa 24 MB. Escolha quais arquivos deixar de fora ou faça um backup de um perfil, sem arquivos.</string>
     <string name="source_page_previous">Página anterior</string>
     <string name="source_page_next">Próxima página</string>
+    <string name="backup_leave_out_title">Alguns arquivos não cabem neste backup</string>
+    <string name="backup_leave_out_body">O backup criptografado, com registros e arquivos, deve caber em 24 MB. Os arquivos maiores ficam de fora primeiro, até caber. Nada fica de fora sem sua concordância.</string>
+    <string name="backup_leave_out_row">%1$s · %2$s</string>
+    <string name="backup_leave_out_stays">Registros, nomes e etiquetas ficam no backup. Os arquivos continuam neste aparelho. Substituir no mesmo aparelho mantém os arquivos locais correspondentes; em outro aparelho, os registros ficam sem arquivo e podem ser preenchidos novamente. Cancelar não grava nada.</string>
+    <string name="backup_leave_out_confirm">Fazer backup sem estes arquivos</string>
+    <string name="backup_leave_out_confirm_a11y">Fazer backup sem estes arquivos</string>
+    <string name="backup_cannot_fit">Este backup não cabe em 24 MB nem sem os arquivos guardados. Nenhum backup foi criado. Faça um backup de um perfil, sem arquivos. Mantenha os originais dos exames.</string>
+    <string name="backup_ready_left_out">Backup parcial: alguns arquivos estão ausentes</string>
+    <string name="backup_restore_left_out_title">Backup parcial: estes arquivos estão ausentes</string>
+    <string name="backup_restore_left_out_body">Registros, nomes e etiquetas estão incluídos. Substituir no mesmo aparelho mantém os arquivos locais correspondentes. Em outro aparelho, adicione os originais novamente para preencher os registros.</string>
+    <string name="backup_restore_left_out_replace">Substituir %1$s mantém os arquivos locais correspondentes. Este backup não recupera os arquivos ausentes em outro aparelho.</string>
+    <string name="backup_result_left_out">Backup parcial restaurado. Os registros e os arquivos locais correspondentes foram mantidos. Adicione os originais ausentes novamente para preencher estes registros:</string>
     <string name="backup_document_unreadable">Não foi possível ler "%1$s", então este backup não foi criado. Nada ficou de fora. Abra o documento para conferir ou exclua-o e tente de novo.</string>
     <string name="backup_documents_left_out">Este perfil tem documentos guardados. O backup de um perfil mantém os nomes e as etiquetas, não os arquivos. Escolha todos os perfis para incluir os arquivos.</string>
     <string name="documents_title">Documentos</string>

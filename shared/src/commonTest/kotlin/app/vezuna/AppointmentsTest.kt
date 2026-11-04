@@ -226,7 +226,7 @@ class AppointmentsTest {
         assertTrue(old.members.single().data.appointments.isEmpty())
         listOf(5, 6).forEach { v -> assertEquals(1, open("""{"schemaVersion":$v,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile}}]}""").members.size) }
         val failure = assertFailsWith<VitaMessageException> {
-            open("""{"schemaVersion":7,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile,"appointments":[]}}]}""")
+            open("""{"schemaVersion":8,"exportedAt":"2026-03-10T12:00:00Z","members":[{"data":{"profile":$profile,"appointments":[]}}]}""")
         }
         assertEquals(L10nKey.BACKUP_UNSUPPORTED_SCHEMA, failure.userText.key)
     }

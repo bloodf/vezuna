@@ -200,7 +200,7 @@ internal fun StrengthMeter(level: PassphraseStrengthLevel) {
 internal fun lastBackupText(history: BackupHistory, now: Instant, hasData: Boolean): String {
     val saved = history.savedAt ?: return vitaText(L10nKey.BACKUP_NEVER)
     val date = formatUiDate(saved)
-    val text = vitaText(if (history.household) L10nKey.BACKUP_LAST_HOUSEHOLD else L10nKey.BACKUP_LAST_PROFILE, date)
+    val text = vitaText(if (history.partial) L10nKey.BACKUP_READY_LEFT_OUT else if (history.household) L10nKey.BACKUP_LAST_HOUSEHOLD else L10nKey.BACKUP_LAST_PROFILE, date)
     return if (history.reminderDue(now, hasData)) "$text. ${vitaText(L10nKey.BACKUP_DUE_SHORT)}" else text
 }
 
