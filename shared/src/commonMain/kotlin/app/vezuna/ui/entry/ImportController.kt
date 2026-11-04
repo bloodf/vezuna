@@ -99,7 +99,7 @@ internal class ImportController(private val core: ControllerCore, private val na
                 inserted++
             }
         }
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         return inserted
     }
 

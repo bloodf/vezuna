@@ -1,6 +1,7 @@
 package app.vezuna
 
 import app.vezuna.data.InMemoryVezunaRepository
+import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
@@ -23,7 +24,7 @@ import kotlin.time.Instant
 class ProfileReloadRaceTest {
     private val t = Instant.parse("2026-11-01T12:00:00Z")
 
-    private class Gated(private val inner: InMemoryVezunaRepository) : VezunaRepository by inner {
+    private class Gated(private val inner: VezunaRepository) : VezunaRepository by inner {
         var gate: CompletableDeferred<Unit>? = null
         var gatedId: String? = null
         override suspend fun readProfile(profileId: String): ProfileData = inner.readProfile(profileId).also { hold(profileId) }
@@ -48,6 +49,67 @@ class ProfileReloadRaceTest {
         repository.gate?.complete(Unit)
         reload.join()
 
+        assertEquals("b", controller.state.value.data?.profile?.profileId)
+    }
+
+    private val vault = GenerationalMemoryVault()
+
+    private suspend fun persisted() = VaultBackedRepository(vault, persistSelection = true).also { it.load() }
+
+    private suspend fun reopenedFirst() = persisted().profiles.value.first().profileId
+
+    private suspend fun gatedApp(llm: LocalLlm = NoLlm): Pair<Gated, AppController> {
+        val repository = Gated(persisted())
+        repository.createProfile(Profile("a", "Alice", createdAt = t))
+        repository.createProfile(Profile("b", "Bruno", createdAt = t))
+        val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModels, NoLlm), LocalHealthChat(repository, llm))
+        controller.initialize()
+        controller.switchProfile("a")
+        return repository to controller
+    }
+
+    @Test
+    fun staleRefreshKeepsSavedSelectionOnTheNewProfile() = runTest {
+        val (repository, controller) = gatedApp()
+        repository.gate = CompletableDeferred()
+        repository.gatedId = "a"
+        val reload = launch { controller.refreshDashboard() }
+        testScheduler.advanceUntilIdle()
+        controller.switchProfile("b")
+        repository.gate?.complete(Unit)
+        reload.join()
+        assertEquals("b", controller.state.value.data?.profile?.profileId)
+        assertEquals("b", reopenedFirst())
+    }
+
+    @Test
+    fun answerFinishingAfterSwitchDoesNotReopenThePreviousProfile() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val (_, controller) = gatedApp(object : LocalLlm {
+            override suspend fun load(modelPath: String, settings: LlmGenerationSettings) = Unit
+            override suspend fun generate(prompt: String): String { release.await(); return "late" }
+            override suspend fun unload() = Unit
+        })
+        val ask = launch { runCatching { controller.ask("How am I?") } }
+        testScheduler.advanceUntilIdle()
+        controller.switchProfile("b")
+        release.complete(Unit)
+        ask.join()
+        assertEquals("b", controller.state.value.data?.profile?.profileId)
+        assertEquals(null, controller.state.value.streamingAnswer)
+        assertEquals("b", reopenedFirst())
+    }
+
+    @Test
+    fun refreshRacingADeleteDoesNotThrow() = runTest {
+        val (repository, controller) = gatedApp()
+        repository.gate = CompletableDeferred()
+        repository.gatedId = "a"
+        val reload = launch { controller.refreshDashboard() }
+        testScheduler.advanceUntilIdle()
+        controller.deleteProfile("a", "Alice")
+        repository.gate?.complete(Unit)
+        reload.join()
         assertEquals("b", controller.state.value.data?.profile?.profileId)
     }
 

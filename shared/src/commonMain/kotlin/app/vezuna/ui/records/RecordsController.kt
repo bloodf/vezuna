@@ -86,7 +86,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         )
         if (!inserted) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
         repository.updateCandidate(candidate.copy(testCode = code, displayName = name, collectedAt = date, collectedAtKnown = true, status = ConfirmationStatus.CONFIRMED, revisions = revisions))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.CONFIRMED_RESULT_SAVED))
     }
 
@@ -138,7 +138,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
             withContext(NonCancellable) { repository.deleteReport(data.profile.profileId, report.reportId) }
             throw error
         }
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         navigator.finishAndGo(AppScreen.Labs)
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
@@ -192,7 +192,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
             previousQualitativeValue = current.qualitativeValue,
         )
         repository.updateObservation(edited.copy(revisions = current.revisions + revision))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.RESULT_UPDATED))
     }
 
@@ -201,7 +201,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         val data = core.requireData()
         if (data.reports.none { it.reportId == reportId }) failMessage(L10nKey.REPORT_NOT_FOUND)
         repository.deleteReport(data.profile.profileId, reportId)
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.REPORT_DELETED))
     }
 
@@ -210,7 +210,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         val candidate = data.ocrCandidates.firstOrNull { it.candidateId == candidateId }
             ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
         repository.updateCandidate(candidate.copy(status = ConfirmationStatus.REJECTED))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** The reviewer's laboratory name and order date for a report; blank clears the name, null clears the date. */
@@ -218,7 +218,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         val data = core.requireData()
         val report = data.reports.firstOrNull { it.reportId == reportId } ?: failMessage(L10nKey.REPORT_NOT_FOUND)
         repository.updateReport(report.copy(laboratoryName = laboratoryName.trim().takeIf { it.isNotEmpty() }, orderedAt = orderedAt))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
 
     /** Returns a rejected candidate to review. Only a rejected candidate can be restored; a confirmed one never. */
@@ -228,7 +228,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
             ?: failMessage(L10nKey.CANDIDATE_UNAVAILABLE)
         if (candidate.status != ConfirmationStatus.REJECTED) failMessage(L10nKey.CANDIDATE_ALREADY_REVIEWED)
         repository.updateCandidate(candidate.copy(status = ConfirmationStatus.UNREVIEWED))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
     }
     fun toggleObservation(observationId: String) {
         val data = core.mutableState.value.data ?: return

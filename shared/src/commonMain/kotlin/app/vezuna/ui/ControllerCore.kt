@@ -32,29 +32,48 @@ internal class ControllerCore(
         mutableState.value = mutableState.value.copy(notice = notice, error = null)
     }
 
-    suspend fun reloadCurrentProfile() {
-        val profileId = mutableState.value.data?.profile?.profileId ?: return
-        loadProfile(profileId)
-    }
-
-    // Counts loads so a read that finished after a newer one began (a profile switch during a refresh) cannot overwrite it.
-    // Controllers run on the main dispatcher, so a plain counter is enough.
+    // Counts loads so a read that finished after a newer one began cannot overwrite it. Controllers run on the main
+    // dispatcher, so a plain counter is enough.
     private var latestLoad = 0
 
-    suspend fun loadProfile(profileId: String) {
+    /**
+     * Opens [profileId] (profile switch, delete, first load) and remembers it as the saved selection. A newer load makes
+     * this one a no-op; returns false then.
+     */
+    suspend fun openProfile(profileId: String): Boolean {
         val ticket = ++latestLoad
-        // Re-reading the open profile must not move the repository's persisted selection: a stale one could undo a newer switch.
-        val data = if (mutableState.value.data?.profile?.profileId == profileId) repository.peekProfile(profileId) else repository.readProfile(profileId)
-        if (ticket != latestLoad) return
+        return apply(ticket, repository.readProfile(profileId))
+    }
+
+    /**
+     * Refreshes whatever profile is open now, after a save or on focus. Callers never pass an id: one captured before a
+     * suspension may no longer be the open profile. Does nothing while a profile is opening, and never moves the saved selection.
+     */
+    suspend fun reloadCurrentProfile() {
+        val profileId = mutableState.value.data?.profile?.profileId ?: return
+        if (repository.profiles.value.none { it.profileId == profileId }) return
+        val ticket = ++latestLoad
+        val data = try {
+            repository.peekProfile(profileId)
+        } catch (gone: NoSuchElementException) {
+            return // deleted while this refresh was waiting
+        }
+        if (mutableState.value.data?.profile?.profileId == profileId) apply(ticket, data)
+    }
+
+    private suspend fun apply(ticket: Int, data: ProfileData): Boolean {
+        val link = repository.linkedHealthProfileId() // suspends, so read before the stale check and copy fresh state after it
+        if (ticket != latestLoad) return false
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
-            healthLinkedProfileId = repository.linkedHealthProfileId(),
+            healthLinkedProfileId = link,
             dashboard = DashboardSnapshotFactory.create(data, clock(), timeZone()),
             selectedObservationIds = mutableState.value.selectedObservationIds.intersect(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
             ),
         )
+        return true
     }
 
     suspend fun operation(block: suspend () -> Unit) {
