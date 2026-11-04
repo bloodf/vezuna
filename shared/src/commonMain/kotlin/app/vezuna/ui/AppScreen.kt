@@ -75,6 +75,7 @@ sealed interface AppScreen {
     data object PrivacyPolicy : AppScreen
     data object Notices : AppScreen
     data object Help : AppScreen
+    data object EmergencyCard : AppScreen
 
     // Assistant and local models (L8)
     data object AiChat : AppScreen

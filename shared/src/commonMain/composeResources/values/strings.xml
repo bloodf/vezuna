@@ -1383,4 +1383,47 @@ iOS: %2$s</string>
         <item quantity="one">%1$d document</item>
         <item quantity="other">%1$d documents</item>
     </plurals>
+    <!-- Emergency card (#102) -->
+    <string name="em_title">Emergency card</string>
+    <string name="em_born">Born %1$s</string>
+    <string name="em_allergies">Allergies</string>
+    <string name="em_medications">Medications</string>
+    <string name="em_empty_title">Nothing recorded yet</string>
+    <string name="em_empty_body">Nothing has been recorded for %1$s. This does not mean there are no allergies, conditions or medications.</string>
+    <string name="em_phone_title">Your phone's emergency info</string>
+    <string name="em_phone_open_android">Open emergency information settings</string>
+    <string name="em_phone_open_ios">Open the Health app</string>
+    <string name="more_emergency">Emergency card</string>
+        <plurals name="em_age_years">
+        <item quantity="one">%1$d year old</item>
+        <item quantity="other">%1$d years old</item>
+    </plurals>
+    <plurals name="em_age_months">
+        <item quantity="one">%1$d month old</item>
+        <item quantity="other">%1$d months old</item>
+    </plurals>
+    <string name="em_born_age">Born %1$s (%2$s)</string>
+    <string name="em_severity_unknown">Severity not stated</string>
+    <string name="em_condition_unknown">Status not stated</string>
+    <string name="em_dose_none">Dose not recorded</string>
+    <string name="em_med_paused">Reminders paused; may not be taking this</string>
+    <string name="em_med_ended_today">Stopped or paused today</string>
+    <string name="em_meds_later">Starting later</string>
+    <plurals name="em_age_days">
+        <item quantity="one">%1$d day old</item>
+        <item quantity="other">%1$d days old</item>
+    </plurals>
+    <string name="em_load_failed">Couldn't load this card. Go back and try again.</string>
+    <string name="em_med_starts">Starts on %1$s</string>
+    <string name="em_phone_open_failed">Couldn't open it from here. Follow the steps above.</string>
+    <string name="em_conditions">Conditions</string>
+    <string name="em_none_allergies">No allergies recorded. This does not mean there are none.</string>
+    <string name="em_none_conditions">No conditions recorded as current. This does not mean there are none.</string>
+    <string name="em_none_medications">No current medications recorded. This does not mean there are none.</string>
+    <string name="em_partial_note">Nothing here is current, but older records exist.</string>
+    <string name="em_intro">A read-only summary of what is recorded for %1$s. It stays on this device and is not shown on the lock screen.</string>
+    <string name="em_phone_android">Emergency information can be reachable from the lock screen, depending on your phone's settings. In your phone's Settings, search for “emergency” (often under Safety &amp; emergency) and copy these details there.</string>
+    <string name="em_phone_ios">Medical ID can be reachable from the lock screen if Show When Locked is on. Copy these details into it in the Health app: profile picture > Medical ID.</string>
+    <string name="em_more_sub">Allergies, conditions and medications at a glance</string>
+<!-- /Emergency card -->
 </resources>
