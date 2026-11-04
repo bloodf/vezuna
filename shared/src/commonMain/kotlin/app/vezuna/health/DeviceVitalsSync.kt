@@ -1,5 +1,6 @@
 package app.vezuna.health
 
+import app.vezuna.data.VitalsSyncContext
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.VitalsWindow
@@ -29,15 +30,17 @@ class DeviceVitalsSync(
     private val repository: VezunaRepository,
     private val clock: () -> Instant,
     private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
-    private val beforeSync: suspend () -> Unit = {},
+    private val beforeSync: suspend (VitalsSyncContext) -> VitalsSyncContext = { it },
 ) {
     private val mutex = Mutex()
 
-    suspend fun synchronize(expected: app.vezuna.data.VitalsSyncContext? = null): Int = mutex.withLock {
-        beforeSync()
+    suspend fun synchronize(expected: VitalsSyncContext? = null): Int = mutex.withLock {
+        currentCoroutineContext().ensureActive()
         val current = repository.captureVitalsSync(expected?.zone ?: zone())
         check(expected == null || current.profileId == expected.profileId && current.generation == expected.generation) { "Device vitals sync is stale" }
-        val context = expected ?: current
+        val context = beforeSync(expected ?: current)
+        currentCoroutineContext().ensureActive()
+        repository.withValidatedVitalsSync(context) {}
         val now = clock()
         val lastSync = context.lastSync
         val tz = context.zone

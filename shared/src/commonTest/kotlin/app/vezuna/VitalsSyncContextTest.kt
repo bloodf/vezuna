@@ -184,4 +184,38 @@ class VitalsSyncContextTest {
             assertEquals(1, repository.ingestDeviceVitals(context, batch, now))
         }
     }
+    @Test
+    fun exactCommitSuccessorPreservesZoneAndRejectsRelinkedCleanup() = runTest {
+        for (repository in repositories()) {
+            val zone = TimeZone.of("America/Sao_Paulo")
+            val original = repository.captureVitalsSync(zone)
+            val commit = repository.ingestDeviceVitalsAndCapture(original, batch, now)
+            assertEquals(1, commit.storedCount)
+            assertEquals(original.copy(generation = original.generation + 1, lastSync = now), commit.context)
+            var deletes = 0
+            repository.withValidatedVitalsSync(commit.context) { deletes++ }
+            assertEquals(1, deletes)
+            repository.setLinkedHealthProfile("b")
+            repository.setLinkedHealthProfile("a")
+            assertFailsWith<IllegalStateException> { repository.withValidatedVitalsSync(commit.context) { deletes++ } }
+            assertEquals(1, deletes)
+        }
+    }
+
+    @Test
+    fun linkBookkeepingFailureAfterDurableCommitDoesNotReturnSuccessorOrCleanup() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault)
+        repository.load()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochSeconds(1)))
+        val original = repository.captureVitalsSync()
+        vault.failingWrites += "repository-health-link-v1"
+        assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(original, batch, now) }
+        // Vitals were already durable. Failure is not rollback and the original context cannot retry.
+        assertEquals(now, repository.peekProfile("a").vitals.lastSync)
+        assertEquals(now, VaultBackedRepository(vault).also { it.load() }.peekProfile("a").vitals.lastSync)
+        assertEquals(original.generation + 1, repository.captureVitalsSync().generation)
+        assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(original, batch, now) }
+    }
+
 }

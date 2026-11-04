@@ -24,7 +24,17 @@ final class HealthKitImporter: HealthImporting {
     private let requestLock = NSLock()
     private var invalidated = false
 
-    init(store: HKHealthStore = .init(), expected: VitalsSyncContext? = nil) {
+    typealias IngestBridge = (String, @escaping (String?) -> Void) -> Void
+    private let ingest: IngestBridge
+    private let encode: (Payload) throws -> String
+
+    init(store: HKHealthStore = .init(), expected: VitalsSyncContext? = nil,
+         encode: @escaping (Payload) throws -> String = { String(decoding: try JSONEncoder().encode($0), as: UTF8.self) },
+         ingest: @escaping IngestBridge = { json, completion in
+             IosRuntime.shared.ingestHealthBatch(batchJson: json) { completion($0?.localized()) }
+         }) {
+        self.ingest = ingest
+        self.encode = encode
         self.store = store
         self.expected = expected
         self.requiresExpected = expected != nil
@@ -170,15 +180,26 @@ final class HealthKitImporter: HealthImporting {
     }
 
     /// Returns only after the data is durable in the linked profile's encrypted vitals.
-    private func persist(_ payload: Payload) async throws {
-        let json = String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)
+    // Invalidation/cancellation before dispatch prevents the call. After dispatch the bridge owns
+    // completion and may commit durably; invalidation does not undo it or report a rollback.
+    func persist(_ payload: Payload) async throws {
+        let json = try encode(payload)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            IosRuntime.shared.ingestHealthBatch(batchJson: json) { message in
-                if let message {
-                    continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
-                } else {
-                    continuation.resume()
+            do {
+                try requestLock.withLock {
+                    try Task.checkCancellation()
+                    guard !invalidated else { throw CancellationError() }
+                    // Synchronous dispatch only. No lock is held while awaiting completion.
+                    ingest(json) { message in
+                        if let message {
+                            continuation.resume(throwing: HealthImportError.persistFailed(message))
+                        } else {
+                            continuation.resume()
+                        }
+                    }
                 }
+            } catch {
+                continuation.resume(throwing: error)
             }
         }
     }

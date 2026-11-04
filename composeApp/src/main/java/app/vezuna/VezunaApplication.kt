@@ -81,7 +81,7 @@ class VezunaApplication : Application() {
         healthConnect = AndroidHealthConnectImporter(this)
         healthSync = DeviceVitalsSync(
             healthConnect, repository, { currentInstant() },
-            beforeSync = { LegacyHealthConnectMigration(vault, repository, { currentInstant() }).run() },
+            beforeSync = { context -> LegacyHealthConnectMigration(vault, repository, { currentInstant() }).run(context) },
         )
         applicationScope.launch {
             vaultState.first { it is VaultState.Ready }
