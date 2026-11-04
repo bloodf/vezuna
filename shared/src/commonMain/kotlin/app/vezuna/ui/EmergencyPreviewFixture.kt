@@ -14,7 +14,7 @@ import kotlinx.datetime.LocalDate
 
 /**
  * Screenshot-only variants of [DesignFixture] for the emergency card (debug launch argument `-VezunaEmergencyPreview`
- * with `full`, `meds`, `later`, `partial` or `empty`). The canonical household stays untouched. Synthetic data, in-memory repository only.
+ * with `full`, `meds`, `later`, `later-only`, `partial` or `empty`). The canonical household stays untouched. Synthetic data, in-memory repository only.
  */
 object EmergencyPreviewFixture {
     private const val P = DesignFixture.PROFILE_ID
@@ -38,11 +38,17 @@ object EmergencyPreviewFixture {
         return all.copy(allergies = all.allergies.filter { it.allergyId == "allergy-peanut" }, conditions = emptyList(), medications = all.medications.takeLast(3), doseEvents = emptyList())
     }
 
-    /** One allergy and only the course that starts later, so "Starting later" fits on the first screen at the largest text. */
+    /** One allergy, a paused medication and the course that starts later, so "Starting later" and its card fit on the first screen. */
     private fun later(base: ProfileData): ProfileData {
         val all = medications(base)
-        return all.copy(medications = all.medications.filter { it.medicationId == "med-amoxicillin" })
+        return all.copy(medications = all.medications.filter { it.medicationId != "med-inhaler" })
     }
+
+    /** Only the course that starts later, for the largest text size where little else fits. */
+    private fun laterOnly(base: ProfileData): ProfileData = later(base).copy(
+        allergies = emptyList(),
+        medications = later(base).medications.filter { it.medicationId == "med-amoxicillin" },
+    )
 
     /** No allergy, condition or medication at all. */
     private fun empty(base: ProfileData) = base.copy(allergies = emptyList(), conditions = emptyList(), medications = emptyList(), doseEvents = emptyList())
@@ -62,6 +68,7 @@ object EmergencyPreviewFixture {
             "empty" -> empty(base)
             "meds" -> medications(base)
             "later" -> later(base)
+            "later-only" -> laterOnly(base)
             else -> full(base)
         }
         repository.restoreProfile(data.copy(vitals = ProfileVitals()))

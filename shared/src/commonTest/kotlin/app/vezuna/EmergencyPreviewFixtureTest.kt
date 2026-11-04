@@ -52,8 +52,16 @@ class EmergencyPreviewFixtureTest {
     }
 
     @Test
-    fun laterHasOnlyTheCourseThatStartsLater() = runTest {
+    fun laterKeepsTheAllergyAndDropsTheInhaler() = runTest {
         val s = summary("later")
+        assertEquals(listOf("Peanut"), s.allergies.map { it.substance })
+        assertEquals(setOf("Amoxicillin", "Warfarin"), s.medications.map { it.medication.displayName }.toSet())
+    }
+
+    @Test
+    fun laterOnlyHasOnlyTheCourseThatStartsLater() = runTest {
+        val s = summary("later-only")
         assertEquals(listOf(LocalDate(2027, 1, 15)), s.medications.map { it.startsOn })
+        assertTrue(s.allergies.isEmpty())
     }
 }
