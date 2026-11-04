@@ -1331,7 +1331,7 @@ iOS: %2$s</string>
     <string name="documents_stored_backup_full">Document stored, but a backup of every profile no longer fits the 24 MB limit. Delete large files, or choose to leave some documents out when you make the backup.</string>
     <string name="source_page_previous">Previous page</string>
     <string name="source_page_next">Next page</string>
-    <string name="backup_leave_out_title">Some documents don\'t fit in this backup</string>
+    <string name="backup_leave_out_title">Some documents don’t fit in this backup</string>
     <string name="backup_leave_out_body">A backup holds up to 24 MB of original files and documents. To make it fit, the largest documents are left out first, one at a time, until the rest fits. Nothing is left out unless you agree.</string>
     <string name="backup_leave_out_row">%1$s · %2$s</string>
     <string name="backup_leave_out_stays">These documents stay on this device. The backup records their names, and restoring it will say they are missing. Cancel makes no backup and changes nothing.</string>
