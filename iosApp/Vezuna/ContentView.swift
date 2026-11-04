@@ -96,6 +96,9 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
         let sheet: AppShellModel.Sheet?
         switch action {
         case "HEALTH": sheet = .health
+        case "REMINDERS":
+            Task { await model?.notifications.requestPermission() }
+            return
         case "LICENSE": sheet = .license
         case "PRIVACY": sheet = .privacy
         case "NOTICES": sheet = .notices

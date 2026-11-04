@@ -30,6 +30,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import app.vezuna.ui.NotificationAccess
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,13 +49,17 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
 import app.vezuna.localization.resolve
 import app.vezuna.localization.vitaText
+import app.vezuna.ui.AppController
 import app.vezuna.ui.AppScreen
+import app.vezuna.ui.nav.NativeActions
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.LabeledField
 import app.vezuna.ui.components.PrimaryButton
 import app.vezuna.ui.components.TertiaryButton
 import app.vezuna.ui.components.routeFocus
 import app.vezuna.ui.nav.RouteContext
+import app.vezuna.ui.nav.NativeAction
+import app.vezuna.ui.nav.LocalRouteFocus
 import app.vezuna.ui.vezuna
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -63,16 +71,84 @@ import vezuna.shared.generated.resources.ill_records
 import vezuna.shared.generated.resources.vezuna_lockup_white
 
 /**
- * First run on a fresh install only (AppUiState.onboarding): welcome, then the first profile. Skippable at each
+ * First run on a fresh install only: welcome, first profile, then optional reminders and device health. Skippable at each
  * step and never gates records. The step is plain UI state; nothing here is health data.
  */
 @Composable
 internal fun OnboardingFlow(ctx: RouteContext) {
-    var naming by rememberSaveable { mutableStateOf(false) }
-    if (naming) {
-        FirstProfileScreen(ctx, onBack = { naming = false })
-    } else {
-        WelcomeScreen(ctx, onStart = { naming = true })
+    var step by rememberSaveable { mutableStateOf(0) }
+    val focus = LocalRouteFocus.current
+    LaunchedEffect(step) {
+        withFrameNanos { }
+        runCatching { focus?.requestFocus() }
+    }
+    when (step) {
+        0 -> WelcomeScreen(ctx, onStart = { step = 1 })
+        1 -> FirstProfileScreen(ctx, onBack = { step = 0 }, onDone = { step = 2 }, finish = false)
+        2 -> OptionalSetupScreen(ctx, notifications = true, onNext = { step = 3 })
+        else -> OptionalSetupScreen(ctx, notifications = false, onNext = { ctx.controller.skipOnboarding() })
+    }
+}
+
+@Composable
+private fun OptionalSetupScreen(ctx: RouteContext, notifications: Boolean, onNext: () -> Unit) {
+    val action = if (notifications) NativeAction.REMINDERS else NativeAction.HEALTH
+    val current = ctx.state.data?.profile
+    val notificationAccess = ctx.reminders?.notificationAccess?.collectAsState()?.value
+    val linked = ctx.state.healthLinkedProfileId
+    val linkedElsewhere = !notifications && linked != null && linked != current?.profileId
+    var busy by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState())
+            .statusBarsPadding().clearOfNavigationBar().padding(VezunaTokens.Gutter),
+        verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceLg),
+    ) {
+        Text(
+            vitaText(if (notifications) L10nKey.CARE_REMINDERS_TITLE else L10nKey.TR_LINK_HEADING),
+            style = MaterialTheme.typography.displaySmall.cappedScale(),
+            modifier = Modifier.routeFocus().semantics { heading() },
+        )
+        Text(
+            vitaText(if (notifications) L10nKey.CARE_REMINDERS_INTRO else L10nKey.LINKED_PROFILE_EXPLANATION),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        if (notifications && notificationAccess == NotificationAccess.DENIED) {
+            Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), style = MaterialTheme.typography.bodyLarge)
+        }
+        if (!notifications) {
+            Text(vitaText(L10nKey.TR_PERMISSION_NOTE), style = MaterialTheme.typography.bodyLarge)
+        }
+        if (action !in ctx.nativeActions.available && !notifications) {
+            Text(vitaText(L10nKey.TR_HEALTH_UNAVAILABLE_BODY), style = MaterialTheme.typography.bodyLarge)
+        }
+        ctx.state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        if (!notifications && linked != null) {
+            val linkedName = ctx.state.profiles.firstOrNull { it.profileId == linked }?.displayName.orEmpty()
+            Text(vitaText(L10nKey.LINKED_PROFILE_CURRENT, linkedName), style = MaterialTheme.typography.bodyLarge)
+        }
+        if (action in ctx.nativeActions.enabled && !linkedElsewhere && (notifications || current != null)) {
+            val label = if (notifications) vitaText(L10nKey.CARE_ENABLE_REMINDERS)
+                else vitaText(L10nKey.TR_IMPORT_NOW)
+            PrimaryButton(label, {
+                ctx.scope.launch {
+                    busy = true
+                    try {
+                        requestOnboardingOption(ctx.controller, ctx.nativeActions, action, current?.profileId)
+                    } finally { busy = false }
+                }
+            }, Modifier.fillMaxWidth(), loading = busy)
+        }
+        TertiaryButton(vitaText(if (notifications) L10nKey.CONTINUE_ACTION else L10nKey.DONE_ACTION), onNext, Modifier.fillMaxWidth(), enabled = !busy)
+    }
+}
+
+/** Invoked only by an explicit optional-setup tap; skipping never reaches a native action. */
+internal suspend fun requestOnboardingOption(controller: AppController, actions: NativeActions, action: NativeAction, profileId: String?) {
+    if (!controller.state.value.onboarding || action !in actions.available || action !in actions.enabled) return
+    when (action) {
+        NativeAction.REMINDERS -> actions.perform(action)
+        NativeAction.HEALTH -> if (profileId != null && controller.linkOnboardingHealthProfile(profileId)) actions.perform(action)
+        else -> Unit
     }
 }
 
@@ -115,7 +191,7 @@ internal fun WelcomeScreen(ctx: RouteContext, onStart: () -> Unit) {
  * sets a birth date. Skip keeps the default name; nothing is created twice.
  */
 @Composable
-internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: () -> Unit = {}) {
+internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: () -> Unit = {}, finish: Boolean = true) {
     val state = ctx.state
     var name by remember { mutableStateOf(state.data?.profile?.displayName.orEmpty()) }
     var birthDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -158,14 +234,14 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
                     vitaText(L10nKey.FIRST_PROFILE_CREATE),
                     {
                         ctx.scope.launch {
-                            ctx.controller.completeOnboarding(name, birthDate)
+                            ctx.controller.completeOnboarding(name, birthDate, finish)
                             if (ctx.controller.state.value.error == null) onDone()
                         }
                     },
                     Modifier.fillMaxWidth(),
                     loading = state.loading,
                 )
-                TertiaryButton(vitaText(L10nKey.ONBOARDING_SKIP), { ctx.controller.skipOnboarding(); onDone() }, Modifier.fillMaxWidth())
+                TertiaryButton(vitaText(L10nKey.ONBOARDING_SKIP), { if (finish) ctx.controller.skipOnboarding(); onDone() }, Modifier.fillMaxWidth())
             }
         }
     }

@@ -187,7 +187,7 @@ interface NativeActionHandler {
 
 /** Native screens iOS offers from More (they used to sit in the toolbar menu). */
 private val iosNativeActions = setOf(
-    NativeAction.HEALTH,
+    NativeAction.HEALTH, NativeAction.REMINDERS,
     NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
 )
 
@@ -263,13 +263,13 @@ object IosRuntime {
         openNotificationSettings = { nativeActionHandler?.perform("NOTIFICATION_SETTINGS") },
     )
 
-    /** Called by the notification coordinator with the system authorization; "notDetermined" is asked for automatically. */
+    /** Called by the notification coordinator with the system authorization. */
     fun setNotificationAuthorization(allowed: Boolean, denied: Boolean) {
         reminderState.setNotificationAccess(
             when {
                 allowed -> app.vezuna.ui.NotificationAccess.ALLOWED
                 denied -> app.vezuna.ui.NotificationAccess.DENIED
-                else -> app.vezuna.ui.NotificationAccess.UNKNOWN
+                else -> app.vezuna.ui.NotificationAccess.NOT_REQUESTED
             },
         )
     }

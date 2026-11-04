@@ -126,8 +126,8 @@ class AppController(
     /** Sets or clears (null) the birth date. Rejects future dates and ages above [app.vezuna.domain.ProfileAge.MAX_YEARS]. */
     suspend fun setBirthDate(profileId: String, birthDate: LocalDate?) = profiles.setBirthDate(profileId, birthDate)
 
-    /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
-    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) = profiles.completeOnboarding(displayName, birthDate)
+    /** Saves the first profile; finish ends onboarding. A blank name keeps the default. */
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true) = profiles.completeOnboarding(displayName, birthDate, finish)
     fun skipOnboarding() = profiles.skipOnboarding()
 
     /** Welcome screen's Restore: like [skipOnboarding], and marks the next successful restore as the first-time one. */
@@ -136,6 +136,7 @@ class AppController(
 
     /** The caller must type the exact profile name; the last remaining profile can never be deleted. */
     suspend fun deleteProfile(profileId: String, typedName: String) = profiles.deleteProfile(profileId, typedName)
+    internal suspend fun linkOnboardingHealthProfile(profileId: String) = profiles.linkOnboardingHealthProfile(profileId)
     suspend fun setLinkedHealthProfile(profileId: String) = profiles.setLinkedHealthProfile(profileId)
 
     // import
