@@ -197,12 +197,15 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             }
             // A request already handed to the system for a visit still ahead stays, so the next pass cannot cancel a late reminder
             // that is about to fire.
-            let wanted = allowed ? Self.wantedAppointmentIdentifiers(notices: notices.map(\.identifier), pending: pending.map(\.identifier), aheadIds: Set(plan.aheadIds)) : []
-            center.removePendingNotificationRequests(withIdentifiers: Self.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted))
+            let pendingKeys = pending.map { (identifier: $0.identifier, key: $0.content.userInfo["noticeKey"] as? String) }
+            let wanted = allowed ? Self.wantedAppointmentIdentifiers(notices: notices.map(\.identifier), pending: pendingKeys, currentKeys: Set(plan.currentKeys), nowEpochSeconds: plan.nowEpochSeconds) : []
+            let stale = Self.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted)
+            center.removePendingNotificationRequests(withIdentifiers: stale)
             let delivered = await center.deliveredNotifications().map { $0.request.identifier }.filter { $0.hasPrefix("vezuna.appointment.") }
             center.removeDeliveredNotifications(withIdentifiers: Self.staleDeliveredAppointmentIdentifiers(delivered: delivered, reminderIds: Set(plan.reminderIds)))
-            // Handled keys of visits still ahead only; without permission, also those whose request was just removed, so they can be planned again.
-            var kept = Self.keptHandledKeys(handled, aheadIds: Set(plan.aheadIds), removedPending: allowed ? [] : pending.map(\.identifier))
+            // Handled keys of visits still ahead only, minus the exact key of every request just removed, so it can be planned again.
+            let removedKeys = Set(pendingKeys.filter { stale.contains($0.identifier) }.compactMap(\.key))
+            var kept = Self.keptHandledKeys(handled, aheadIds: Set(plan.aheadIds), removedKeys: removedKeys)
             guard allowed else { defaults.set(kept, forKey: Self.appointmentHandledKey); return 0 }
             let now = Date(timeIntervalSince1970: TimeInterval(plan.nowEpochSeconds))
             for notice in notices {
@@ -222,17 +225,20 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         pending.filter { !wanted.contains($0) }
     }
 
-    /// Identifiers to keep: everything planned, plus pending requests of visits that have not started.
-    static func wantedAppointmentIdentifiers(notices: [String], pending: [String], aheadIds: Set<String>) -> Set<String> {
-        Set(notices).union(pending.filter { aheadIds.contains(String($0.dropFirst("vezuna.appointment.".count))) })
+    /// Identifiers to keep: everything planned, plus a pending request that is a late reminder already handed to the system: its key
+    /// is the visit's current key and its fire time has passed. Any other pending request is out of date (moved, displaced by the cap).
+    static func wantedAppointmentIdentifiers(notices: [String], pending: [(identifier: String, key: String?)], currentKeys: Set<String>, nowEpochSeconds: Int64) -> Set<String> {
+        Set(notices).union(pending.filter { request in
+            guard let key = request.key, currentKeys.contains(key), let fire = key.split(separator: ":").last.flatMap({ Int64($0) }) else { return false }
+            return fire <= nowEpochSeconds
+        }.map(\.identifier))
     }
 
-    /// Handled keys worth remembering: visits still ahead, minus those whose pending request was removed (they were never delivered).
-    static func keptHandledKeys(_ handled: [String], aheadIds: Set<String>, removedPending: [String]) -> [String] {
-        let removed = Set(removedPending.map { String($0.dropFirst("vezuna.appointment.".count)) })
-        return handled.filter { key in
-            guard let id = key.split(separator: ":", maxSplits: 1).first.map(String.init) else { return false }
-            return aheadIds.contains(id) && !removed.contains(id)
+    /// Handled keys worth remembering: visits still ahead, minus the exact keys of requests that were removed (never delivered).
+    static func keptHandledKeys(_ handled: [String], aheadIds: Set<String>, removedKeys: Set<String>) -> [String] {
+        handled.filter { key in
+            guard let colon = key.lastIndex(of: ":") else { return false }
+            return aheadIds.contains(String(key[..<colon])) && !removedKeys.contains(key)
         }
     }
 
@@ -257,7 +263,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             if let profileName = notice.profileName { content.subtitle = L10n.text(.reminder_for_profile, profileName) }
         }
         content.sound = .default
-        content.userInfo = ["appointmentId": notice.appointmentId]
+        content.userInfo = ["appointmentId": notice.appointmentId, "noticeKey": notice.key]
         let interval = max(2, Date(timeIntervalSince1970: TimeInterval(notice.fireEpochSeconds)).timeIntervalSince(now))
         return UNNotificationRequest(identifier: notice.identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
     }

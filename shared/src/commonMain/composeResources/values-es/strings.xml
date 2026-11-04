@@ -1311,6 +1311,7 @@ iOS: %2$s</string>
         <item quantity="one">%1$d minuto antes</item>
         <item quantity="other">%1$d minutos antes</item>
     </plurals>
+    <string name="appt_notifications_off_body">Tus consultas están guardadas. Los recordatorios no aparecerán hasta que se permitan las notificaciones.</string>
     <string name="appt_reminder_note">Los recordatorios se programan solo en este dispositivo. No se envía nada por la red.</string>
     <string name="appt_reminder_passed">Esa hora de recordatorio ya pasó. Elige un tiempo menor o desactiva el recordatorio.</string>
     <string name="appt_reminder_summary">Recordatorio: %1$s</string>

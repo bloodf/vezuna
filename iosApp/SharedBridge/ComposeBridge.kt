@@ -534,7 +534,7 @@ object IosRuntime {
                 val now = currentInstant()
                 val profiles = repository.profiles.value
                 val loaded = profiles.map { it to repository.peekProfile(it.profileId) }
-                val notices = AppointmentReminders.noticesOf(loaded.map { it.second }, now, handled).map { notice -> profiles.first { it.profileId == notice.profileId } to notice }
+                val notices = AppointmentReminders.noticesOf(loaded.map { it.second }, now, handled).mapNotNull { notice -> profiles.firstOrNull { it.profileId == notice.profileId }?.let { it to notice } }
                 completion(
                     JsonObject(
                         mapOf(
@@ -554,6 +554,7 @@ object IosRuntime {
                                 },
                             ),
                             "reminderIds" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.reminderIds(data) }.map { JsonPrimitive(it) }),
+                            "currentKeys" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.currentKeys(data, now) }.map { JsonPrimitive(it) }),
                             "aheadIds" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.aheadIds(data, now) }.map { JsonPrimitive(it) }),
                             "nowEpochSeconds" to JsonPrimitive(now.epochSeconds),
                         ),

@@ -79,7 +79,7 @@ internal fun AppointmentListScreen(ctx: RouteContext) {
             } else {
                 val access by (ctx.reminders?.notificationAccess ?: remember { MutableStateFlow(NotificationAccess.UNKNOWN) }).collectAsState()
                 if (access == NotificationAccess.DENIED && upcoming.any { it.reminderMinutesBefore != null }) {
-                    Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    Text(vitaText(L10nKey.APPT_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                     ctx.reminders?.openNotificationSettings?.let { TertiaryButton(vitaText(L10nKey.CARE_OPEN_DEVICE_SETTINGS), it) }
                 }
                 if (upcoming.isNotEmpty()) AppointmentRows(ctx, vitaText(L10nKey.APPT_UPCOMING), upcoming)
@@ -234,7 +234,7 @@ private fun ReminderPicker(ctx: RouteContext, draft: AppointmentDraft, error: Bo
         if (error) Text(vitaText(L10nKey.APPT_REMINDER_PASSED), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         if (draft.reminderMinutesBefore != null) {
             if (access == NotificationAccess.DENIED) {
-                Text(vitaText(L10nKey.CARE_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                Text(vitaText(L10nKey.APPT_NOTIFICATIONS_OFF_BODY), Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                 reminders?.openNotificationSettings?.let { TertiaryButton(vitaText(L10nKey.CARE_OPEN_DEVICE_SETTINGS), it) }
             }
             if (exactDenied) {

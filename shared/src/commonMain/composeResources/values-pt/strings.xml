@@ -1311,6 +1311,7 @@ iOS: %2$s</string>
         <item quantity="one">%1$d minuto antes</item>
         <item quantity="other">%1$d minutos antes</item>
     </plurals>
+    <string name="appt_notifications_off_body">Suas consultas estão salvas. Os lembretes não aparecerão até que as notificações sejam permitidas.</string>
     <string name="appt_reminder_note">Os lembretes são definidos só neste aparelho. Nada é enviado pela rede.</string>
     <string name="appt_reminder_passed">Esse horário de lembrete já passou. Escolha um tempo menor ou desative o lembrete.</string>
     <string name="appt_reminder_summary">Lembrete: %1$s</string>

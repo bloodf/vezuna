@@ -346,6 +346,7 @@ class AppointmentsTest {
         val now = soon - 1.hours
         assertEquals(listOf("near", "far"), AppointmentReminders.noticesOf(listOf(first, second), now).map { it.appointmentId })
         assertEquals(setOf("far"), AppointmentReminders.aheadIds(first, now))
+        assertEquals(setOf("far:${(soon + 90.days - 60.minutes).epochSeconds}"), AppointmentReminders.currentKeys(first, now), "the key a pending request must carry to stay current")
         assertTrue(AppointmentReminders.aheadIds(first, soon + 365.days).isEmpty(), "a visit that started is no longer ahead")
     }
 

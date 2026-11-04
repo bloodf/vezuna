@@ -87,6 +87,12 @@ object AppointmentReminders {
     fun aheadIds(data: ProfileData, now: Instant): Set<String> =
         data.appointments.filter { it.reminderMinutesBefore != null && it.at > now }.map { it.appointmentId }.toSet()
 
+    /** The [Notice.key] each visit still ahead has now: a pending request with any other key is out of date. */
+    fun currentKeys(data: ProfileData, now: Instant): Set<String> = data.appointments.mapNotNull { appointment ->
+        val fireAt = appointment.reminderAt?.takeIf { appointment.at > now } ?: return@mapNotNull null
+        Notice(appointment.profileId, appointment.appointmentId, appointment.clinician, appointment.at, fireAt).key
+    }.toSet()
+
     /** Every appointment that currently has a reminder switched on, whether or not it is due: what a delivered notification must still match. */
     fun reminderIds(data: ProfileData): Set<String> = data.appointments.filter { it.reminderMinutesBefore != null }.map { it.appointmentId }.toSet()
 }

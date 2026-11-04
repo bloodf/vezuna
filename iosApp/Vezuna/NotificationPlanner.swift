@@ -177,6 +177,8 @@ struct AppointmentPlan: Codable, Equatable {
     let reminderIds: [String]
     /// Appointments with a reminder on whose visit has not started.
     let aheadIds: [String]
+    /// Notice keys of every visit still ahead as they stand now; a pending request with another key is out of date.
+    let currentKeys: [String]
     let nowEpochSeconds: Int64
 }
 

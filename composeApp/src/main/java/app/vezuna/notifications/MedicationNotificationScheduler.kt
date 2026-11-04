@@ -76,7 +76,7 @@ class MedicationNotificationScheduler(private val context: Context) {
                 val profileName = data.profile.displayName.takeIf { repository.profiles.value.size > 1 }
                 armProfile(data, now, zone, armed, profileName)
                 armSupply(data, now, zone, supplyKeys)
-                armAppointments(data, now, appointmentIds, appointmentKeys, profileName)
+                armAppointments(data, now, appointmentIds, appointmentKeys)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -106,7 +106,7 @@ class MedicationNotificationScheduler(private val context: Context) {
      * A reminder that came due while the phone was off or the vault was not ready is still listed until it is delivered, and
      * the alarm armed for its past time fires at once.
      */
-    private fun armAppointments(data: ProfileData, now: Instant, armed: MutableSet<String>, liveKeys: MutableSet<String>, profileName: String?) {
+    private fun armAppointments(data: ProfileData, now: Instant, armed: MutableSet<String>, liveKeys: MutableSet<String>) {
         val kNow = kotlin.time.Instant.fromEpochSeconds(now.epochSecond)
         val delivered = deliveredStore.getStringSet(ARMED_KEY, emptySet()).orEmpty()
         data.appointments.forEach { appointment ->
@@ -119,7 +119,6 @@ class MedicationNotificationScheduler(private val context: Context) {
                 putExtra(EXTRA_PROFILE_ID, notice.profileId)
                 putExtra(EXTRA_NOTICE_KEY, notice.key)
                 putExtra(EXTRA_APPOINTMENT_AT, notice.appointmentAt.toEpochMilliseconds())
-                profileName?.let { putExtra(EXTRA_PROFILE_NAME, it) }
             }!!)
         }
     }
@@ -190,6 +189,8 @@ class MedicationNotificationScheduler(private val context: Context) {
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
         if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            // A visit channel the user turned off shows nothing, so it must not count as shown.
+            if (NotificationManagerCompat.from(context).getNotificationChannel(APPOINTMENT_CHANNEL_ID)?.importance == NotificationManagerCompat.IMPORTANCE_NONE) return false
             NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
             return true
         }

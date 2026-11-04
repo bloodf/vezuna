@@ -198,7 +198,7 @@ final class ReminderPlanningTests: XCTestCase {
     }
 
     func testAppointmentPlanDecodesAndSchedulesOneIntervalRequestThatHidesWhatTheSettingHides() throws {
-        let json = #"{"notices":[{"key":"a1:1793606400","profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":"Ana"}],"reminderIds":["a1","a2"],"aheadIds":["a1"],"nowEpochSeconds":1793600000}"#
+        let json = #"{"notices":[{"key":"a1:1793606400","profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":"Ana"}],"reminderIds":["a1","a2"],"aheadIds":["a1"],"currentKeys":["a1:1793606400"],"nowEpochSeconds":1793600000}"#
         let plan = try JSONDecoder().decode(AppointmentPlan.self, from: Data(json.utf8))
         let notice = plan.notices[0]
         XCTAssertEqual(notice.identifier, "vezuna.appointment.a1")
@@ -212,17 +212,27 @@ final class ReminderPlanningTests: XCTestCase {
         let hidden = MedicationNotificationCoordinator.appointmentRequest(for: notice, hidingName: true, now: now, calendar: calendar)
         XCTAssertFalse(hidden.content.body.contains("Dr. Silva"))
         XCTAssertTrue(hidden.content.subtitle.isEmpty, "the profile name is hidden too")
-        XCTAssertEqual(hidden.content.userInfo as? [String: String], ["appointmentId": "a1"])
+        XCTAssertEqual(hidden.content.userInfo as? [String: String], ["appointmentId": "a1", "noticeKey": "a1:1793606400"])
     }
 
-    func testAPendingLateReminderOfAVisitStillAheadIsKeptAndItsHandledKeyOnlyWhileTheRequestLives() {
-        let pending = ["vezuna.appointment.late", "vezuna.appointment.gone", "vezuna.appointment.started"]
-        let wanted = MedicationNotificationCoordinator.wantedAppointmentIdentifiers(notices: ["vezuna.appointment.new"], pending: pending, aheadIds: ["late", "new"])
-        XCTAssertEqual(wanted, ["vezuna.appointment.new", "vezuna.appointment.late"], "the next pass must not cancel a late request that is about to fire")
-        XCTAssertEqual(MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: pending, wanted: wanted), ["vezuna.appointment.gone", "vezuna.appointment.started"])
-        let handled = ["late:100", "past:50", "other:7"]
-        XCTAssertEqual(MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "other"], removedPending: []), ["late:100", "other:7"], "visits that started are forgotten")
-        XCTAssertEqual(MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "other"], removedPending: ["vezuna.appointment.late"]), ["other:7"], "a request removed without permission is planned again")
+    func testOnlyALateRequestWithTheCurrentKeyIsKeptAndEveryRemovedRequestForgetsItsExactKey() {
+        let now: Int64 = 1000
+        let pending: [(identifier: String, key: String?)] = [
+            ("vezuna.appointment.late", "late:900"),
+            ("vezuna.appointment.moved", "moved:500"),
+            ("vezuna.appointment.future", "future:5000"),
+            ("vezuna.appointment.old", nil),
+        ]
+        let wanted = MedicationNotificationCoordinator.wantedAppointmentIdentifiers(notices: ["vezuna.appointment.new"], pending: pending, currentKeys: ["late:900", "moved:700", "future:5000", "new:2000"], nowEpochSeconds: now)
+        XCTAssertEqual(wanted, ["vezuna.appointment.new", "vezuna.appointment.late"], "a late request with the current key survives; a stale key, a future request that is not planned, and an unkeyed one do not")
+        let stale = MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted)
+        XCTAssertEqual(Set(stale), ["vezuna.appointment.moved", "vezuna.appointment.future", "vezuna.appointment.old"])
+        let handled = ["late:900", "moved:500", "past:50", "id:with:colon:7"]
+        XCTAssertEqual(
+            MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "moved", "id:with:colon"], removedKeys: ["moved:500"]),
+            ["late:900", "id:with:colon:7"],
+            "visits that started are forgotten, a removed request forgets exactly its own key, and an id may contain a colon"
+        )
     }
 
     func testAnOverdueAppointmentReminderFiresWithinSeconds() throws {

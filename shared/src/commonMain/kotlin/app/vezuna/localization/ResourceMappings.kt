@@ -1225,6 +1225,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.APPT_SAVED to Res.string.appt_saved,
     L10nKey.APPT_DELETED to Res.string.appt_deleted,
     L10nKey.APPT_NOT_FOUND to Res.string.appt_not_found,
+    L10nKey.APPT_NOTIFICATIONS_OFF_BODY to Res.string.appt_notifications_off_body,
     L10nKey.APPT_DELETE to Res.string.appt_delete,
     L10nKey.APPT_DELETE_BODY to Res.string.appt_delete_body,
     L10nKey.APPT_TIME_LABEL to Res.string.appt_time_label,

@@ -1311,6 +1311,7 @@ iOS: %2$s</string>
         <item quantity="one">%1$d minute before</item>
         <item quantity="other">%1$d minutes before</item>
     </plurals>
+    <string name="appt_notifications_off_body">Your visits are saved. Reminders will not appear until notifications are allowed.</string>
     <string name="appt_reminder_note">Reminders are set on this device only. Nothing is sent over the network.</string>
     <string name="appt_reminder_passed">That reminder time has already passed. Choose a shorter time or switch the reminder off.</string>
     <string name="appt_reminder_summary">Reminder: %1$s</string>
