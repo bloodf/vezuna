@@ -75,11 +75,11 @@ internal class ProfileController(
             repository.createProfile(Profile(randomId(), DefaultProfileName.of(ContentLanguage.device()), createdAt = currentInstant()))
         }
         state.value = state.value.copy(profiles = repository.profiles.value, onboarding = freshInstall || state.value.onboarding)
-        val profileId = state.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
+        val profileId = core.openingProfileId ?: state.value.data?.profile?.profileId ?: repository.profiles.value.first().profileId
         val applied = core.openProfile(profileId)
         // A re-init mid-first-run keeps onboarding (and the typed name) unless real records or a second profile exist.
         val loaded = state.value.data
-        if (applied && state.value.onboarding && (repository.profiles.value.size > 1 || loaded == null || loaded.documents.isNotEmpty() || loaded.vaultDocuments.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty() || loaded.healthRecords.isNotEmpty() || loaded.appointments.isNotEmpty())) {
+        if (state.value.onboarding && (repository.profiles.value.size > 1 || applied && (loaded == null || loaded.documents.isNotEmpty() || loaded.vaultDocuments.isNotEmpty() || loaded.observations.isNotEmpty() || loaded.medications.isNotEmpty() || loaded.healthRecords.isNotEmpty() || loaded.appointments.isNotEmpty()))) {
             state.value = state.value.copy(onboarding = false)
         }
         modelManager.refresh()

@@ -224,9 +224,10 @@ internal fun DocumentDetailScreen(ctx: RouteContext, documentId: String) = Focus
             confirmLabel = vitaText(L10nKey.DOCUMENTS_DELETE),
             onConfirm = {
                 confirmDelete = false
+                val openId = ctx.controller.state.value.data?.profile?.profileId
                 ctx.scope.launch {
                     ctx.controller.deleteDocument(documentId)
-                    if (ctx.controller.state.value.data?.vaultDocuments?.none { it.source.documentId == documentId } == true) ctx.back()
+                    if (ctx.controller.state.value.data?.profile?.profileId == openId && ctx.controller.state.value.data?.vaultDocuments?.none { it.source.documentId == documentId } == true) ctx.back()
                 }
             },
             onDismiss = { confirmDelete = false },

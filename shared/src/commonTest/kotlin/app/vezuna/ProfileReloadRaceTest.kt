@@ -24,11 +24,22 @@ import kotlin.time.Instant
 class ProfileReloadRaceTest {
     private val t = Instant.parse("2026-11-01T12:00:00Z")
 
+    /** Holds one chosen call of the repository until released; the hold comes BEFORE the real read, like a slow disk. */
     private class Gated(private val inner: VezunaRepository) : VezunaRepository by inner {
         var gate: CompletableDeferred<Unit>? = null
         var gatedId: String? = null
-        override suspend fun readProfile(profileId: String): ProfileData = inner.readProfile(profileId).also { hold(profileId) }
-        override suspend fun peekProfile(profileId: String): ProfileData = inner.peekProfile(profileId).also { hold(profileId) }
+        var linkGate: CompletableDeferred<Unit>? = null
+        var addGate: CompletableDeferred<Unit>? = null
+        override suspend fun readProfile(profileId: String): ProfileData { hold(profileId); return inner.readProfile(profileId) }
+        override suspend fun peekProfile(profileId: String): ProfileData { hold(profileId); return inner.peekProfile(profileId) }
+        override suspend fun linkedHealthProfileId(): String? {
+            linkGate?.let { linkGate = null; it.await() }
+            return inner.linkedHealthProfileId()
+        }
+        override suspend fun addMedication(medication: app.vezuna.domain.Medication) {
+            addGate?.let { addGate = null; it.await() }
+            inner.addMedication(medication)
+        }
         private suspend fun hold(profileId: String) { if (profileId == gatedId) gate?.await() }
     }
 
@@ -108,9 +119,64 @@ class ProfileReloadRaceTest {
         val reload = launch { controller.refreshDashboard() }
         testScheduler.advanceUntilIdle()
         controller.deleteProfile("a", "Alice")
-        repository.gate?.complete(Unit)
+        repository.gate?.complete(Unit) // the refresh now reads a profile that no longer exists
         reload.join()
         assertEquals("b", controller.state.value.data?.profile?.profileId)
+    }
+
+    @Test
+    fun saveOnTheOldProfileFinishingAfterASwitchLandsThereAndLeavesTheNewProfileOpen() = runTest {
+        val (repository, controller) = gatedApp()
+        val release = CompletableDeferred<Unit>()
+        repository.addGate = release
+        val save = launch { controller.addMedication("Metformin", "", "", "08:00") }
+        testScheduler.advanceUntilIdle()
+        controller.switchProfile("b")
+        release.complete(Unit)
+        save.join()
+        assertEquals("b", controller.state.value.data?.profile?.profileId)
+        assertEquals("b", reopenedFirst())
+        assertEquals(emptyList<String>(), controller.state.value.data?.medications?.map { it.displayName })
+        assertEquals(listOf("Metformin"), persisted().peekProfile("a").medications.map { it.displayName })
+        assertEquals(null, controller.state.value.notice)
+    }
+
+    @Test
+    fun healthLinkReadAfterTheStaleCheckCannotOverwriteASwitch() = runTest {
+        val (repository, controller) = gatedApp()
+        repository.linkGate = CompletableDeferred()
+        val first = repository.linkGate
+        val reload = launch { controller.refreshDashboard() }
+        testScheduler.advanceUntilIdle()
+        controller.switchProfile("b")
+        first?.complete(Unit)
+        reload.join()
+        assertEquals("b", controller.state.value.data?.profile?.profileId)
+    }
+
+    @Test
+    fun runningAnswerEndsOnSwitchAndNeverShowsUnderTheNewProfile() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val (_, controller) = gatedApp(object : LocalLlm {
+            override suspend fun load(modelPath: String, settings: LlmGenerationSettings) = Unit
+            override suspend fun generate(prompt: String): String = ""
+            override fun generateStream(prompt: String) = kotlinx.coroutines.flow.flow {
+                emit("partial")
+                release.await()
+                emit(" late")
+            }
+            override suspend fun unload() = Unit
+        })
+        val ask = launch { runCatching { controller.ask("How am I?") } }
+        testScheduler.advanceUntilIdle()
+        assertEquals("partial", controller.state.value.streamingAnswer)
+        controller.switchProfile("b")
+        assertEquals(null, controller.state.value.streamingAnswer)
+        release.complete(Unit)
+        ask.join()
+        assertEquals(null, controller.state.value.streamingAnswer)
+        assertEquals(emptyList(), controller.state.value.data?.chat)
+        assertEquals(emptyList(), persisted().peekProfile("a").chat)
     }
 
     private object NoModels : ModelFileStore {

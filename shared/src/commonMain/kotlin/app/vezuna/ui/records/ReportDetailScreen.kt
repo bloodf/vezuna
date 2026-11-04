@@ -123,7 +123,7 @@ internal fun ReportDetailContent(ctx: RouteContext, reportId: String, onDeleted:
                 confirmDelete = false
                 scope.launch {
                     ctx.controller.deleteReport(reportId)
-                    if (ctx.controller.state.value.data?.reports?.none { it.reportId == reportId } == true) onDeleted()
+                    if (ctx.controller.state.value.data?.profile?.profileId == data.profile.profileId && ctx.controller.state.value.data?.reports?.none { it.reportId == reportId } == true) onDeleted()
                 }
             },
             onDismiss = { confirmDelete = false },

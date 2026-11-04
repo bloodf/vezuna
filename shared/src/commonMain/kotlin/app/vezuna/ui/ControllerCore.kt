@@ -36,13 +36,23 @@ internal class ControllerCore(
     // dispatcher, so a plain counter is enough.
     private var latestLoad = 0
 
+    /** The profile a switch is loading right now, so a concurrent first load follows it instead of undoing it. */
+    var openingProfileId: String? = null
+        private set
+
     /**
      * Opens [profileId] (profile switch, delete, first load) and remembers it as the saved selection. A newer load makes
      * this one a no-op; returns false then.
      */
     suspend fun openProfile(profileId: String): Boolean {
         val ticket = ++latestLoad
-        return apply(ticket, repository.readProfile(profileId))
+        openingProfileId = profileId
+        val link = repository.linkedHealthProfileId()
+        val data = repository.readProfile(profileId)
+        if (ticket != latestLoad) return false
+        openingProfileId = null
+        apply(data, link)
+        return true
     }
 
     /**
@@ -53,17 +63,17 @@ internal class ControllerCore(
         val profileId = mutableState.value.data?.profile?.profileId ?: return
         if (repository.profiles.value.none { it.profileId == profileId }) return
         val ticket = ++latestLoad
+        val link = repository.linkedHealthProfileId()
         val data = try {
             repository.peekProfile(profileId)
         } catch (gone: NoSuchElementException) {
             return // deleted while this refresh was waiting
         }
-        if (mutableState.value.data?.profile?.profileId == profileId) apply(ticket, data)
+        // No suspension from here to the write, so the check cannot go stale.
+        if (ticket == latestLoad && mutableState.value.data?.profile?.profileId == profileId) apply(data, link)
     }
 
-    private suspend fun apply(ticket: Int, data: ProfileData): Boolean {
-        val link = repository.linkedHealthProfileId() // suspends, so read before the stale check and copy fresh state after it
-        if (ticket != latestLoad) return false
+    private fun apply(data: ProfileData, link: String?) {
         mutableState.value = mutableState.value.copy(
             profiles = repository.profiles.value,
             data = data,
@@ -73,8 +83,10 @@ internal class ControllerCore(
                 data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }.map { it.observationId }.toSet(),
             ),
         )
-        return true
     }
+
+    /** True while [profileId] is still the open profile: a save that outlived a switch must not navigate or announce on the new one. */
+    fun isOpen(profileId: String) = mutableState.value.data?.profile?.profileId == profileId
 
     suspend fun operation(block: suspend () -> Unit) {
         mutableState.value = mutableState.value.copy(loading = true, error = null, notice = null)

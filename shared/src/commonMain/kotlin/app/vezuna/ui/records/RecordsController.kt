@@ -87,6 +87,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         if (!inserted) failMessage(L10nKey.DUPLICATE_CLINICAL_RESULT)
         repository.updateCandidate(candidate.copy(testCode = code, displayName = name, collectedAt = date, collectedAtKnown = true, status = ConfirmationStatus.CONFIRMED, revisions = revisions))
         core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.CONFIRMED_RESULT_SAVED))
     }
 
@@ -139,6 +140,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
             throw error
         }
         core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         navigator.finishAndGo(AppScreen.Labs)
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.MANUAL_RESULT_SAVED))
     }
@@ -193,6 +195,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         )
         repository.updateObservation(edited.copy(revisions = current.revisions + revision))
         core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.RESULT_UPDATED))
     }
 
@@ -202,6 +205,7 @@ internal class RecordsController(private val core: ControllerCore, private val n
         if (data.reports.none { it.reportId == reportId }) failMessage(L10nKey.REPORT_NOT_FOUND)
         repository.deleteReport(data.profile.profileId, reportId)
         core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.REPORT_DELETED))
     }
 
