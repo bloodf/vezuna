@@ -50,6 +50,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
+/** Captured under the repository lock before a platform read; never recapture at commit time. */
+data class VitalsSyncContext(val profileId: String, val generation: Long, val lastSync: Instant?, val zone: TimeZone)
+
 interface VezunaRepository {
     val profiles: StateFlow<List<Profile>>
     suspend fun createProfile(profile: Profile)
@@ -110,8 +113,10 @@ interface VezunaRepository {
     suspend fun setLinkedHealthProfile(profileId: String)
     /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
     suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
-    /** Merges the batch into the linked profile only; returns how many of its entries were actually stored. */
-    suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int
+    /** Atomically captures the resolved link, its generation and the stored sync window. */
+    suspend fun captureVitalsSync(zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext
+    /** Rejects stale contexts before any write; returns how many entries were actually stored. */
+    suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int
     /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
     suspend fun replaceVitals(profileId: String, vitals: ProfileVitals)
 }
@@ -139,6 +144,7 @@ class InMemoryVezunaRepository : VezunaRepository {
     private val mutex = Mutex()
     private var records = mapOf<String, ProfileData>()
     private var healthLink: String? = null
+    private var vitalsSyncGeneration = 0L
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     override val profiles = mutableProfiles.asStateFlow()
 
@@ -153,6 +159,7 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
         val remaining = records - profileId
         if (healthLink == profileId) healthLink = HealthLink.resolve(null, remaining.values.map { it.profile })
         publish(remaining)
@@ -262,6 +269,7 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
         publish(records + (data.profile.profileId to data))
     }
 
@@ -271,17 +279,30 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != profileId) vitalsSyncGeneration += 1
         healthLink = profileId
     }
 
-    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutate(profileId) { it.copy(vitals = vitals) }
+    override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
+        val data = records.getValue(profileId)
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
+        publish(records + (profileId to data.copy(vitals = vitals)))
+    }
 
-    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        VitalsSyncContext(id, vitalsSyncGeneration, records.getValue(id).vitals.lastSync, zone)
+    }
+
+    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        val id = HealthLink.resolve(healthLink, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        checkNotNull(id)
         val data = records.getValue(id)
         healthLink = id
-        val updated = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault())
+        val updated = DeviceVitals.ingest(data.vitals, batch, now, context.zone)
         publish(records + (id to data.copy(vitals = updated)))
+        vitalsSyncGeneration += 1
         DeviceVitals.storedCount(updated, batch)
     }
 
@@ -291,6 +312,9 @@ class InMemoryVezunaRepository : VezunaRepository {
     }
 
     private fun publish(updated: Map<String, ProfileData>) {
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != HealthLink.resolve(healthLink, updated.values.map { it.profile })) {
+            vitalsSyncGeneration += 1
+        }
         records = updated
         mutableProfiles.value = updated.values.map { it.profile }.sortedBy { it.displayName }
     }

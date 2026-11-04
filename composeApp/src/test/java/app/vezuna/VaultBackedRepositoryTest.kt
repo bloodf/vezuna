@@ -134,10 +134,10 @@ class VaultBackedRepositoryTest {
         repository.setLinkedHealthProfile("b")
         val steps = app.vezuna.domain.StepsDay(LocalDate(2026, 10, 30), 4000)
         val batch = app.vezuna.domain.VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(steps))
-        repository.ingestDeviceVitals(batch, Instant.parse("2026-11-01T00:00:00Z"))
+        repository.ingestDeviceVitals(repository.captureVitalsSync(), batch, Instant.parse("2026-11-01T00:00:00Z"))
         val snapshotAfterIngest = vault.read("repository-profile-b-v1")
 
-        repository.ingestDeviceVitals(batch, Instant.parse("2026-11-02T00:00:00Z"))
+        repository.ingestDeviceVitals(repository.captureVitalsSync(), batch, Instant.parse("2026-11-02T00:00:00Z"))
         assertEquals(snapshotAfterIngest?.toList(), vault.read("repository-profile-b-v1")?.toList(), "a vitals sync must not rewrite the profile record")
 
         val restored = VaultBackedRepository(vault)

@@ -3,6 +3,18 @@ import VezunaShared
 @testable import Vezuna
 
 final class VezunaTests: XCTestCase {
+    func testHealthPayloadPreservesCapturedProfileAndGeneration() throws {
+        let payload = HealthKitImporter.Payload(
+            profileId: "synthetic-profile-a", generation: 17, zoneId: "UTC", replaceFromEpochSeconds: 1_793_491_200,
+            steps: [], heartRate: [], weights: []
+        )
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(payload)) as? [String: Any])
+        XCTAssertEqual(object["profileId"] as? String, "synthetic-profile-a")
+        XCTAssertEqual(object["generation"] as? Int64, 17)
+        XCTAssertEqual(object["zoneId"] as? String, "UTC")
+        XCTAssertEqual(object["replaceFromEpochSeconds"] as? Int64, 1_793_491_200)
+    }
+
     func testRecordsAndExportsNeverDependOnPremiumOrModels() {
         XCTAssertTrue(FeaturePolicy.recordsAccessible)
         XCTAssertTrue(FeaturePolicy.exportAccessible)

@@ -110,6 +110,7 @@ class VaultBackedRepository(
     private var initialized = false
     private var selectedProfileId: String? = null
     private var healthLinkId: String? = null
+    private var vitalsSyncGeneration = 0L
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     private val mutableRevision = MutableStateFlow(0L)
     private val mutableOpenedFromPrevious = MutableStateFlow(false)
@@ -154,7 +155,9 @@ class VaultBackedRepository(
         forgetDeleted(profile.profileId)
         persist(data)
         writeIndex(indexWith(data.profile))
+        val previousLink = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         records[profile.profileId] = data
+        if (previousLink != HealthLink.resolve(healthLinkId, records.values.map { it.profile })) vitalsSyncGeneration += 1
         changed()
     }
 
@@ -248,7 +251,9 @@ class VaultBackedRepository(
         val updated = records.getValue(profile.profileId).withProfile(profile)
         persist(updated)
         writeIndex(indexWith(profile))
+        val previousLink = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         records[profile.profileId] = updated
+        if (previousLink != HealthLink.resolve(healthLinkId, records.values.map { it.profile })) vitalsSyncGeneration += 1
         changed()
     }
 
@@ -277,6 +282,7 @@ class VaultBackedRepository(
             }
             throw error
         }
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
         records.remove(profileId)
         vitals.remove(profileId)
         if (healthLinkId == profileId) {
@@ -347,6 +353,7 @@ class VaultBackedRepository(
         val previous = records[data.profile.profileId]
         forgetDeleted(data.profile.profileId)
         persist(stored)
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
         // The record is durable from here on. Nothing below may throw for a profile that already existed: its index
         // entry is repaired on the next load, and callers must not roll back files the durable record points at.
         try {
@@ -358,7 +365,9 @@ class VaultBackedRepository(
             if (previous == null) throw error
             warn("Could not update the profile index after a restore", error)
         }
+        val previousLink = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         records[data.profile.profileId] = stored
+        if (previousLink != HealthLink.resolve(healthLinkId, records.values.map { it.profile })) vitalsSyncGeneration += 1
         // Files orphaned by the replacement go only after the restored record is durable; best effort.
         ((previous?.vaultKeys() ?: emptySet()) - data.vaultKeys()).forEach { key ->
             try {
@@ -385,7 +394,9 @@ class VaultBackedRepository(
     override suspend fun setLinkedHealthProfile(profileId: String) = mutex.withLock {
         ensureInitialized()
         require(records.containsKey(profileId)) { "Profile not found" }
+        val changed = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) != profileId
         persistHealthLink(profileId)
+        if (changed) vitalsSyncGeneration += 1
     }
 
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
@@ -393,15 +404,25 @@ class VaultBackedRepository(
         require(records.containsKey(profileId)) { "Profile not found" }
         vitalsStore.save(profileId, vitals)
         this.vitals[profileId] = vitals
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
     }
 
-    override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         ensureInitialized()
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
-        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, TimeZone.currentSystemDefault())
+        VitalsSyncContext(id, vitalsSyncGeneration, vitals[id]?.lastSync, zone)
+    }
+
+    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+        ensureInitialized()
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        checkNotNull(id)
+        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, context.zone)
         // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
         vitalsStore.save(id, updated)
         vitals[id] = updated
+        vitalsSyncGeneration += 1
         if (healthLinkId != id) persistHealthLink(id)
         DeviceVitals.storedCount(updated, batch)
     }
@@ -495,6 +516,7 @@ class VaultBackedRepository(
     }
 
     private suspend fun restore() {
+        vitalsSyncGeneration += 1
         records.clear()
         vitals.clear()
         pendingQuarantine.clear()
