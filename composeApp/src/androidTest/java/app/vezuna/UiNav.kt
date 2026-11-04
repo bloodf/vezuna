@@ -9,8 +9,18 @@ import org.junit.Assert.assertTrue
 /** Shared navigation for the redesigned shell: bottom tabs (Today, Records, Care, Trends, More) and pushed pages. */
 internal fun UiDevice.awaitText(text: String, timeoutMs: Long = 10_000): Boolean = wait(Until.hasObject(By.text(text)), timeoutMs)
 
-/** Home is ready when the Today title is on screen. */
-internal fun UiDevice.awaitToday(today: String = "Today"): Boolean = awaitText(today, 15_000)
+/**
+ * Home is ready when the Today header shows the profile switcher and the "Today" label appears twice: the bottom tab and the
+ * header title. The switcher is drawn only once a profile is loaded, and both sit at the top, so enlarged text cannot push them off screen.
+ */
+internal fun UiDevice.awaitToday(today: String = "Today", switchProfile: String = "Switch profile"): Boolean {
+    val deadline = System.currentTimeMillis() + 15_000
+    do {
+        if (hasObject(By.descContains(switchProfile)) && findObjects(By.text(today)).size >= 2) return true
+        Thread.sleep(250)
+    } while (System.currentTimeMillis() < deadline)
+    return false
+}
 
 /** Clicks the last node with this text: on pushed pages a heading and a button can share a label, the button is below. */
 internal fun UiDevice.tapText(text: String, timeoutMs: Long = 10_000) {
