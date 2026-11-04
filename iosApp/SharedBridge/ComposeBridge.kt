@@ -4,6 +4,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.VaultSourceFileStore
 import app.vezuna.data.restoreMembers
+import app.vezuna.domain.AppointmentReminders
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseEventStatus
@@ -82,6 +83,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -515,6 +517,59 @@ object IosRuntime {
         }
     }
 
+    /**
+     * Visit reminders of every profile as JSON: `notices` has one entry per appointment that opted in, has not started and is
+     * not already [handledJson] (the keys the native side handed to the system before); a late one keeps its original
+     * `fireEpochSeconds` and the native side fires it at once. `reminderIds` lists every appointment with a reminder on, so
+     * a delivered notification of a deleted or switched-off visit can be removed.
+     */
+    fun planAppointmentReminders(handledJson: String, completion: (String?, NativeMessage?) -> Unit) {
+        if (!initialized) {
+            completion(null, nativeMessage("bridge_storage_not_ready"))
+            return
+        }
+        scope.launch {
+            try {
+                val handled = json.parseToJsonElement(handledJson).jsonArray.map { it.jsonPrimitive.content }.toSet()
+                val now = currentInstant()
+                val profiles = repository.profiles.value
+                val loaded = profiles.map { it to repository.peekProfile(it.profileId) }
+                val notices = AppointmentReminders.noticesOf(loaded.map { it.second }, now, handled).mapNotNull { notice ->
+                    profiles.firstOrNull { it.profileId == notice.profileId }?.let { it to notice }
+                        ?: run { println("Visit reminder skipped: a visit does not belong to a known profile"); null }
+                }
+                completion(
+                    JsonObject(
+                        mapOf(
+                            "notices" to JsonArray(
+                                notices.map { (profile, notice) ->
+                                    JsonObject(
+                                        mapOf(
+                                            "key" to JsonPrimitive(notice.key),
+                                            "profileId" to JsonPrimitive(notice.profileId),
+                                            "appointmentId" to JsonPrimitive(notice.appointmentId),
+                                            "clinician" to JsonPrimitive(notice.clinician),
+                                            "appointmentEpochSeconds" to JsonPrimitive(notice.appointmentAt.epochSeconds),
+                                            "fireEpochSeconds" to JsonPrimitive(notice.fireAt.epochSeconds),
+                                            "profileName" to (if (profiles.size > 1) JsonPrimitive(profile.displayName) else JsonNull),
+                                        ),
+                                    )
+                                },
+                            ),
+                            "reminderIds" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.reminderIds(data) }.map { JsonPrimitive(it) }),
+                            "currentKeys" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.currentKeys(data, now) }.map { JsonPrimitive(it) }),
+                            "aheadIds" to JsonArray(loaded.flatMap { (_, data) -> AppointmentReminders.aheadIds(data, now) }.map { JsonPrimitive(it) }),
+                            "nowEpochSeconds" to JsonPrimitive(now.epochSeconds),
+                        ),
+                    ).toString(),
+                    null,
+                )
+            } catch (error: Throwable) {
+                completion(null, nativeMessage("action_failed"))
+            }
+        }
+    }
+
     /** Records MISSED for every overdue dose using the same shared rule as Android. */
     fun recordMissedDoses(completion: (NativeMessage?) -> Unit) {
         if (!initialized) {
@@ -791,7 +846,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
     val llm = llamatikLocalLlm()
     val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
-        DesignFixture.install(repository)
+        DesignFixture.installForPreview(repository)
         controller.initialize()
     }
     return ComposeUIViewController {

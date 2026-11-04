@@ -159,7 +159,7 @@ private fun TimesEditor(times: List<String>, onChange: (List<String>) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -> Unit) {
+internal fun TimePickerDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -> Unit) {
     val parts = initial?.split(":")?.mapNotNull { it.toIntOrNull() }
     val state = rememberTimePickerState(parts?.getOrNull(0) ?: 8, parts?.getOrNull(1) ?: 0, is24Hour = true)
     AlertDialog(

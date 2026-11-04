@@ -84,7 +84,7 @@ class AndroidMainActivity : FragmentActivity() {
             LocalHealthChat(repository, llm),
         ).also { fixture ->
             lifecycleScope.launch {
-                DesignFixture.install(repository)
+                DesignFixture.installForPreview(repository)
                 fixture.initialize()
             }
         }
@@ -213,13 +213,15 @@ class AndroidMainActivity : FragmentActivity() {
         val enabled = NotificationManagerCompat.from(this).areNotificationsEnabled()
         val neverAsked = Build.VERSION.SDK_INT >= 33 && !reminderPreferences.notificationPermissionRequested &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        reminders.setNotificationAccess(
-            when {
-                enabled -> NotificationAccess.ALLOWED
-                neverAsked -> NotificationAccess.NOT_REQUESTED
-                else -> NotificationAccess.DENIED
-            },
-        )
+        val access = when {
+            enabled -> NotificationAccess.ALLOWED
+            neverAsked -> NotificationAccess.NOT_REQUESTED
+            else -> NotificationAccess.DENIED
+        }
+        val becameAllowed = access == NotificationAccess.ALLOWED && reminders.notificationAccess.value != NotificationAccess.ALLOWED
+        reminders.setNotificationAccess(access)
+        // A reminder that came due while notifications were off is armed again, and shown, as soon as they are allowed.
+        if (becameAllowed) lifecycleScope.launch { app.notifications.rescheduleAll(app.repository) }
     }
 
     private fun openNotificationSettings() {

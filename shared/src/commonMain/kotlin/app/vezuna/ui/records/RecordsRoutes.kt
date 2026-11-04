@@ -25,6 +25,12 @@ object RecordsRoutes {
     fun HealthRecordForm(screen: AppScreen.HealthRecordForm, ctx: RouteContext) = HealthRecordFormScreen(ctx, screen.kind, screen.recordId)
 
     @Composable
+    fun Appointments(ctx: RouteContext) = AppointmentListScreen(ctx)
+
+    @Composable
+    fun AppointmentForm(screen: AppScreen.AppointmentForm, ctx: RouteContext) = AppointmentFormScreen(ctx, screen.appointmentId)
+
+    @Composable
     fun Documents(ctx: RouteContext) = DocumentsScreen(ctx)
 
     @Composable

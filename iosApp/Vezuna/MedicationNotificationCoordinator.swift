@@ -96,6 +96,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         let hidden = hideNames
         lastHideNames = hidden
         defer { scheduleBackgroundRefresh() }
+        let appointmentRequests = await planAppointments(hidden: hidden)
         do {
             // Every active medication of every profile, not just the selected one (household reminders).
             let medications = try await loadMedications()
@@ -127,7 +128,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 return
             }
             let now = Date()
-            let plan = planner.plan(for: medications, after: now)
+            let plan = planner.plan(for: medications, after: now, limit: max(0, 60 - appointmentRequests))
             let reminders = plan.reminders
             let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.dose.") }
             let desired = Set(reminders.map { $0.identifier(hidingName: hidden) })
@@ -163,6 +164,108 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Visits get their own share of the 64-request budget; the dose planner is given the rest.
+    static let maxAppointmentReminders = 10
+    static let appointmentHandledKey = "vezuna.appointmentHandled"
+
+    /// Visit reminders: the plan comes from shared code and is the whole truth. Whatever is pending but absent from it (deleted
+    /// appointment, reminder switched off, time moved) is cancelled, and so is a delivered one whose appointment no longer has a
+    /// reminder. Local notifications only; nothing leaves the device. Returns how many requests it holds, so doses plan around them.
+    private func planAppointments(hidden: Bool) async -> Int {
+        do {
+            let handled = defaults.stringArray(forKey: Self.appointmentHandledKey) ?? []
+            let handledJSON = String(decoding: try JSONSerialization.data(withJSONObject: handled), as: UTF8.self)
+            let json = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
+                IosRuntime.shared.planAppointmentReminders(handledJson: handledJSON) { json, error in
+                    if let json { continuation.resume(returning: json) }
+                    else { continuation.resume(throwing: BridgeError.message(error ?? NativeMessage(key: "action_failed", args: []))) }
+                }
+            }
+            let plan = try JSONDecoder().decode(AppointmentPlan.self, from: Data(json.utf8))
+            let notices = Array(plan.notices.prefix(Self.maxAppointmentReminders))
+            let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.appointment.") }
+            var allowed = false
+            if !notices.isEmpty || !pending.isEmpty || !plan.aheadIds.isEmpty {
+                var authorization = await center.notificationSettings().authorizationStatus
+                if authorization == .notDetermined && !notices.isEmpty {
+                    authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
+                }
+                allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
+                IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
+            }
+            // A request already handed to the system for a visit still ahead stays, so the next pass cannot cancel a late reminder
+            // that is about to fire.
+            let pendingKeys = pending.map { (identifier: $0.identifier, key: $0.content.userInfo["noticeKey"] as? String) }
+            let wanted = allowed ? Self.wantedAppointmentIdentifiers(notices: notices.map(\.identifier), pending: pendingKeys, currentKeys: Set(plan.currentKeys), nowEpochSeconds: plan.nowEpochSeconds) : []
+            let stale = Self.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted)
+            center.removePendingNotificationRequests(withIdentifiers: stale)
+            let delivered = await center.deliveredNotifications().map { $0.request.identifier }.filter { $0.hasPrefix("vezuna.appointment.") }
+            center.removeDeliveredNotifications(withIdentifiers: Self.staleDeliveredAppointmentIdentifiers(delivered: delivered, reminderIds: Set(plan.reminderIds)))
+            // Handled keys of visits still ahead only, minus the exact key of every request just removed, so it can be planned again.
+            let removedKeys = Set(pendingKeys.filter { stale.contains($0.identifier) }.compactMap(\.key))
+            var kept = Self.keptHandledKeys(handled, aheadIds: Set(plan.aheadIds), removedKeys: removedKeys)
+            guard allowed else { defaults.set(kept, forKey: Self.appointmentHandledKey); return 0 }
+            let now = Date(timeIntervalSince1970: TimeInterval(plan.nowEpochSeconds))
+            for notice in notices {
+                try await center.add(Self.appointmentRequest(for: notice, hidingName: hidden, now: now))
+                if !kept.contains(notice.key) { kept.append(notice.key) }
+            }
+            defaults.set(kept, forKey: Self.appointmentHandledKey)
+            return wanted.count
+        } catch {
+            log.error("Could not plan appointment reminders: \(error.localizedDescription, privacy: .public)")
+            return 0
+        }
+    }
+
+    /// Pending visit requests that the plan no longer wants.
+    static func staleAppointmentIdentifiers(pending: [String], wanted: Set<String>) -> [String] {
+        pending.filter { !wanted.contains($0) }
+    }
+
+    /// Identifiers to keep: everything planned, plus a pending request that is a late reminder already handed to the system: its key
+    /// is the visit's current key and its fire time has passed. Any other pending request is out of date (moved, displaced by the cap).
+    static func wantedAppointmentIdentifiers(notices: [String], pending: [(identifier: String, key: String?)], currentKeys: Set<String>, nowEpochSeconds: Int64) -> Set<String> {
+        Set(notices).union(pending.filter { request in
+            guard let key = request.key, currentKeys.contains(key), let fire = key.split(separator: ":").last.flatMap({ Int64($0) }) else { return false }
+            return fire <= nowEpochSeconds
+        }.map(\.identifier))
+    }
+
+    /// Handled keys worth remembering: visits still ahead, minus the exact keys of requests that were removed (never delivered).
+    static func keptHandledKeys(_ handled: [String], aheadIds: Set<String>, removedKeys: Set<String>) -> [String] {
+        handled.filter { key in
+            guard let colon = key.lastIndex(of: ":") else { return false }
+            return aheadIds.contains(String(key[..<colon])) && !removedKeys.contains(key)
+        }
+    }
+
+    /// Delivered visit notifications whose appointment was deleted or has its reminder switched off.
+    static func staleDeliveredAppointmentIdentifiers(delivered: [String], reminderIds: Set<String>) -> [String] {
+        delivered.filter { !reminderIds.contains(String($0.dropFirst("vezuna.appointment.".count))) }
+    }
+
+    /// A time-interval trigger, so the reminder fires at the same instant wherever the phone travels; a calendar trigger without a
+    /// time zone is read in the zone the phone is in when it fires. A reminder already due fires within seconds.
+    static func appointmentRequest(for notice: AppointmentNotice, hidingName: Bool, now: Date, calendar: Calendar = .current) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.text(.appointment_reminder_title)
+        if hidingName {
+            content.body = L10n.text(.appointment_reminder_generic_text)
+        } else {
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            content.body = L10n.text(.appointment_reminder_text, notice.clinician, formatter.string(from: Date(timeIntervalSince1970: TimeInterval(notice.appointmentEpochSeconds))))
+            if let profileName = notice.profileName { content.subtitle = L10n.text(.reminder_for_profile, profileName) }
+        }
+        content.sound = .default
+        content.userInfo = ["appointmentId": notice.appointmentId, "noticeKey": notice.key]
+        let interval = max(2, Date(timeIntervalSince1970: TimeInterval(notice.fireEpochSeconds)).timeIntervalSince(now))
+        return UNNotificationRequest(identifier: notice.identifier, content: content, trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false))
     }
 
     /// Low-supply reminders: the schedule comes from shared code; the fire time stored per key keeps a delivered one from repeating.

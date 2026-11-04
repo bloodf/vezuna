@@ -1,3 +1,4 @@
+import UserNotifications
 import XCTest
 @testable import Vezuna
 
@@ -194,6 +195,62 @@ final class ReminderPlanningTests: XCTestCase {
         )
         XCTAssertFalse(response.isExpired(now: received.addingTimeInterval(6 * 24 * 3600)))
         XCTAssertTrue(response.isExpired(now: received.addingTimeInterval(8 * 24 * 3600)))
+    }
+
+    func testAppointmentPlanDecodesAndSchedulesOneIntervalRequestThatHidesWhatTheSettingHides() throws {
+        let json = #"{"notices":[{"key":"a1:1793606400","profileId":"p","appointmentId":"a1","clinician":"Dr. Silva","appointmentEpochSeconds":1793610000,"fireEpochSeconds":1793606400,"profileName":"Ana"}],"reminderIds":["a1","a2"],"aheadIds":["a1"],"currentKeys":["a1:1793606400"],"nowEpochSeconds":1793600000}"#
+        let plan = try JSONDecoder().decode(AppointmentPlan.self, from: Data(json.utf8))
+        let notice = plan.notices[0]
+        XCTAssertEqual(notice.identifier, "vezuna.appointment.a1")
+        let now = Date(timeIntervalSince1970: TimeInterval(plan.nowEpochSeconds))
+        let named = MedicationNotificationCoordinator.appointmentRequest(for: notice, hidingName: false, now: now, calendar: calendar)
+        XCTAssertTrue(named.content.body.contains("Dr. Silva"))
+        XCTAssertFalse(named.content.subtitle.isEmpty, "another profile's name is shown only when not hidden")
+        let trigger = try XCTUnwrap(named.trigger as? UNTimeIntervalNotificationTrigger)
+        XCTAssertFalse(trigger.repeats)
+        XCTAssertEqual(trigger.timeInterval, 6400, accuracy: 0.5, "an absolute interval, so a time zone change cannot move it")
+        let hidden = MedicationNotificationCoordinator.appointmentRequest(for: notice, hidingName: true, now: now, calendar: calendar)
+        XCTAssertFalse(hidden.content.body.contains("Dr. Silva"))
+        XCTAssertTrue(hidden.content.subtitle.isEmpty, "the profile name is hidden too")
+        XCTAssertEqual(hidden.content.userInfo as? [String: String], ["appointmentId": "a1", "noticeKey": "a1:1793606400"])
+    }
+
+    func testOnlyALateRequestWithTheCurrentKeyIsKeptAndEveryRemovedRequestForgetsItsExactKey() {
+        let now: Int64 = 1000
+        let pending: [(identifier: String, key: String?)] = [
+            ("vezuna.appointment.late", "late:900"),
+            ("vezuna.appointment.moved", "moved:500"),
+            ("vezuna.appointment.future", "future:5000"),
+            ("vezuna.appointment.old", nil),
+        ]
+        let wanted = MedicationNotificationCoordinator.wantedAppointmentIdentifiers(notices: ["vezuna.appointment.new"], pending: pending, currentKeys: ["late:900", "moved:700", "future:5000", "new:2000"], nowEpochSeconds: now)
+        XCTAssertEqual(wanted, ["vezuna.appointment.new", "vezuna.appointment.late"], "a late request with the current key survives; a stale key, a future request that is not planned, and an unkeyed one do not")
+        let stale = MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: pending.map(\.identifier), wanted: wanted)
+        XCTAssertEqual(Set(stale), ["vezuna.appointment.moved", "vezuna.appointment.future", "vezuna.appointment.old"])
+        let handled = ["late:900", "moved:500", "past:50", "id:with:colon:7"]
+        XCTAssertEqual(
+            MedicationNotificationCoordinator.keptHandledKeys(handled, aheadIds: ["late", "moved", "id:with:colon"], removedKeys: ["moved:500"]),
+            ["late:900", "id:with:colon:7"],
+            "visits that started are forgotten, a removed request forgets exactly its own key, and an id may contain a colon"
+        )
+    }
+
+    func testAnOverdueAppointmentReminderFiresWithinSeconds() throws {
+        let notice = AppointmentNotice(key: "a1:1", profileId: "p", appointmentId: "a1", clinician: "Dr", appointmentEpochSeconds: 1793610000, fireEpochSeconds: 1793600000, profileName: nil)
+        let request = MedicationNotificationCoordinator.appointmentRequest(for: notice, hidingName: false, now: Date(timeIntervalSince1970: 1793605000), calendar: calendar)
+        XCTAssertEqual((request.trigger as? UNTimeIntervalNotificationTrigger)?.timeInterval, 2)
+    }
+
+    func testPendingAndDeliveredVisitRequestsOfADeletedOrSwitchedOffAppointmentAreRemoved() {
+        XCTAssertEqual(
+            MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: ["vezuna.appointment.a1", "vezuna.appointment.gone"], wanted: ["vezuna.appointment.a1"]),
+            ["vezuna.appointment.gone"]
+        )
+        XCTAssertEqual(
+            MedicationNotificationCoordinator.staleDeliveredAppointmentIdentifiers(delivered: ["vezuna.appointment.a1", "vezuna.appointment.gone"], reminderIds: ["a1"]),
+            ["vezuna.appointment.gone"]
+        )
+        XCTAssertEqual(MedicationNotificationCoordinator.staleAppointmentIdentifiers(pending: ["vezuna.appointment.a1"], wanted: []), ["vezuna.appointment.a1"], "reminder off: nothing wanted")
     }
 
     func testLowSupplyNoticeDecodesAndSchedulesOneRequestPerMedication() throws {

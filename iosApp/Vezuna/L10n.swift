@@ -21,6 +21,7 @@ enum NativeString: String {
     case storage_open_failed, action_failed, select_profile_first
     case model_catalog_invalid
     case medication_reminder_title
+    case appointment_reminder_title, appointment_reminder_text, appointment_reminder_generic_text
     case supply_low_title, supply_low_text, supply_low_generic_text, supply_low_soon_text
     case app_lock_reason
 }

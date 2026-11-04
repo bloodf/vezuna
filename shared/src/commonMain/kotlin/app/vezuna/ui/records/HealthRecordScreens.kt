@@ -64,6 +64,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.DrawableResource
 import vezuna.shared.generated.resources.Res
 import vezuna.shared.generated.resources.ic_block
+import vezuna.shared.generated.resources.ic_calendar
 import vezuna.shared.generated.resources.ic_drop
 import vezuna.shared.generated.resources.ic_heart
 import vezuna.shared.generated.resources.ic_plus
@@ -92,6 +93,13 @@ internal fun HealthRecordRows(ctx: RouteContext, data: ProfileData) {
                 category = Category.RECORDS,
             )
         }
+        ListRow(
+            vitaText(L10nKey.APPT_TITLE),
+            onClick = { ctx.navigate(AppScreen.Appointments) },
+            supporting = vitaPlural(L10nKey.APPT_COUNT, data.appointments.size),
+            leadingIcon = Res.drawable.ic_calendar,
+            category = Category.RECORDS,
+        )
     }
 }
 

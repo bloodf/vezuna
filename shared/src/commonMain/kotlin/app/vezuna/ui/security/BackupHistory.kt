@@ -51,6 +51,7 @@ data class BackupContents(
     val documents: Int,
     /** Documents whose original file (first page) travels in the backup. */
     val originalFiles: Int,
+    val appointments: Int = 0,
 ) {
     companion object {
         fun of(members: List<BackupMember>): BackupContents = BackupContents(
@@ -65,6 +66,7 @@ data class BackupContents(
             healthRecords = members.sumOf { it.data.healthRecords.size },
             documents = members.sumOf { it.data.allDocuments().size },
             originalFiles = members.sumOf { m -> m.data.allDocuments().count { it.documentId in m.files } },
+            appointments = members.sumOf { it.data.appointments.size },
         )
     }
 }
