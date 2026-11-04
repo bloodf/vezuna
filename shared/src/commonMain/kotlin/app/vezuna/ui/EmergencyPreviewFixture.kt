@@ -35,6 +35,7 @@ object EmergencyPreviewFixture {
     /** Records exist but none is current: a resolved condition and a stopped medication only. */
     private fun partial(base: ProfileData) = base.copy(
         allergies = emptyList(),
+        doseEvents = emptyList(),
         conditions = listOf(ConditionRecord(P, "condition-appendectomy", "Appendectomy", status = ConditionStatus.RESOLVED)),
         medications = listOf(Medication(P, "med-old", "Amoxicillin", strength = "500 mg", active = false, schedules = listOf(schedule("old", LocalDate(2026, 1, 1), LocalDate(2026, 1, 10))))),
     )
