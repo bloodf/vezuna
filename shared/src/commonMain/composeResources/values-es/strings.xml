@@ -1022,6 +1022,7 @@ iOS: %2$s</string>
     <string name="backup_replace_body">Elimina los registros actuales de %1$s y pone la copia en su lugar.</string>
     <string name="backup_restore_as_new_body">Añade la copia como un perfil aparte. Los registros existentes no cambian.</string>
     <string name="backup_restore_done_title">Restauración completada</string>
+    <string name="backup_restore_file_conflict">Esta copia sobrescribiría un archivo original diferente en este dispositivo. Nada cambió. Elige Restaurar como nuevo para conservar ambos.</string>
     <string name="backup_restore_failed_kept">Los perfiles que ya estaban en este dispositivo no cambiaron por el paso que falló.</string>
     <string name="backup_restore_failed_partial">Esta copia tiene varios perfiles. Los restaurados antes del problema se quedan en este dispositivo.</string>
     <string name="backup_restore_failed_title">La restauración no terminó</string>

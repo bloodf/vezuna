@@ -1004,6 +1004,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.BACKUP_RESTORE_AS_NEW_BODY to Res.string.backup_restore_as_new_body,
     L10nKey.BACKUP_RESTORE_DONE_TITLE to Res.string.backup_restore_done_title,
     L10nKey.BACKUP_RESTORE_FAILED_KEPT to Res.string.backup_restore_failed_kept,
+    L10nKey.BACKUP_RESTORE_FILE_CONFLICT to Res.string.backup_restore_file_conflict,
     L10nKey.BACKUP_RESTORE_FAILED_PARTIAL to Res.string.backup_restore_failed_partial,
     L10nKey.BACKUP_RESTORE_FAILED_TITLE to Res.string.backup_restore_failed_title,
     L10nKey.BACKUP_RESTORE_SAFETY_BODY to Res.string.backup_restore_safety_body,

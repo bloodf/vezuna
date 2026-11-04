@@ -6,6 +6,8 @@ import app.vezuna.domain.remappedAsNew
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withCleanVaultText
 import app.vezuna.domain.SourceDocument
+import app.vezuna.localization.L10nKey
+import app.vezuna.localization.failMessage
 import app.vezuna.security.BackupMember
 import app.vezuna.security.backupFileId
 import app.vezuna.security.fileIds
@@ -30,6 +32,26 @@ suspend fun VezunaRepository.restoreMembers(
     files: SourceFileStore?,
     newId: () -> String,
 ): RestoreOutcome {
+    // ponytail: reject overwrites until source files support atomic staging; preflight the whole household before writes.
+    if (mode == RestoreMode.REPLACE_EXISTING && files != null) {
+        members.forEach { member ->
+            val existing = profiles.value.firstOrNull { it.profileId == member.data.profile.profileId }
+                ?.let { peekProfile(it.profileId) } ?: return@forEach
+            val heldFileIds = existing.allDocuments().flatMap { document ->
+                (listOf(document.vaultKey) + document.pageVaultKeys).mapIndexedNotNull { index, key ->
+                    if (key.isNullOrBlank()) null else backupFileId(document.documentId, index + 1)
+                }
+            }.toSet()
+            val keptKeys = existing.vaultKeys()
+            val retained = member.data.keepingOnlyAvailableSourceFiles(existing).allDocuments()
+            member.data.allDocuments().zip(retained).forEach { (original, document) ->
+                if (document.vaultKey !in keptKeys && original.documentId in member.files &&
+                    original.fileIds().any { it in member.files && it in heldFileIds }) {
+                    failMessage(L10nKey.BACKUP_RESTORE_FILE_CONFLICT)
+                }
+            }
+        }
+    }
     val stored = mutableListOf<String>()
     var allVitals = true
     members.forEach { member ->
