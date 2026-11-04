@@ -33,11 +33,11 @@ class DeviceVitalsSync(
 
     suspend fun synchronize(): Int = mutex.withLock {
         beforeSync()
-        val profileId = repository.linkedHealthProfileId() ?: throw IllegalStateException("No profile to link")
+        val context = repository.captureVitalsSync(zone())
         val now = clock()
-        val lastSync = repository.peekProfile(profileId).vitals.lastSync
-        val tz = zone()
+        val lastSync = context.lastSync
+        val tz = context.zone
         val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
-        repository.ingestDeviceVitals(batch, now)
+        repository.ingestDeviceVitals(context, batch, now)
     }
 }

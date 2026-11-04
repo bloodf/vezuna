@@ -8,6 +8,7 @@ import app.vezuna.domain.VitalsBatch
 import app.vezuna.health.DeviceVitalsSource
 import app.vezuna.health.DeviceVitalsSync
 import app.vezuna.health.VitalsReadRequest
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
@@ -28,14 +29,49 @@ class DeviceVitalsSyncTest {
     }
 
     private class FlakyRepository(private val delegate: VezunaRepository, var failNext: Boolean) : VezunaRepository by delegate {
-        override suspend fun ingestDeviceVitals(batch: VitalsBatch, now: Instant): Int {
+        override suspend fun ingestDeviceVitals(context: app.vezuna.data.VitalsSyncContext, batch: VitalsBatch, now: Instant): Int {
             if (failNext) { failNext = false; throw IllegalStateException("disk full") }
-            return delegate.ingestDeviceVitals(batch, now)
+            return delegate.ingestDeviceVitals(context, batch, now)
         }
     }
 
     private suspend fun repo() = InMemoryVezunaRepository().also { it.createProfile(Profile("p", "Me", createdAt = Instant.fromEpochSeconds(1))) }
     private fun sync(source: DeviceVitalsSource, repository: VezunaRepository) = DeviceVitalsSync(source, repository, { now }, { TimeZone.UTC })
+
+    @Test
+    fun relinkDuringPlatformReadRejectsBatchWithoutAdvancingEitherProfile() = runTest {
+        for (repository in listOf(repo(), app.vezuna.data.VaultBackedRepository(GenerationalMemoryVault()).also {
+            it.load()
+            it.createProfile(Profile("p", "Me", createdAt = Instant.fromEpochSeconds(1)))
+        })) {
+            rejectRelinkedRead(repository, roundTrip = false)
+            repository.setLinkedHealthProfile("p")
+            rejectRelinkedRead(repository, roundTrip = true)
+        }
+    }
+
+    private suspend fun kotlinx.coroutines.CoroutineScope.rejectRelinkedRead(repository: VezunaRepository, roundTrip: Boolean) {
+        if (!roundTrip) repository.createProfile(Profile("other", "Other", createdAt = Instant.fromEpochSeconds(2)))
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val source = object : DeviceVitalsSource {
+            override suspend fun read(request: VitalsReadRequest): VitalsBatch {
+                entered.complete(Unit)
+                release.await()
+                return VitalsBatch(request.replaceFrom, steps = listOf(StepsDay(LocalDate(2026, 10, 31), 100)))
+            }
+        }
+        val result = async { runCatching { sync(source, repository).synchronize() } }
+        entered.await()
+        repository.setLinkedHealthProfile("other")
+        if (roundTrip) repository.setLinkedHealthProfile("p")
+        release.complete(Unit)
+        assertEquals(true, result.await().isFailure)
+        for (id in listOf("p", "other")) {
+            assertEquals(emptyList(), repository.readProfile(id).vitals.steps)
+            assertEquals(null, repository.readProfile(id).vitals.lastSync)
+        }
+    }
 
     @Test
     fun firstSyncReadsThirtyDaysThenTrailingWeek() = runTest {

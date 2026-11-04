@@ -182,12 +182,12 @@ class VitalsTest {
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochSeconds(20)))
         fun batch(day: Int) = VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(StepsDay(LocalDate(2026, 10, day), 100)))
 
-        assertEquals(1, repository.ingestDeviceVitals(batch(30), now))
+        assertEquals(1, repository.ingestDeviceVitals(repository.captureVitalsSync(), batch(30), now))
         assertEquals(1, repository.readProfile("a").vitals.steps.size)
         assertTrue(repository.readProfile("b").vitals.isEmpty)
 
         repository.setLinkedHealthProfile("b")
-        repository.ingestDeviceVitals(batch(31), now)
+        repository.ingestDeviceVitals(repository.captureVitalsSync(), batch(31), now)
         assertEquals(1, repository.readProfile("a").vitals.steps.size, "changing link must not move data")
         assertEquals(1, repository.readProfile("b").vitals.steps.size)
 

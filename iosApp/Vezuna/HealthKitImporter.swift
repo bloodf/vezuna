@@ -43,20 +43,23 @@ final class HealthKitImporter: HealthImporting {
         async let steps = dailySteps(from: from)
         async let heart = hourlyHeartRate(from: from)
         async let weights = weightSamples(from: weightsFrom)
-        let batch = Payload(replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
+        let batch = Payload(profileId: window.profileId, generation: window.generation, zoneId: window.zoneId, replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
         try await persist(batch)
         return HealthSampleBatch(heartRate: batch.heartRate.count, steps: batch.steps.count, weight: batch.weights.count)
     }
 
-    private struct Payload: Encodable {
+    struct Payload: Encodable {
+        let profileId: String
+        let generation: Int64
+        let zoneId: String
         let replaceFromEpochSeconds: Int64
         let steps: [Steps]
         let heartRate: [Heart]
         let weights: [Weight]
     }
-    private struct Steps: Encodable { let dayStartEpochSeconds: Int64; let count: Double }
-    private struct Heart: Encodable { let startEpochSeconds: Int64; let min: Double; let avg: Double; let max: Double }
-    private struct Weight: Encodable { let recordId: String; let epochSeconds: Int64; let kg: Double }
+    struct Steps: Encodable { let dayStartEpochSeconds: Int64; let count: Double }
+    struct Heart: Encodable { let startEpochSeconds: Int64; let min: Double; let avg: Double; let max: Double }
+    struct Weight: Encodable { let recordId: String; let epochSeconds: Int64; let kg: Double }
 
     private func quantityType(_ identifier: HKQuantityTypeIdentifier) throws -> HKQuantityType {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { throw HealthImportError.unsupportedType }
@@ -119,13 +122,13 @@ final class HealthKitImporter: HealthImporting {
         return samples.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
     }
 
-    private func syncWindow() async throws -> (replaceFrom: Int64, weightsFrom: Int64) {
+    private func syncWindow() async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
         try await withCheckedThrowingContinuation { continuation in
-            IosRuntime.shared.vitalsSyncWindow { replaceFrom, weightsFrom, message in
+            IosRuntime.shared.vitalsSyncWindow { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
                 if let message {
                     continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
                 } else {
-                    continuation.resume(returning: (replaceFrom.int64Value, weightsFrom.int64Value))
+                    continuation.resume(returning: (profileId, generation.int64Value, zoneId, replaceFrom.int64Value, weightsFrom.int64Value))
                 }
             }
         }
