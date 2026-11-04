@@ -181,7 +181,7 @@ private fun Overview(ctx: RouteContext, history: BackupHistory, available: Boole
 }
 
 @Composable
-private fun RestoreResultPage(result: RestoreResult, onDone: () -> Unit, onOpenToday: () -> Unit, onRetry: () -> Unit) {
+internal fun RestoreResultPage(result: RestoreResult, onDone: () -> Unit, onOpenToday: () -> Unit, onRetry: () -> Unit) {
     FocusedTaskScaffold(title = vitaText(L10nKey.BACKUP_RESTORE), onBack = onDone) {
         SecurityPage {
             if (result.failed) {

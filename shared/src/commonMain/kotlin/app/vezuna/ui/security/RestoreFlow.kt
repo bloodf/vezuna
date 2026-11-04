@@ -180,7 +180,7 @@ private fun PassphrasePage(file: ByteArray, service: BackupService, onOpened: (O
 }
 
 @Composable
-private fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean, recovery: Boolean, onRestore: (RestoreMode) -> Unit) {
+internal fun PreviewPage(opened: OpenedBackup, profileExists: (String) -> Boolean, recovery: Boolean, onRestore: (RestoreMode) -> Unit) {
     val names = opened.members.joinToString(", ") { it.data.profile.displayName }
     val existing = opened.members.filter { profileExists(it.data.profile.profileId) }.joinToString(", ") { it.data.profile.displayName }
     val contents = remember(opened) { BackupContents.of(opened.members) }

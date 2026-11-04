@@ -238,7 +238,7 @@ private fun ScopeOption(selected: Boolean, title: String, body: String, onSelect
 
 /** The documents that do not fit, how they were chosen, and the explicit choice: back up without them or cancel. */
 @Composable
-private fun LeaveOutPage(proposal: LeaveOutProposal, onAgree: () -> Unit, onCancel: () -> Unit) {
+internal fun LeaveOutPage(proposal: LeaveOutProposal, onAgree: () -> Unit, onCancel: () -> Unit) {
     val confirmLabel = vitaText(L10nKey.BACKUP_LEAVE_OUT_CONFIRM_A11Y)
     SecurityPage {
         SecurityNotice(vitaText(L10nKey.BACKUP_LEAVE_OUT_TITLE), StatusKind.WARNING, detail = vitaText(L10nKey.BACKUP_LEAVE_OUT_BODY))
