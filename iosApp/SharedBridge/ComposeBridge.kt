@@ -791,7 +791,8 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
     val llm = llamatikLocalLlm()
     val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
-        DesignFixture.install(repository)
+        val emergencyPreview = NSUserDefaults.standardUserDefaults.stringForKey("VezunaEmergencyPreview")
+        if (emergencyPreview != null) app.vezuna.ui.EmergencyPreviewFixture.install(repository, emergencyPreview) else DesignFixture.install(repository)
         controller.initialize()
     }
     return ComposeUIViewController {
