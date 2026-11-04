@@ -83,7 +83,8 @@ class AppController(
      * Lanes that add profile-bound state clear it here.
      */
     private fun onProfileChanged() {
-        core.mutableState.value = core.mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null)
+        core.mutableState.value = core.mutableState.value.copy(data = null, dashboard = null, selectedObservationIds = emptySet(), csvExport = null, pdfExport = null, streamingAnswer = null)
+        assistant.cancelAsk()
         imports.importSession.clear()
         documentVault.onProfileChanged()
         backups.onProfileChanged()

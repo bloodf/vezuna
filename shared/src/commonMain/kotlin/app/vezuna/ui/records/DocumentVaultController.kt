@@ -99,7 +99,8 @@ internal class DocumentVaultController(
                 repository.updateVaultDocument(existing.copy(source = existing.source.copy(vaultKey = keys.first(), pageVaultKeys = keys.drop(1))))
             }
         }
-        core.loadProfile(profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(profileId)) return@operation
         navigator.navigate(AppScreen.DocumentDetail(documentId))
         val stored = existing == null || refill
         val notice = when {
@@ -141,7 +142,8 @@ internal class DocumentVaultController(
         val cleanName = name.trim().take(DocumentTags.MAX_NAME_LENGTH)
         if (cleanName.isEmpty()) failMessage(L10nKey.DOCUMENTS_NAME_REQUIRED)
         repository.updateVaultDocument(current.copy(source = current.source.copy(displayName = cleanName), tags = DocumentTags.clean(tags)))
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.DOCUMENTS_UPDATED))
     }
 
@@ -156,8 +158,9 @@ internal class DocumentVaultController(
         try {
             repository.deleteVaultDocument(data.profile.profileId, documentId)
         } finally {
-            withContext(NonCancellable) { core.loadProfile(data.profile.profileId) }
+            withContext(NonCancellable) { core.reloadCurrentProfile() }
         }
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.DOCUMENTS_DELETED))
     }
 

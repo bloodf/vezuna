@@ -218,9 +218,11 @@ class ImportEntryTest {
         val (repository, controller) = started()
         controller.importFrom(SourceKind.FILE) {
             controller.createProfile("Bruno")
+            controller.importSession.publish(app.vezuna.ui.entry.ExtractionDetails("alice-lab.pdf", emptyList(), 1))
             source(ExtractedCandidate("GLU", "Fasting glucose", "96", "mg/dL", collectedAt = day))
         }
         assertEquals(ImportPhase.Idle, controller.importSession.phase.value)
+        assertNull(controller.importSession.details.value, "the previous profile's file name and text are not offered to the new one")
         assertEquals(app.vezuna.localization.L10nKey.ENTRY_PROFILE_CHANGED, (controller.state.value.notice as app.vezuna.localization.UserText.Key).key)
         repository.profiles.value.forEach { profile ->
             assertTrue(repository.readProfile(profile.profileId).documents.isEmpty(), "nothing imported for ${profile.displayName}")

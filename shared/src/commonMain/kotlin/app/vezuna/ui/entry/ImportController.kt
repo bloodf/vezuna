@@ -30,7 +30,9 @@ internal class ImportController(private val core: ControllerCore, private val na
 
     suspend fun importSource(source: PickedSource) = core.operation {
         if (source.candidates.isEmpty()) failMessage(L10nKey.NO_CLINICAL_CANDIDATES_EXTRACTED)
+        val profileId = core.requireData().profile.profileId
         val inserted = importExtracted(source, source.candidates)
+        if (!core.isOpen(profileId)) return@operation // switched while saving: the rows are in the first profile, say nothing here
         navigator.navigate(AppScreen.ImportReview)
         core.mutableState.value = core.mutableState.value.copy(
             notice = if (inserted == 0) message(L10nKey.NO_NEW_CANDIDATES)
@@ -99,7 +101,7 @@ internal class ImportController(private val core: ControllerCore, private val na
                 inserted++
             }
         }
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
         return inserted
     }
 
@@ -153,7 +155,7 @@ internal class ImportController(private val core: ControllerCore, private val na
         } ?: return session.idle()
         // A source picked for one profile never lands in another: switching while the picker was open drops it.
         if (profileId == null || core.mutableState.value.data?.profile?.profileId != profileId) {
-            session.idle()
+            session.clear() // the picked file and its text belong to the previous profile
             return core.announce(message(L10nKey.ENTRY_PROFILE_CHANGED))
         }
         if (source.candidates.isEmpty()) return session.noResults(source.fileName)
@@ -169,7 +171,7 @@ internal class ImportController(private val core: ControllerCore, private val na
         val onSourceScreen = navigator.current == AppScreen.ImportSource || navigator.current == AppScreen.ImportExtract
         withContext(NonCancellable) { importSource(source) }
         // The source step is finished: back from the review returns to where the import began, not to the picker.
-        if (onSourceScreen && core.mutableState.value.error == null && navigator.current == AppScreen.ImportReview) {
+        if (onSourceScreen && core.isOpen(profileId) && core.mutableState.value.error == null && navigator.current == AppScreen.ImportReview) {
             navigator.back()
             navigator.finishAndGo(AppScreen.ImportReview)
         }

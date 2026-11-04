@@ -26,7 +26,8 @@ internal class HealthRecordsController(private val core: ControllerCore) {
             if (data.healthRecords.none { it.id == recordId && it.kind == draft.kind }) failMessage(L10nKey.HR_NOT_FOUND)
             repository.updateHealthRecord(draft.toRecord(profileId, recordId))
         }
-        core.loadProfile(profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.HR_SAVED))
     }
 
@@ -34,7 +35,8 @@ internal class HealthRecordsController(private val core: ControllerCore) {
         val data = core.requireData()
         if (data.healthRecords.none { it.id == recordId }) failMessage(L10nKey.HR_NOT_FOUND)
         repository.deleteHealthRecord(data.profile.profileId, recordId)
-        core.loadProfile(data.profile.profileId)
+        core.reloadCurrentProfile()
+        if (!core.isOpen(data.profile.profileId)) return@operation
         core.mutableState.value = core.mutableState.value.copy(notice = message(L10nKey.HR_DELETED))
     }
 }
