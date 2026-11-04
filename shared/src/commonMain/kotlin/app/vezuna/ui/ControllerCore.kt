@@ -47,12 +47,16 @@ internal class ControllerCore(
     suspend fun openProfile(profileId: String): Boolean {
         val ticket = ++latestLoad
         openingProfileId = profileId
-        val link = repository.linkedHealthProfileId()
-        val data = repository.readProfile(profileId)
-        if (ticket != latestLoad) return false
-        openingProfileId = null
-        apply(data, link)
-        return true
+        try {
+            val link = repository.linkedHealthProfileId()
+            val data = repository.readProfile(profileId)
+            if (ticket != latestLoad) return false
+            apply(data, link)
+            return true
+        } finally {
+            // Also on failure: a stuck id would make every Retry reopen the same failing profile.
+            if (ticket == latestLoad) openingProfileId = null
+        }
     }
 
     /**

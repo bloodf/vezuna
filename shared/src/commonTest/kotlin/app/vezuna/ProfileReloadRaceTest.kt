@@ -29,8 +29,9 @@ class ProfileReloadRaceTest {
         var gate: CompletableDeferred<Unit>? = null
         var gatedId: String? = null
         var linkGate: CompletableDeferred<Unit>? = null
+        var failOpenOf: String? = null
         var addGate: CompletableDeferred<Unit>? = null
-        override suspend fun readProfile(profileId: String): ProfileData { hold(profileId); return inner.readProfile(profileId) }
+        override suspend fun readProfile(profileId: String): ProfileData { if (profileId == failOpenOf) throw NoSuchElementException(profileId); hold(profileId); return inner.readProfile(profileId) }
         override suspend fun peekProfile(profileId: String): ProfileData { hold(profileId); return inner.peekProfile(profileId) }
         override suspend fun linkedHealthProfileId(): String? {
             linkGate?.let { linkGate = null; it.await() }
@@ -109,6 +110,17 @@ class ProfileReloadRaceTest {
         assertEquals("b", controller.state.value.data?.profile?.profileId)
         assertEquals(null, controller.state.value.streamingAnswer)
         assertEquals("b", reopenedFirst())
+    }
+
+    @Test
+    fun failedOpenDoesNotPinRetryToTheSameProfile() = runTest {
+        val (repository, controller) = gatedApp()
+        repository.failOpenOf = "b"
+        controller.switchProfile("b")
+        assertEquals(null, controller.state.value.data)
+        repository.failOpenOf = null
+        controller.initialize() // Retry
+        assertEquals("a", controller.state.value.data?.profile?.profileId)
     }
 
     @Test
