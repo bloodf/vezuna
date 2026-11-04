@@ -341,7 +341,7 @@ class AppointmentsTest {
 
     @Test
     fun theNearestRemindersOfAHouseholdComeFirstWhateverTheProfileOrder() {
-        val first = ProfileData(Profile("p1", "Ana", createdAt = soon), appointments = listOf(Appointment("p1", "far", soon + 90.days, "Dr. A", reminderMinutesBefore = 60)))
+        val first = ProfileData(Profile("p1", "Ana", createdAt = soon), appointments = listOf(Appointment("p1", "far", soon + 90.days, "Dr. A", reminderMinutesBefore = 60), Appointment("p1", "started", soon - 2.hours, "Dr. S", reminderMinutesBefore = 15)))
         val second = ProfileData(Profile("p2", "Bia", createdAt = soon), appointments = listOf(Appointment("p2", "near", soon + 2.hours, "Dr. B", reminderMinutesBefore = 60)))
         val now = soon - 1.hours
         assertEquals(listOf("near", "far"), AppointmentReminders.noticesOf(listOf(first, second), now).map { it.appointmentId })

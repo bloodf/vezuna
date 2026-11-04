@@ -534,7 +534,10 @@ object IosRuntime {
                 val now = currentInstant()
                 val profiles = repository.profiles.value
                 val loaded = profiles.map { it to repository.peekProfile(it.profileId) }
-                val notices = AppointmentReminders.noticesOf(loaded.map { it.second }, now, handled).mapNotNull { notice -> profiles.firstOrNull { it.profileId == notice.profileId }?.let { it to notice } }
+                val notices = AppointmentReminders.noticesOf(loaded.map { it.second }, now, handled).mapNotNull { notice ->
+                    profiles.firstOrNull { it.profileId == notice.profileId }?.let { it to notice }
+                        ?: run { println("Visit reminder skipped: a visit does not belong to a known profile"); null }
+                }
                 completion(
                     JsonObject(
                         mapOf(

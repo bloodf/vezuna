@@ -199,14 +199,11 @@ class AppointmentReceiver : BroadcastReceiver() {
                 profileId, appointmentId, appointment!!.clinician, atMillis,
                 data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
             )
-            when (NotificationScheduleLogic.afterAppointmentAlarm(due, shown)) {
-                // Nothing could be shown (notifications off): do not re-arm the past time, or it would fire again at once, in a loop.
-                // The reminder stays due and is shown by a later pass, such as the one on start or on returning with notifications on.
-                AppointmentAlarmOutcome.KEEP_DUE -> return@guarded
-                AppointmentAlarmOutcome.MARK_DELIVERED -> app.notifications.markAppointmentDelivered(noticeKey)
-                AppointmentAlarmOutcome.NOTHING_TO_SHOW -> Unit
-            }
-            app.notifications.rescheduleAll(app.repository)
+            // Nothing could be shown (notifications off): do not re-arm the past time, or it would fire again at once, in a loop.
+            // The reminder stays due and appears at the next pass: when the app is next opened with notifications allowed, or at the next start.
+            val result = NotificationScheduleLogic.afterAppointmentAlarm(due, shown)
+            if (result.markDelivered) app.notifications.markAppointmentDelivered(noticeKey)
+            if (result.reschedule) app.notifications.rescheduleAll(app.repository)
         }
     }
 }

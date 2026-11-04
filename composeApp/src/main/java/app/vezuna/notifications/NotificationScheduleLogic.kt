@@ -12,7 +12,8 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-enum class AppointmentAlarmOutcome { NOTHING_TO_SHOW, MARK_DELIVERED, KEEP_DUE }
+/** What a fired visit alarm does next; the receiver performs exactly these two steps. */
+data class AppointmentAlarmResult(val markDelivered: Boolean, val reschedule: Boolean)
 
 data class ShownAppointment(val notificationId: Int, val profileId: String, val appointmentId: String, val appointmentAtMillis: Long)
 
@@ -49,10 +50,10 @@ object NotificationScheduleLogic {
         }
 
     /** What a fired visit alarm does next: only a reminder that was really shown is delivered; one that could not be shown stays due and does not re-arm. */
-    fun afterAppointmentAlarm(due: Boolean, shown: Boolean): AppointmentAlarmOutcome = when {
-        !due -> AppointmentAlarmOutcome.NOTHING_TO_SHOW
-        shown -> AppointmentAlarmOutcome.MARK_DELIVERED
-        else -> AppointmentAlarmOutcome.KEEP_DUE
+    fun afterAppointmentAlarm(due: Boolean, shown: Boolean): AppointmentAlarmResult = when {
+        !due -> AppointmentAlarmResult(markDelivered = false, reschedule = true)
+        shown -> AppointmentAlarmResult(markDelivered = true, reschedule = true)
+        else -> AppointmentAlarmResult(markDelivered = false, reschedule = false)
     }
 
     /** A reminder is useless once the visit has started, however late the alarm ran. */

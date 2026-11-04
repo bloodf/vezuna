@@ -6,7 +6,7 @@ import app.vezuna.domain.Medication
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
-import app.vezuna.notifications.AppointmentAlarmOutcome
+import app.vezuna.notifications.AppointmentAlarmResult
 import app.vezuna.notifications.NotificationScheduleLogic
 import app.vezuna.notifications.ShownAppointment
 import kotlinx.datetime.DayOfWeek
@@ -36,9 +36,9 @@ class NotificationScheduleLogicTest {
 
     @Test
     fun aVisitAlarmThatCouldNotShowStaysDueAndDoesNotRearm() {
-        assertEquals(AppointmentAlarmOutcome.KEEP_DUE, NotificationScheduleLogic.afterAppointmentAlarm(due = true, shown = false), "notifications off: no reschedule, or the alarm loops")
-        assertEquals(AppointmentAlarmOutcome.MARK_DELIVERED, NotificationScheduleLogic.afterAppointmentAlarm(due = true, shown = true))
-        assertEquals(AppointmentAlarmOutcome.NOTHING_TO_SHOW, NotificationScheduleLogic.afterAppointmentAlarm(due = false, shown = false), "stale or started: still reschedules so the stale alarm is cancelled")
+        assertEquals(AppointmentAlarmResult(markDelivered = false, reschedule = false), NotificationScheduleLogic.afterAppointmentAlarm(due = true, shown = false), "notifications off: no reschedule, or the alarm loops")
+        assertEquals(AppointmentAlarmResult(markDelivered = true, reschedule = true), NotificationScheduleLogic.afterAppointmentAlarm(due = true, shown = true))
+        assertEquals(AppointmentAlarmResult(markDelivered = false, reschedule = true), NotificationScheduleLogic.afterAppointmentAlarm(due = false, shown = false), "stale or started: still reschedules so the stale alarm is cancelled")
     }
 
     @Test

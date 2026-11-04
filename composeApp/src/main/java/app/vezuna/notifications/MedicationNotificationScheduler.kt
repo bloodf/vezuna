@@ -113,7 +113,10 @@ class MedicationNotificationScheduler(private val context: Context) {
             val fireAt = appointment.reminderAt ?: return@forEach
             if (appointment.at > kNow) liveKeys += "${appointment.appointmentId}:${fireAt.epochSeconds}"
         }
+        val canShow = canShowAppointmentReminder()
         AppointmentReminders.notices(data, kNow, delivered).forEach { notice ->
+            // A past time is armed only if it can be shown at once; otherwise it would fire in a loop. A later pass arms it.
+            if (notice.fireAt <= kNow && !canShow) return@forEach
             armed += notice.appointmentId
             setAlarm(notice.fireAt.toEpochMilliseconds(), appointmentIntent(notice.appointmentId, PendingIntent.FLAG_UPDATE_CURRENT) {
                 putExtra(EXTRA_PROFILE_ID, notice.profileId)
@@ -158,6 +161,7 @@ class MedicationNotificationScheduler(private val context: Context) {
      * stored record by the caller, never from the alarm. Always private on the lock screen: the public version says only that a
      * visit is coming, and the setting that hides names makes the private version generic too.
      */
+    @android.annotation.SuppressLint("MissingPermission") // guarded by canShowAppointmentReminder()
     fun showAppointmentReminder(profileId: String, appointmentId: String, clinician: String, appointmentAtMillis: Long, profileName: String? = null): Boolean {
         val hideName = preferences.hideMedicationNames
         val title = nativeMessage(NativeKey.APPOINTMENT_REMINDER_TITLE).resolve(context)
@@ -188,14 +192,15 @@ class MedicationNotificationScheduler(private val context: Context) {
             )
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-            // A visit channel the user turned off shows nothing, so it must not count as shown.
-            if (NotificationManagerCompat.from(context).getNotificationChannel(APPOINTMENT_CHANNEL_ID)?.importance == NotificationManagerCompat.IMPORTANCE_NONE) return false
-            NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
-            return true
-        }
-        return false
+        if (!canShowAppointmentReminder()) return false
+        NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
+        return true
     }
+
+    /** Notifications are allowed and the user has not turned off the visit channel: what makes a visit reminder visible. */
+    fun canShowAppointmentReminder(): Boolean =
+        NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+            NotificationManagerCompat.from(context).getNotificationChannel(APPOINTMENT_CHANNEL_ID)?.importance != NotificationManagerCompat.IMPORTANCE_NONE
 
     /** Delivered visit reminders whose appointment was deleted, moved, switched off or whose profile was removed leave the shade. */
     private fun cancelStaleAppointmentNotifications(profiles: Map<String, ProfileData>) {
