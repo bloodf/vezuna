@@ -189,9 +189,11 @@ class MedicationNotificationScheduler(private val context: Context) {
             )
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
-        NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
-        return true
+        if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            NotificationManagerCompat.from(context).notify(appointmentNotificationId(appointmentId), builder.build())
+            return true
+        }
+        return false
     }
 
     /** Delivered visit reminders whose appointment was deleted, moved, switched off or whose profile was removed leave the shade. */
