@@ -31,6 +31,7 @@ class LegacyHealthConnectMigration(
 
     suspend fun run() {
         val stored = vault.read(KEY) ?: return
+        val context = repository.captureVitalsSync()
         val weights = try {
             val envelope = json.decodeFromString(CipherEnvelope.serializer(), stored.decodeToString())
             json.decodeFromString(State.serializer(), vault.decrypt(envelope).decodeToString()).samples.values
@@ -44,7 +45,7 @@ class LegacyHealthConnectMigration(
         }
         if (weights.isNotEmpty()) {
             // Merge only: nothing already stored, including today's data, is replaced.
-            repository.ingestDeviceVitals(VitalsBatch(replaceFrom = VitalsBatch.MERGE_ONLY, weights = weights, markSynced = false), clock())
+            repository.ingestDeviceVitals(context, VitalsBatch(replaceFrom = VitalsBatch.MERGE_ONLY, weights = weights, markSynced = false), clock())
         }
         vault.delete(KEY)
     }

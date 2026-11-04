@@ -75,7 +75,7 @@ class VitalsStoreSafetyTest {
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochMilliseconds(1)))
         repository.createProfile(Profile("b", "B", createdAt = Instant.fromEpochMilliseconds(2)))
         repository.setLinkedHealthProfile("b")
-        repository.ingestDeviceVitals(VitalsBatch(LocalDate(2026, 10, 30), weights = listOf(weight)), now)
+        repository.ingestDeviceVitals(repository.captureVitalsSync(), VitalsBatch(LocalDate(2026, 10, 30), weights = listOf(weight)), now)
 
         vault.failWrites = true
         assertFailsWith<IllegalStateException> { repository.deleteProfile("b") }
