@@ -1328,9 +1328,21 @@ iOS: %2$s</string>
     <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Esta copia es demasiado grande (más de 24 MB con archivos originales y documentos guardados). "%1$s" es uno de los archivos más grandes. La copia de un perfil deja esos archivos fuera.</string>
-    <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles ya no cabe en el límite de 24 MB. Elimina archivos grandes para crearla o haz la copia de un perfil sin sus archivos.</string>
+    <string name="documents_stored_backup_full">Documento guardado, pero la copia de todos los perfiles ya no cabe en el límite de 24 MB. Elimina archivos grandes o elige dejar algunos documentos fuera al crear la copia.</string>
     <string name="source_page_previous">Página anterior</string>
     <string name="source_page_next">Página siguiente</string>
+    <string name="backup_leave_out_title">Algunos documentos no caben en esta copia</string>
+    <string name="backup_leave_out_body">Una copia admite hasta 24 MB de archivos originales y documentos. Para que quepa, los documentos más grandes se dejan fuera primero, uno a uno, hasta que el resto quepa. Nada se deja fuera sin tu acuerdo.</string>
+    <string name="backup_leave_out_row">%1$s · %2$s</string>
+    <string name="backup_leave_out_stays">Estos documentos siguen en este dispositivo. La copia registra sus nombres y, al restaurarla, avisará de que faltan. Cancelar no crea ninguna copia y no cambia nada.</string>
+    <string name="backup_leave_out_confirm">Hacer la copia sin estos documentos</string>
+    <string name="backup_leave_out_confirm_a11y">Hacer la copia sin los documentos de la lista. Siguen en este dispositivo y la copia registra que se dejaron fuera.</string>
+    <string name="backup_cannot_fit">Esta copia no cabe en 24 MB ni siquiera sin los documentos guardados. No se creó ninguna copia y no se dejó nada fuera. Elimina archivos originales grandes para crearla.</string>
+    <string name="backup_ready_left_out">Se dejaron documentos fuera de este archivo, como acordaste. El archivo registra cuáles.</string>
+    <string name="backup_restore_left_out_title">Algunos documentos no están en esta copia</string>
+    <string name="backup_restore_left_out_body">Se dejaron fuera al hacer la copia, así que no estarán en los datos restaurados.</string>
+    <string name="backup_restore_left_out_replace">Reemplazar %1$s elimina los documentos que faltan en esta copia y que estén en este dispositivo. No se pueden recuperar desde esta copia.</string>
+    <string name="backup_result_left_out">Los documentos que se dejaron fuera de esta copia no se restauraron</string>
     <string name="backup_document_unreadable">No se pudo leer "%1$s", así que esta copia no se creó. No quedó nada fuera. Abre el documento para revisarlo o elimínalo e inténtalo de nuevo.</string>
     <string name="backup_documents_left_out">Este perfil tiene documentos guardados. La copia de un perfil conserva los nombres y las etiquetas, no los archivos. Elige todos los perfiles para incluir los archivos.</string>
     <string name="documents_title">Documentos</string>

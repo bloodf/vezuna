@@ -71,5 +71,12 @@ data class BackupContents(
     }
 }
 
+/** "Document name · profile name" for each document recorded as left out of these members, for the restore preview and result. */
+fun List<BackupMember>.leftOutLines(): List<String> = flatMap { member -> member.omitted.map { "${it.displayName} · ${member.data.profile.displayName}" } }
+
+/** Names of the profiles this restore would replace that the backup recorded documents as left out of: the copies on this device would be lost. */
+fun List<BackupMember>.replacedWithLeftOut(profileExists: (String) -> Boolean): List<String> =
+    filter { it.omitted.isNotEmpty() && profileExists(it.data.profile.profileId) }.map { it.data.profile.displayName }
+
 /** The members to write when the user chose to leave assistant chat out (#19). Everything else is unchanged. */
-fun List<BackupMember>.withoutChat(): List<BackupMember> = map { BackupMember(it.data.copy(chat = emptyList()), it.files) }
+fun List<BackupMember>.withoutChat(): List<BackupMember> = map { BackupMember(it.data.copy(chat = emptyList()), it.files, it.omitted) }

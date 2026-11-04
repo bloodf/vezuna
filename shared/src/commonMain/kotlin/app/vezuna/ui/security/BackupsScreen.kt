@@ -49,6 +49,8 @@ class RestoreResult(
     val names: String,
     val asNew: Boolean,
     val severalProfiles: Boolean,
+    /** "Document · profile" for each document the backup recorded as left out; they were not restored. */
+    val leftOut: List<String> = emptyList(),
 ) {
     val vitalsMissing: Boolean get() = (message as? UserText.Key)?.key == L10nKey.BACKUP_RESTORED_WITHOUT_VITALS
 }
@@ -86,6 +88,7 @@ internal fun BackupsScreen(ctx: RouteContext) {
                 CreateBackupFlow(
                     service, data, files,
                     household = if (ctx.state.profiles.size > 1 || data.allDocuments().any { it.vaultKey != null }) controller::householdForBackup else null,
+                    proposeLeaveOut = controller::proposeLeaveOut,
                     profileCount = ctx.state.profiles.size,
                     onSaved = { household ->
                         updateHistory(history.copy(savedAt = currentInstant(), household = household))
@@ -124,6 +127,7 @@ private suspend fun restore(ctx: RouteContext, members: List<BackupMember>, mode
             names = members.joinToString(", ") { it.data.profile.displayName },
             asNew = mode == RestoreMode.RESTORE_AS_NEW,
             severalProfiles = members.size > 1,
+            leftOut = members.leftOutLines(),
         ),
     )
     if (controller.navigator.state.value.current != AppScreen.Backups) controller.navigate(AppScreen.Backups) else controller.clearMessages()
@@ -197,6 +201,7 @@ private fun RestoreResultPage(result: RestoreResult, onDone: () -> Unit, onOpenT
                     live = true,
                 )
                 if (result.vitalsMissing) SecurityNotice(result.message.resolve(), StatusKind.WARNING)
+                if (result.leftOut.isNotEmpty()) SecurityNotice(vitaText(L10nKey.BACKUP_RESULT_LEFT_OUT), StatusKind.WARNING, detail = result.leftOut.joinToString("\n"))
                 PrimaryButton(vitaText(L10nKey.BACKUP_OPEN_TODAY), onOpenToday, Modifier.fillMaxWidth())
                 SecondaryButton(vitaText(L10nKey.DONE_ACTION), onDone, Modifier.fillMaxWidth())
             }

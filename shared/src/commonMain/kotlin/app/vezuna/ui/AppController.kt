@@ -25,6 +25,7 @@ import app.vezuna.ui.records.DocumentVaultController
 import app.vezuna.ui.records.RecordsController
 import app.vezuna.ui.records.storedFileOpens
 import app.vezuna.ui.security.BackupController
+import app.vezuna.ui.security.LeaveOutProposal
 import app.vezuna.ui.security.RestoreResult
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -265,7 +266,10 @@ class AppController(
     suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = backups.restoreHousehold(members, mode)
 
     /** Every profile with its vitals and original source files, for a household backup. */
-    suspend fun householdForBackup(): List<BackupMember> = backups.householdForBackup()
+    suspend fun householdForBackup(omit: Set<Pair<String, String>> = emptySet()): List<BackupMember> = backups.householdForBackup(omit)
+
+    /** Vault documents to leave out (largest first) so a household backup fits; nothing is left out until the person agrees. */
+    suspend fun proposeLeaveOut(): LeaveOutProposal = backups.proposeLeaveOut()
 }
 
 /** Result of opening a report's original file: the decrypted pages, no stored file, or a file that failed to decrypt. */

@@ -12,6 +12,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.time.Instant
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -41,13 +43,22 @@ private const val MAX_PAGES = 10
 fun SourceDocument.fileIds(): List<String> = (1..1 + pageVaultKeys.size).map { backupFileId(documentId, it) }
 
 /** One profile of a household backup plus its original source files, keyed by document ID. */
-class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap())
+class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap(), val omitted: List<OmittedDocument> = emptyList())
+
+/** A vault document the person agreed to leave out of a household backup because it did not fit (#100). It is no longer in the member's [ProfileData]. */
+@Serializable
+data class OmittedDocument(val documentId: String, val displayName: String)
 
 @Serializable
 private data class BackupFileEntry(val documentId: String, val content: String)
 
+/** [omitted] is written only when something was left out, so every other file keeps the exact shape older builds read. */
 @Serializable
-private data class BackupMemberEntry(val data: ProfileData, val files: List<BackupFileEntry> = emptyList())
+private data class BackupMemberEntry(
+    val data: ProfileData,
+    val files: List<BackupFileEntry> = emptyList(),
+    @OptIn(ExperimentalSerializationApi::class) @EncodeDefault(EncodeDefault.Mode.NEVER) val omitted: List<OmittedDocument> = emptyList(),
+)
 
 /** Schema 4 (5 when vault documents or health records are present, 6 with appointments): several profiles, each with vitals (inside [ProfileData]) and its original source files. */
 @Serializable
@@ -107,9 +118,9 @@ class BackupService(
         val estimate = members.sumOf { member -> member.files.values.sumOf { (it.size + 2L) / 3 * 4 } }
         if (estimate > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
         val payload = HouseholdPayload(
-            members.maxOf { it.data.householdSchema() }, currentInstant(),
+            members.maxOf { if (it.omitted.isNotEmpty()) OMISSION_SCHEMA_VERSION else it.data.householdSchema() }, currentInstant(),
             members.map { member ->
-                BackupMemberEntry(member.data, member.files.map { (documentId, bytes) -> BackupFileEntry(documentId, Base64.encode(bytes)) })
+                BackupMemberEntry(member.data, member.files.map { (documentId, bytes) -> BackupFileEntry(documentId, Base64.encode(bytes)) }, member.omitted)
             },
         )
         val plain = json.encodeToString(HouseholdPayload.serializer(), payload).encodeToByteArray()
@@ -118,6 +129,19 @@ class BackupService(
         } finally {
             plain.fill(0)
         }
+    }
+
+    /**
+     * Bytes a household backup of [members] occupies besides the Base64 of its files: the records, the framing of each file
+     * entry (give every file an empty array), the omission records and the seal's header, nonce and tag. Nothing is read or
+     * encrypted, so it is cheap; a backup fits when this plus the encoded files is at most [MAX_BACKUP_WRITE_BYTES].
+     */
+    fun fixedOverhead(members: List<BackupMember>): Long {
+        val payload = HouseholdPayload(
+            OMISSION_SCHEMA_VERSION, currentInstant(),
+            members.map { m -> BackupMemberEntry(m.data, m.files.keys.map { BackupFileEntry(it, "") }, m.omitted) },
+        )
+        return json.encodeToString(HouseholdPayload.serializer(), payload).encodeToByteArray().size.toLong() + SEAL_OVERHEAD_BYTES
     }
 
     /** [passphrase] is ignored for same-device files. */
@@ -160,8 +184,8 @@ class BackupService(
                     if (payload.profileId != payload.data.profile.profileId) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                     listOf(BackupMember(payload.data))
                 }
-                SCHEMA_VERSION, NEWER_SCHEMA_VERSION, APPOINTMENTS_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
-                    BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) })
+                SCHEMA_VERSION, NEWER_SCHEMA_VERSION, APPOINTMENTS_SCHEMA_VERSION, OMISSION_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
+                    BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) }, entry.omitted)
                 }
                 else -> failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
             }
@@ -187,7 +211,8 @@ class BackupService(
         if (!data.isInternallyConsistent()) return false
         if (data.allDocuments().any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
         val allowed = data.allDocuments().flatMapTo(HashSet()) { it.fileIds() }
-        return files.keys.all { it in allowed }
+        val present = data.allDocuments().mapTo(HashSet()) { it.documentId }
+        return files.keys.all { it in allowed } && omitted.all { it.documentId !in present } && omitted.map { it.documentId }.toSet().size == omitted.size
     }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {
@@ -222,12 +247,21 @@ class BackupService(
          * [NEWER_SCHEMA_VERSION], or [APPOINTMENTS_SCHEMA_VERSION] with appointments (see [needsNewerSchema]), so older builds answer "unsupported" instead of "damaged".
          */
         const val SINGLE_SCHEMA_VERSION = 3
+        /**
+         * Household payload written only when a profile has documents left out of it (#100). Older builds cannot read the
+         * omission record, so they answer "unsupported" instead of "damaged" or silently dropping it. Versions 1-7 are accepted.
+         */
+        const val OMISSION_SCHEMA_VERSION = 7
+
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
         const val MAX_BACKUP_READ_BYTES = 64 * 1024 * 1024
 
         /** New files stay smaller: the payload is held in memory several times over (bytes, Base64, JSON, plaintext, ciphertext). */
         const val MAX_BACKUP_WRITE_BYTES = 24 * 1024 * 1024
         const val FILE_EXTENSION = "vhbak"
+
+        /** Magic, version, key derivation, iterations, salt, nonce and authentication tag of [PassphraseBackupCodec], rounded up, plus a safety margin. */
+        private const val SEAL_OVERHEAD_BYTES = 4 * 1024
     }
 }
 

@@ -1328,9 +1328,21 @@ iOS: %2$s</string>
     <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">Este backup é grande demais (mais de 24 MB com arquivos originais e documentos guardados). "%1$s" é um dos maiores arquivos. O backup de um perfil deixa esses arquivos de fora.</string>
-    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes para criá-lo ou faça o backup de um perfil sem os arquivos.</string>
+    <string name="documents_stored_backup_full">Documento guardado, mas o backup de todos os perfis não cabe mais no limite de 24 MB. Exclua arquivos grandes ou escolha deixar alguns documentos de fora ao criar o backup.</string>
     <string name="source_page_previous">Página anterior</string>
     <string name="source_page_next">Próxima página</string>
+    <string name="backup_leave_out_title">Alguns documentos não cabem neste backup</string>
+    <string name="backup_leave_out_body">Um backup comporta até 24 MB de arquivos originais e documentos. Para caber, os maiores documentos ficam de fora primeiro, um por vez, até o restante caber. Nada fica de fora sem a sua concordância.</string>
+    <string name="backup_leave_out_row">%1$s · %2$s</string>
+    <string name="backup_leave_out_stays">Esses documentos continuam neste aparelho. O backup registra os nomes e, ao restaurar, avisará que eles estão ausentes. Cancelar não cria backup e não altera nada.</string>
+    <string name="backup_leave_out_confirm">Fazer backup sem estes documentos</string>
+    <string name="backup_leave_out_confirm_a11y">Fazer backup sem os documentos listados. Eles continuam neste aparelho e o backup registra que ficaram de fora.</string>
+    <string name="backup_cannot_fit">Este backup não cabe em 24 MB nem sem os documentos guardados. Nenhum backup foi criado e nada ficou de fora. Exclua arquivos originais grandes para criá-lo.</string>
+    <string name="backup_ready_left_out">Documentos ficaram de fora deste arquivo, como você concordou. O arquivo registra quais.</string>
+    <string name="backup_restore_left_out_title">Alguns documentos não estão neste backup</string>
+    <string name="backup_restore_left_out_body">Eles ficaram de fora quando o backup foi feito, por isso não estarão nos dados restaurados.</string>
+    <string name="backup_restore_left_out_replace">Substituir %1$s remove os documentos ausentes deste backup que estiverem neste aparelho. Eles não podem ser recuperados por este backup.</string>
+    <string name="backup_result_left_out">Os documentos que ficaram de fora deste backup não foram restaurados</string>
     <string name="backup_document_unreadable">Não foi possível ler "%1$s", então este backup não foi criado. Nada ficou de fora. Abra o documento para conferir ou exclua-o e tente de novo.</string>
     <string name="backup_documents_left_out">Este perfil tem documentos guardados. O backup de um perfil mantém os nomes e as etiquetas, não os arquivos. Escolha todos os perfis para incluir os arquivos.</string>
     <string name="documents_title">Documentos</string>
