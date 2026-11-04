@@ -66,6 +66,7 @@ fun Route(screen: AppScreen, ctx: RouteContext) {
         AppScreen.PrivacyPolicy -> MoreRoutes.PrivacyPolicy(ctx)
         AppScreen.Notices -> MoreRoutes.Notices(ctx)
         AppScreen.Help -> MoreRoutes.Help(ctx)
+        AppScreen.EmergencyCard -> MoreRoutes.EmergencyCard(ctx)
 
         AppScreen.AiChat -> AssistantRoutes.AiChat(ctx)
         AppScreen.Models -> AssistantRoutes.Models(ctx)
@@ -92,7 +93,7 @@ fun routeFromName(text: String): AppScreen? {
         AppScreen.Medications, AppScreen.Trends, AppScreen.Vitals, AppScreen.Connections,
         AppScreen.Backups, AppScreen.LockSettings, AppScreen.DataPrivacy,
         AppScreen.More, AppScreen.Settings, AppScreen.Appearance, AppScreen.Language, AppScreen.About,
-        AppScreen.PrivacyPolicy, AppScreen.Notices, AppScreen.Help,
+        AppScreen.PrivacyPolicy, AppScreen.Notices, AppScreen.Help, AppScreen.EmergencyCard,
         AppScreen.AiChat, AppScreen.Models, AppScreen.Activation, AppScreen.ExportHub,
     )
     objects.firstOrNull { it.toString() == name }?.let { return it }

@@ -846,7 +846,8 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
     val llm = llamatikLocalLlm()
     val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
-        DesignFixture.installForPreview(repository)
+        val emergencyPreview = NSUserDefaults.standardUserDefaults.stringForKey("VezunaEmergencyPreview")
+        if (emergencyPreview != null) app.vezuna.ui.EmergencyPreviewFixture.install(repository, emergencyPreview) else DesignFixture.installForPreview(repository)
         controller.initialize()
     }
     return ComposeUIViewController {
@@ -898,6 +899,11 @@ private fun installMorePlatformIos() {
         }
     }
     app.vezuna.ui.more.MorePlatform.openUrl = ::open
+    app.vezuna.ui.more.MorePlatform.phoneIsIos = true
+    app.vezuna.ui.more.MorePlatform.openEmergencyInfo = { onResult ->
+        val url = platform.Foundation.NSURL.URLWithString("x-apple-health://")
+        if (url == null) onResult(false) else platform.UIKit.UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any?>()) { ok -> onResult(ok) }
+    }
     app.vezuna.ui.more.MorePlatform.openLanguageSettings = { open(platform.UIKit.UIApplicationOpenSettingsURLString) }
 }
 
