@@ -32,6 +32,15 @@ object EmergencyPreviewFixture {
         ),
     )
 
+    /** The same records with the allergy and condition lists trimmed, so the medications fit on the first screen of a screenshot. */
+    private fun medications(base: ProfileData): ProfileData {
+        val all = full(base)
+        return all.copy(allergies = all.allergies.filter { it.allergyId == "allergy-peanut" }, conditions = emptyList(), medications = all.medications.takeLast(3), doseEvents = emptyList())
+    }
+
+    /** No allergy, condition or medication at all. */
+    private fun empty(base: ProfileData) = base.copy(allergies = emptyList(), conditions = emptyList(), medications = emptyList(), doseEvents = emptyList())
+
     /** Records exist but none is current: a resolved condition and a stopped medication only. */
     private fun partial(base: ProfileData) = base.copy(
         allergies = emptyList(),
@@ -42,7 +51,12 @@ object EmergencyPreviewFixture {
 
     suspend fun install(repository: VezunaRepository, variant: String) {
         val base = DesignFixture.data()
-        val data = if (variant == "partial") partial(base) else full(base)
+        val data = when (variant) {
+            "partial" -> partial(base)
+            "empty" -> empty(base)
+            "meds" -> medications(base)
+            else -> full(base)
+        }
         repository.restoreProfile(data.copy(vitals = ProfileVitals()))
         repository.replaceVitals(P, data.vitals)
         repository.setLinkedHealthProfile(P)
