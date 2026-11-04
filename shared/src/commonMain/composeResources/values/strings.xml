@@ -1328,21 +1328,21 @@ iOS: %2$s</string>
     <!-- /Appointments -->
     <!-- document vault -->
     <string name="backup_too_large_named">This backup is too large (over 24 MB with original files and stored documents). "%1$s" is one of the largest files. A backup of one profile leaves those files out.</string>
-    <string name="documents_stored_backup_full">Document stored, but a backup of every profile no longer fits the 24 MB limit. Delete large files, or choose to leave some documents out when you make the backup.</string>
+    <string name="documents_stored_backup_full">Document stored, but the household backup exceeds 24 MB. Choose which file bytes to leave out, or make a single-profile backup without files.</string>
     <string name="source_page_previous">Previous page</string>
     <string name="source_page_next">Next page</string>
-    <string name="backup_leave_out_title">Some documents don’t fit in this backup</string>
-    <string name="backup_leave_out_body">A backup holds up to 24 MB of original files and documents. To make it fit, the largest documents are left out first, one at a time, until the rest fits. Nothing is left out unless you agree.</string>
+    <string name="backup_leave_out_title">Some files don’t fit in this backup</string>
+    <string name="backup_leave_out_body">The encrypted backup, including records and files, must fit in 24 MB. The largest file bytes are left out first until it fits. Nothing is left out unless you agree.</string>
     <string name="backup_leave_out_row">%1$s · %2$s</string>
-    <string name="backup_leave_out_stays">These documents stay on this device. The backup records their names, and restoring it will say they are missing. Cancel makes no backup and changes nothing.</string>
-    <string name="backup_leave_out_confirm">Back up without these documents</string>
-    <string name="backup_leave_out_confirm_a11y">Back up without the listed documents. They stay on this device and the backup records that they were left out.</string>
-    <string name="backup_cannot_fit">This backup cannot fit in 24 MB even without the stored documents. No backup was made and nothing was left out. Delete large original files to make one.</string>
-    <string name="backup_ready_left_out">Documents were left out of this file, as you agreed. The file records which ones.</string>
-    <string name="backup_restore_left_out_title">Some documents are not in this backup</string>
-    <string name="backup_restore_left_out_body">They were left out when the backup was made, so they will not be in the restored data.</string>
-    <string name="backup_restore_left_out_replace">Replacing %1$s removes any of these left-out documents that are on this device. They cannot be recovered from this backup.</string>
-    <string name="backup_result_left_out">Documents left out of this backup were not restored</string>
+    <string name="backup_leave_out_stays">Records, names and tags stay in the backup. Files stay on this device. A same-device replace restore keeps matching local files; a fresh device has missing-file records you can refill. Cancel writes nothing.</string>
+    <string name="backup_leave_out_confirm">Back up without these files</string>
+    <string name="backup_leave_out_confirm_a11y">Back up without these files</string>
+    <string name="backup_cannot_fit">This backup cannot fit in 24 MB even without stored file bytes. No backup was created. Make a single-profile backup without files instead. Keep your lab originals.</string>
+    <string name="backup_ready_left_out">Partial backup: some file bytes are missing</string>
+    <string name="backup_restore_left_out_title">Partial backup: these files are missing</string>
+    <string name="backup_restore_left_out_body">Records, names and tags are included. Replacing on the same device keeps matching local files. On a fresh device, add the original files again to refill the records.</string>
+    <string name="backup_restore_left_out_replace">Replacing %1$s keeps matching local files. This backup cannot recover missing file bytes on another device.</string>
+    <string name="backup_result_left_out">Partial backup restored. Records remain; matching local files were kept. Add missing original files again to refill these records:</string>
     <string name="backup_document_unreadable">"%1$s" could not be read, so this backup was not created. Nothing was left out. Open the document to check it, or delete it and try again.</string>
     <string name="backup_documents_left_out">This profile has stored documents. A backup of one profile keeps their names and tags, not the files. Choose every profile to include the files.</string>
     <string name="documents_title">Documents</string>

@@ -23,9 +23,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.vezuna.domain.ProfileData
+import app.vezuna.domain.allDocuments
+import app.vezuna.security.fileIds
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.UserText
-import app.vezuna.localization.VitaMessageException
 import app.vezuna.localization.resolve
 import app.vezuna.localization.toUserText
 import app.vezuna.localization.vitaText
@@ -55,7 +56,7 @@ import vezuna.shared.generated.resources.ill_processing
 import vezuna.shared.generated.resources.ill_success
 
 /** An encrypted file held in memory until the user picks where to save it. [household]: every profile. */
-private class ReadyBackup(val fileName: String, val bytes: ByteArray, val household: Boolean, val coversEverything: Boolean, val withoutChat: Boolean, val leftOut: Int)
+private class ReadyBackup(val fileName: String, val bytes: ByteArray, val household: Boolean, val coversEverything: Boolean, val withoutChat: Boolean, val leftOut: List<String>)
 
 /**
  * Images 085-088: scope, chat choice and passphrase, then encryption, then the ready file and the native save.
@@ -67,10 +68,9 @@ internal fun CreateBackupFlow(
     service: BackupService,
     data: ProfileData,
     files: BackupFileAccess,
-    household: (suspend (Set<Pair<String, String>>) -> List<BackupMember>)?,
-    proposeLeaveOut: suspend () -> LeaveOutProposal,
+    household: (suspend (LeaveOutProposal?, Boolean) -> PreparedHouseholdBackup)?,
     profileCount: Int,
-    onSaved: (Boolean) -> Unit,
+    onSaved: (Boolean, Boolean) -> Unit,
     onClose: () -> Unit,
 ) {
     var wholeHousehold by remember { mutableStateOf(false) }
@@ -89,7 +89,7 @@ internal fun CreateBackupFlow(
     val canCreate = level != PassphraseStrengthLevel.TOO_SHORT && matches && !encrypting
     val close = { passphrase = ""; confirmation = ""; onClose() }
 
-    fun encrypt(omit: Set<Pair<String, String>> = emptySet()) {
+    fun encrypt(agreed: LeaveOutProposal? = null) {
         encrypting = true
         error = null
         val chars = passphrase.toCharArray()
@@ -97,14 +97,12 @@ internal fun CreateBackupFlow(
         scope.launch {
             try {
                 val members = if (all) {
-                    try {
-                        household!!.invoke(omit)
-                    } catch (tooLarge: VitaMessageException) {
-                        if (omit.isNotEmpty() || tooLarge.userText.key != L10nKey.BACKUP_TOO_LARGE_NAMED) throw tooLarge
-                        // Nothing is written and nothing is left out until the person agrees to the list.
-                        proposal = proposeLeaveOut()
+                    val prepared = household!!.invoke(agreed, leaveOutChat)
+                    if (prepared.proposal != null) {
+                        proposal = prepared.proposal
                         return@launch
                     }
+                    checkNotNull(prepared.members)
                 } else {
                     listOf(BackupMember(data))
                 }
@@ -112,7 +110,7 @@ internal fun CreateBackupFlow(
                 val bytes = if (all) service.createHousehold(chosen, chars) else service.create(chosen.first().data, chars)
                 // A single-profile file still covers the household when there is one profile and nothing else to carry.
                 val coversEverything = all || (profileCount == 1 && household == null)
-                ready = ReadyBackup(if (all) householdBackupFileName() else backupFileName(data), bytes, all, coversEverything, leaveOutChat, members.sumOf { it.omitted.size })
+                ready = ReadyBackup(if (all) householdBackupFileName() else backupFileName(data), bytes, all, coversEverything, leaveOutChat, members.flatMap { member -> member.data.allDocuments().filter { document -> document.fileIds().any { it !in member.files } }.map { "${it.displayName} · ${member.data.profile.displayName}" } })
                 passphrase = ""
                 confirmation = ""
                 proposal = null
@@ -141,7 +139,7 @@ internal fun CreateBackupFlow(
                 )
                 ProgressState(vitaText(L10nKey.PLEASE_WAIT))
             }
-            pending != null -> LeaveOutPage(pending, onAgree = { encrypt(pending.keys) }, onCancel = { proposal = null })
+            pending != null -> LeaveOutPage(pending, onAgree = { encrypt(pending) }, onCancel = { proposal = null })
             current != null -> SecurityPage {
                 SecurityHero(Res.drawable.ill_success, vitaText(L10nKey.BACKUP_READY_TITLE), current.fileName, live = true)
                 GroupedRows {
@@ -150,7 +148,7 @@ internal fun CreateBackupFlow(
                 }
                 SecurityNotice(scopeTitle(current.household, data.profile.displayName), StatusKind.INFO, detail = scopeBoundary(current.household))
                 if (current.withoutChat) SecurityNotice(vitaText(L10nKey.BACKUP_READY_CHAT_LEFT_OUT), StatusKind.INFO)
-                if (current.leftOut > 0) SecurityNotice(vitaText(L10nKey.BACKUP_READY_LEFT_OUT), StatusKind.WARNING)
+                if (current.leftOut.isNotEmpty()) SecurityNotice(vitaText(L10nKey.BACKUP_READY_LEFT_OUT), StatusKind.WARNING, detail = current.leftOut.joinToString("\n"))
                 if (notSaved) SecurityNotice(vitaText(L10nKey.BACKUP_NOT_SAVED), StatusKind.WARNING)
                 error?.let { SecurityNotice(it.resolve(), StatusKind.ERROR) }
                 PrimaryButton(vitaText(L10nKey.BACKUP_SAVE_ACTION), loading = saving, modifier = Modifier.fillMaxWidth(), onClick = {
@@ -161,7 +159,7 @@ internal fun CreateBackupFlow(
                         try {
                             if (files.save(current.fileName, current.bytes)) {
                                 ready = null
-                                onSaved(current.coversEverything)
+                                onSaved(current.coversEverything, current.leftOut.isNotEmpty())
                             } else {
                                 notSaved = true
                             }
@@ -239,7 +237,7 @@ private fun ScopeOption(selected: Boolean, title: String, body: String, onSelect
 /** The documents that do not fit, how they were chosen, and the explicit choice: back up without them or cancel. */
 @Composable
 internal fun LeaveOutPage(proposal: LeaveOutProposal, onAgree: () -> Unit, onCancel: () -> Unit) {
-    val confirmLabel = vitaText(L10nKey.BACKUP_LEAVE_OUT_CONFIRM_A11Y)
+    val confirmLabel = vitaText(L10nKey.BACKUP_LEAVE_OUT_CONFIRM)
     SecurityPage {
         SecurityNotice(vitaText(L10nKey.BACKUP_LEAVE_OUT_TITLE), StatusKind.WARNING, detail = vitaText(L10nKey.BACKUP_LEAVE_OUT_BODY))
         GroupedRows {

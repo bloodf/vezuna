@@ -16,6 +16,7 @@ import app.vezuna.ui.PickedSource
 import app.vezuna.ui.RestoreMode
 import app.vezuna.ui.SourceFileStore
 import app.vezuna.ui.entry.SourceKind
+import app.vezuna.ui.security.withoutChat
 import app.vezuna.ui.security.leftOutLines
 import app.vezuna.ui.security.replacedWithLeftOut
 import kotlinx.coroutines.test.runTest
@@ -87,7 +88,7 @@ class BackupLeaveOutTest {
         val members = h.controller.householdForBackup(proposal.keys)
         val member = members.single()
 
-        assertEquals(setOf("small.pdf", "medium.pdf"), member.data.vaultDocuments.map { it.source.displayName }.toSet())
+        assertEquals(setOf("small.pdf", "medium.pdf", "big.pdf"), member.data.vaultDocuments.map { it.source.displayName }.toSet())
         assertEquals(listOf("big.pdf"), member.omitted.map { it.displayName })
         assertEquals(2, member.files.size)
 
@@ -102,7 +103,7 @@ class BackupLeaveOutTest {
         target.controller.restoreHousehold(opened.members, RestoreMode.REPLACE_EXISTING)
         assertNull(target.controller.state.value.error)
         val restored = target.repository.readProfile(opened.members.single().data.profile.profileId)
-        assertEquals(setOf("small.pdf", "medium.pdf"), restored.vaultDocuments.map { it.source.displayName }.toSet())
+        assertEquals(setOf("small.pdf", "medium.pdf", "big.pdf"), restored.vaultDocuments.map { it.source.displayName }.toSet())
         assertEquals(member.data.profile, restored.profile)
         assertEquals(member.data.reports, restored.reports)
         assertEquals(member.data.medications, restored.medications)
@@ -135,11 +136,11 @@ class BackupLeaveOutTest {
     }
 
     @Test
-    fun anOmissionNamingAPresentDocumentIsDamaged() = runTest(timeout = 5.minutes) {
+    fun anOmissionWithSimultaneousFileIsDamaged() = runTest(timeout = 5.minutes) {
         val h = Household().start()
         h.add("a.pdf", 10, 1)
         val present = h.data.vaultDocuments.single().source.documentId
-        val member = BackupMember(h.data, emptyMap(), listOf(OmittedDocument(present, "a.pdf")))
+        val member = BackupMember(h.data, mapOf(present to byteArrayOf(1)), listOf(OmittedDocument(present, "a.pdf")))
         val file = service.createHousehold(listOf(member), pass.copyOf())
         assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, pass.copyOf()) }.userText.key)
     }
@@ -181,4 +182,131 @@ class BackupLeaveOutTest {
         val file = service.createHousehold(h.controller.householdForBackup(proposal.keys), pass.copyOf())
         assertTrue(file.size <= BackupService.MAX_BACKUP_WRITE_BYTES, "what was agreed to really fits: ${file.size}")
     }
+    @Test
+    fun sameDeviceReplacePreservesSoleCopyAndAsNewLeavesOriginalUntouched() = runTest(timeout = 10.minutes) {
+        val h = Household().overLimit()
+        val before = h.data
+        val omitted = before.vaultDocuments.single { it.source.displayName == "big.pdf" }.source
+        val proposal = h.controller.proposeLeaveOut()
+        val opened = service.open(service.createHousehold(h.controller.householdForBackup(proposal.keys), pass.copyOf()), pass.copyOf())
+        h.controller.restoreHousehold(opened.members, RestoreMode.REPLACE_EXISTING)
+        assertNull(h.controller.state.value.error)
+        val kept = h.repository.readProfile(before.profile.profileId).vaultDocuments.single { it.source.documentId == omitted.documentId }.source
+        assertEquals(omitted.vaultKey, kept.vaultKey)
+        assertContentEquals(ByteArray(12 * MIB) { 2 }, VaultSourceFileStore(h.vault).load(kept.profileId, kept.documentId, kept.vaultKey!!))
+        h.controller.restoreHousehold(opened.members, RestoreMode.RESTORE_AS_NEW)
+        assertNull(h.controller.state.value.error)
+        assertEquals(2, h.repository.profiles.value.size)
+        assertEquals(kept, h.repository.readProfile(before.profile.profileId).vaultDocuments.single { it.source.documentId == kept.documentId }.source)
+        val fresh = h.repository.profiles.value.single { it.profileId != before.profile.profileId }
+        assertNull(h.repository.readProfile(fresh.profileId).vaultDocuments.single { it.source.displayName == "big.pdf" }.source.vaultKey)
+    }
+
+    @Test
+    fun consentRechecksNamesAndFilesAndNeverWritesBeforeAgreement() = runTest(timeout = 10.minutes) {
+        val h = Household().overLimit()
+        val first = h.controller.prepareHouseholdBackup(null, false)
+        assertNull(first.members)
+        val agreed = checkNotNull(first.proposal)
+        val big = h.data.vaultDocuments.single { it.source.displayName == "big.pdf" }.source.documentId
+        h.controller.updateDocument(big, "renamed.pdf", emptyList())
+        val stale = h.controller.prepareHouseholdBackup(agreed, false)
+        assertNull(stale.members)
+        assertEquals("renamed.pdf", stale.proposal!!.documents.single().displayName)
+        assertTrue(h.controller.prepareHouseholdBackup(stale.proposal, true).members!!.single().data.chat.isEmpty())
+        h.controller.deleteDocument(big)
+        val fits = h.controller.prepareHouseholdBackup(stale.proposal, false)
+        assertNull(fits.proposal)
+        assertTrue(fits.members!!.single().omitted.isEmpty())
+    }
+
+    @Test
+    fun missingRecordSurvivesFreshRestoreRefillAndChatExclusion() = runTest(timeout = 10.minutes) {
+        val h = Household().start()
+        h.add("a.pdf", 10, 1)
+        val doc = h.data.vaultDocuments.single().source
+        val members = listOf(BackupMember(h.data, emptyMap(), listOf(OmittedDocument(doc.documentId, "a.pdf"))))
+        val opened = service.open(service.createHousehold(members.withoutChat(), pass.copyOf()), pass.copyOf())
+        val target = Household().start()
+        target.controller.restoreHousehold(opened.members, RestoreMode.REPLACE_EXISTING)
+        val restored = target.repository.readProfile(doc.profileId)
+        assertNull(restored.vaultDocuments.single().source.vaultKey)
+        assertEquals(doc.documentId, restored.vaultDocuments.single().source.documentId)
+        target.add("a.pdf", 10, 1)
+        assertEquals(1, target.data.vaultDocuments.size)
+        assertTrue(target.data.vaultDocuments.single().source.vaultKey != null)
+        assertTrue(target.controller.householdForBackup().all { it.omitted.isEmpty() })
+    }
+
+    @Test
+    fun hostileOrDuplicateOmissionsAreRejected() = runTest(timeout = 10.minutes) {
+        val h = Household().start()
+        h.add("a.pdf", 10, 1)
+        val id = h.data.vaultDocuments.single().source.documentId
+        listOf(
+            listOf(OmittedDocument("unknown", "a.pdf")),
+            listOf(OmittedDocument(id, "a.pdf"), OmittedDocument(id, "a.pdf")),
+            listOf(OmittedDocument(id, "\u202Ea.pdf")),
+            listOf(OmittedDocument(id, "a\nb.pdf")),
+            listOf(OmittedDocument(id, "x".repeat(256))),
+        ).forEach { omissions ->
+            val file = service.createHousehold(listOf(BackupMember(h.data, emptyMap(), omissions)), pass.copyOf())
+            assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, pass.copyOf()) }.userText.key)
+        }
+    }
+
+    @Test
+    fun chatIsExcludedBeforeNearLimitProposalAndAcrossProfiles() = runTest(timeout = 10.minutes) {
+        val h = Household().start()
+        h.add("near.pdf", 17 * MIB, 1)
+        val original = h.data
+        h.repository.restoreProfile(original.copy(chat = listOf(app.vezuna.domain.ChatMessage(
+            original.profile.profileId, "chat", app.vezuna.domain.ChatMessage.Role.USER, "x".repeat(2 * MIB), original.profile.createdAt,
+        ))))
+        assertEquals(1, h.controller.prepareHouseholdBackup(null, false).proposal!!.documents.size)
+        val without = h.controller.prepareHouseholdBackup(null, true)
+        assertNull(without.proposal)
+        assertTrue(without.members!!.single().data.chat.isEmpty())
+        val second = sampleProfileData("second").copy(documents = emptyList(), reports = emptyList(), observations = emptyList(), ocrCandidates = emptyList())
+        h.repository.restoreProfile(second)
+        val profiles = h.controller.prepareHouseholdBackup(null, true).members!!
+        assertEquals(2, profiles.size)
+        assertTrue(profiles.all { it.data.chat.isEmpty() })
+        assertEquals(2, service.open(service.createHousehold(profiles, pass.copyOf()), pass.copyOf()).members.size)
+    }
+
+    @Test
+    fun lateGrowthFailsClosedBeforeAFileCanBeReturned() = runTest(timeout = 10.minutes) {
+        val h = Household().overLimit()
+        val agreement = h.controller.proposeLeaveOut()
+        val members = h.controller.prepareHouseholdBackup(agreement, false).members!!
+        val oversized = members.map { BackupMember(it.data, it.files + ("late" to ByteArray(BackupService.MAX_BACKUP_WRITE_BYTES)), it.omitted) }
+        assertEquals(L10nKey.BACKUP_TOO_LARGE, assertFailsWith<VitaMessageException> { service.createHousehold(oversized, pass.copyOf()) }.userText.key)
+    }
+
+    @Test
+    fun cancellationAtPreparationBoundaryPropagatesWithoutConsentOrMembers() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val time = Instant.parse("2026-01-01T00:00:00Z")
+        repository.createProfile(Profile("p", "Ana", createdAt = time))
+        repository.addDocument(SourceDocument("p", "lab", "lab.pdf", "application/pdf", "h", time, vaultKey = "key"))
+        val store = object : SourceFileStore {
+            override suspend fun save(profileId: String, documentId: String, bytes: ByteArray): String = error("must not write")
+            override suspend fun discard(key: String) = error("must not discard")
+            override suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = throw kotlinx.coroutines.CancellationException("cancel")
+        }
+        val controller = labController(repository, store)
+        assertFailsWith<kotlinx.coroutines.CancellationException> { controller.prepareHouseholdBackup(null, false) }
+        assertEquals("key", repository.peekProfile("p").documents.single().vaultKey)
+    }
+
+    @Test
+    fun duplicateFileEntriesCannotHideBehindMapDecoding() = runTest {
+        val data = sampleProfileData("A")
+        val encoded = Json { encodeDefaults = true }.encodeToString(app.vezuna.domain.ProfileData.serializer(), data)
+        val payload = """{"schemaVersion":7,"exportedAt":"2026-01-01T00:00:00Z","members":[{"data":$encoded,"files":[{"documentId":"A-doc","content":"AQ=="},{"documentId":"A-doc","content":"Ag=="}]}]}"""
+        val file = PassphraseBackupCodec.seal(payload.encodeToByteArray(), pass.copyOf())
+        assertEquals(L10nKey.BACKUP_INVALID_CONTENT, assertFailsWith<VitaMessageException> { service.open(file, pass.copyOf()) }.userText.key)
+    }
+
 }

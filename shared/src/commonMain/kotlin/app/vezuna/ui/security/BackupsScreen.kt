@@ -87,11 +87,10 @@ internal fun BackupsScreen(ctx: RouteContext) {
                 BackHandler { page = BackupsPage.OVERVIEW }
                 CreateBackupFlow(
                     service, data, files,
-                    household = if (ctx.state.profiles.size > 1 || data.allDocuments().any { it.vaultKey != null }) controller::householdForBackup else null,
-                    proposeLeaveOut = controller::proposeLeaveOut,
+                    household = if (ctx.state.profiles.size > 1 || data.allDocuments().any { it.vaultKey != null }) controller::prepareHouseholdBackup else null,
                     profileCount = ctx.state.profiles.size,
-                    onSaved = { household ->
-                        updateHistory(history.copy(savedAt = currentInstant(), household = household))
+                    onSaved = { household, partial ->
+                        updateHistory(history.recordSaved(currentInstant(), household, partial))
                         controller.announce(UserText.Key(L10nKey.BACKUP_SAVED))
                         page = BackupsPage.OVERVIEW
                     },

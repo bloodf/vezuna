@@ -267,10 +267,12 @@ class AppController(
     suspend fun restoreHousehold(members: List<BackupMember>, mode: RestoreMode) = backups.restoreHousehold(members, mode)
 
     /** Every profile with its vitals and original source files, for a household backup. */
-    suspend fun householdForBackup(omit: Set<Pair<String, String>> = emptySet()): List<BackupMember> = backups.householdForBackup(omit)
+    suspend fun householdForBackup(omit: Set<Pair<String, String>> = emptySet(), leaveOutChat: Boolean = false): List<BackupMember> = backups.householdForBackup(omit, leaveOutChat)
+
+    suspend fun prepareHouseholdBackup(agreed: LeaveOutProposal?, leaveOutChat: Boolean): app.vezuna.ui.security.PreparedHouseholdBackup = backups.prepareHouseholdBackup(agreed, leaveOutChat)
 
     /** Vault documents to leave out (largest first) so a household backup fits; nothing is left out until the person agrees. */
-    suspend fun proposeLeaveOut(): LeaveOutProposal = backups.proposeLeaveOut()
+    suspend fun proposeLeaveOut(leaveOutChat: Boolean = false): LeaveOutProposal = backups.proposeLeaveOut(leaveOutChat)
 }
 
 /** Result of opening a report's original file: the decrypted pages, no stored file, or a file that failed to decrypt. */

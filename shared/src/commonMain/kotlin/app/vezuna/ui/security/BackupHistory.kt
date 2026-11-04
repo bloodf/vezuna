@@ -13,12 +13,17 @@ import kotlin.time.Duration.Companion.days
  * [savedAt] is null until a backup was saved; [household] says whether that backup held every profile.
  * [remind] turns the in-app reminder off; nothing is ever scheduled or sent off the device.
  */
-data class BackupHistory(val savedAt: Instant? = null, val household: Boolean = false, val remind: Boolean = true) {
-    fun encode(): String = "${savedAt?.epochSeconds ?: ""}|${if (household) "household" else "profile"}|${if (remind) "remind" else "quiet"}"
+data class BackupHistory(val savedAt: Instant? = null, val household: Boolean = false, val remind: Boolean = true, val partial: Boolean = false, val fullSavedAt: Instant? = savedAt) {
+    fun encode(): String = "${savedAt?.epochSeconds ?: ""}|${if (household) "household" else "profile"}|${if (remind) "remind" else "quiet"}|${if (partial) "partial" else "full"}|${fullSavedAt?.epochSeconds ?: ""}"
 
     /** True when there is data to protect and no backup was saved in the last [REMINDER_DAYS] days. */
     fun reminderDue(now: Instant, hasData: Boolean): Boolean =
-        remind && hasData && (savedAt == null || now - savedAt >= REMINDER_DAYS.days)
+        remind && hasData && (fullSavedAt == null || now - fullSavedAt >= REMINDER_DAYS.days)
+
+    fun recordSaved(now: Instant, household: Boolean, partial: Boolean): BackupHistory = copy(
+        savedAt = now, household = household, partial = partial,
+        fullSavedAt = if (partial) fullSavedAt else now,
+    )
 
     companion object {
         const val REMINDER_DAYS = 30
@@ -26,11 +31,13 @@ data class BackupHistory(val savedAt: Instant? = null, val household: Boolean = 
         /** Unreadable or missing text reads as "never backed up", the only claim that cannot be wrong. */
         fun decode(text: String?): BackupHistory {
             val parts = text?.split('|') ?: return BackupHistory()
-            if (parts.size != 3) return BackupHistory()
+            if (parts.size != 3 && parts.size != 5) return BackupHistory()
             return BackupHistory(
                 savedAt = parts[0].toLongOrNull()?.let(Instant::fromEpochSeconds),
                 household = parts[1] == "household",
                 remind = parts[2] != "quiet",
+                partial = parts.getOrNull(3) == "partial",
+                fullSavedAt = if (parts.size == 3) parts[0].toLongOrNull()?.let(Instant::fromEpochSeconds) else parts[4].toLongOrNull()?.let(Instant::fromEpochSeconds),
             )
         }
     }
@@ -74,7 +81,7 @@ data class BackupContents(
 /** "Document name · profile name" for each document recorded as left out of these members, for the restore preview and result. */
 fun List<BackupMember>.leftOutLines(): List<String> = flatMap { member -> member.omitted.map { "${it.displayName} · ${member.data.profile.displayName}" } }
 
-/** Names of the profiles this restore would replace that the backup recorded documents as left out of: the copies on this device would be lost. */
+/** Names of the profiles this restore would replace that the backup recorded documents as left out of: matching local files are preserved. */
 fun List<BackupMember>.replacedWithLeftOut(profileExists: (String) -> Boolean): List<String> =
     filter { it.omitted.isNotEmpty() && profileExists(it.data.profile.profileId) }.map { it.data.profile.displayName }
 

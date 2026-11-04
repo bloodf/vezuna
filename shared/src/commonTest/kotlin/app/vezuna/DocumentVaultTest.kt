@@ -244,6 +244,32 @@ class DocumentVaultTest {
     }
 
     @Test
+    fun failedRefillDoesNotDiscardKeysAlreadyReferencedByTheRecord() = runTest {
+        val inner = InMemoryVezunaRepository()
+        var failUpdate = false
+        val repository = object : VezunaRepository by inner {
+            override suspend fun updateVaultDocument(document: VaultDocument) {
+                if (failUpdate) error("disk full")
+                inner.updateVaultDocument(document)
+            }
+        }
+        val discarded = mutableListOf<String>()
+        val store = object : SourceFileStore {
+            override suspend fun save(profileId: String, documentId: String, bytes: ByteArray) = "source-$documentId"
+            override suspend fun discard(key: String) { discarded += key }
+            override suspend fun load(profileId: String, documentId: String, key: String): ByteArray? = null
+        }
+        val controller = labController(repository, store)
+        controller.initialize()
+        controller.addDocumentFrom(SourceKind.FILE) { pdf() }
+        failUpdate = true
+        controller.addDocumentFrom(SourceKind.FILE) { pdf() }
+        assertNotNull(controller.state.value.error)
+        assertTrue(discarded.isEmpty(), "refill returned the key the old record still references")
+        assertNotNull(repository.peekProfile(controller.state.value.data!!.profile.profileId).vaultDocuments.single().source.vaultKey)
+    }
+
+    @Test
     fun theSameFileTwiceIsOneDocumentAndAFileLessRecordGetsItsFileBack() = runTest {
         val f = Fixture().start()
         f.add(pdf())

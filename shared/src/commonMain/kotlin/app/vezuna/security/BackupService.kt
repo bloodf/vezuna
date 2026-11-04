@@ -45,7 +45,7 @@ fun SourceDocument.fileIds(): List<String> = (1..1 + pageVaultKeys.size).map { b
 /** One profile of a household backup plus its original source files, keyed by document ID. */
 class BackupMember(val data: ProfileData, val files: Map<String, ByteArray> = emptyMap(), val omitted: List<OmittedDocument> = emptyList())
 
-/** A vault document the person agreed to leave out of a household backup because it did not fit (#100). It is no longer in the member's [ProfileData]. */
+/** A vault document whose file bytes are absent (#100). Its record, name and tags remain in [ProfileData]. */
 @Serializable
 data class OmittedDocument(val documentId: String, val displayName: String)
 
@@ -102,6 +102,7 @@ class BackupService(
             json.encodeToString(BackupPayload.serializer(), BackupPayload(SINGLE_SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData))
         }.encodeToByteArray()
         try {
+            if (plain.size.toLong() + SEAL_OVERHEAD_BYTES > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
             PassphraseBackupCodec.seal(plain, passphrase)
         } finally {
             plain.fill(0)
@@ -125,6 +126,7 @@ class BackupService(
         )
         val plain = json.encodeToString(HouseholdPayload.serializer(), payload).encodeToByteArray()
         try {
+            if (plain.size.toLong() + SEAL_OVERHEAD_BYTES > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
             PassphraseBackupCodec.seal(plain, passphrase).also { if (it.size > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE) }
         } finally {
             plain.fill(0)
@@ -185,6 +187,7 @@ class BackupService(
                     listOf(BackupMember(payload.data))
                 }
                 SCHEMA_VERSION, NEWER_SCHEMA_VERSION, APPOINTMENTS_SCHEMA_VERSION, OMISSION_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
+                    if (entry.files.map { it.documentId }.toSet().size != entry.files.size) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                     BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) }, entry.omitted)
                 }
                 else -> failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
@@ -211,8 +214,14 @@ class BackupService(
         if (!data.isInternallyConsistent()) return false
         if (data.allDocuments().any { PAGE_LIKE_ID.matches(it.documentId) || it.pageVaultKeys.size > MAX_PAGES }) return false
         val allowed = data.allDocuments().flatMapTo(HashSet()) { it.fileIds() }
-        val present = data.allDocuments().mapTo(HashSet()) { it.documentId }
-        return files.keys.all { it in allowed } && omitted.all { it.documentId !in present } && omitted.map { it.documentId }.toSet().size == omitted.size
+        val vaultDocuments = data.vaultDocuments.associateBy { it.source.documentId }
+        return files.keys.all { it in allowed } && omitted.size <= MAX_OMITTED_DOCUMENTS && omitted.all { omission ->
+            val document = vaultDocuments[omission.documentId]?.source
+            document != null && omission.displayName.isNotBlank() &&
+                omission.displayName == app.vezuna.domain.DocumentTags.cleanName(omission.displayName) &&
+                omission.displayName == app.vezuna.domain.DocumentTags.cleanName(document.displayName) &&
+                document.fileIds().none { it in files }
+        } && omitted.map { it.documentId }.toSet().size == omitted.size
     }
 
     private fun looksLikeLegacyEnvelope(file: ByteArray): Boolean {
@@ -228,7 +237,7 @@ class BackupService(
     companion object {
         /**
          * Highest payload version this build reads. 2 added the vitals section; 3 is the last single-profile shape;
-         * 4 is the household payload (several profiles, original source files). 5 is the household payload written when a profile has vault documents or health records; 6 when a profile has appointments. Versions 1-6 are all accepted.
+         * 4 is the household payload (several profiles, original source files). 5 is the household payload written when a profile has vault documents or health records; 6 when a profile has appointments. Versions 1-7 are all accepted.
          */
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
@@ -258,6 +267,7 @@ class BackupService(
 
         /** New files stay smaller: the payload is held in memory several times over (bytes, Base64, JSON, plaintext, ciphertext). */
         const val MAX_BACKUP_WRITE_BYTES = 24 * 1024 * 1024
+        const val MAX_OMITTED_DOCUMENTS = 100
         const val FILE_EXTENSION = "vhbak"
 
         /** Magic, version, key derivation, iterations, salt, nonce and authentication tag of [PassphraseBackupCodec], rounded up, plus a safety margin. */

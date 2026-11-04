@@ -3,6 +3,7 @@ package app.vezuna.ui.records
 import app.vezuna.domain.DocumentTags
 import app.vezuna.domain.SourceDocument
 import app.vezuna.domain.VaultDocument
+import app.vezuna.domain.vaultKeys
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.failMessage
 import app.vezuna.localization.message
@@ -28,7 +29,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Non-lab documents: add through the platform picker with extraction switched off, rename, tag, delete.
- * The bytes are only hashed (to spot the same file twice), encrypted and stored; no lab record is ever created.
+ * Files are checked for readability, hashed to spot duplicates, encrypted and stored; no lab record is ever created.
  */
 internal class DocumentVaultController(
     private val core: ControllerCore,
@@ -90,12 +91,12 @@ internal class DocumentVaultController(
         val refill = existing != null && !fileIsIntact(files, existing.source)
         when {
             existing == null -> saveFiles(files, profileId, documentId, source) { keys ->
-                val name = source.fileName.trim().take(DocumentTags.MAX_NAME_LENGTH)
+                val name = DocumentTags.cleanName(source.fileName)
                 repository.addVaultDocument(
                     VaultDocument(SourceDocument(profileId, documentId, name, source.mediaType, hash, currentInstant(), keys.first(), keys.drop(1))),
                 )
             }
-            refill -> saveFiles(files, profileId, documentId, source) { keys ->
+            refill -> saveFiles(files, profileId, documentId, source, data.vaultKeys()) { keys ->
                 repository.updateVaultDocument(existing.copy(source = existing.source.copy(vaultKey = keys.first(), pageVaultKeys = keys.drop(1))))
             }
         }
@@ -124,14 +125,14 @@ internal class DocumentVaultController(
     }
 
     /** A stored file must never outlive a record that was not written. */
-    private suspend fun saveFiles(files: SourceFileStore, profileId: String, documentId: String, source: PickedSource, record: suspend (List<String>) -> Unit) {
+    private suspend fun saveFiles(files: SourceFileStore, profileId: String, documentId: String, source: PickedSource, heldKeys: Set<String> = emptySet(), record: suspend (List<String>) -> Unit) {
         val saved = mutableListOf<String>()
         try {
             saved += files.save(profileId, documentId, source.bytes)
             source.additionalPages.forEachIndexed { index, page -> saved += files.save(profileId, backupFileId(documentId, index + 2), page) }
             record(saved)
         } catch (error: Throwable) {
-            withContext(NonCancellable) { saved.forEach { files.discard(it) } }
+            withContext(NonCancellable) { saved.filterNot { it in heldKeys }.forEach { files.discard(it) } }
             throw error
         }
     }
@@ -139,7 +140,7 @@ internal class DocumentVaultController(
     suspend fun update(documentId: String, name: String, tags: List<String>) = core.operation {
         val data = core.requireData()
         val current = data.vaultDocuments.firstOrNull { it.source.documentId == documentId } ?: failMessage(L10nKey.DOCUMENTS_NOT_FOUND)
-        val cleanName = name.trim().take(DocumentTags.MAX_NAME_LENGTH)
+        val cleanName = DocumentTags.cleanName(name)
         if (cleanName.isEmpty()) failMessage(L10nKey.DOCUMENTS_NAME_REQUIRED)
         repository.updateVaultDocument(current.copy(source = current.source.copy(displayName = cleanName), tags = DocumentTags.clean(tags)))
         core.reloadCurrentProfile()
