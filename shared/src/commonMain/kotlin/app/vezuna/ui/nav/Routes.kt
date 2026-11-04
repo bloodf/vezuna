@@ -30,6 +30,8 @@ fun Route(screen: AppScreen, ctx: RouteContext) {
         is AppScreen.ResultDetail -> RecordsRoutes.ResultDetail(screen, ctx)
         is AppScreen.HealthRecords -> RecordsRoutes.HealthRecords(screen, ctx)
         is AppScreen.HealthRecordForm -> RecordsRoutes.HealthRecordForm(screen, ctx)
+        AppScreen.Appointments -> RecordsRoutes.Appointments(ctx)
+        is AppScreen.AppointmentForm -> RecordsRoutes.AppointmentForm(screen, ctx)
         AppScreen.Documents -> RecordsRoutes.Documents(ctx)
         is AppScreen.DocumentDetail -> RecordsRoutes.DocumentDetail(screen, ctx)
 
@@ -87,7 +89,7 @@ fun routeFromName(text: String): AppScreen? {
     val arg = text.substringAfter(':', "").trim()
     val objects = listOf(
         AppScreen.Dashboard, AppScreen.Welcome, AppScreen.FirstProfile, AppScreen.Profiles, AppScreen.AddProfile,
-        AppScreen.Labs, AppScreen.Documents, AppScreen.ImportReview, AppScreen.ImportSource, AppScreen.ImportExtract, AppScreen.ManualEntry,
+        AppScreen.Labs, AppScreen.Documents, AppScreen.Appointments, AppScreen.ImportReview, AppScreen.ImportSource, AppScreen.ImportExtract, AppScreen.ManualEntry,
         AppScreen.Medications, AppScreen.Trends, AppScreen.Vitals, AppScreen.Connections,
         AppScreen.Backups, AppScreen.LockSettings, AppScreen.DataPrivacy,
         AppScreen.More, AppScreen.Settings, AppScreen.Appearance, AppScreen.Language, AppScreen.About,
@@ -104,6 +106,7 @@ fun routeFromName(text: String): AppScreen? {
         "HealthRecords" to { value -> kindOf(value)?.let { AppScreen.HealthRecords(it) } },
         // KIND or KIND:recordId
         "HealthRecordForm" to { value -> kindOf(value.substringBefore(':'))?.let { AppScreen.HealthRecordForm(it, value.substringAfter(':', "").ifEmpty { null }) } },
+        "AppointmentForm" to { id -> AppScreen.AppointmentForm(id.ifEmpty { null }) },
         "DocumentDetail" to AppScreen::DocumentDetail,
         "CandidateReview" to AppScreen::CandidateReview,
         "ResultEdit" to AppScreen::ResultEdit,
@@ -119,6 +122,6 @@ fun routeFromName(text: String): AppScreen? {
         "ExportPreview" to AppScreen::ExportPreview,
     )
     val factory = withArg[name] ?: return null
-    if (arg.isEmpty() && name !in setOf("MedicationForm", "DoseHistory")) return null
+    if (arg.isEmpty() && name !in setOf("MedicationForm", "DoseHistory", "AppointmentForm")) return null
     return factory(arg)
 }

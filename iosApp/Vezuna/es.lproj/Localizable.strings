@@ -61,3 +61,6 @@
 "supply_low_text" = "%1$@: quedan %2$d";
 "supply_low_generic_text" = "Un medicamento se está acabando";
 "supply_low_soon_text" = "%@ se está acabando";
+"appointment_reminder_title" = "Consulta próxima";
+"appointment_reminder_text" = "%@, %@";
+"appointment_reminder_generic_text" = "Tienes una consulta próxima";

@@ -1,5 +1,6 @@
 package app.vezuna.notifications
 
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.DoseSchedule
 import app.vezuna.domain.ProfileData
 import app.vezuna.domain.Recurrence
@@ -10,6 +11,11 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+
+/** What a fired visit alarm does next; the receiver performs exactly these two steps. */
+data class AppointmentAlarmResult(val markDelivered: Boolean, val reschedule: Boolean)
+
+data class ShownAppointment(val notificationId: Int, val profileId: String, val appointmentId: String, val appointmentAtMillis: Long)
 
 data class ShownReminder(val notificationId: Int, val profileId: String, val medicationId: String, val scheduleId: String)
 
@@ -36,6 +42,29 @@ object NotificationScheduleLogic {
         data?.medications?.any { medication ->
             medication.medicationId == medicationId && medication.active && medication.schedules.any { it.scheduleId == scheduleId }
         } == true
+
+    /** The appointment an alarm was armed for, or null once it was deleted or moved, or its reminder switched off, after arming. */
+    fun currentAppointment(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Appointment? =
+        data?.appointments?.firstOrNull {
+            it.appointmentId == appointmentId && it.reminderMinutesBefore != null && it.at.toEpochMilliseconds() == appointmentAtMillis
+        }
+
+    /** What a fired visit alarm does next: only a reminder that was really shown is delivered; one that could not be shown stays due and does not re-arm. */
+    fun afterAppointmentAlarm(due: Boolean, shown: Boolean): AppointmentAlarmResult = when {
+        !due -> AppointmentAlarmResult(markDelivered = false, reschedule = true)
+        shown -> AppointmentAlarmResult(markDelivered = true, reschedule = true)
+        else -> AppointmentAlarmResult(markDelivered = false, reschedule = false)
+    }
+
+    /** A reminder is useless once the visit has started, however late the alarm ran. */
+    fun isAppointmentReminderDue(appointmentAtMillis: Long, nowMillis: Long): Boolean = nowMillis < appointmentAtMillis
+
+    fun isAppointmentReminderCurrent(data: ProfileData?, appointmentId: String, appointmentAtMillis: Long): Boolean =
+        currentAppointment(data, appointmentId, appointmentAtMillis) != null
+
+    /** Delivered visit reminders that no longer match a stored appointment with a reminder on. */
+    fun staleAppointmentNotificationIds(shown: List<ShownAppointment>, profiles: Map<String, ProfileData>): List<Int> =
+        shown.filterNot { isAppointmentReminderCurrent(profiles[it.profileId], it.appointmentId, it.appointmentAtMillis) }.map { it.notificationId }
 
     fun nextOccurrences(schedule: DoseSchedule, now: Instant, zone: ZoneId): List<ZonedDateTime> {
         val localNow = now.atZone(zone)

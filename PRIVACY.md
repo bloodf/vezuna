@@ -14,12 +14,12 @@ This document describes what the Vezuna source code does with data, as of this r
 
 | Data | Source | Where it goes |
 |---|---|---|
-| Profiles, lab results, OCR candidates, medications, dose events, allergies, conditions, vaccinations, chat messages, stored documents (with their files, names and tags) | User input and imports | Encrypted vault on the device |
+| Profiles, lab results, OCR candidates, medications, dose events, allergies, conditions, vaccinations, visits (date, clinician, notes), chat messages, stored documents (with their files, names and tags) | User input and imports | Encrypted vault on the device |
 | Imported lab PDFs, photos, camera captures | User-selected or camera | Processed on-device (PDF text extraction, ML Kit / Vision OCR); camera captures staged in app cache until read |
 | Stored documents (prescriptions, imaging reports and similar) | User-selected or camera | Never read or OCRed; encrypted into the vault after a local check that the file opens; camera captures staged in app cache until read |
 | Heart rate, steps, weight | Health Connect (Android) / HealthKit (iOS), read-only, only after user permission | Encrypted on device |
 | Doctor exports (PDF/CSV) and encrypted backups | Generated on demand | The destination the user picks in the system share sheet |
-| Language and reminders | Device settings | Local notifications only |
+| Language and reminders (dose, low-supply and optional per-visit reminders) | Device settings | Local notifications only; a visit reminder shows the clinician name unless the lock-screen setting hides it. Outside the vault, the app keeps a list of visit id and reminder time pairs (Android app preferences, iOS user defaults) so a reminder is not shown twice. Scheduled iOS visit reminders sit in the system notification store with the clinician, visit time and profile name from when they are scheduled until they are dismissed (a generic text when the lock-screen setting hides names). Android visit alarms hold only ids and times, and the text is built from the vault when the alarm fires. Scheduled dose reminders on both platforms hold medication and profile names the same way |
 
 ## Permissions
 

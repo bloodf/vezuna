@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -81,6 +82,8 @@ internal fun CollectionDateField(
     focusRequester: FocusRequester? = null,
     label: String = vitaText(L10nKey.COLLECTION_DATE),
     help: String = vitaText(L10nKey.ENTRY_COLLECTION_DATE_HELP),
+    /** True for dates that look ahead (a visit); a collection date can never be in the future. */
+    allowFutureDates: Boolean = false,
 ) {
     var open by remember { mutableStateOf(false) }
     val shown = date?.let { formatUiDate(it) }
@@ -118,7 +121,7 @@ internal fun CollectionDateField(
         Box(Modifier.matchParentSize().then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier).clickable(role = Role.Button) { open = true })
     }
     if (open) {
-        val state = rememberDatePickerState(initialSelectedDateMillis = date?.toEpochMilliseconds(), selectableDates = NoFutureDates)
+        val state = rememberDatePickerState(initialSelectedDateMillis = date?.toEpochMilliseconds(), selectableDates = if (allowFutureDates) DatePickerDefaults.AllDates else NoFutureDates)
         var applyToAll by remember { mutableStateOf(false) }
         DatePickerDialog(
             onDismissRequest = { open = false },

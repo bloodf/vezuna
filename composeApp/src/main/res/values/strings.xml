@@ -53,6 +53,11 @@
     <string name="supply_low_title">Low supply</string>
     <string name="supply_low_text">%1$s: %2$s left</string>
     <string name="supply_low_generic_text">A medication is running low</string>
+    <string name="appointment_channel_name">Appointment reminders</string>
+    <string name="appointment_channel_description">Reminders for upcoming visits, scheduled on this device</string>
+    <string name="appointment_reminder_title">Upcoming visit</string>
+    <string name="appointment_reminder_text">%1$s, %2$s</string>
+    <string name="appointment_reminder_generic_text">You have an upcoming visit</string>
     <!-- App lock -->
     <string name="app_lock_prompt_title">Unlock Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirm it is you to open your health records</string>

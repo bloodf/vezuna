@@ -49,7 +49,7 @@ private data class BackupFileEntry(val documentId: String, val content: String)
 @Serializable
 private data class BackupMemberEntry(val data: ProfileData, val files: List<BackupFileEntry> = emptyList())
 
-/** Schema 4 (5 when vault documents or health records are present): several profiles, each with vitals (inside [ProfileData]) and its original source files. */
+/** Schema 4 (5 when vault documents or health records are present, 6 with appointments): several profiles, each with vitals (inside [ProfileData]) and its original source files. */
 @Serializable
 private data class HouseholdPayload(val schemaVersion: Int, val exportedAt: Instant, val members: List<BackupMemberEntry>)
 
@@ -86,7 +86,7 @@ class BackupService(
     /** Key stretching is deliberately slow, so this runs off the caller's thread. */
     suspend fun create(profileData: ProfileData, passphrase: CharArray): ByteArray = withContext(Dispatchers.Default) {
         val plain = if (profileData.needsNewerSchema()) {
-            json.encodeToString(HouseholdPayload.serializer(), HouseholdPayload(NEWER_SCHEMA_VERSION, currentInstant(), listOf(BackupMemberEntry(profileData))))
+            json.encodeToString(HouseholdPayload.serializer(), HouseholdPayload(profileData.householdSchema(), currentInstant(), listOf(BackupMemberEntry(profileData))))
         } else {
             json.encodeToString(BackupPayload.serializer(), BackupPayload(SINGLE_SCHEMA_VERSION, profileData.profile.profileId, currentInstant(), profileData))
         }.encodeToByteArray()
@@ -98,7 +98,7 @@ class BackupService(
     }
 
     /**
-     * Backs up every profile with its vitals and original source files (schema 4, or 5 when see [needsNewerSchema]). The file must stay under
+     * Backs up every profile with its vitals and original source files (schema 4, 5 or 6 when see [householdSchema]). The file must stay under
      * [MAX_BACKUP_WRITE_BYTES] (files are Base64 inside the sealed payload); beyond that, [L10nKey.BACKUP_TOO_LARGE] and nothing is written.
      */
     @OptIn(ExperimentalEncodingApi::class)
@@ -107,7 +107,7 @@ class BackupService(
         val estimate = members.sumOf { member -> member.files.values.sumOf { (it.size + 2L) / 3 * 4 } }
         if (estimate > MAX_BACKUP_WRITE_BYTES) failMessage(L10nKey.BACKUP_TOO_LARGE)
         val payload = HouseholdPayload(
-            if (members.any { it.data.needsNewerSchema() }) NEWER_SCHEMA_VERSION else SCHEMA_VERSION, currentInstant(),
+            members.maxOf { it.data.householdSchema() }, currentInstant(),
             members.map { member ->
                 BackupMemberEntry(member.data, member.files.map { (documentId, bytes) -> BackupFileEntry(documentId, Base64.encode(bytes)) })
             },
@@ -160,7 +160,7 @@ class BackupService(
                     if (payload.profileId != payload.data.profile.profileId) failMessage(L10nKey.BACKUP_INVALID_CONTENT)
                     listOf(BackupMember(payload.data))
                 }
-                SCHEMA_VERSION, NEWER_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
+                SCHEMA_VERSION, NEWER_SCHEMA_VERSION, APPOINTMENTS_SCHEMA_VERSION -> json.decodeFromJsonElement(HouseholdPayload.serializer(), element).members.map { entry ->
                     BackupMember(entry.data, entry.files.associate { it.documentId to Base64.decode(it.content) })
                 }
                 else -> failMessage(L10nKey.BACKUP_UNSUPPORTED_SCHEMA)
@@ -203,7 +203,7 @@ class BackupService(
     companion object {
         /**
          * Highest payload version this build reads. 2 added the vitals section; 3 is the last single-profile shape;
-         * 4 is the household payload (several profiles, original source files). 5 is the household payload written when a profile has vault documents or health records. Versions 1-5 are all accepted.
+         * 4 is the household payload (several profiles, original source files). 5 is the household payload written when a profile has vault documents or health records; 6 when a profile has appointments. Versions 1-6 are all accepted.
          */
         private const val LEGACY_BACKUP_AAD_PREFIX = "Vezuna backup v1:"
         const val SCHEMA_VERSION = 4
@@ -214,9 +214,12 @@ class BackupService(
          */
         const val NEWER_SCHEMA_VERSION = 5
 
+        /** Household payload written only when a profile holds appointments (#101); everything else keeps its lower number. Versions 1-6 are accepted. */
+        const val APPOINTMENTS_SCHEMA_VERSION = 6
+
         /**
          * What [create] writes for a profile without vault documents or health records; with them it writes
-         * [NEWER_SCHEMA_VERSION] (see [needsNewerSchema]), so older builds answer "unsupported" instead of "damaged".
+         * [NEWER_SCHEMA_VERSION], or [APPOINTMENTS_SCHEMA_VERSION] with appointments (see [needsNewerSchema]), so older builds answer "unsupported" instead of "damaged".
          */
         const val SINGLE_SCHEMA_VERSION = 3
         /** Files from released builds can be this large (64 MiB), so opening still accepts them. */
@@ -228,4 +231,11 @@ class BackupService(
     }
 }
 
-private fun ProfileData.needsNewerSchema(): Boolean = vaultDocuments.isNotEmpty() || healthRecords.isNotEmpty()
+private fun ProfileData.needsNewerSchema(): Boolean = vaultDocuments.isNotEmpty() || healthRecords.isNotEmpty() || appointments.isNotEmpty()
+
+/** The household payload version this profile needs: 6 with appointments, 5 with vault documents or health records, else 4. */
+private fun ProfileData.householdSchema(): Int = when {
+    appointments.isNotEmpty() -> BackupService.APPOINTMENTS_SCHEMA_VERSION
+    needsNewerSchema() -> BackupService.NEWER_SCHEMA_VERSION
+    else -> BackupService.SCHEMA_VERSION
+}

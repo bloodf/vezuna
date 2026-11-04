@@ -157,6 +157,31 @@ extension Date {
     var offTheMinute: Date { Int(timeIntervalSince1970) % 60 == 0 ? addingTimeInterval(1) : self }
 }
 
+/// A visit reminder planned by shared code. Present only while the appointment opted in and the reminder is still ahead.
+struct AppointmentNotice: Codable, Equatable {
+    let key: String
+    let profileId: String
+    let appointmentId: String
+    let clinician: String
+    let appointmentEpochSeconds: Int64
+    let fireEpochSeconds: Int64
+    let profileName: String?
+
+    /// One request per appointment: scheduling again replaces the earlier one.
+    var identifier: String { "vezuna.appointment.\(appointmentId)" }
+}
+
+/// What shared code planned for visits: the reminders still to deliver, every appointment with a reminder on, and the shared clock.
+struct AppointmentPlan: Codable, Equatable {
+    let notices: [AppointmentNotice]
+    let reminderIds: [String]
+    /// Appointments with a reminder on whose visit has not started.
+    let aheadIds: [String]
+    /// Notice keys of every visit still ahead as they stand now; a pending request with another key is out of date.
+    let currentKeys: [String]
+    let nowEpochSeconds: Int64
+}
+
 /// A low-supply reminder planned by shared code. `fireEpochSeconds` is nil once the notice was already delivered.
 struct LowSupplyNotice: Codable, Equatable {
     let key: String

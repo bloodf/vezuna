@@ -53,6 +53,11 @@
     <string name="supply_low_title">Suministro bajo</string>
     <string name="supply_low_text">%1$s: quedan %2$s</string>
     <string name="supply_low_generic_text">Un medicamento se está acabando</string>
+    <string name="appointment_channel_name">Recordatorios de consultas</string>
+    <string name="appointment_channel_description">Recordatorios de consultas próximas, programados en este dispositivo</string>
+    <string name="appointment_reminder_title">Consulta próxima</string>
+    <string name="appointment_reminder_text">%1$s, %2$s</string>
+    <string name="appointment_reminder_generic_text">Tienes una consulta próxima</string>
     <!-- App lock -->
     <string name="app_lock_prompt_title">Desbloquear Vezuna</string>
     <string name="app_lock_prompt_subtitle">Confirma que eres tú para abrir tus registros de salud</string>

@@ -6,6 +6,7 @@ import app.vezuna.domain.DeviceVitals
 import app.vezuna.domain.DoseEvent
 import app.vezuna.domain.DoseEvents
 import app.vezuna.domain.DoseSchedule
+import app.vezuna.domain.Appointment
 import app.vezuna.domain.HealthRecord
 import app.vezuna.domain.HealthLink
 import app.vezuna.domain.LabObservation
@@ -26,8 +27,10 @@ import app.vezuna.domain.isInternallyConsistent
 import app.vezuna.domain.vaultKeys
 import app.vezuna.domain.withChatMessage
 import app.vezuna.domain.withDocument
+import app.vezuna.domain.withAppointment
 import app.vezuna.domain.withHealthRecord
 import app.vezuna.domain.withMedication
+import app.vezuna.domain.withNewAppointment
 import app.vezuna.domain.withNewHealthRecord
 import app.vezuna.domain.withObservation
 import app.vezuna.domain.withProfile
@@ -35,6 +38,7 @@ import app.vezuna.domain.withReport
 import app.vezuna.domain.withSchedule
 import app.vezuna.domain.withoutChatMessage
 import app.vezuna.domain.withoutDocument
+import app.vezuna.domain.withoutAppointment
 import app.vezuna.domain.withoutHealthRecord
 import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
@@ -328,6 +332,12 @@ class VaultBackedRepository(
     override suspend fun updateHealthRecord(record: HealthRecord) = mutate(record.profileId) { it.withHealthRecord(record) }
 
     override suspend fun deleteHealthRecord(profileId: String, recordId: String) = mutate(profileId) { it.withoutHealthRecord(recordId) }
+
+    override suspend fun addAppointment(appointment: Appointment) = mutate(appointment.profileId) { it.withNewAppointment(appointment) }
+
+    override suspend fun updateAppointment(appointment: Appointment) = mutate(appointment.profileId) { it.withAppointment(appointment) }
+
+    override suspend fun deleteAppointment(profileId: String, appointmentId: String) = mutate(profileId) { it.withoutAppointment(appointmentId) }
 
     override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
         ensureInitialized()
@@ -759,6 +769,7 @@ class VaultBackedRepository(
             doseEvents.all { it.profileId == profileId } &&
             chat.all { it.profileId == profileId } &&
             healthRecords.all { it.profileId == profileId } &&
+            appointments.all { it.profileId == profileId } &&
             vaultDocuments.all { it.source.profileId == profileId }
 
     companion object {

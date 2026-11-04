@@ -177,6 +177,37 @@ class SupplyReceiver : BroadcastReceiver() {
     }
 }
 
+/** Delivers a visit reminder. The appointment is re-read first, so a deleted, moved or switched-off reminder stays quiet. */
+class AppointmentReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val app = context.applicationContext as VezunaApplication
+        guarded(app, goAsync(), "AppointmentReceiver") {
+            if (!app.awaitRepository()) return@guarded
+            val profileId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_PROFILE_ID) ?: return@guarded
+            val appointmentId = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_ID) ?: return@guarded
+            val noticeKey = intent.getStringExtra(MedicationNotificationScheduler.EXTRA_NOTICE_KEY) ?: return@guarded
+            val atMillis = intent.getLongExtra(MedicationNotificationScheduler.EXTRA_APPOINTMENT_AT, -1L)
+            val data = try {
+                app.repository.peekProfile(profileId)
+            } catch (missing: NoSuchElementException) {
+                return@guarded
+            }
+            // The stored record is the source of the clinician and of whether this alarm is still wanted.
+            val appointment = NotificationScheduleLogic.currentAppointment(data, appointmentId, atMillis)
+            val due = appointment != null && NotificationScheduleLogic.isAppointmentReminderDue(atMillis, System.currentTimeMillis())
+            val shown = due && app.notifications.showAppointmentReminder(
+                profileId, appointmentId, appointment!!.clinician, atMillis,
+                data.profile.displayName.takeIf { app.repository.profiles.value.size > 1 },
+            )
+            // Nothing could be shown (notifications off): do not re-arm the past time, or it would fire again at once, in a loop.
+            // The reminder stays due and appears at the next pass: when the app is next opened with notifications allowed, or at the next start.
+            val result = NotificationScheduleLogic.afterAppointmentAlarm(due, shown)
+            if (result.markDelivered) app.notifications.markAppointmentDelivered(noticeKey)
+            if (result.reschedule) app.notifications.rescheduleAll(app.repository)
+        }
+    }
+}
+
 class RescheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as VezunaApplication
