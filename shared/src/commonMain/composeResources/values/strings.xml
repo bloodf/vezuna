@@ -1413,12 +1413,13 @@ iOS: %2$s</string>
         <item quantity="one">%1$d day old</item>
         <item quantity="other">%1$d days old</item>
     </plurals>
+    <string name="em_load_failed">Couldn't load this card. Go back and try again.</string>
     <string name="em_med_starts">Starts on %1$s</string>
     <string name="em_phone_open_failed">Couldn't open it from here. Follow the steps above.</string>
     <string name="em_conditions">Conditions</string>
     <string name="em_none_allergies">No allergies recorded. This does not mean there are none.</string>
     <string name="em_none_conditions">No conditions recorded as current. This does not mean there are none.</string>
-    <string name="em_none_medications">No medications recorded. This does not mean there are none.</string>
+    <string name="em_none_medications">No current medications recorded. This does not mean there are none.</string>
     <string name="em_partial_note">Nothing here is current, but older records exist.</string>
     <string name="em_intro">A read-only summary of what is recorded for %1$s. It stays on this device and is not shown on the lock screen.</string>
     <string name="em_phone_android">Emergency information can be reachable from the lock screen, depending on your phone's settings. In your phone's Settings, search for “emergency” (often under Safety &amp; emergency) and copy these details there.</string>

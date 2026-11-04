@@ -22,3 +22,9 @@ fun medicationLines(entry: EmergencyMedication): List<EmergencyLine> {
         if (entry.paused) EmergencyLine(L10nKey.EM_MED_PAUSED) else null,
     )
 }
+
+/** Medications under the "Medications" heading (including paused ones) and those under "Starting later". */
+data class MedicationSections(val current: List<EmergencyMedication>, val later: List<EmergencyMedication>)
+
+fun splitMedications(medications: List<EmergencyMedication>): MedicationSections =
+    medications.partition { it.startsOn != null }.let { (later, current) -> MedicationSections(current, later) }

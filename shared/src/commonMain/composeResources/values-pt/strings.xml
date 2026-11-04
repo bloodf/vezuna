@@ -1408,17 +1408,18 @@ iOS: %2$s</string>
     <string name="em_dose_none">Dose não registrada</string>
     <string name="em_med_paused">Lembretes pausados; pode não estar tomando</string>
     <string name="em_med_ended_today">Interrompido ou pausado hoje</string>
-    <string name="em_meds_later">Começam depois</string>
+    <string name="em_meds_later">Para começar depois</string>
     <plurals name="em_age_days">
         <item quantity="one">%1$d dia</item>
         <item quantity="other">%1$d dias</item>
     </plurals>
+    <string name="em_load_failed">Não foi possível carregar este cartão. Volte e tente de novo.</string>
     <string name="em_med_starts">Começa em %1$s</string>
     <string name="em_phone_open_failed">Não foi possível abrir daqui. Siga os passos acima.</string>
     <string name="em_conditions">Condições</string>
     <string name="em_none_allergies">Nenhuma alergia registrada. Isso não significa que não existam.</string>
     <string name="em_none_conditions">Nenhuma condição atual registrada. Isso não significa que não existam.</string>
-    <string name="em_none_medications">Nenhum medicamento registrado. Isso não significa que não existam.</string>
+    <string name="em_none_medications">Nenhum medicamento atual registrado. Isso não significa que não existam.</string>
     <string name="em_partial_note">Nada aqui é atual, mas há registros antigos.</string>
     <string name="em_intro">Um resumo somente leitura do que está registrado para %1$s. Fica neste aparelho e não aparece na tela de bloqueio.</string>
     <string name="em_phone_android">As informações de emergência podem ficar acessíveis na tela de bloqueio, conforme as configurações do celular. Nas Configurações, busque por “emergência” (geralmente em Segurança e emergência) e copie estes dados lá.</string>

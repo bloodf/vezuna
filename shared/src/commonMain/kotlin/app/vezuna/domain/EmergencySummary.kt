@@ -61,7 +61,7 @@ private fun AllergySeverity?.rank() = when (this) {
 }
 
 /**
- * Null when the medication is over: every schedule ended before today. Inactive with its last day today is kept and flagged
+ * Null when the medication is over: every schedule ended before today. Inactive with its last day today is kept (a future course that was stopped or paused is just paused: its end date is its start date) and flagged
  * [EmergencyMedication.endedToday], because stopping (`endDate = max(today, start)`, see CareController.stopMedication) and
  * pausing cannot be told apart from the dates. Only schedules not yet ended count towards "upcoming", so an old course plus
  * a future one is upcoming, not current.
@@ -69,7 +69,7 @@ private fun AllergySeverity?.rank() = when (this) {
 private fun Medication.onEmergencyCard(today: LocalDate): EmergencyMedication? {
     val remaining = schedules.filter { it.endDate == null || it.endDate >= today }
     if (schedules.isNotEmpty() && remaining.isEmpty()) return null
-    val endedToday = !active && remaining.isNotEmpty() && remaining.all { it.endDate != null && it.endDate <= maxOf(today, it.startDate) }
+    val endedToday = !active && remaining.isNotEmpty() && remaining.all { it.endDate == today }
     val upcoming = remaining.takeIf { it.isNotEmpty() && it.all { s -> s.startDate > today } }?.minOf { it.startDate }
     return EmergencyMedication(this, paused = !active && !endedToday, endedToday = endedToday, startsOn = upcoming)
 }

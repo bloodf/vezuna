@@ -58,9 +58,9 @@ fun EmergencyCardScreen(ctx: RouteContext) {
     FocusedTaskScaffold(title = vitaText(L10nKey.EM_TITLE), onBack = ctx::back) {
         val data = ctx.state.data
         if (data == null) {
-            val failure = ctx.state.error.takeIf { !ctx.state.loading }
-            if (failure != null) Text(failure.resolve(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(VezunaTokens.SpaceMd))
-            else ProgressState(vitaText(L10nKey.EM_TITLE))
+            // Navigation clears state.error, so "no data and not loading" is the failure signal; the error text is only a bonus.
+            if (ctx.state.loading) ProgressState(vitaText(L10nKey.EM_TITLE))
+            else Text(ctx.state.error?.resolve() ?: vitaText(L10nKey.EM_LOAD_FAILED), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(VezunaTokens.SpaceMd))
             return@FocusedTaskScaffold
         }
         // Re-read the clock every minute so "today" rolls over at midnight while the card stays open (as CareHome does).
@@ -75,12 +75,10 @@ fun EmergencyCardScreen(ctx: RouteContext) {
             } else {
                 Section(L10nKey.EM_ALLERGIES, L10nKey.EM_NONE_ALLERGIES, summary.allergies.map { { AllergyCard(it) } })
                 Section(L10nKey.EM_CONDITIONS, L10nKey.EM_NONE_CONDITIONS, summary.conditions.map { { LineCard(it.name, conditionLines(it)) } })
-                val (later, current) = summary.medications.partition { it.startsOn != null }
-                if (current.isNotEmpty() || later.isEmpty()) {
-                    Section(L10nKey.EM_MEDICATIONS, L10nKey.EM_NONE_MEDICATIONS, current.map { { LineCard(it.medication.displayName, medicationLines(it)) } })
-                }
+                val (current, later) = splitMedications(summary.medications)
+                Section(L10nKey.EM_MEDICATIONS, L10nKey.EM_NONE_MEDICATIONS, current.map { { LineCard(it.medication.displayName, medicationLines(it)) } })
                 if (later.isNotEmpty()) {
-                    Section(L10nKey.EM_MEDS_LATER, L10nKey.EM_NONE_MEDICATIONS, later.map { { LineCard(it.medication.displayName, medicationLines(it)) } })
+                    Section(L10nKey.EM_MEDS_LATER, null, later.map { { LineCard(it.medication.displayName, medicationLines(it)) } })
                 }
                 if (summary.allergies.isEmpty() && summary.conditions.isEmpty() && summary.medications.isEmpty()) {
                     Text(vitaText(L10nKey.EM_PARTIAL_NOTE), style = MaterialTheme.typography.bodyLarge)
@@ -110,10 +108,10 @@ private fun Identity(summary: EmergencySummary) {
 }
 
 @Composable
-private fun Section(title: L10nKey, none: L10nKey, cards: List<@Composable () -> Unit>) {
+private fun Section(title: L10nKey, none: L10nKey?, cards: List<@Composable () -> Unit>) {
     Column(verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
         SectionHeading(vitaText(title))
-        if (cards.isEmpty()) {
+        if (cards.isEmpty() && none != null) {
             Text(vitaText(none), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             cards.forEach { it() }

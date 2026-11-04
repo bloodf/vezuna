@@ -33,6 +33,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.EM_MED_PAUSED to Res.string.em_med_paused,
     L10nKey.EM_MED_STARTS to Res.string.em_med_starts,
     L10nKey.EM_MED_ENDED_TODAY to Res.string.em_med_ended_today,
+    L10nKey.EM_LOAD_FAILED to Res.string.em_load_failed,
     L10nKey.EM_MEDS_LATER to Res.string.em_meds_later,
     L10nKey.EM_PHONE_OPEN_FAILED to Res.string.em_phone_open_failed,
     L10nKey.EM_PARTIAL_NOTE to Res.string.em_partial_note,

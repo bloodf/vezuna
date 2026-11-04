@@ -16,6 +16,7 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.ui.more.EmergencyLine
 import app.vezuna.ui.more.conditionLines
 import app.vezuna.ui.more.medicationLines
+import app.vezuna.ui.more.splitMedications
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -126,6 +127,34 @@ class EmergencySummaryTest {
         val day = LocalDate(2026, 12, 1)
         val s = data(medications = listOf(med("Once", start = day, end = day).paused())).emergencySummary(today)
         assertEquals(listOf(day), s.medications.map { it.startsOn })
+        assertEquals(listOf(true to false), s.medications.map { it.paused to it.endedToday })
+    }
+
+    @Test
+    fun pausedOpenEndedFutureCourseIsJustPaused() {
+        val s = data(medications = listOf(med("Later", start = LocalDate(2026, 12, 1)).paused())).emergencySummary(today)
+        assertEquals(listOf(true to false), s.medications.map { it.paused to it.endedToday })
+        assertEquals(listOf(EmergencyLine(text = "10 mg"), EmergencyLine(L10nKey.EM_MED_STARTS, LocalDate(2026, 12, 1)), EmergencyLine(L10nKey.EM_MED_PAUSED)), medicationLines(s.medications.single()))
+    }
+
+    @Test
+    fun activeCourseOnItsLastDayHasNoStoppedLabel() {
+        val s = data(medications = listOf(med("Last", end = today))).emergencySummary(today)
+        assertEquals(listOf(false to false), s.medications.map { it.paused to it.endedToday })
+    }
+
+    @Test
+    fun inactiveMedicationWithoutSchedulesIsPausedNotEndedToday() {
+        val s = data(medications = listOf(Medication(p, "m-x", "Old", active = false))).emergencySummary(today)
+        assertEquals(listOf(true to false), s.medications.map { it.paused to it.endedToday })
+    }
+
+    @Test
+    fun medicationsSplitIntoCurrentAndStartingLater() {
+        val s = data(medications = listOf(med("Now"), med("Paused").paused(), med("Later", start = LocalDate(2026, 12, 1)))).emergencySummary(today)
+        val sections = splitMedications(s.medications)
+        assertEquals(listOf("Now", "Paused"), sections.current.map { it.medication.displayName })
+        assertEquals(listOf("Later"), sections.later.map { it.medication.displayName })
     }
 
     @Test
@@ -133,6 +162,7 @@ class EmergencySummaryTest {
         val start = LocalDate(2026, 12, 1)
         val s = data(medications = listOf(med("Course", start = start).stopped())).emergencySummary(today)
         assertEquals(listOf(start), s.medications.map { it.startsOn })
+        assertEquals(listOf(true to false), s.medications.map { it.paused to it.endedToday })
     }
 
     @Test
