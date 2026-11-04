@@ -41,7 +41,8 @@ object IosKeyStoreBridge {
 actual fun createPlatformVault(storagePath: String): SecureVault = IosSecureVault(storagePath)
 
 @OptIn(ExperimentalForeignApi::class)
-class IosSecureVault(private val directory: String) : SecureVault {
+class IosSecureVault internal constructor(private val directory: String, keyStore: VaultKeyStore?) : SecureVault {
+    constructor(directory: String) : this(directory, IosKeyStoreBridge.keyStore)
     private val manager = NSFileManager.defaultManager
     private val lock = Mutex()
     private var protectionRelaxed = false
@@ -54,7 +55,7 @@ class IosSecureVault(private val directory: String) : SecureVault {
         randomKey = ::randomKey,
         seal = { key, plain, aad -> IosAesGcmBridge.require().encrypt(key, plain, aad) },
         open = { key, envelope -> IosAesGcmBridge.require().decrypt(key, envelope) },
-        keyStore = IosKeyStoreBridge.keyStore,
+        keyStore = keyStore,
     )
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope = lock.withLock {

@@ -39,6 +39,15 @@ final class KeychainKeyStoreTests: XCTestCase {
         XCTAssertTrue(store.archive(key: key.kotlinBytes))
         XCTAssertTrue(store.delete())
         XCTAssertEqual(store.read().status, .missing)
+        var result: CFTypeRef?
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+        ]
+        XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &result), errSecSuccess)
+        XCTAssertEqual(result as? [Data], [key])
         XCTAssertTrue(store.write(key: Data(repeating: 5, count: 32).kotlinBytes))
     }
 
