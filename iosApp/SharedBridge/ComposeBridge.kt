@@ -3,7 +3,7 @@ package app.vezuna.ios
 import androidx.compose.ui.window.ComposeUIViewController
 import app.vezuna.data.VaultBackedRepository
 import app.vezuna.data.VaultSourceFileStore
-import app.vezuna.data.VitalsSyncContext
+import app.vezuna.health.NativeHealthBatch
 import app.vezuna.data.restoreMembers
 import app.vezuna.domain.AppointmentReminders
 import app.vezuna.domain.DoseEvent
@@ -192,26 +192,6 @@ private val iosNativeActions = setOf(
     NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
 )
 
-/** One HealthKit sync as encoded by Swift. Values are validated here, not in Swift. */
-@Serializable
-private data class NativeHealthBatch(
-    val profileId: String,
-    val generation: Long,
-    val replaceFromEpochSeconds: Long,
-    val steps: List<NativeSteps> = emptyList(),
-    val heartRate: List<NativeHeartRate> = emptyList(),
-    val weights: List<NativeWeight> = emptyList(),
-)
-
-@Serializable
-private data class NativeSteps(val dayStartEpochSeconds: Long, val count: Double)
-
-@Serializable
-private data class NativeHeartRate(val startEpochSeconds: Long, val min: Double, val avg: Double, val max: Double)
-
-@Serializable
-private data class NativeWeight(val recordId: String, val epochSeconds: Long, val kg: Double)
-
 object IosRuntime {
     private val json = Json { encodeDefaults = true }
     internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -393,9 +373,9 @@ object IosRuntime {
      * The first local day Swift must re-read and the first day of the weight history, as epoch seconds of local midnight.
      * Every sync replaces its window, so there is no anchor to keep in step with the stored data.
      */
-    fun vitalsSyncWindow(completion: (String, Long, Long, Long, NativeMessage?) -> Unit) {
+    fun vitalsSyncWindow(completion: (String, Long, String, Long, Long, NativeMessage?) -> Unit) {
         if (!initialized) {
-            completion("", 0L, 0L, 0L, nativeMessage("bridge_storage_not_ready"))
+            completion("", 0L, "", 0L, 0L, nativeMessage("bridge_storage_not_ready"))
             return
         }
         scope.launch {
@@ -403,10 +383,11 @@ object IosRuntime {
                 val context = repository.captureVitalsSync()
                 val lastSync = context.lastSync
                 val now = currentInstant()
-                val zone = TimeZone.currentSystemDefault()
+                val zone = context.zone
                 completion(
                     context.profileId,
                     context.generation,
+                    zone.id,
                     VitalsWindow.replaceFrom(lastSync, now, zone).atStartOfDayIn(zone).epochSeconds,
                     VitalsWindow.weightsFrom(lastSync, now, zone).atStartOfDayIn(zone).epochSeconds,
                     null,
@@ -414,7 +395,7 @@ object IosRuntime {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                completion("", 0L, 0L, 0L, nativeMessage("action_failed"))
+                completion("", 0L, "", 0L, 0L, nativeMessage("action_failed"))
             }
         }
     }
@@ -430,19 +411,8 @@ object IosRuntime {
         }
         scope.launch {
             try {
-                val zone = TimeZone.currentSystemDefault()
                 val native = json.decodeFromString(NativeHealthBatch.serializer(), batchJson)
-                val steps = native.steps.map { StepsDay.ofOrNull(Instant.fromEpochSeconds(it.dayStartEpochSeconds).toLocalDateTime(zone).date, it.count.toLong()) }
-                val heart = native.heartRate.map { HeartRateBucket.ofOrNull(Instant.fromEpochSeconds(it.startEpochSeconds), it.min, it.avg, it.max) }
-                val weights = native.weights.map { WeightReading.ofOrNull(it.recordId, Instant.fromEpochSeconds(it.epochSeconds), it.kg) }
-                val batch = VitalsBatch(
-                    replaceFrom = Instant.fromEpochSeconds(native.replaceFromEpochSeconds).toLocalDateTime(zone).date,
-                    steps = steps.filterNotNull(),
-                    heartRate = heart.filterNotNull(),
-                    weights = weights.filterNotNull(),
-                    skipped = (steps + heart + weights).count { it == null },
-                )
-                repository.ingestDeviceVitals(VitalsSyncContext(native.profileId, native.generation, null), batch, currentInstant())
+                repository.ingestDeviceVitals(native.context(), native.toBatch(), currentInstant())
                 controller.refreshDashboard()
                 completion(null)
             } catch (error: CancellationException) {

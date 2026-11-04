@@ -43,7 +43,7 @@ final class HealthKitImporter: HealthImporting {
         async let steps = dailySteps(from: from)
         async let heart = hourlyHeartRate(from: from)
         async let weights = weightSamples(from: weightsFrom)
-        let batch = Payload(profileId: window.profileId, generation: window.generation, replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
+        let batch = Payload(profileId: window.profileId, generation: window.generation, zoneId: window.zoneId, replaceFromEpochSeconds: window.replaceFrom, steps: try await steps, heartRate: try await heart, weights: try await weights)
         try await persist(batch)
         return HealthSampleBatch(heartRate: batch.heartRate.count, steps: batch.steps.count, weight: batch.weights.count)
     }
@@ -51,6 +51,7 @@ final class HealthKitImporter: HealthImporting {
     struct Payload: Encodable {
         let profileId: String
         let generation: Int64
+        let zoneId: String
         let replaceFromEpochSeconds: Int64
         let steps: [Steps]
         let heartRate: [Heart]
@@ -121,13 +122,13 @@ final class HealthKitImporter: HealthImporting {
         return samples.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
     }
 
-    private func syncWindow() async throws -> (profileId: String, generation: Int64, replaceFrom: Int64, weightsFrom: Int64) {
+    private func syncWindow() async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
         try await withCheckedThrowingContinuation { continuation in
-            IosRuntime.shared.vitalsSyncWindow { profileId, generation, replaceFrom, weightsFrom, message in
+            IosRuntime.shared.vitalsSyncWindow { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
                 if let message {
                     continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
                 } else {
-                    continuation.resume(returning: (profileId, generation.int64Value, replaceFrom.int64Value, weightsFrom.int64Value))
+                    continuation.resume(returning: (profileId, generation.int64Value, zoneId, replaceFrom.int64Value, weightsFrom.int64Value))
                 }
             }
         }

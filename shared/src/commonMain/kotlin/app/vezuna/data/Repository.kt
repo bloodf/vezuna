@@ -51,7 +51,7 @@ import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
 /** Captured under the repository lock before a platform read; never recapture at commit time. */
-data class VitalsSyncContext(val profileId: String, val generation: Long, val lastSync: Instant?)
+data class VitalsSyncContext(val profileId: String, val generation: Long, val lastSync: Instant?, val zone: TimeZone)
 
 interface VezunaRepository {
     val profiles: StateFlow<List<Profile>>
@@ -114,7 +114,7 @@ interface VezunaRepository {
     /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
     suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
     /** Atomically captures the resolved link, its generation and the stored sync window. */
-    suspend fun captureVitalsSync(): VitalsSyncContext
+    suspend fun captureVitalsSync(zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext
     /** Rejects stale contexts before any write; returns how many entries were actually stored. */
     suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int
     /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
@@ -289,9 +289,9 @@ class InMemoryVezunaRepository : VezunaRepository {
         publish(records + (profileId to data.copy(vitals = vitals)))
     }
 
-    override suspend fun captureVitalsSync(): VitalsSyncContext = mutex.withLock {
+    override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
-        VitalsSyncContext(id, vitalsSyncGeneration, records.getValue(id).vitals.lastSync)
+        VitalsSyncContext(id, vitalsSyncGeneration, records.getValue(id).vitals.lastSync, zone)
     }
 
     override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
@@ -300,7 +300,7 @@ class InMemoryVezunaRepository : VezunaRepository {
         checkNotNull(id)
         val data = records.getValue(id)
         healthLink = id
-        val updated = DeviceVitals.ingest(data.vitals, batch, now, TimeZone.currentSystemDefault())
+        val updated = DeviceVitals.ingest(data.vitals, batch, now, context.zone)
         publish(records + (id to data.copy(vitals = updated)))
         vitalsSyncGeneration += 1
         DeviceVitals.storedCount(updated, batch)

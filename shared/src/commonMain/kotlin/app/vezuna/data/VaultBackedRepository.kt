@@ -407,10 +407,10 @@ class VaultBackedRepository(
         if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
     }
 
-    override suspend fun captureVitalsSync(): VitalsSyncContext = mutex.withLock {
+    override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         ensureInitialized()
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
-        VitalsSyncContext(id, vitalsSyncGeneration, vitals[id]?.lastSync)
+        VitalsSyncContext(id, vitalsSyncGeneration, vitals[id]?.lastSync, zone)
     }
 
     override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
@@ -418,7 +418,7 @@ class VaultBackedRepository(
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
         checkNotNull(id)
-        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, TimeZone.currentSystemDefault())
+        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, context.zone)
         // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
         vitalsStore.save(id, updated)
         vitals[id] = updated

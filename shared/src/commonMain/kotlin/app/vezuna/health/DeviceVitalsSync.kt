@@ -33,10 +33,10 @@ class DeviceVitalsSync(
 
     suspend fun synchronize(): Int = mutex.withLock {
         beforeSync()
-        val context = repository.captureVitalsSync()
+        val context = repository.captureVitalsSync(zone())
         val now = clock()
         val lastSync = context.lastSync
-        val tz = zone()
+        val tz = context.zone
         val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
         repository.ingestDeviceVitals(context, batch, now)
     }
