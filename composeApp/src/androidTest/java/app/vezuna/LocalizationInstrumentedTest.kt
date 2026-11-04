@@ -42,9 +42,9 @@ class LocalizationInstrumentedTest {
     fun portugueseSpanishEnglishFallbackRecreationAndLargeTextNavigate() {
         var scenario: ActivityScenario<AndroidMainActivity>? = null
         try {
-            verifyLanguage("pt-BR", "Salvo neste dispositivo", "Mais", "Ajustes e preferências", "Cuidados", "Agenda de medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("es-ES", "Guardado en este dispositivo", "Más", "Ajustes y preferencias", "Cuidados", "Horario de medicamentos", scenario = null) { scenario = it }
-            verifyLanguage("fr-FR", "Saved on this device", "More", "Settings and preferences", "Care", "Medication schedule", scenario = null) { scenario = it }
+            verifyLanguage("pt-BR", "Hoje", "Trocar perfil", "Mais", "Ajustes e preferências", "Cuidados", "Agenda de medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("es-ES", "Hoy", "Cambiar de perfil", "Más", "Ajustes y preferencias", "Cuidados", "Horario de medicamentos", scenario = null) { scenario = it }
+            verifyLanguage("fr-FR", "Today", "Switch profile", "More", "Settings and preferences", "Care", "Medication schedule", scenario = null) { scenario = it }
             println("LOCALE_NAVIGATION_RECREATION_LARGE_TEXT_PASSED")
         } finally {
             scenario?.close()
@@ -55,7 +55,8 @@ class LocalizationInstrumentedTest {
 
     private fun verifyLanguage(
         tag: String,
-        savedOnDevice: String,
+        todayTab: String,
+        switchProfile: String,
         moreTab: String,
         moreSubtitle: String,
         careTab: String,
@@ -65,7 +66,7 @@ class LocalizationInstrumentedTest {
     ) {
         device.executeShellCommand("cmd locale set-app-locales ${context.packageName} --user 0 --locales $tag")
         val current = scenario ?: ActivityScenario.launch(AndroidMainActivity::class.java).also(assign)
-        assertTrue("Home did not render for $tag", device.awaitToday(savedOnDevice))
+        assertTrue("Home did not render for $tag", device.awaitToday(todayTab, switchProfile))
         capture("localization-$tag-home.png")
         device.tapText(moreTab)
         assertTrue(device.awaitText(moreSubtitle))

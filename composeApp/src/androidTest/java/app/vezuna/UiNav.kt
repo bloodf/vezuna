@@ -10,10 +10,17 @@ import org.junit.Assert.assertTrue
 internal fun UiDevice.awaitText(text: String, timeoutMs: Long = 10_000): Boolean = wait(Until.hasObject(By.text(text)), timeoutMs)
 
 /**
- * Home is ready when the Today screen's own footer is on screen. The "Today" label alone is also a bottom tab, so it shows
- * before the screen has loaded; the footer renders only once the profile and dashboard are in.
+ * Home is ready when the Today header shows the profile switcher and the "Today" label appears twice: the bottom tab and the
+ * header title. The switcher is drawn only once a profile is loaded, and both sit at the top, so enlarged text cannot push them off screen.
  */
-internal fun UiDevice.awaitToday(savedOnDevice: String = "Saved on this device"): Boolean = awaitText(savedOnDevice, 15_000)
+internal fun UiDevice.awaitToday(today: String = "Today", switchProfile: String = "Switch profile"): Boolean {
+    val deadline = System.currentTimeMillis() + 15_000
+    do {
+        if (hasObject(By.descContains(switchProfile)) && findObjects(By.text(today)).size >= 2) return true
+        Thread.sleep(250)
+    } while (System.currentTimeMillis() < deadline)
+    return false
+}
 
 /** Clicks the last node with this text: on pushed pages a heading and a button can share a label, the button is below. */
 internal fun UiDevice.tapText(text: String, timeoutMs: Long = 10_000) {
