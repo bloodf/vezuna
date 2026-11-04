@@ -84,7 +84,7 @@ class AndroidMainActivity : FragmentActivity() {
             LocalHealthChat(repository, llm),
         ).also { fixture ->
             lifecycleScope.launch {
-                DesignFixture.install(repository)
+                DesignFixture.installForPreview(repository)
                 fixture.initialize()
             }
         }

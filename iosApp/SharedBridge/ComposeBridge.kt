@@ -841,7 +841,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
     val llm = llamatikLocalLlm()
     val controller = AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), DesignFixture.NoModelFiles, llm), LocalHealthChat(repository, llm))
     IosRuntime.scope.launch {
-        DesignFixture.install(repository)
+        DesignFixture.installForPreview(repository)
         controller.initialize()
     }
     return ComposeUIViewController {
