@@ -43,7 +43,7 @@ class HouseholdPartialRestoreTest {
     }
 
     @Test
-    fun laterMemberFailureKeepsEarlierMemberAndCleansStagedFiles() = runTest {
+    fun laterMemberFailureKeepsEarlierMemberAndRespectsWriteBoundary() = runTest {
         for (failedKey in listOf("repository-profile-B-profile-v1", "source-document-B-doc-page-3")) {
             val vault = GenerationalMemoryVault()
             val repository = VaultBackedRepository(vault).also { it.load() }
@@ -65,7 +65,14 @@ class HouseholdPartialRestoreTest {
             assertEquals(before, reopened.readProfile("C-profile"))
             assertStored(reopened, store, third, third.data.vitals.copy(lastSync = null))
             assertEquals(setOf("A-profile", "C-profile"), reopened.profiles.value.map { it.profileId }.toSet())
-            listOf("B-doc", "B-doc-page-2", "B-doc-page-3").forEach { assertNull(vault.read("source-document-$it")) }
+            listOf("B-doc", "B-doc-page-2", "B-doc-page-3").forEach { id ->
+                val key = "source-document-$id"
+                if (failedKey == "repository-profile-B-profile-v1") {
+                    assertContentEquals(b.files.getValue(id), store.load("B-profile", id, key))
+                } else {
+                    assertNull(vault.read(key))
+                }
+            }
             assertNull(vault.read("repository-profile-B-profile-v1"))
         }
     }
