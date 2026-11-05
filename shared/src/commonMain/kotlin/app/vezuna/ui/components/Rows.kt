@@ -151,8 +151,10 @@ fun TextStyle.cappedScale(max: Float = 1.3f): TextStyle {
 
 /** Single-word labels (tabs, segments) shrink to fit one line instead of breaking mid-word at large text sizes. */
 @Composable
-fun singleWordAutoSize(maxFontSize: TextUnit): TextAutoSize =
-    TextAutoSize.StepBased(minFontSize = minOf(10.sp, maxFontSize), maxFontSize = maxFontSize)
+fun singleWordAutoSize(maxFontSize: TextUnit): TextAutoSize {
+    require(maxFontSize.isSp) { "Label font size must use sp" }
+    return TextAutoSize.StepBased(minFontSize = minOf(10f, maxFontSize.value).sp, maxFontSize = maxFontSize)
+}
 
 @Composable
 fun CategoryPanel(
