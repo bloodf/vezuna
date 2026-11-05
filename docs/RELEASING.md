@@ -17,7 +17,7 @@ Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fai
 
 ## Moving from earlier tester builds
 
-Earlier tester builds used a different application ID (for example `com.bloodf.vitahearth`). Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, which is for manual re-entry only (Vezuna does not import those files as records). Only a passphrase-sealed portable backup in Vezuna's own format can be restored in Vezuna; a backup from an earlier build is restorable only if that build wrote this format. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
+Earlier tester builds used a different application ID. Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, which is for manual re-entry only (Vezuna does not import those files as records). Only a passphrase-sealed portable backup in Vezuna's own format can be restored in Vezuna; a backup from an earlier build is restorable only if that build wrote this format. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
 
 ## Android: signed release
 
