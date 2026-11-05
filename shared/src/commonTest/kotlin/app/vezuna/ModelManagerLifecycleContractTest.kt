@@ -59,6 +59,20 @@ class ModelManagerLifecycleContractTest {
         assertEquals("a", manager.state.value.loadedModelId)
         assertEquals(listOf("load"), backend.events)
     }
+    @Test fun legacyLoadFailureCleansUpAndPreservesAcknowledgedSelection() = runTest(timeout = 5.seconds) {
+        val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        manager.select("a")
+        backend.failLoad = true
+        assertFailsWith<ModelOperationFailure> { manager.select("a") }
+        assertEquals(listOf("load", "unload", "load", "unload"), backend.events)
+        assertNull(manager.state.value.loadedModelId)
+        assertNull(manager.readyModelId())
+        assertEquals("a", store.selection)
+        assertEquals(SavedModelSelection.Known("a"), manager.state.value.selection)
+        assertEquals(app.vezuna.localization.message(app.vezuna.localization.L10nKey.MODEL_LOADING_FAILED), manager.state.value.error)
+        assertFalse(manager.state.value.busy)
+    }
     @Test fun legacySaveFailureUnloadsAndLeavesSelectionUnknown() = runTest(timeout = 5.seconds) {
         for (mutate in listOf(false, true)) {
             val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()

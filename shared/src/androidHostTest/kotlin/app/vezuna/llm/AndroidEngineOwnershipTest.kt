@@ -8,6 +8,7 @@ import app.vezuna.localization.VitaMessageException
 import app.vezuna.ui.AppController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collect
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -182,6 +183,32 @@ class AndroidEngineOwnershipTest {
         }
     }
 
+    @Test fun capturedGenerationRejectsDistinctWrapperClaimForBothStylesAndIds() = boundedTest {
+        for (stream in listOf(false, true)) for (id in listOf("a", "b")) fixture { bridge, dispatcher ->
+            val hook = AtomicReference<Barrier?>()
+            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
+            val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
+            val store = Store(); val ma = store.manager(a); val mb = store.manager(b)
+            ma.select("a"); bridge.events.clear()
+            val barrier = Barrier(); hook.set(barrier)
+            val stale = async(dispatcher) { runCatching { if (stream) a.generateStream("old").collect() else a.generate("old") } }
+            try {
+                barrier.await(); hook.set(null)
+                mb.select(id)
+            } finally { hook.set(null); barrier.release() }
+            assertTrue(withTimeout(5_000) { stale.await() }.exceptionOrNull() is VitaMessageException)
+            assertNull(ma.readyModelId()); assertEquals(id, mb.readyModelId())
+            assertEquals(listOf("shutdown", "params", "init:$id.gguf"), bridge.events.toList())
+            if (stream) {
+                val chunks = mutableListOf<String>()
+                b.generateStream("new").collect { chunks += it }
+                assertEquals(listOf("answer"), chunks)
+            } else assertEquals("answer", b.generate("new"))
+            assertEquals(listOf("shutdown", "params", "init:$id.gguf", if (stream) "stream" else "generate"), bridge.events.toList())
+            assertEquals(id, mb.readyModelId())
+        }
+    }
+
     @Test fun lifecycleFailuresRemainUncertainUntilOrdinaryShutdown() = boundedTest {
         for (failure in listOf("params", "false", "init", "shutdown")) fixture { bridge, dispatcher ->
             val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); llm.load("a", LlmGenerationSettings())
@@ -276,17 +303,39 @@ class AndroidEngineOwnershipTest {
             repository.createProfile(Profile("A", "A", createdAt = now)); repository.createProfile(Profile("B", "B", createdAt = now))
             val controller = AppController(repository, manager, LocalHealthChat(repository, llm) { ContentLanguage.EN })
             controller.initialize(); controller.switchProfile("A")
-            val native = Barrier(); bridge.onCancel = { canceled.complete(Unit) }
+            val native = Barrier(); val successor = Barrier(); val retained = AtomicReference<GenStream>()
+            bridge.onCancel = { canceled.complete(Unit) }
             var first = true
             bridge.onStream = { cb ->
-                if (first) { first = false; native.block(); cb.onDelta("A-secret"); cb.onComplete(); bridge.events += "A-return" }
-                else { bridge.events += "B-entry"; cb.onDelta("B-answer"); cb.onComplete() }
+                if (first) { first = false; retained.set(cb); native.block(); cb.onDelta("A-secret"); cb.onComplete(); bridge.events += "A-return" }
+                else { bridge.events += "B-entry"; cb.onDelta("B-answer"); successor.block(); cb.onComplete() }
             }
             val a = launch { controller.ask("A-question") }; native.await()
             controller.switchProfile("B")
+            val visible = CopyOnWriteArrayList<String>()
+            val observer = launch(Dispatchers.Unconfined) {
+                controller.state.collect { state ->
+                    if (state.data?.profile?.profileId == "B") {
+                        visible += state.streamingAnswer.orEmpty()
+                        visible.addAll(state.data?.chat.orEmpty().map { it.content })
+                    }
+                }
+            }
             val b = async { controller.ask("B-question") }
             try { withTimeout(5_000) { canceled.await() }; signal(queued) }
             finally { native.release(); join(a) }
+            try {
+                successor.await()
+                withTimeout(5_000) { controller.state.first { it.streamingAnswer == "B-answer" } }
+                retained.get().onDelta("A-late-secret")
+                retained.get().onError("A-late-error")
+                retained.get().onComplete()
+                yield()
+                assertEquals("B", controller.state.value.data?.profile?.profileId)
+                assertEquals("B-answer", controller.state.value.streamingAnswer)
+                assertTrue(controller.state.value.data?.chat.orEmpty().isEmpty())
+                assertTrue(visible.none { it.contains("A-secret") || it.contains("A-late") })
+            } finally { successor.release(); observer.cancel(); join(observer) }
             assertTrue(withTimeout(5_000) { b.await() })
             assertEquals("B", controller.state.value.data?.profile?.profileId)
             assertEquals(listOf("B-question", "B-answer"), repository.readProfile("B").chat.map { it.content })
