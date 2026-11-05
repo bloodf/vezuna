@@ -10,7 +10,7 @@ The tool exists so the Android release can carry a real model instead of the 0.5
 - Streams the source file into a temporary file in the output directory, computing the byte count and the SHA-256 while it copies, in chunks of 1 MiB by default. The file is never held in memory as a whole.
 - Verifies the copy against the metadata before anything is replaced.
 - Writes the model file, a provenance sidecar and a copy of the license text into the output directory.
-- Removes only the temporary files it created. A failed run leaves every other file in the output directory untouched.
+- Removes only the temporary files it created. Failures before publication leave existing output files untouched.
 
 ## What this tool does not do
 
@@ -116,11 +116,13 @@ The sidecar written next to the model carries the same provenance and no more:
 6. The sidecar is written to a third temporary file.
 7. Only then are the model file, the license copy and the sidecar replaced, in that order.
 
-Because the replacements happen last, a failed run preserves the previous artifact byte for byte. The temporary files the tool created are removed, and nothing else in the output directory is touched.
+Failures before publication preserve the previous artifact byte for byte. Publication errors use the rollback procedure below; incomplete rollback is an explicit recovery failure.
 
 All output entries must be regular files, and no destination may overwrite the metadata or license input. Before publication the tool retains same-filesystem hard links to the previous files. A handled replacement error restores the previously published files, or removes newly published files when no previous version existed. Temporary allocations are registered for cleanup immediately.
 
 If rollback itself fails, the command reports incomplete recovery and retains `.stage-backup-*` with the old files still available. Stop packaging and inspect the output; do not treat this as preserved or usable output. The tool never prints its success marker for this case.
+
+Backup cleanup errors print `WARNING backup cleanup incomplete` with the owned backup path. They do not change a completed publication into `FAIL`: the command exits zero and prints `ANDROID_MODEL_STAGED` for the verified new generation. A warning during rollback cleanup likewise does not replace the original publication failure. Remaining backup files may require inspection; do not assume the old generation remains recoverable after successful publication.
 
 This is handled-error rollback, not crash-atomic multi-file publication. A process crash or machine interruption can leave a mixed set and retained backup directory. A packaging consumer must verify the model and license against the expected pinned metadata before using them, even if a prior staging run succeeded. Never infer acceptance from the existence of the three files.
 
@@ -163,7 +165,7 @@ Until that happens the tool stands alone. It stages bytes into a directory, and 
 | The local bytes match the pinned size and digest | That the asset pack module exists or builds |
 | The license text that ships matches the pinned revision | That Play serves the pack, or that Play licenses the app |
 | The provenance sidecar names the pinned revision | That the catalog entry is correct or that the runtime finds the model |
-| The previous artifact survives a failed run | On-device inference, cancellation and profile isolation |
+| Pre-publication failures preserve the previous artifact | On-device inference, cancellation and profile isolation |
 
 The staging step is a prerequisite. The asset pack module, the catalog entry, the notices entry, the local sideload proof and the Play licensing round trip are separate pieces of work, each with its own evidence.
 

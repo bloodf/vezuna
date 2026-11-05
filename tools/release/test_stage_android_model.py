@@ -368,6 +368,32 @@ class StagingTest(unittest.TestCase):
                 self.assertIn(missing, err)
                 self.assertNotIn("ANDROID_MODEL_STAGED", out)
 
+    def test_final_backup_rmdir_failure_warns_after_successful_publication(self):
+        self.assertEqual(self.run_cli()[0], 0)
+        replacement = b"q" * PAYLOAD_SIZE
+        self.source.write_bytes(replacement)
+        self.write_metadata(sha256=hashlib.sha256(replacement).hexdigest())
+        original_rmdir = staging.os.rmdir
+
+        def fail_backup_rmdir(path, *args, **kwargs):
+            if Path(path).name.startswith(".stage-backup-"):
+                raise OSError("injected final backup rmdir failure")
+            return original_rmdir(path, *args, **kwargs)
+
+        with patch.object(staging.os, "rmdir", side_effect=fail_backup_rmdir):
+            code, out, err = self.run_cli()
+        self.assertEqual(code, 0, err)
+        self.assertIn("ANDROID_MODEL_STAGED", out)
+        self.assertIn("WARNING backup cleanup incomplete", err)
+        self.assertNotIn("FAIL", err)
+        self.assertEqual(self.staged_model().read_bytes(), replacement)
+        sidecar = json.loads(self.staged_sidecar().read_text())
+        self.assertEqual(sidecar["sha256"], hashlib.sha256(replacement).hexdigest())
+        self.assertEqual((self.output / sidecar["licenseCopy"]).read_bytes(), LICENSE_TEXT)
+        backups = list(self.output.glob(".stage-backup-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(list(backups[0].iterdir()), [])
+
     def test_staging_is_deterministic(self):
         self.assertEqual(self.run_cli()[0], 0)
         first_model = self.staged_model().read_bytes()

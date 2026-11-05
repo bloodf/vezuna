@@ -5,8 +5,10 @@ The tool copies bytes from an explicitly supplied local source file into an
 explicitly supplied output directory. The expected size, the expected SHA-256,
 the staged file name, the pinned upstream revision and the license evidence
 all come from an explicit metadata document. A staged artifact is replaced only
-after the new bytes match that metadata, so a failed run leaves the previous
-artifact untouched.
+after the new bytes match that metadata. Pre-publication failures preserve the
+previous generation; handled publication errors attempt rollback. Incomplete
+rollback is reported explicitly. Backup cleanup errors are warnings, not a
+failure of completed publication.
 
 The tool never downloads a model, never builds the app, never writes the
 runtime catalog, never runs Gradle and never removes files it did not create.
@@ -243,7 +245,10 @@ def _publish(prepared, directory):
             raise
     finally:
         if not retain_backups:
-            shutil.rmtree(backup_dir)
+            try:
+                shutil.rmtree(backup_dir)
+            except OSError as cleanup_error:
+                print(f"WARNING backup cleanup incomplete at {backup_dir}: {cleanup_error}", file=sys.stderr)
 
 
 def _fsync_directory(directory):
