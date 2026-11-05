@@ -109,13 +109,23 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
     private fun kotlinx.datetime.LocalDate.toJava(): LocalDate = LocalDate.of(year, monthNumber, dayOfMonth)
 }
 
-class HealthConnectPermissionFlow(
-    activity: ComponentActivity,
-    private val onComplete: (Boolean) -> Unit,
+class HealthConnectPermissionFlow internal constructor(
+    register: ((Set<String>) -> Unit) -> (Set<String>) -> Unit,
+    onComplete: (Boolean) -> Unit,
 ) {
-    private val launcher = activity.registerForActivityResult(
-        androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
-    ) { granted -> onComplete(granted.containsAll(VezunaHealthPermissions)) }
+    constructor(activity: ComponentActivity, onComplete: (Boolean) -> Unit) : this(
+        register = { callback ->
+            val launcher = activity.registerForActivityResult(
+                androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
+                callback,
+            )
+            val launch: (Set<String>) -> Unit = { permissions -> launcher.launch(permissions) }
+            launch
+        },
+        onComplete = onComplete,
+    )
 
-    fun request() = launcher.launch(VezunaHealthPermissions)
+    private val launch = register { granted -> onComplete(granted.containsAll(VezunaHealthPermissions)) }
+
+    fun request() = launch(VezunaHealthPermissions)
 }
