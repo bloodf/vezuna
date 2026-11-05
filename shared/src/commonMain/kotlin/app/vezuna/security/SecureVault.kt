@@ -24,6 +24,12 @@ interface SecureVault {
         return decrypt(envelope)
     }
     suspend fun write(key: String, ciphertext: ByteArray)
+    /** A normal legacy write return is not a durability acknowledgement. Unsupported backends refuse before writing. */
+    suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): VaultWriteResult =
+        VaultWriteResult.Rejected(IllegalStateException("Acknowledged writes unsupported"))
+
+    /** Unlike [read], this exposes missing-current recovery as one whole previous generation. */
+    suspend fun readGeneration(key: String): VaultGeneration? = read(key)?.let { VaultGeneration(it, false) }
     suspend fun read(key: String): ByteArray?
     suspend fun delete(key: String)
 
@@ -56,6 +62,14 @@ interface SecureVault {
 
     /** Drops key material that can no longer decrypt (for example an invalidated Keystore key). No-op when the key works. */
     suspend fun discardUnusableKey() {}
+}
+
+data class VaultGeneration(val bytes: ByteArray, val previous: Boolean)
+
+sealed interface VaultWriteResult {
+    data object Acknowledged : VaultWriteResult
+    data class Rejected(val cause: Throwable) : VaultWriteResult
+    data class Indeterminate(val cause: Throwable) : VaultWriteResult
 }
 
 /**

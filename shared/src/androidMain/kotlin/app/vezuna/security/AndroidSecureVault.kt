@@ -53,6 +53,11 @@ class AndroidSecureVault(
 
     override suspend fun write(key: String, ciphertext: ByteArray) = files.write(safeName(key), ciphertext)
 
+    override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): VaultWriteResult =
+        files.writeAcknowledged(safeName(key), ciphertext)
+
+    override suspend fun readGeneration(key: String): VaultGeneration? = files.readGeneration(safeName(key))
+
     override suspend fun read(key: String): ByteArray? = files.read(safeName(key))
 
     override suspend fun quarantineCurrent(key: String): Boolean =

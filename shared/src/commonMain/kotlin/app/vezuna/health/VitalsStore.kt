@@ -1,6 +1,11 @@
 package app.vezuna.health
 
 import app.vezuna.domain.ProfileVitals
+import app.vezuna.data.StorageSchemaTooNewException
+import app.vezuna.security.VaultWriteResult
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import app.vezuna.security.CipherEnvelopeCodec
 import app.vezuna.security.SecureVault
 import kotlinx.coroutines.CancellationException
@@ -18,30 +23,92 @@ import kotlinx.serialization.json.Json
 class VitalsStore(private val vault: SecureVault, private val json: Json) {
     private val blocked = mutableSetOf<String>()
 
-    /** Null when nothing is stored (or the unreadable file was moved aside). [onUnreadable] receives the cause. */
-    suspend fun load(profileId: String, onUnreadable: (Throwable) -> Unit = {}): ProfileVitals? = try {
-        vault.read(key(profileId))?.let { bytes ->
-            val envelope = CipherEnvelopeCodec.decode(bytes)
-            json.decodeFromString(ProfileVitals.serializer(), vault.decrypt(envelope, associatedData(profileId)).decodeToString()).migrated()
+    suspend fun load(profileId: String, onUnreadable: (Throwable) -> Unit = {}): ProfileVitals? =
+        loadStored(profileId, onUnreadable)?.value?.clinical
+
+    internal suspend fun loadStored(profileId: String, onUnreadable: (Throwable) -> Unit = {}): StoredVitalsRead? {
+        try {
+            val generation = vault.readGeneration(key(profileId)) ?: return null
+            // Inspect both before recovery or any rotation. A future previous generation is evidence too.
+            val previous = vault.readPrevious(key(profileId))
+            previous?.let { refuseFuture(profileId, it) }
+            return StoredVitalsRead(decode(profileId, generation.bytes), generation.previous)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: StorageSchemaTooNewException) {
+            throw error
+        } catch (error: app.vezuna.security.VaultUnreadableException) {
+            if (error.failure != app.vezuna.security.VaultFailure.CORRUPT) throw error
+            onUnreadable(error)
+            if (!vault.quarantineCurrent(key(profileId))) blocked += profileId
+            return null
+        } catch (error: Exception) {
+            onUnreadable(error)
+            val previous = vault.readPrevious(key(profileId))
+            val recovered = previous?.let {
+                try { decode(profileId, it) } catch (future: StorageSchemaTooNewException) { throw future }
+                catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+            }
+            if (!vault.quarantineCurrent(key(profileId))) blocked += profileId
+            return recovered?.let { StoredVitalsRead(it, true) }
         }
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        onUnreadable(error)
-        if (!vault.quarantineCurrent(key(profileId))) blocked += profileId
-        null
     }
 
-    suspend fun save(profileId: String, vitals: ProfileVitals) {
-        check(profileId !in blocked) { "Stored vitals are unreadable and could not be preserved; refusing to overwrite them" }
-        // Indexed first: a crash after the file write can then never leave a file nothing knows about.
-        writeIndex(readIndex() + profileId)
-        val plain = json.encodeToString(ProfileVitals.serializer(), vitals).encodeToByteArray()
-        val envelope = vault.encrypt(plain, associatedData(profileId))
-        vault.write(key(profileId), CipherEnvelopeCodec.encode(envelope))
+    private suspend fun plaintext(profileId: String, bytes: ByteArray): String =
+        vault.decrypt(CipherEnvelopeCodec.decode(bytes), associatedData(profileId)).decodeToString()
+
+    private suspend fun refuseFuture(profileId: String, bytes: ByteArray) {
+        val document = try { json.parseToJsonElement(plaintext(profileId, bytes)) as? JsonObject }
+            catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { return }
+        if (document != null && "vitalsFormat" in document) {
+            val version = (document["vitalsFormat"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull
+            if (version != 1 || document.keys.any { it !in setOf("vitalsFormat", "commitId", "revision", "clinical", "local") }) throw StorageSchemaTooNewException(version ?: Int.MAX_VALUE, 1)
+        }
     }
+
+    private suspend fun decode(profileId: String, bytes: ByteArray): StoredVitals {
+        refuseFuture(profileId, bytes)
+        val plain = plaintext(profileId, bytes)
+        val document = json.parseToJsonElement(plain) as? JsonObject ?: error("Invalid stored vitals")
+        return if ("vitalsFormat" in document) try { json.decodeFromString(StoredVitals.serializer(), plain) }
+            catch (_: kotlinx.serialization.SerializationException) { throw StorageSchemaTooNewException(Int.MAX_VALUE, 1) }
+            else StoredVitals(clinical = json.decodeFromString(ProfileVitals.serializer(), plain))
+    }
+
+    internal suspend fun assertPreservable(profileId: String, allowBlocked: Boolean = false) {
+        vault.readGeneration(key(profileId))?.let { refuseFuture(profileId, it.bytes) }
+        vault.readPrevious(key(profileId))?.let { refuseFuture(profileId, it) }
+        check(allowBlocked || profileId !in blocked) { "Stored vitals are blocked; refusing to overwrite them" }
+    }
+
+    /** Legacy callers keep the entire local state. Paging uses [commit] for classified acknowledgement. */
+    suspend fun save(profileId: String, vitals: ProfileVitals) {
+        val old = loadStored(profileId)?.value ?: StoredVitals()
+        assertPreservable(profileId)
+        val next = old.copy(clinical = vitals, revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        writeIndex(readIndex() + profileId)
+        try { vault.write(key(profileId), encode(profileId, next)) }
+        catch (error: Exception) { blocked += profileId; throw error }
+    }
+
+    internal suspend fun commit(profileId: String, value: StoredVitals): VaultWriteResult {
+        assertPreservable(profileId)
+        val bytes = encode(profileId, value)
+        // Discovery metadata precedes the sole authoritative data/cursor write.
+        try { writeIndex(readIndex() + profileId) }
+        catch (error: CancellationException) { throw error }
+        catch (error: Exception) { return VaultWriteResult.Rejected(error) }
+        val result = try { vault.writeAcknowledged(key(profileId), bytes) }
+        catch (error: Exception) { VaultWriteResult.Indeterminate(error) }
+        if (result is VaultWriteResult.Indeterminate) blocked += profileId
+        return result
+    }
+
+    private suspend fun encode(profileId: String, value: StoredVitals): ByteArray =
+        CipherEnvelopeCodec.encode(vault.encrypt(json.encodeToString(StoredVitals.serializer(), value).encodeToByteArray(), associatedData(profileId)))
 
     suspend fun delete(profileId: String) {
+        assertPreservable(profileId, allowBlocked = true)
         vault.delete(key(profileId))
         blocked -= profileId
         writeIndex(readIndex() - profileId)
@@ -50,9 +117,22 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
     /** Profile IDs that have a vitals file. */
     suspend fun ids(): Set<String> = readIndex()
 
+    internal suspend fun assertAllPreservable() {
+        val ids = readIndex() + vault.listKeys().orEmpty().filter {
+            it.startsWith("repository-vitals-") && it.endsWith("-v1") && it != INDEX_KEY && !it.startsWith("repository-vitals-replacement-")
+        }.map { it.removePrefix("repository-vitals-").removeSuffix("-v1") }
+        ids.forEach { assertPreservable(it) }
+    }
+
     /** Deletes vitals files of profiles that no longer exist (left by a delete that failed or was interrupted). */
     suspend fun sweep(existingProfileIds: Set<String>) {
-        (readIndex() - existingProfileIds).forEach { delete(it) }
+        // Scan actual keys too: future files must survive a missing/corrupt discovery index.
+        val candidates = readIndex() + vault.listKeys().orEmpty().mapNotNull { storedKey ->
+            storedKey.removePrefix("repository-vitals-").removeSuffix("-v1")
+                .takeIf { storedKey.startsWith("repository-vitals-") && storedKey.endsWith("-v1") && storedKey != INDEX_KEY && !storedKey.startsWith("repository-vitals-replacement-") }
+        }
+        candidates.forEach { assertPreservable(it) }
+        (candidates - existingProfileIds).forEach { delete(it) }
     }
 
     private suspend fun readIndex(): Set<String> = try {

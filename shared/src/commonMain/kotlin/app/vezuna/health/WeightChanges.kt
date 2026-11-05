@@ -88,6 +88,7 @@ data class WeightLocalState(
     val provenance: Map<String, SourceContinuityEvidence> = emptyMap(),
     val unresolved: Set<UnresolvedWeightId> = emptySet(),
     val continuation: WeightContinuation? = null,
+    val access: WeightAccess? = null,
 ) {
     init {
         require(provenance.keys.all { it.isNotBlank() })
@@ -115,6 +116,8 @@ data class WeightPage(
     val claim: SourceClaim,
     val mutations: List<WeightMutation>,
     val nextContinuation: WeightContinuation? = null,
+    val access: WeightAccess? = null,
+    val retentionFrom: Instant? = null,
 ) {
     init {
         require(nextContinuation == null || nextContinuation.source == claim.source)
@@ -173,9 +176,39 @@ object WeightChanges {
                 }
             }
         }
+        page.retentionFrom?.let { floor ->
+            weights.removeAll { it.time < floor }
+            provenance.keys.retainAll(weights.map { it.recordId }.toSet())
+        }
         return WeightReduction(
             stored.copy(weights = weights.toList()),
-            WeightLocalState(provenance.toMap(), unresolved.toSet(), page.nextContinuation ?: local.continuation),
+            WeightLocalState(provenance.toMap(), unresolved.toSet(), page.nextContinuation ?: local.continuation, page.access ?: local.access),
         )
     }
+}
+
+/** Unknown firstGrant stays unknown; it must never become a rolling now-minus-30-days claim. */
+@Serializable
+data class WeightAccess(val firstGrant: Instant? = null, val history: Boolean = false, val permissionEpoch: String = "unknown")
+
+/**
+ * Continuity is bounded to a live importer and target. Durable token/provenance bytes never recreate it.
+ * The random scope separates observation chains; it is NOT evidence of an OS store identity.
+ */
+class WeightSourceSession {
+    private var target: String? = null
+    private val live = mutableSetOf<WeightSource>()
+
+    fun bindTarget(profileId: String) {
+        if (target != profileId) { live.clear(); target = profileId }
+    }
+
+    fun baselineAcquired(token: String): WeightSource {
+        check(target != null)
+        require(token.isNotBlank())
+        return WeightSource(WeightProvider.HEALTH_CONNECT, kotlin.uuid.Uuid.random().toString(), "weight-only/all-origins/v1").also { live += it }
+    }
+
+    fun claim(source: WeightSource): SourceClaim = SourceClaim(source,
+        if (source in live) SourceContinuityEvidence(source, "baseline acquired in this live importer and target") else null)
 }
