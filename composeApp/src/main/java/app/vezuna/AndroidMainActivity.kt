@@ -315,8 +315,10 @@ class AndroidMainActivity : FragmentActivity() {
         lifecycleScope.launch {
             try {
                 val imported = app.healthSync.synchronizeOutcome(expected)
-                controller.refreshDashboard()
-                mutableMessage.value = imported.toHealthConnectMessage()
+                imported.presentHealthConnectOutcome(
+                    refresh = { controller.refreshDashboard() },
+                    publish = { mutableMessage.value = it },
+                )
             } catch (error: Throwable) {
                 mutableMessage.value = error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)
             } finally {

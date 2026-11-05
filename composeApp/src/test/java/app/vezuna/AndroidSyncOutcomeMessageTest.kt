@@ -61,4 +61,66 @@ class AndroidSyncOutcomeMessageTest {
             assertFalse(failure.contains("previous cursor") || failure.contains("cursor anterior"), locale)
         }
     }
+    @Test fun uncertainAggregateAndWeightReceiptsPublishWithoutReadingFencedProfile() = runTest {
+        val now = Instant.parse("2026-11-01T12:00:00Z")
+        for (failAt in listOf(1, 2)) for (writeBeforeFailure in listOf(false, true)) {
+            val memory = FakeSecureVault()
+            var armed = false
+            var writes = 0
+            val vault = object : app.vezuna.security.SecureVault by memory {
+                override val supportsAcknowledgedWrites = true
+                override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): app.vezuna.security.VaultWriteResult {
+                    if (armed && key == "repository-vitals-p-v1" && ++writes == failAt) {
+                        if (writeBeforeFailure) memory.write(key, ciphertext)
+                        return app.vezuna.security.VaultWriteResult.Indeterminate(IllegalStateException("synthetic uncertainty"))
+                    }
+                    memory.write(key, ciphertext)
+                    return app.vezuna.security.VaultWriteResult.Acknowledged
+                }
+            }
+            val repo = VaultBackedRepository(vault)
+            repo.load()
+            repo.createProfile(Profile("p", "Synthetic", createdAt = now))
+            val source = WeightSource(WeightProvider.HEALTH_CONNECT, "chain", "weight-only/all-origins/v1")
+            assertIs<VitalsWriteOutcome.Committed>(repo.commitWeightPage(repo.readVitalsState(repo.captureVitalsSync(TimeZone.UTC)),
+                WeightPage(SourceClaim(source, SourceContinuityEvidence(source, "synthetic live chain")),
+                    listOf(WeightMutation.Upsert(WeightReading("W", now, 70.0))), WeightContinuation.Steady(source, "T0"))))
+            armed = true
+            val provider = object : WeightChangesSource {
+                override suspend fun read(request: VitalsReadRequest) = VitalsBatch(request.replaceFrom)
+                override suspend fun weightAccess() = WeightAccess()
+                override suspend fun weightToken(): String = error("must resume")
+                override suspend fun weightSnapshot(from: Instant, until: Instant, pageToken: String?, pageSize: Int): WeightSnapshotPage = error("must resume")
+                override suspend fun weightChanges(token: String) = WeightChangesPage(emptyList(), "T1", false, false)
+            }
+            val outcome = DeviceVitalsSync(provider, repo, { now }, { TimeZone.UTC }).synchronizeOutcome()
+            assertEquals(VitalsSyncStatus.UNCERTAIN, outcome.status)
+            assertFailsWith<IllegalStateException> { repo.peekProfile("p") }
+            val bytes = memory.read("repository-vitals-p-v1")!!
+            val messages = mutableListOf<NativeText>()
+            var refreshes = 0
+            try {
+                outcome.presentHealthConnectOutcome(
+                    refresh = { refreshes++; repo.peekProfile("p"); Unit },
+                    publish = { messages += it },
+                )
+            } catch (error: Throwable) {
+                messages += error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)
+            }
+            assertEquals<List<NativeText>>(listOf(nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_UNCERTAIN)), messages)
+            assertEquals(0, refreshes)
+            assertContentEquals(bytes, memory.read("repository-vitals-p-v1"))
+            assertFailsWith<IllegalStateException> { repo.peekProfile("p") }
+        }
+    }
+
+    @Test fun readableOutcomeRefreshesBeforePublishing() = runTest {
+        val events = mutableListOf<String>()
+        VitalsSyncOutcome(3, VitalsSyncStatus.COMPLETE).presentHealthConnectOutcome(
+            refresh = { events += "refresh" },
+            publish = { assertEquals(nativePlural(NativeKey.HEALTH_CONNECT_IMPORT_COMPLETE, 3), it); events += "message" },
+        )
+        assertEquals(listOf("refresh", "message"), events)
+    }
+
 }

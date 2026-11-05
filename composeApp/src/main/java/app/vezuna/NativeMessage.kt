@@ -46,6 +46,19 @@ fun VitalsSyncOutcome.toHealthConnectMessage(): NativeText = when (status) {
     VitalsSyncStatus.UNCERTAIN -> nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_UNCERTAIN)
 }
 
+internal suspend fun VitalsSyncOutcome.presentHealthConnectOutcome(
+    refresh: suspend () -> Unit,
+    publish: (NativeText) -> Unit,
+) {
+    if (status == VitalsSyncStatus.UNCERTAIN) {
+        // Uncertain writes fence profile reads until recovery; refreshing would hide this receipt.
+        publish(toHealthConnectMessage())
+        return
+    }
+    refresh()
+    publish(toHealthConnectMessage())
+}
+
 fun failNative(key: NativeKey, vararg args: Any): Nothing = throw NativeMessageException(nativeMessage(key, *args))
 
 fun Throwable.toNativeText(fallback: NativeKey = NativeKey.EXPORT_SAVE_FAILED): NativeText = when (this) {
