@@ -914,96 +914,96 @@
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
-    "artifact": "atomicfu-iosArm64Main-0.28.0.klib",
-    "sha256": "1e62be5ec58e237c225a7367d1a664c40926ea2a46822a51b16968fa2ba10281",
+    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.32.1",
+    "artifact": "atomicfu-iosArm64Main-0.32.1.klib",
+    "sha256": "44411dbb0e4a3efdd4cc2d74db7ef18477f65fdba0d4b7956e1658546fcd947d",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
-        "pomSha256": "57d562d093435e19f6283b0b2a69b7ce280a95e10c2558bb5db5c76283becaab"
+        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.32.1",
+        "pomSha256": "7d2d3fbf2f662e4100e8816b4723b5938a65f2a6f259ff4361285dc8d25abdba"
       }
     ],
     "embeddedNotices": [],
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
-    "artifact": "atomicfu-iosArm64Cinterop-interopMain-0.28.0.klib",
-    "sha256": "08294ca39001e16e38869de5021e40101317195d78a1a5f6b2ec44b629fd9dc7",
+    "component": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.32.1",
+    "artifact": "atomicfu-iosArm64Cinterop-interopMain-0.32.1.klib",
+    "sha256": "3b82332d088c938714510256d812bec5c7e3406475aec80cea32c91089dd137f",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.28.0",
-        "pomSha256": "57d562d093435e19f6283b0b2a69b7ce280a95e10c2558bb5db5c76283becaab"
+        "declaredBy": "org.jetbrains.kotlinx:atomicfu-iosarm64:0.32.1",
+        "pomSha256": "7d2d3fbf2f662e4100e8816b4723b5938a65f2a6f259ff4361285dc8d25abdba"
       }
     ],
     "embeddedNotices": [],
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.10.2",
-    "artifact": "kotlinx-coroutines-core-iosArm64Main-1.10.2.klib",
-    "sha256": "ab366e02eafb48e7cfd94f3f57ba1e7c3593fcb8bd347d8f364e46efe84ba173",
+    "component": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.11.0",
+    "artifact": "kotlinx-coroutines-core-iosArm64Main-1.11.0.klib",
+    "sha256": "9d071a8f57b5bf31487bac7568ec4fd852fc2fd4c2416876df4df3ebb0129ed4",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.10.2",
-        "pomSha256": "18773c9950ac30020f3a6b84ef180f807a345880ded97a21cfaf75a4f3e6655e"
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64:1.11.0",
+        "pomSha256": "71df08b0acb2ea32daa1488aa164c4d4d5e15f49bd68bd14af38111488ddaf85"
       }
     ],
     "embeddedNotices": [],
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.7.1",
-    "artifact": "kotlinx-datetime-iosArm64Main-0.7.1.klib",
-    "sha256": "98b82c54f1a46e7f7d70fe2fa8ed5e67e19fd48a817c572241b609dc6012f630",
+    "component": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.8.0",
+    "artifact": "kotlinx-datetime-iosArm64Main-0.8.0.klib",
+    "sha256": "7a0d3a96f462fc95fd0988ef10b720c410abfdbd4f0a570d2e790b25addaee60",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.7.1",
-        "pomSha256": "71678b76b7e9bc2df4366704fc5dda55aaba766f6748dcda2843a5479a25f4c3"
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64:0.8.0",
+        "pomSha256": "e852f3f68a2237e2c24aa993174727d8e04accd39c13fb699c73accf8467a3d8"
       }
     ],
     "embeddedNotices": [],
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.9.0",
-    "artifact": "kotlinx-serialization-core-iosArm64Main-1.9.0.klib",
-    "sha256": "7dbdb88a32cfdfd829a96ef69414982102f0396fd5a2cd73e2143801bb35e35b",
+    "component": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.12.0",
+    "artifact": "kotlinx-serialization-core-iosArm64Main-1.12.0.klib",
+    "sha256": "c053f07ad5159b9b6d5b89c508c29eaadaefdff41ca9be45d4cb847dd2e56f57",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.9.0",
-        "pomSha256": "5778babe2be678a7f1a37aebe8180a8ad05a0eed8c950aab9ba756f67d05ae01"
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosarm64:1.12.0",
+        "pomSha256": "69292c0da72fb4e7ee9f38f930ea5298d6b348a502c1c45738cefe04ae49f932"
       }
     ],
     "embeddedNotices": [],
     "bundledFonts": []
   },
   {
-    "component": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.9.0",
-    "artifact": "kotlinx-serialization-json-iosArm64Main-1.9.0.klib",
-    "sha256": "db01ec8216ea242dc6433caa645d1eef7cedf683376fb6e71410065d6a9a6fd1",
+    "component": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.12.0",
+    "artifact": "kotlinx-serialization-json-iosArm64Main-1.12.0.klib",
+    "sha256": "fbcb18505620712e81109f08719731eac1d73772887e9552a32e8602225f6661",
     "type": "klib",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
-        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.9.0",
-        "pomSha256": "07b1b744b4d6d525e9d44fcf4be720469f0d91391f39fc331a80712cf9c2e644"
+        "declaredBy": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64:1.12.0",
+        "pomSha256": "730004e982704cab0d8c3ebe5eb086ed5b34fcd3863cc6d438e7caa7647449cf"
       }
     ],
     "embeddedNotices": [],

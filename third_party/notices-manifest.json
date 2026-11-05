@@ -3,11 +3,11 @@
   "inventories": {
     "android": {
       "path": "third_party/android-runtime-inventory.json",
-      "sha256": "108f80c5950bff9d5c2f9cd77214a952ee432960bcff746857badb12ef865e7d"
+      "sha256": "f8208a0171bfa20542a4f7342067a1a87bd90558f4b7994ae1855c5ddc4c0132"
     },
     "ios": {
       "path": "third_party/ios-runtime-inventory.json",
-      "sha256": "52ab281690c02b0d4fd13797f408a84074b2e9e00af420640d2cf3ce90ffe180"
+      "sha256": "6a37979ae8192216b5638dce4ce850cbcaa2956726ca5fb7a69a232aa66510da"
     }
   },
   "inputs": [
@@ -1296,6 +1296,14 @@
         "ios"
       ],
       "sha256": "809fa1ed21450f59827d1e9aec720bbc4b687434fa22283c6cb5dd82a47ab9c0"
+    },
+    {
+      "path": "third_party/runtime-notices/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt",
+      "component": "com.google.guava:guava:32.0.0-jre",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
     }
   ],
   "outputs": {
