@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.vezuna.ui.Category
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.vezuna
@@ -151,7 +152,7 @@ fun TextStyle.cappedScale(max: Float = 1.3f): TextStyle {
 /** Single-word labels (tabs, segments) shrink to fit one line instead of breaking mid-word at large text sizes. */
 @Composable
 fun singleWordAutoSize(maxFontSize: TextUnit): TextAutoSize =
-    TextAutoSize.StepBased(minFontSize = with(LocalDensity.current) { 10.dp.toSp() }, maxFontSize = maxFontSize)
+    TextAutoSize.StepBased(minFontSize = minOf(10.sp, maxFontSize), maxFontSize = maxFontSize)
 
 @Composable
 fun CategoryPanel(
