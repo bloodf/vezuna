@@ -24,6 +24,7 @@ class WeightPagingTest {
         var snapshot: suspend (Instant, Instant, String?) -> WeightSnapshotPage = { _, _, _ -> WeightSnapshotPage(emptyList(), null) }
         override suspend fun read(request: VitalsReadRequest) = VitalsBatch(request.replaceFrom)
         override suspend fun weightAccess() = access
+        override fun weightClaim(source: WeightSource) = SourceClaim(source, SourceContinuityEvidence(source, "synthetic accepted provider scope"))
         override suspend fun weightToken(): String { requests += "token"; return "fresh-baseline" }
         override suspend fun weightChanges(token: String): WeightChangesPage { requests += "changes:$token"; return changes(token) }
         override suspend fun weightSnapshot(from: Instant, until: Instant, pageToken: String?, pageSize: Int): WeightSnapshotPage {
@@ -118,12 +119,50 @@ class WeightPagingTest {
             val starts = mutableListOf<Instant>()
             provider.snapshot = { from, _, _ -> starts += from; WeightSnapshotPage(emptyList(), null) }
             WeightPaging(provider, repository, now) { Duration.ZERO }.run(state)
-            assertEquals(if (known) now - 130.days else now - 365.days, starts.first())
+            assertEquals(if (known) now - 130.days else Instant.parse("2025-11-01T00:00:00Z"), starts.first())
             assertTrue(starts.first() < now - 30.days)
             assertEquals(access, repository.readVitalsState(repository.captureVitalsSync(TimeZone.UTC)).local.access)
             assertEquals(listOf(w), repository.peekProfile("p").vitals.weights)
             assertTrue(provider.requests.size <= 20)
         }
+    }
+
+    @Test fun changesAndSnapshotCyclesStopBeforeRepeatedCursorOrPayloadCommit() = runTest {
+        val (repository, state) = seed()
+        val provider = Provider()
+        provider.changes = { token -> WeightChangesPage(listOf(WeightMutation.Upsert(w.copy(kg = 71.0))), when (token) { "T0" -> "T1"; "T1" -> "T2"; else -> "T0" }, true, false) }
+        assertFailsWith<IllegalStateException> { WeightPaging(provider, repository, now) { Duration.ZERO }.run(state) }
+        val saved = repository.readVitalsState(repository.captureVitalsSync(TimeZone.UTC))
+        assertEquals(WeightContinuation.Replay(src, "T2"), saved.local.continuation)
+        assertEquals(3, provider.requests.size)
+        assertEquals(3L, saved.revision)
+
+        val (snapshotRepository, snapshotState) = seed(WeightContinuation.Snapshot(src, "T0", now - 1.days, now))
+        val snapshotProvider = Provider()
+        snapshotProvider.snapshot = { _, _, token -> WeightSnapshotPage(listOf(WeightMutation.Upsert(w.copy(kg = if (token == "B") 99.0 else 71.0))), when (token) { null -> "A"; "A" -> "B"; else -> "A" }) }
+        assertFailsWith<IllegalStateException> { WeightPaging(snapshotProvider, snapshotRepository, now) { Duration.ZERO }.run(snapshotState) }
+        val snapshotSaved = snapshotRepository.readVitalsState(snapshotRepository.captureVitalsSync(TimeZone.UTC))
+        assertEquals("B", (snapshotSaved.local.continuation as WeightContinuation.Snapshot).pageToken)
+        assertEquals(listOf(w.copy(kg = 71.0)), snapshotRepository.peekProfile("p").vitals.weights)
+        assertEquals(3L, snapshotSaved.revision)
+    }
+
+    @Test fun capturedLocalYearBoundaryKeepsMidnightWeightAcrossDstAndPrunesOnlyEarlierValue() = runTest {
+        val repository = InMemoryVezunaRepository()
+        repository.createProfile(Profile("p", "Synthetic", createdAt = now))
+        val zone = TimeZone.of("America/New_York")
+        val state = repository.readVitalsState(repository.captureVitalsSync(zone))
+        val provider = Provider()
+        val floor = Instant.parse("2025-11-01T04:00:00Z")
+        provider.snapshot = { from, _, _ ->
+            assertEquals(floor, from)
+            WeightSnapshotPage(listOf(WeightMutation.Upsert(w.copy(recordId = "in", time = floor)),
+                WeightMutation.Upsert(w.copy(recordId = "out", time = Instant.parse("2025-11-01T03:59:59Z")))), null)
+        }
+        val count = WeightPaging(provider, repository, now) { if (provider.requests.size >= 3) 11.seconds else Duration.ZERO }.run(state)
+        assertEquals(1, count)
+        assertEquals(listOf(w.copy(recordId = "in", time = floor)), repository.peekProfile("p").vitals.weights)
+        assertEquals(setOf("in"), repository.readVitalsState(repository.captureVitalsSync(zone)).local.provenance.keys)
     }
 
     @Test fun accessChangeAndRelinkBetweenReadAndCommitRejectWithoutCursorAdvance() = runTest {

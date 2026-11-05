@@ -322,6 +322,25 @@ class WeightPersistenceTest {
         assertEquals(ProfileData(Profile("p", "Synthetic", createdAt = now), vitals = ProfileVitals(weights = listOf(w))), data)
     }
 
+    @Test fun sweepEnumerationPreservesUnindexedClinicalAndRefusesUnindexedFuturePrefix() = runTest {
+        val vault = FaultVault()
+        seed(vault)
+        val index = "repository-vitals-index-v1"
+        vault.memory.current.remove(index)
+        vault.memory.previous.remove(index)
+        val before = vault.memory.current.getValue(key).copyOf()
+        val store = VitalsStore(vault, json)
+        store.sweep(emptySet())
+        assertContentEquals(before, vault.memory.current[key])
+        val futureKey = "repository-vitals-replacement-p-v1"
+        val future = CipherEnvelopeCodec.encode(vault.encrypt("""{"vitalsFormat":77,"future":"retain"}""".encodeToByteArray(), "Vezuna vitals v1:replacement-p".encodeToByteArray()))
+        vault.memory.current[futureKey] = future
+        assertFailsWith<StorageSchemaTooNewException> { store.sweep(emptySet()) }
+        assertContentEquals(before, vault.memory.current[key])
+        assertContentEquals(future, vault.memory.current[futureKey])
+        assertTrue(vault.memory.quarantined.isEmpty())
+    }
+
     @Test fun legacyAndFutureGenerationsPreserveLiteralBytesAndClinicalValues() = runTest {
         val vault = GenerationalMemoryVault()
         val clinical = ProfileVitals(weights = listOf(w), samples = listOf(VitalSample("legacy", VitalMetric.WEIGHT_KG, 64.0, now, now)))

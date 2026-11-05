@@ -11,6 +11,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 
 /** [replaceFrom] is the first local day to re-read (steps, heart rate, weight); weights are also read back to [weightsFrom]. */
 data class VitalsReadRequest(val replaceFrom: LocalDate, val weightsFrom: LocalDate, val zone: TimeZone, val now: Instant? = null)
@@ -85,7 +86,9 @@ internal class WeightPaging(
         var rebuilt = false
         var storedCount = 0
         val access = source.weightAccess()
-        val floor = now - kotlin.time.Duration.parse("365d")
+        val floor = VitalsWindow.weightsFrom(null, now, state.context.zone).atStartOfDayIn(state.context.zone)
+        val seenChanges = mutableSetOf<String>()
+        val seenSnapshot = mutableMapOf<Instant, MutableSet<String>>()
         suspend fun validate() {
             currentCoroutineContext().ensureActive()
             repository.readVitalsState(state.context)
@@ -109,6 +112,8 @@ internal class WeightPaging(
             }
         }
         suspend fun start(): Boolean {
+            seenChanges.clear()
+            seenSnapshot.clear()
             permit()
             val token = source.weightToken()
             check(token.isNotBlank()) { "Unusable baseline token" }
@@ -138,10 +143,12 @@ internal class WeightPaging(
                     }
                     if (calls >= 20 || elapsed() >= kotlin.time.Duration.parse("10s")) return storedCount
                     val end = minOf(progress.nextFrom + kotlin.time.Duration.parse("7d"), progress.until)
+                    val seen = seenSnapshot.getOrPut(progress.nextFrom) { mutableSetOf() }
+                    progress.pageToken?.let { seen += it }
                     permit()
                     val page = source.weightSnapshot(progress.nextFrom, end, progress.pageToken, 500)
                     val token = page.nextPageToken?.takeUnless { it.isBlank() }
-                    check(token == null || token != progress.pageToken) { "Repeated snapshot token" }
+                    check(token == null || token !in seen) { "Repeated snapshot token" }
                     val next = if (token != null) progress.copy(pageToken = token)
                         else if (end < progress.until) progress.copy(nextFrom = end, pageToken = null)
                         else WeightContinuation.Replay(progress.source, progress.baselineToken)
@@ -154,6 +161,7 @@ internal class WeightPaging(
                         is WeightContinuation.Steady -> progress.token
                         else -> error("unreachable")
                     }
+                    seenChanges += token
                     permit()
                     val page = source.weightChanges(token)
                     if (page.expired) {
@@ -167,7 +175,7 @@ internal class WeightPaging(
                         commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.UNUSABLE_TOKEN)))
                         return storedCount
                     }
-                    check(!page.hasMore || page.nextToken != token) { "Repeated Changes token" }
+                    check(!page.hasMore || page.nextToken !in seenChanges) { "Repeated Changes token" }
                     val next = if (page.hasMore) WeightContinuation.Replay(progress.source, page.nextToken) else WeightContinuation.Steady(progress.source, page.nextToken)
                     val claim = source.weightClaim(progress.source)
                     if (!commit(WeightPage(claim, page.mutations, next))) return storedCount

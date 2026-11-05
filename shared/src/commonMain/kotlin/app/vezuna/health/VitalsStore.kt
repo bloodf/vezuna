@@ -127,7 +127,7 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
 
     internal suspend fun assertAllPreservable() {
         val ids = readIndex() + vault.listKeys().orEmpty().filter {
-            it.startsWith("repository-vitals-") && it.endsWith("-v1") && it != INDEX_KEY && !it.startsWith("repository-vitals-replacement-")
+            it.startsWith("repository-vitals-") && it.endsWith("-v1") && it != INDEX_KEY
         }.map { it.removePrefix("repository-vitals-").removeSuffix("-v1") }
         ids.forEach { assertPreservable(it) }
     }
@@ -135,12 +135,14 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
     /** Deletes vitals files of profiles that no longer exist (left by a delete that failed or was interrupted). */
     suspend fun sweep(existingProfileIds: Set<String>) {
         // Scan actual keys too: future files must survive a missing/corrupt discovery index.
-        val candidates = readIndex() + vault.listKeys().orEmpty().mapNotNull { storedKey ->
+        val indexed = readIndex()
+        val candidates = indexed + vault.listKeys().orEmpty().mapNotNull { storedKey ->
             storedKey.removePrefix("repository-vitals-").removeSuffix("-v1")
-                .takeIf { storedKey.startsWith("repository-vitals-") && storedKey.endsWith("-v1") && storedKey != INDEX_KEY && !storedKey.startsWith("repository-vitals-replacement-") }
+                .takeIf { storedKey.startsWith("repository-vitals-") && storedKey.endsWith("-v1") && storedKey != INDEX_KEY }
         }
         candidates.forEach { assertPreservable(it) }
-        (candidates - existingProfileIds).forEach { delete(it) }
+        // Enumeration protects future bytes; it never grants new deletion authority over unindexed clinical files.
+        (indexed - existingProfileIds).forEach { delete(it) }
     }
 
     private suspend fun readIndex(): Set<String> = try {
