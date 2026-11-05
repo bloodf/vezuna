@@ -1,6 +1,6 @@
 # Local CI checks
 
-`scripts/check-ci-local.sh` runs the commands in `.github/workflows/ci.yml` on the current checkout. It stops at the first failure. The default `all` runs both jobs and prints `CHECK_CI_LOCAL_PASSED` only after every stage succeeds. This is local evidence, not a replacement for required GitHub checks or the mandatory full `scripts/check-all.sh` merge gate.
+`scripts/check-ci-local.sh` runs the commands in `.github/workflows/ci.yml` on the current checkout and adds the EAS compatibility fixture to the release stage. It stops at the first failure. The default `all` runs both jobs and prints `CHECK_CI_LOCAL_PASSED` only after every stage succeeds. This is local evidence, not a replacement for required GitHub checks or the mandatory full `scripts/check-all.sh` merge gate.
 
 The workflow uses Ubuntu, Python 3.15, Temurin Java 25, Android SDK platform 37.0 and build tools 37.0.0, and Node 26. Install the matching prerequisites, including npm and the Android SDK, before running. The runner does not install system tools. Gradle may resolve its normal dependencies, and the release stage runs `npm ci`, which replaces this checkout's `node_modules`. A macOS pass does not establish Linux runner equivalence. CI setup actions and artifact environment are not reproduced.
 
@@ -17,7 +17,9 @@ Select one stage to avoid repeating a heavy build. A selected stage reports only
 scripts/check-ci-local.sh python   # six Android Python checks
 scripts/check-ci-local.sh gradle   # four workflow Gradle tasks
 scripts/check-ci-local.sh results  # test results and debug APK ELF alignment
-scripts/check-ci-local.sh release  # npm ci, EAS version, iOS script syntax
+scripts/check-ci-local.sh release  # npm ci, EAS version, compatibility fixture, iOS script syntax
 ```
 
 The `results` stage reads existing outputs: it does not establish that they came from the current commit or a successful build. Run it after the workflow's Gradle tasks on the same checkout, and preserve the build and results evidence together. Assembling the instrumented test APK does not execute instrumented tests. `scripts/check-all.sh` remains a separate, broader merge gate; run it through the same semaphore and observe its required success marker. Required GitHub checks must still pass and must not be bypassed.
+
+The release stage runs the committed EAS compatibility fixture with an external 30-second `timeout` and a 256 MB Node.js heap limit. It uses synthetic inputs and needs no credentials. These limits are not an OS network sandbox or an RSS memory limit. If `timeout` is missing, the stage fails. The fixture is an additional local check; the workflow does not currently run it.
