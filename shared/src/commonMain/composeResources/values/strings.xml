@@ -358,6 +358,7 @@ iOS: %2$s</string>
     <string name="section_device_health">Device health data</string>
     <string name="linked_profile_explanation">Heart rate, steps and weight from Health Connect or Apple Health are saved to one linked profile. Other profiles never receive them, and changing the link does not move data already saved.</string>
     <string name="linked_profile_current">Linked profile: %1$s</string>
+    <string name="onboarding_health_link_note">Connecting saves %1$s as this device’s linked profile before asking for access. If you deny or cancel access, the link stays saved but no readings are imported. You can always choose Done and add records.</string>
     <string name="link_this_profile">Link this profile</string>
     <string name="view_vitals">View device vitals</string>
     <string name="vitals_other_profile">Device vitals are saved to %1$s. Switch to that profile to see them.</string>

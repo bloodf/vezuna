@@ -437,6 +437,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.SECTION_DEVICE_HEALTH to Res.string.section_device_health,
     L10nKey.LINKED_PROFILE_EXPLANATION to Res.string.linked_profile_explanation,
     L10nKey.LINKED_PROFILE_CURRENT to Res.string.linked_profile_current,
+    L10nKey.ONBOARDING_HEALTH_LINK_NOTE to Res.string.onboarding_health_link_note,
     L10nKey.LINK_THIS_PROFILE to Res.string.link_this_profile,
     L10nKey.VIEW_VITALS to Res.string.view_vitals,
     L10nKey.VITALS_OTHER_PROFILE to Res.string.vitals_other_profile,

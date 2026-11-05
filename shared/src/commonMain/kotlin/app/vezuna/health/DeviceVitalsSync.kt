@@ -1,8 +1,11 @@
 package app.vezuna.health
 
+import app.vezuna.data.VitalsSyncContext
 import app.vezuna.data.VezunaRepository
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.VitalsWindow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
@@ -27,17 +30,22 @@ class DeviceVitalsSync(
     private val repository: VezunaRepository,
     private val clock: () -> Instant,
     private val zone: () -> TimeZone = { TimeZone.currentSystemDefault() },
-    private val beforeSync: suspend () -> Unit = {},
+    private val beforeSync: suspend (VitalsSyncContext) -> VitalsSyncContext = { it },
 ) {
     private val mutex = Mutex()
 
-    suspend fun synchronize(): Int = mutex.withLock {
-        beforeSync()
-        val context = repository.captureVitalsSync(zone())
+    suspend fun synchronize(expected: VitalsSyncContext? = null): Int = mutex.withLock {
+        currentCoroutineContext().ensureActive()
+        val current = repository.captureVitalsSync(expected?.zone ?: zone())
+        check(expected == null || current.profileId == expected.profileId && current.generation == expected.generation) { "Device vitals sync is stale" }
+        val context = beforeSync(expected ?: current)
+        currentCoroutineContext().ensureActive()
+        repository.withValidatedVitalsSync(context) {}
         val now = clock()
         val lastSync = context.lastSync
         val tz = context.zone
         val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
+        currentCoroutineContext().ensureActive()
         repository.ingestDeviceVitals(context, batch, now)
     }
 }

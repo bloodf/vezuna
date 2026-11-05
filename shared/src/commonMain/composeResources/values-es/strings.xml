@@ -358,6 +358,7 @@ iOS: %2$s</string>
     <string name="section_device_health">Datos de salud del dispositivo</string>
     <string name="linked_profile_explanation">La frecuencia cardíaca, los pasos y el peso de Health Connect o Apple Salud se guardan en un único perfil vinculado. Los demás perfiles nunca los reciben, y cambiar el vínculo no mueve los datos ya guardados.</string>
     <string name="linked_profile_current">Perfil vinculado: %1$s</string>
+    <string name="onboarding_health_link_note">Conectar guarda %1$s como el perfil vinculado a este dispositivo antes de pedir acceso. Si deniegas o cancelas el acceso, el vínculo sigue guardado, pero no se importa ninguna lectura. Siempre puedes elegir Listo y añadir registros.</string>
     <string name="link_this_profile">Vincular este perfil</string>
     <string name="view_vitals">Ver signos del dispositivo</string>
     <string name="vitals_other_profile">Los signos del dispositivo se guardan en %1$s. Cambie a ese perfil para verlos.</string>
