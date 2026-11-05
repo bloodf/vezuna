@@ -78,6 +78,16 @@ try {
   for (const hash of ['how', 'records', 'privacy', 'price', 'faq']) {
     await page.locator(`.primary-nav a[href="#${hash}"]`).click();
     assert.equal(new URL(page.url()).hash, `#${hash}`);
+    // A hash changes before smooth scrolling finishes; verify arrival before the next click.
+    await page.waitForFunction((id) => {
+      const target = document.getElementById(id);
+      const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      const destination = Math.min(
+        target.getBoundingClientRect().top + window.scrollY - padding,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      return Math.abs(window.scrollY - destination) < 2;
+    }, hash);
   }
 
   await page.locator('.language-nav a[href="/pt-br"]').click();
