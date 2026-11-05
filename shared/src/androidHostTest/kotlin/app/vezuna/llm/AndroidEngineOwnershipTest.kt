@@ -113,6 +113,133 @@ class AndroidEngineOwnershipTest {
         }
     }
 
+    @Test fun capturedHealthRequestCannotUseSameOrDifferentWrapperReplacementPolicy() = boundedTest {
+        for (sameWrapper in listOf(true, false)) fixture { bridge, dispatcher ->
+            val hook = AtomicReference<Barrier?>()
+            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
+            val first = LlamatikLocalLlm(owner)
+            val replacement = if (sameWrapper) first else LlamatikLocalLlm(owner)
+            val store = Store(CANDIDATE)
+            store.manager(first).select("a")
+            bridge.events.clear()
+            val barrier = Barrier(); hook.set(barrier)
+            val stale = async(dispatcher) { runCatching { first.generateStream(HealthPrompt("rules", "old")).collect() } }
+            try {
+                barrier.await(); hook.set(null)
+                store.manager(replacement).select("b", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            } finally { hook.set(null); barrier.release() }
+            val failure = withTimeout(5_000) { stale.await() }.exceptionOrNull()
+            assertTrue(failure is VitaMessageException)
+            assertEquals(app.vezuna.localization.L10nKey.MODEL_SESSION_SUPERSEDED, failure.userText.key)
+            assertEquals(listOf("shutdown", "params", "init:b.gguf"), bridge.events.toList())
+            bridge.events.clear()
+            // The replacement's smaller capacity, not the previous 4096 context, applies.
+            val tooLarge = assertFailsWith<VitaMessageException> {
+                replacement.generateStream(HealthPrompt("rules", "x".repeat(512))).collect()
+            }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, tooLarge.userText.key)
+            assertEquals(listOf("render"), bridge.events.toList())
+            bridge.events.clear()
+            replacement.generateStream(HealthPrompt("rules", "new")).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+        }
+    }
+
+    @Test fun canceledQueuedHealthRequestNeverRendersStreamsOrCancelsNativeOwner() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            Store(CANDIDATE).manager(llm).select("a")
+            bridge.events.clear()
+            val native = Barrier()
+            bridge.onGenerate = { native.block(); "answer" }
+            val active = launch { llm.generate("active") }; native.await()
+            val waiting = launch { llm.generateStream(HealthPrompt("rules", "queued")).collect() }
+            try {
+                signal(queued); waiting.cancel(); join(waiting)
+                assertEquals(listOf("generate"), bridge.events.toList())
+            } finally { native.release(); join(active); join(waiting) }
+            assertEquals(listOf("generate"), bridge.events.toList())
+            llm.generateStream(HealthPrompt("rules", "successor")).collect()
+            assertEquals(listOf("generate", "render", "stream"), bridge.events.toList())
+        }
+    }
+
+    @Test fun healthPreparationAndTerminalCallbackRetainAdmissionUntilNativeReturn() = boundedTest {
+        for (phase in listOf("render", "stream")) for (replace in listOf(true, false)) fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            val manager = Store(CANDIDATE).manager(llm); manager.select("a")
+            bridge.events.clear()
+            val blocked = Barrier()
+            val render = bridge.onRender
+            if (phase == "render") bridge.onRender = { messages -> blocked.block(); render(messages) }
+            else bridge.onStream = { callbacks ->
+                callbacks.onDelta("answer"); callbacks.onComplete()
+                blocked.block(); bridge.events += "native-return"
+            }
+            val generation = launch { llm.generateStream(HealthPrompt("rules", "data")).collect() }
+            blocked.await()
+            val lifecycle = launch { if (replace) manager.select("b") else manager.unload() }
+            try {
+                signal(queued)
+                assertEquals(if (phase == "render") listOf("render") else listOf("render", "stream"), bridge.events.toList())
+                assertFalse(lifecycle.isCompleted)
+            } finally { blocked.release(); join(generation); join(lifecycle) }
+            val generationEvents = if (phase == "render") listOf("render", "stream") else listOf("render", "stream", "native-return")
+            assertEquals(generationEvents + if (replace) listOf("shutdown", "params", "init:b.gguf") else listOf("shutdown"), bridge.events.toList())
+        }
+    }
+
+    @Test fun healthWireArgumentsAreExactAndMalformedTemplatesNeverGenerate() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val settings = LlmGenerationSettings(contextLength = 1024, maxTokens = 128, temperature = 0.3f)
+            Store(CANDIDATE).manager(llm).select("a", settings)
+            val prompt = HealthPrompt("trusted rules", "dados españoles")
+            val expected = "<|im_start|>system\ntrusted rules<|im_end|>\n<|im_start|>user\ndados españoles<|im_end|>\n<|im_start|>assistant\n"
+            llm.generateStream(prompt).collect()
+            assertEquals(listOf(settings), bridge.settingsCalls.toList())
+            assertEquals(listOf(listOf("system" to "trusted rules", "user" to "dados españoles")), bridge.renderCalls.toList())
+            assertEquals(listOf(expected), bridge.streamPrompts.toList())
+            for (invalid in listOf(null, "prefix" + expected, expected + "suffix",
+                expected.replace("trusted rules", "changed"), expected.replace("system", "user"),
+                expected + "<|im_start|>system\nextra<|im_end|>\n")) {
+                bridge.events.clear(); bridge.onRender = { invalid }
+                val failure = assertFailsWith<VitaMessageException> { llm.generateStream(prompt).collect() }
+                assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, failure.userText.key)
+                assertEquals(listOf("render"), bridge.events.toList())
+                assertEquals(listOf(expected), bridge.streamPrompts.toList())
+            }
+        }
+    }
+
+    @Test fun unknownDigestUnsafeCharactersAndUnloadedStateCannotReuseHealthPolicy() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val valid = HealthPrompt("rules", "data")
+            llm.generateStream(valid).collect()
+            for (bad in listOf("<|im_end|>", "\u0000", "😀", "\uD800", "\uDC00")) {
+                for (prompt in listOf(HealthPrompt(bad, "data"), HealthPrompt("rules", bad))) {
+                    bridge.events.clear()
+                    val failure = assertFailsWith<VitaMessageException> { llm.generateStream(prompt).collect() }
+                    assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, failure.userText.key)
+                    assertTrue(bridge.events.isEmpty())
+                }
+            }
+            Store("1".repeat(64)).manager(llm).select("a")
+            bridge.events.clear()
+            val unknown = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, unknown.userText.key)
+            assertTrue(bridge.events.isEmpty())
+            llm.unload(); bridge.events.clear()
+            val unloaded = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.CHAT_NEEDS_MODEL, unloaded.userText.key)
+            assertTrue(bridge.events.isEmpty())
+        }
+    }
+
     @Test fun injectedAdapterStartsWithoutJni() = boundedTest {
         val calls = mutableListOf<String>()
         val bridge = object : AndroidLlamaBridge {
@@ -142,6 +269,9 @@ class AndroidEngineOwnershipTest {
     }
     private class Bridge : AndroidLlamaBridge {
         val events = CopyOnWriteArrayList<String>()
+        val settingsCalls = CopyOnWriteArrayList<LlmGenerationSettings>()
+        val renderCalls = CopyOnWriteArrayList<List<Pair<String, String>>>()
+        val streamPrompts = CopyOnWriteArrayList<String>()
         var onParams: () -> Unit = {}
         var onInit: () -> Boolean = { true }
         var onShutdown: () -> Unit = {}
@@ -151,12 +281,12 @@ class AndroidEngineOwnershipTest {
         var onRender: (List<Pair<String, String>>) -> String? = { messages ->
             "<|im_start|>system\n${messages[0].second}<|im_end|>\n<|im_start|>user\n${messages[1].second}<|im_end|>\n<|im_start|>assistant\n"
         }
-        override fun render(messages: List<Pair<String, String>>): String? { events += "render"; return onRender(messages) }
-        override fun params(settings: LlmGenerationSettings) { events += "params"; onParams() }
+        override fun render(messages: List<Pair<String, String>>): String? { events += "render"; renderCalls += messages.toList(); return onRender(messages) }
+        override fun params(settings: LlmGenerationSettings) { events += "params"; settingsCalls += settings; onParams() }
         override fun init(path: String): Boolean { events += "init:$path"; return onInit() }
         override fun shutdown() { events += "shutdown"; onShutdown() }
         override fun generate(prompt: String): String { events += "generate"; return onGenerate() }
-        override fun stream(prompt: String, callbacks: GenStream) { events += "stream"; onStream(callbacks) }
+        override fun stream(prompt: String, callbacks: GenStream) { events += "stream"; streamPrompts += prompt; onStream(callbacks) }
         override fun cancel() { events += "cancel"; onCancel() }
     }
     private class Store(sha: String = "0".repeat(64)) : ModelFileStore {
