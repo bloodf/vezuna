@@ -11,6 +11,9 @@ const routes = [
   '/docs', '/docs/getting-started', '/docs/lab-records', '/docs/medications-reminders-exports',
   '/docs/privacy-and-data', '/docs/offline-models', '/docs/developers',
   '/pt-br/docs', '/pt-br/docs/getting-started', '/es/docs', '/es/docs/getting-started',
+  '/open-source', '/screens', '/how-it-works', '/local-data',
+  '/pt-br/open-source', '/pt-br/screens', '/pt-br/how-it-works', '/pt-br/local-data',
+  '/es/open-source', '/es/screens', '/es/how-it-works', '/es/local-data',
 ];
 mkdirSync('screenshots', { recursive: true });
 const server = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4173'], {
@@ -64,7 +67,7 @@ try {
   }
 
   await page.setViewportSize({ width: 820, height: 1180 });
-  for (const route of ['/', '/pt-br', '/es', '/docs', '/docs/developers']) {
+  for (const route of ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/open-source', '/screens', '/local-data']) {
     await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' });
     const widths = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     assert(widths[0] <= widths[1] + 1, `Tablet overflow on ${route}: ${widths.join(' > ')}`);
@@ -104,6 +107,27 @@ try {
   await page.waitForURL('**/es');
   assert.equal(await page.locator('html').getAttribute('lang'), 'es');
   assert((await page.locator('h1').innerText()).includes('registros de salud'));
+
+  await page.goto(`${origin}/open-source`, { waitUntil: 'networkidle' });
+  assert((await page.locator('h1').innerText()).includes('MIT'), 'The open source page must lead with the license');
+  assert.equal(await page.locator('.spec-table').count(), 1, 'The open source page is missing the MIT scope table');
+  assert((await page.locator('.panel--code').innerText()).includes('./gradlew'), 'The open source page is missing the build commands');
+  assert((await page.locator('.status-list').innerText()).includes('No stable release has been published'), 'The open source page must state the release status');
+  assert.equal(await page.locator('.link-cards a[href="https://github.com/bloodf/vezuna"]').count(), 1, 'The open source page must link the repository');
+  assert((await page.locator('main').innerText()).includes('no AI feature is available'), 'The open source page must state that no AI feature is available');
+
+  await page.goto(`${origin}/screens`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('.gallery .screen img').count(), 3, 'The gallery must show the three real captures');
+  const galleryAlts = await page.locator('.gallery .screen img').evaluateAll((images) => images.map((image) => image.getAttribute('alt') ?? ''));
+  assert(galleryAlts.every((alt) => alt.length > 40), `Gallery captures need descriptive alt text: ${galleryAlts.join(' | ')}`);
+
+  await page.goto(`${origin}/how-it-works`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('.steps li').count(), 4, 'How it works must show the four import steps');
+  assert.equal(await page.locator('.detail-card').count(), 4, 'How it works must show the four detail sections');
+
+  await page.goto(`${origin}/local-data`, { waitUntil: 'networkidle' });
+  assert.equal(await page.locator('.spec-table tbody tr').count(), 7, 'The local data map rows are missing');
+  assert((await page.locator('.page-hero').innerText()).length > 80, 'The local data page is missing its introduction');
 
   await page.goto(origin, { waitUntil: 'networkidle' });
   const shift = await page.evaluate(() => new Promise((resolve) => {
@@ -160,7 +184,8 @@ try {
   await page.goto(`${origin}/docs/getting-started`, { waitUntil: 'networkidle' });
   await page.screenshot({ path: 'screenshots/docs-mobile.png', fullPage: false });
 
-  const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/docs/privacy-and-data', '/pt-br/docs/getting-started', '/es/support', '/support', '/privacy', '/notices', '/404'];
+  const axeRoutes = ['/', '/pt-br', '/es', '/docs', '/docs/developers', '/docs/privacy-and-data', '/pt-br/docs/getting-started', '/es/support', '/support', '/privacy', '/notices', '/404',
+    '/open-source', '/screens', '/how-it-works', '/local-data', '/pt-br/open-source', '/es/screens', '/pt-br/local-data', '/es/how-it-works'];
   const violations = [];
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
