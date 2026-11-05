@@ -1,5 +1,6 @@
 ---
 import { htmlLang, languageNames, type Alternates, type Locale } from '../lib/i18n';
+import Analytics from '@vercel/analytics/astro';
 
 interface Props {
   lang: Locale;
@@ -56,4 +57,5 @@ const structuredData = JSON.stringify({
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={socialImage} />
 <script type="application/ld+json" set:html={structuredData} />
+<Analytics />
 <slot name="head" />
