@@ -37,6 +37,7 @@ class AndroidSecureVaultInstrumentedTest {
     private lateinit var dir: File
     private lateinit var keyStore: KeyStore
     private lateinit var vault: AndroidSecureVault
+    private var concurrentWorkersTerminated = true
     private val plain = "synthetic hemoglobin 13.5 g/dL".encodeToByteArray()
     private val aad = "profile-a".encodeToByteArray()
 
@@ -50,6 +51,7 @@ class AndroidSecureVaultInstrumentedTest {
 
     @After
     fun tearDown() {
+        assertTrue("Workers may still own $keyAlias; retaining the alias and directory", concurrentWorkersTerminated)
         try {
             if (::keyStore.isInitialized) {
                 keyStore.deleteEntry(keyAlias)
@@ -159,6 +161,7 @@ class AndroidSecureVaultInstrumentedTest {
     @Test
     fun concurrentUseOfOneKeyFromManyInstancesAlwaysDecrypts() {
         val threads = 16
+        concurrentWorkersTerminated = false
         val pool = Executors.newFixedThreadPool(threads)
         val ready = CountDownLatch(threads)
         val go = CountDownLatch(1)
@@ -177,6 +180,8 @@ class AndroidSecureVaultInstrumentedTest {
             envelopes.forEach { assertArrayEquals(plain, runBlocking { vault.decrypt(it, aad) }) }
         } finally {
             pool.shutdownNow()
+            concurrentWorkersTerminated = pool.awaitTermination(30, TimeUnit.SECONDS)
+            assertTrue("Workers did not terminate; retaining $keyAlias and its directory", concurrentWorkersTerminated)
         }
     }
 
