@@ -15,6 +15,51 @@ globalThis.fetch = denyNetwork;
 
 const eas = createRequire(require.resolve('eas-cli/package.json'));
 const easJson = createRequire(eas.resolve('@expo/eas-json/package.json'));
+// Exercise EAS's actual draft-06 factory, formats, metadata and workflow callers.
+const { createValidator, getReadableErrors } = eas('./build/metadata/utils/ajv.js');
+const { validateConfig } = eas('./build/metadata/config/validate.js');
+const { validateWorkflowStructure } = eas('./build/commandUtils/workflow/validation.js');
+const metadata = { configVersion: 0, apple: {} };
+assert.deepEqual(validateConfig(metadata), []);
+assert.deepEqual(validateConfig({ ...metadata, configVersion: 1 }), [{
+  id: 'json-schema.unknown', path: ['configVersion'], severity: 2,
+  message: 'The value at /configVersion must be one of: 0.',
+}]);
+const validator = createValidator();
+assert.notEqual(validator.opts.$data, true);
+const schema = {
+  $schema: 'http://json-schema.org/draft-06/schema#',
+  definitions: { url: { type: 'string', format: 'uri' } },
+  type: 'object', required: ['url'], additionalProperties: false,
+  properties: { url: { $ref: '#/definitions/url' } },
+};
+const validate = validator.compile(schema);
+assert.equal(validate({ url: 'https://example.com/synthetic' }), true);
+assert.equal(validate({ url: 'invalid uri' }), false);
+assert(getReadableErrors(validate.errors).length > 0);
+validateWorkflowStructure({ url: 'https://example.com/synthetic' }, structuredClone(schema));
+validateWorkflowStructure({ url: '${{ inputs.url }}' }, structuredClone(schema));
+assert.throws(() => validateWorkflowStructure({ url: 'invalid uri' }, structuredClone(schema)), /uri/i);
+assert.throws(() => validateWorkflowStructure({}, structuredClone(schema)), /url/i);
+// CVE-2025-69873 regression: benign dynamic pattern must use the configured engine.
+// This proves engine routing, not resistance of the default engine to hostile regexes.
+const Ajv = eas('ajv');
+const engineCalls = [];
+const regExp = (pattern, flags) => {
+  engineCalls.push([pattern, flags]);
+  return new RegExp(pattern, flags);
+};
+regExp.code = 'fixtureRegExp';
+const dynamic = new Ajv({ $data: true, code: { regExp } }).compile({
+  type: 'object', required: ['pattern', 'value'],
+  properties: { pattern: { type: 'string' }, value: { type: 'string', pattern: { $data: '1/pattern' } } },
+});
+engineCalls.length = 0;
+assert.equal(dynamic({ pattern: '^ok$', value: 'ok' }), true);
+assert.equal(dynamic({ pattern: '^ok$', value: 'no' }), false);
+assert.deepEqual(engineCalls, [['^ok$', 'u'], ['^ok$', 'u']]);
+assert.equal(dynamic({ pattern: '[', value: 'ok' }), false);
+console.log('EAS AJV metadata, draft-06 refs, formats, readable errors, workflow and bounded dynamic-pattern checks pass');
 const forge = eas('node-forge');
 const pkcs12 = eas('@expo/pkcs12');
 const signing = eas('@expo/code-signing-certificates');
