@@ -56,6 +56,7 @@ import vezuna.shared.generated.resources.ic_warning
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val category = onCategoryPanel()
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
         options.forEachIndexed { index, label ->
             SegmentedButton(
@@ -64,7 +65,10 @@ fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) 
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 modifier = Modifier.heightIn(min = VezunaTokens.TouchTarget),
                 // Inactive labels follow the surrounding content colour so they stay ink on category fills in dark mode.
-                colors = SegmentedButtonDefaults.colors(inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current),
+                colors = if (category) SegmentedButtonDefaults.colors(
+                    activeContainerColor = VezunaTokens.Pine, activeContentColor = Color.White, activeBorderColor = VezunaTokens.Pine,
+                    inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current, inactiveBorderColor = LocalContentColor.current,
+                ) else SegmentedButtonDefaults.colors(inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current),
                 label = { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, autoSize = singleWordAutoSize(MaterialTheme.typography.labelMedium.fontSize)) },
             )
         }
