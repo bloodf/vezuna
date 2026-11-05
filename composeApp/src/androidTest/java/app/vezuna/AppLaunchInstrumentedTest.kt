@@ -4,8 +4,10 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import androidx.test.uiautomator.waitForStableInActiveWindow
 import app.vezuna.ui.AppController
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
@@ -48,14 +50,17 @@ class AppLaunchInstrumentedTest {
             assertTrue("Profile editor did not receive focus", device.wait(Until.hasObject(By.focused(true)), 3_000))
             val inputMethod = device.executeShellCommand("dumpsys input_method")
             assertTrue("Full software keyboard was not shown", inputMethod.contains("mInputShown=true") || inputMethod.contains("mShowRequested=true"))
-            editor.text = "Child"
-            device.findObject(By.text("Add profile")).click()
+            val profileName = "Child ${System.currentTimeMillis()}"
+            editor.text = profileName
+            // Keep the keyboard open while bringing the submit button into the visible app viewport.
+            device.findObject(By.pkg("app.vezuna").scrollable(true)).scroll(Direction.DOWN, 0.8f)
+            device.tapText("Add profile")
             // Adding switches to the new profile and returns to Today, whose profile chip names it.
-            assertTrue("Created profile did not become active", device.wait(Until.hasObject(By.descContains("Child")), 5_000))
+            assertTrue("Created profile did not become active", device.wait(Until.hasObject(By.descContains(profileName)), 5_000))
 
             scenario.recreate()
             assertTrue("Today did not restore", device.wait(Until.hasObject(By.text("Today")), 10_000))
-            val restoredProfile = device.wait(Until.findObject(By.descContains("Child")), 5_000)
+            val restoredProfile = device.wait(Until.findObject(By.descContains(profileName)), 5_000)
             val evidenceDir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
             device.takeScreenshot(java.io.File(evidenceDir, "recreation.png"))
             device.dumpWindowHierarchy(java.io.File(evidenceDir, "recreation.xml"))
@@ -70,7 +75,9 @@ class AppLaunchInstrumentedTest {
     private fun openManageProfiles(device: UiDevice) {
         device.wait(Until.findObject(By.descContains("Switch profile")), 5_000).click()
         // With many profiles the sheet scrolls, so the last row is below the fold.
-        device.scrollAndTapText("Manage profiles")
+        assertTrue("'Manage profiles' not reachable by scrolling", device.swipeToText("Manage profiles"))
+        assertTrue("Profile switcher did not settle", !device.waitForStableInActiveWindow().isTimeout)
+        device.tapText("Manage profiles")
         assertTrue("Profiles page did not open", device.wait(Until.hasObject(By.text("New profile name")), 5_000))
     }
 }
