@@ -169,6 +169,15 @@ internal class AndroidEngineOwner(
                             sessionSuperseded()
                         }
                         if (request.command == LifecycleCommand.Shutdown && wrapper.ownerStatus.value == EngineOwnerStatus.Unbound) return@work
+                        val replacement = request.command as? LifecycleCommand.Replace
+                        if (replacement != null) {
+                            val settings = replacement.settings
+                            val healthCapable = replacement.verifiedDigest?.sha256 == QWEN_SHA256
+                            if (settings.contextLength <= 0 || settings.maxTokens <= 0 ||
+                                (healthCapable && settings.contextLength.toLong() <= settings.maxTokens.toLong() + 16L)) {
+                                throw ModelOperationFailure(message(L10nKey.MODEL_LOADING_FAILED))
+                            }
+                        }
                         // Cancellation and the first Calling/claim transition are one control interval.
                         calling(attempt)
                         if (request.command is LifecycleCommand.Replace) {

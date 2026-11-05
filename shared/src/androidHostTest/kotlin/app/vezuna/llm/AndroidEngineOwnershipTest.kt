@@ -26,6 +26,38 @@ import kotlin.test.assertEquals
 class AndroidEngineOwnershipTest {
     private val CANDIDATE = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
 
+    @Test fun invalidLoadSettingsPreserveReadyLeaseWithoutNativeEntry() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val manager = Store(CANDIDATE).manager(llm)
+            manager.select("a")
+            val ready = llm.ownerStatus.value
+            val invalid = listOf(
+                LlmGenerationSettings(contextLength = 0),
+                LlmGenerationSettings(contextLength = -1),
+                LlmGenerationSettings(maxTokens = 0),
+                LlmGenerationSettings(maxTokens = -1),
+                LlmGenerationSettings(maxTokens = Int.MAX_VALUE),
+                LlmGenerationSettings(contextLength = 528, maxTokens = 512),
+            )
+            for (settings in invalid) {
+                bridge.events.clear()
+                val failure = assertFailsWith<ModelOperationFailure> { manager.select("a", settings) }
+                assertEquals(app.vezuna.localization.message(app.vezuna.localization.L10nKey.MODEL_LOADING_FAILED), failure.userText)
+                assertEquals(ready, llm.ownerStatus.value)
+                assertTrue(bridge.events.isEmpty())
+            }
+            for (settings in invalid.take(4)) {
+                bridge.events.clear()
+                assertFailsWith<ModelOperationFailure> { llm.load("raw", settings) }
+                assertEquals(ready, llm.ownerStatus.value)
+                assertTrue(bridge.events.isEmpty())
+            }
+            llm.generateStream(HealthPrompt("rules", "data")).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+        }
+    }
+
     @Test fun healthRenderBudgetAndPolicyAreBoundToLease() = boundedTest {
         fixture { bridge, dispatcher ->
             val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
