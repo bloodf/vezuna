@@ -94,7 +94,7 @@ private fun TestCard(trend: TestTrend, onOpen: () -> Unit) {
             MutedText(vitaPlural(L10nKey.TR_RESULT_COUNT, count))
             if (series != null) {
                 val latest = series.comparison.latest!!
-                Text("${labValue(latest.value, latest.valueDecimals)} ${series.unit}".trim(), style = MaterialTheme.typography.headlineMedium.tabular())
+                Text("${labValue(latest.value, latest.plottedDecimals(series.unit))} ${series.unit}".trim(), style = MaterialTheme.typography.headlineMedium.tabular())
                 Text(dateText(latest.date), style = MaterialTheme.typography.bodyMedium)
                 val previous = series.comparison.sincePrevious
                 if (series.comparison.status == ComparisonStatus.COMPARABLE && previous != null) {

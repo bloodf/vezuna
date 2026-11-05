@@ -107,6 +107,49 @@ class TrendPresentationTest {
         assertEquals(TrendRange.Months(12), HistoryRange.ONE_YEAR.toTrendRange())
     }
 
+    @Test
+    fun mixedUnitsRetainOriginalPrecisionWithoutRoundingConvertedValuesOrChanges() {
+        val series = LabTrends.forTest(
+            "p", "HGB", listOf(
+                obs("a", "2026-04-12", 13.0, hgbRange),
+                obs("b", "2026-07-15", 128.4, hgbRange, unit = "g/L", normalized = 12.84, normalizedUnit = "g/dL"),
+            ), emptyList(), emptyList(), TrendRange.All, today,
+        )!!.series.single()
+        assertEquals(listOf(1, 1), series.points.map { it.valueDecimals })
+        assertEquals("128.4", app.vezuna.localization.formatLabValue(series.points.last().originalValue, series.points.last().valueDecimals, "en"))
+        assertNull(series.points.last().plottedDecimals(series.unit))
+        assertNull(series.decimals())
+        assertEquals(12.84, series.points.last().value)
+        val latest = series.comparison.latest!!
+        assertEquals("12.84", app.vezuna.localization.formatLabValue(latest.value, latest.plottedDecimals(series.unit), "en"))
+        assertEquals("13.0", app.vezuna.localization.formatLabValue(series.points.first().value, series.points.first().plottedDecimals(series.unit), "en"))
+        assertEquals(-0.16, series.comparison.sincePrevious!!.delta, 1e-9)
+        assertEquals("13.0", series.chartValue(13.0, "en"))
+        assertEquals("12.84", series.chartValue(12.84, "en"))
+        assertEquals("12.725", series.chartValue(12.725, "en"))
+        assertEquals("13,0", series.chartValue(13.0, "pt-BR"))
+    }
+
+    @Test
+    fun selectionDefaultsToLatestAndRejectsStaleIndices() {
+        val series = hgb(TrendRange.All).series.single()
+        assertEquals(2, series.selectedIndex(null))
+        assertEquals(2, series.selectedIndex(99))
+        assertEquals(0, series.selectedIndex(0))
+        assertNull(series.copy(points = emptyList()).selectedIndex(null))
+    }
+
+    @Test
+    fun canvasFormatterDoesNotRoundAxisTicksToRecordedIntegerPrecision() {
+        val original = hgb(TrendRange.All).series.single()
+        val integer = original.points.first().copy(value = 13.0, originalValue = 13.0, valueDecimals = 0)
+        val series = original.copy(points = listOf(integer))
+        assertEquals("13", series.chartValue(13.0, "en"))
+        assertEquals("12.75", series.chartValue(12.75, "en"))
+        val ambiguous = series.copy(points = listOf(integer, integer.copy(id = "other", valueDecimals = 2)))
+        assertEquals("13", ambiguous.chartValue(13.0, "en"))
+    }
+
     private fun hgb(range: TrendRange) = assertNotNull(
         LabTrends.forTest(
             "p", "HGB",

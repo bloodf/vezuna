@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -121,7 +122,7 @@ internal fun SeriesSummary(series: HistorySeries, unit: String, formatValue: @Co
         }
         Column(Modifier.semantics(mergeDescendants = true) {}) {
             Text(latestLabel, style = MaterialTheme.typography.labelLarge)
-            Text("${formatValue(latest.value, latest.valueDecimals)} $unit".trim(), style = MaterialTheme.typography.displaySmall.tabular(), fontWeight = FontWeight.Bold)
+            Text("${formatValue(latest.value, latest.plottedDecimals(series.unit))} $unit".trim(), style = MaterialTheme.typography.displaySmall.tabular(), fontWeight = FontWeight.Bold)
             Text(dateText(latest.date), style = MaterialTheme.typography.bodyLarge)
         }
         when (comparison.status) {
@@ -167,40 +168,41 @@ internal fun SeriesChart(
     val points = series.points
     if (points.isEmpty()) return
     val window = series.window ?: return
-    val values = points.map { it.value }
+    val current = series.selectedIndex(selected) ?: return
     val latest = points.last()
     val description = vitaPlural(
         L10nKey.TR_CHART_DESCRIPTION, points.size, name, unit, dateText(window.start), dateText(window.end),
-        formatValue(latest.value, latest.valueDecimals), dateText(latest.date),
-        formatValue(values.min(), null), formatValue(values.max(), null),
+        formatValue(latest.value, latest.plottedDecimals(series.unit)), dateText(latest.date),
+        formatValue(points.minBy { it.value }.value, points.minBy { it.value }.plottedDecimals(series.unit)),
+        formatValue(points.maxBy { it.value }.value, points.maxBy { it.value }.plottedDecimals(series.unit)),
     )
     val band = series.referenceBand()
+    val bandDescription = band?.let { b ->
+        vitaText(if (b.lower != null && b.upper != null) L10nKey.TR_BAND_SHADED else L10nKey.TR_BAND_LINE,
+            uiRangeText(ReferenceRange(b.lower, b.upper, null, unit)))
+    } ?: if (series.rangesDiffer()) vitaText(L10nKey.TR_BAND_DIFFERS) else null
     TrendCard {
         LineChart(
-            series.chartPoints(), "${series.key}|${window}", description,
+            series.chartPoints(), "${series.key}|${window}", listOfNotNull(description, bandDescription).joinToString(" "),
             Modifier.fillMaxWidth().height(230.dp),
             unit = unit, band = band, joins = series.lineJoins(),
             startLabel = dateText(window.start), endLabel = dateText(window.end),
-            selected = selected, onSelect = onSelect,
+            selected = current, onSelect = onSelect,
+            formatValue = { series.chartValue(it) },
             color = category.series(darkTheme),
         )
         MutedText(vitaPlural(L10nKey.TR_RECORDED_COUNT, points.size))
         if (points.any { it.granularity == Granularity.DAILY_SUMMARY }) MutedText(vitaText(L10nKey.TR_DAILY_SUMMARY_NOTE))
         if (!series.canDrawLine) MutedText(vitaText(L10nKey.TR_NO_LINE_NOTE))
-        band?.let { b ->
-            val text = uiRangeText(ReferenceRange(b.lower, b.upper, null, unit))
-            MutedText(vitaText(if (b.lower != null && b.upper != null) L10nKey.TR_BAND_SHADED else L10nKey.TR_BAND_LINE, text))
-        }
-        if (series.rangesDiffer()) MutedText(vitaText(L10nKey.TR_BAND_DIFFERS))
+        bandDescription?.let { MutedText(it) }
         if (points.any { it.isConverted(series.unit) }) MutedText(vitaText(L10nKey.TR_CONVERTED_NOTE, series.unit))
         if (points.size > 1) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
-                val current = selected ?: points.lastIndex
                 SecondaryButton(vitaText(L10nKey.TR_PREVIOUS_POINT), { onSelect((current - 1).coerceAtLeast(0)) }, enabled = current > 0)
                 SecondaryButton(vitaText(L10nKey.TR_NEXT_POINT), { onSelect((current + 1).coerceAtMost(points.lastIndex)) }, enabled = current < points.lastIndex)
             }
         }
-        selected?.let { points.getOrNull(it) }?.let { point ->
+        points.getOrNull(current)?.let { point ->
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(VezunaTokens.SpaceSmd).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
@@ -243,18 +245,20 @@ internal fun ReadingTable(
     onSelect: (Int) -> Unit,
     formatValue: @Composable (Double, Int?) -> String,
 ) {
-    if (series.points.isEmpty()) return
+    val current = series.selectedIndex(selected) ?: return
     TrendCard {
         CardHeading(title)
-        series.points.withIndex().reversed().forEach { (index, point) ->
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(VezunaTokens.ControlRadius))
-                    .background(if (index == selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
-                    .selectable(selected = index == selected, role = Role.RadioButton) { onSelect(index) }
-                    .padding(vertical = VezunaTokens.SpaceSm, horizontal = VezunaTokens.SpaceXs)
-                    .semantics(mergeDescendants = true) {},
-            ) {
-                PointDetails(point, series.unit, unit, formatValue)
+        Column(Modifier.selectableGroup()) {
+            series.points.withIndex().reversed().forEach { (index, point) ->
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(VezunaTokens.ControlRadius))
+                        .background(if (index == current) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                        .selectable(selected = index == current, role = Role.RadioButton) { onSelect(index) }
+                        .padding(vertical = VezunaTokens.SpaceSm, horizontal = VezunaTokens.SpaceXs)
+                        .semantics(mergeDescendants = true) {},
+                ) {
+                    PointDetails(point, series.unit, unit, formatValue)
+                }
             }
         }
     }
