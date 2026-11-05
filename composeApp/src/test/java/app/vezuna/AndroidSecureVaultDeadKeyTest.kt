@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  * Covers the Android Keystore state the other adapter tests never reach: the alias is still listed, but the key behind it
  * can no longer be unwrapped.
  *
- * The two existing JVM cases only cover an alias that is absent (lookup returns null) and an alias that is healthy. A
+ * Existing adapter tests cover an absent alias on the JVM and a healthy alias in Android instrumentation. A
  * present-but-dead alias is the state a real invalidated Keystore entry lands in, and it is the only state in which
  * [AndroidSecureVault.discardUnusableKey] is supposed to delete the shared alias.
  *
