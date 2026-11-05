@@ -32,8 +32,12 @@ Create a medication with a daily schedule ~3 minutes ahead and one weekly schedu
 | 1.8 | Toggle daylight-saving boundary date or manual clock change across midnight | No duplicate or missing reminder for the day |
 | 1.9 | Edit a medication name and schedule time | Old reminder is replaced, not duplicated |
 | 1.10 | Delete the medication | No further reminders fire |
-| 1.11 | Force-stop (Android) / swipe away (iOS), wait for a reminder | Reminder still fires |
+| 1.11 | Swipe away (iOS), wait for a reminder | Reminder still fires |
 | 1.12 | Battery saver / Low Power Mode enabled | Reminder still fires, possibly delayed; delay documented in results |
+| 1.13 | Android: use Settings > Force stop, then wait past a scheduled reminder without reopening the app | Record the stopped-state behavior separately; delivery while force-stopped is not a pass requirement. On Android 15+, the system cancels pending intents. Do not mark this OS restriction as an app scheduling failure |
+| 1.14 | Android: explicitly reopen after step 1.13, then schedule a future synthetic reminder with notification and alarm permissions granted | Future reminders are scheduled again and delivered once; existing records remain intact. Record API level, permissions and actual delivery time. Do not infer recovery from the absence of delivery while stopped |
+
+Android force-stop is distinct from backgrounding or removing a task from Recents. Android 15 cancels pending intents when the package enters the stopped state; explicit user interaction removes that state. See [Android stopped-state behavior](https://developer.android.com/about/versions/15/behavior-changes-all#stopped-state). Step 1.14 checks recovery after reopening; it does not certify delivery during force-stop or prescribe how previously missed doses are handled.
 
 ## 2. Health Connect / HealthKit
 
