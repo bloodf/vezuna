@@ -62,6 +62,25 @@ class StreamingChatTest {
     }
 
     @Test
+    fun unsupportedTypedRequestNeverFallsBackToSuccessfulLegacyGeneration() = runTest {
+        val repository = repositoryWithProfile()
+        var legacyCalls = 0
+        val llm = object : LocalLlm {
+            override suspend fun load(modelPath: String, settings: LlmGenerationSettings) = Unit
+            override suspend fun unload() = Unit
+            override suspend fun generate(prompt: String): String { legacyCalls++; return "legacy answer" }
+        }
+        val partials = mutableListOf<String>()
+        val failure = assertFailsWith<VitaMessageException> {
+            LocalHealthChat(repository, llm).ask(repository.readProfile("p"), emptySet(), "question") { partials += it }
+        }
+        assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, failure.userText.key)
+        assertEquals(0, legacyCalls)
+        assertEquals(emptyList(), partials)
+        assertEquals(emptyList(), repository.readProfile("p").chat)
+    }
+
+    @Test
     fun blankAnswerIsRejectedAndNothingIsStored() = runTest {
         val repository = repositoryWithProfile()
         val llm = ScriptedLlm(flow { emit("   ") })
