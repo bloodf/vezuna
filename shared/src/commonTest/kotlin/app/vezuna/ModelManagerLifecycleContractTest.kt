@@ -10,6 +10,12 @@ import kotlin.time.Duration.Companion.seconds
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ModelManagerLifecycleContractTest {
+    private val testCapacity = object : app.vezuna.llm.DeviceCapacity {
+        override fun totalRamBytes() = Long.MAX_VALUE
+        override fun freeStorageBytes() = Long.MAX_VALUE
+    }
+    private val testAdmission = app.vezuna.llm.ModelLoadAdmission { _, _ -> }
+
     private val pack = ModelPack("a", "A", "a.gguf", "android-a", "ios-a", 1, 1, 4096, "0".repeat(64))
     private class Backend : LocalLlm {
         val events = mutableListOf<String>()
@@ -40,7 +46,7 @@ class ModelManagerLifecycleContractTest {
         val release = CompletableDeferred<Unit>()
         val store = Store(InstalledModel(pack, "a.gguf", 1))
         store.beforeRead = { entered.complete(Unit); release.await() }
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, Backend())
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, Backend(), testCapacity, testAdmission)
         val job = launch { manager.refresh() }
         entered.await()
         assertTrue(manager.state.value.busy)
@@ -52,7 +58,7 @@ class ModelManagerLifecycleContractTest {
     @Test fun failedPrevalidationClearsBusyAndPreservesLegacyLoad() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1))
         val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         manager.select("a")
         assertFails { manager.select("missing") }
         assertFalse(manager.state.value.busy)
@@ -61,7 +67,7 @@ class ModelManagerLifecycleContractTest {
     }
     @Test fun legacyLoadFailureCleansUpAndPreservesAcknowledgedSelection() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         manager.select("a")
         backend.failLoad = true
         assertFailsWith<ModelOperationFailure> { manager.select("a") }
@@ -76,7 +82,7 @@ class ModelManagerLifecycleContractTest {
     @Test fun legacySaveFailureUnloadsAndLeavesSelectionUnknown() = runTest(timeout = 5.seconds) {
         for (mutate in listOf(false, true)) {
             val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-            val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+            val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
             store.onSave = { if (mutate) store.selection = it; error("synthetic") }
             assertFailsWith<ModelOperationFailure> { manager.select("a") }
             assertEquals(listOf("load", "unload"), backend.events)
@@ -87,7 +93,7 @@ class ModelManagerLifecycleContractTest {
     }
     @Test fun legacyFailedReinstallRetainsLoadedModelAndDoesNotUnload() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         manager.select("a")
         store.installAction = { error("synthetic install") }
         assertFailsWith<ModelOperationFailure> { manager.install(pack, "synthetic", 2) }
@@ -98,7 +104,7 @@ class ModelManagerLifecycleContractTest {
     }
     @Test fun legacyRefreshFailurePreservesCleanupAndUnknownAfterFailedNormalization() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         manager.select("a")
         store.selection = "missing"
         store.onSave = { error("synthetic clear") }
@@ -114,7 +120,7 @@ class ModelManagerLifecycleContractTest {
     }
     @Test fun canceledManagerMutexWaiterCannotClearActiveBusy() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
         store.beforeRead = { entered.complete(Unit); release.await() }
         val active = launch { manager.refresh() }; entered.await()
@@ -126,7 +132,7 @@ class ModelManagerLifecycleContractTest {
     }
     @Test fun legacySelectionCancellationKeepsUnknownAndClearsBusyWithoutCompensation() = runTest(timeout = 5.seconds) {
         val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, testAdmission)
         val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
         store.onSave = { store.selection = it; entered.complete(Unit); release.await() }
         val job = launch { manager.select("a") }; entered.await()
@@ -136,4 +142,45 @@ class ModelManagerLifecycleContractTest {
         assertEquals(listOf("load"), backend.events)
     }
 
+    @Test fun deniedReplacementKeepsLegacySelectionAndReadyModel() = runTest {
+        val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
+        var allowed = true
+        val policy = ModelLoadAdmission { _, _ -> if (!allowed) app.vezuna.localization.failMessage(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE) }
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, testCapacity, policy)
+        manager.select("a")
+        allowed = false
+        assertFailsWith<ModelResourceDenial> { manager.select("a") }
+        assertEquals(listOf("load"), backend.events)
+        assertEquals("a", manager.readyModelId())
+        assertEquals(SavedModelSelection.Known("a"), manager.state.value.selection)
+        assertEquals(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE, (manager.state.value.error as app.vezuna.localization.UserText.Key).key)
+        assertFalse(manager.state.value.busy)
+        allowed = true
+        manager.select("a")
+        assertEquals(listOf("load", "unload", "load"), backend.events)
+    }
+    @Test fun coldRefreshKeepsSelectionAndSpecificResourceReason() = runTest {
+        val store = Store(InstalledModel(pack, "a.gguf", 1)); store.selection = "a"
+        val backend = Backend()
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend)
+        manager.refresh()
+        assertEquals(SavedModelSelection.Known("a"), manager.state.value.selection)
+        assertEquals(1, manager.state.value.installed.size)
+        assertEquals(app.vezuna.localization.L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE, (manager.state.value.error as app.vezuna.localization.UserText.Key).key)
+        assertTrue(backend.events.isEmpty())
+    }
+    @Test fun installDenialDoesNotMutateAndLoadDoesNotRequireDiskSpace() = runTest {
+        val store = Store(InstalledModel(pack, "a.gguf", 1)); val backend = Backend()
+        val lowDisk = object : DeviceCapacity {
+            override fun totalRamBytes() = 10L
+            override fun freeStorageBytes() = 0L
+        }
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack)), store, backend, lowDisk, testAdmission)
+        assertFalse(manager.checkFit(pack))
+        assertFailsWith<ModelOperationFailure> { manager.install(pack, "synthetic", 2) }
+        assertEquals(1L, store.entries.single().installedAtEpochSeconds)
+        assertTrue(backend.events.isEmpty()); assertFalse(manager.state.value.busy)
+        manager.select("a")
+        assertEquals(listOf("load"), backend.events)
+    }
 }

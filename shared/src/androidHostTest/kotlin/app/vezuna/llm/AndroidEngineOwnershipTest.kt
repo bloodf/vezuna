@@ -395,6 +395,7 @@ class AndroidEngineOwnershipTest {
         val events = CopyOnWriteArrayList<String>()
         var save: suspend (String?) -> Unit = { selected = it }
         var integrity = true
+        var beforeIntegrity: suspend () -> Unit = {}
         var installAction: suspend () -> Unit = {}
         var deleteAction: suspend () -> Unit = {}
         var read: suspend () -> Unit = {}
@@ -403,8 +404,13 @@ class AndroidEngineOwnershipTest {
         override suspend fun saveSelection(modelId: String?) { events += "save:$modelId"; save(modelId) }
         override suspend fun install(model: InstalledModel, sourcePath: String) { events += "install"; installAction() }
         override suspend fun delete(model: InstalledModel) { events += "delete"; deleteAction(); entries = entries.filterNot { it == model }; if (selected == model.pack.modelId) selected = null }
-        override suspend fun verifyIntegrity(model: InstalledModel) = integrity
-        fun manager(llm: LocalLlm) = InstalledModelManager(ModelCatalog(listOf(a, b)), this, llm)
+        override suspend fun verifyIntegrity(model: InstalledModel): Boolean { beforeIntegrity(); return integrity }
+        var admission = ModelLoadAdmission { _, _ -> }
+        private val capacity = object : DeviceCapacity {
+            override fun totalRamBytes() = Long.MAX_VALUE
+            override fun freeStorageBytes() = Long.MAX_VALUE
+        }
+        fun manager(llm: LocalLlm) = InstalledModelManager(ModelCatalog(listOf(a, b)), this, llm, capacity, admission)
     }
     private suspend fun join(job: Job) = withContext(NonCancellable) { withTimeout(5_000) { job.join() } }
     private suspend fun signal(channel: Channel<Unit>) = withTimeout(5_000) { channel.receive() }
@@ -421,6 +427,58 @@ class AndroidEngineOwnershipTest {
                     }
                 }
             } finally { dispatcher.close() }
+        }
+    }
+
+    @Test fun deniedGuardProducesNoEntryReceiptAndKeepsLease() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            llm.load("a", LlmGenerationSettings()); val previous = llm.lease(); bridge.events.clear()
+            val request = LifecycleRequest(LifecycleCommand.Replace("b", LlmGenerationSettings(), admission = {
+                throw ModelResourceDenial(app.vezuna.localization.message(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE))
+            }), previous)
+            assertFailsWith<ModelResourceDenial> { llm.applyLifecycle(request) }
+            assertEquals(LifecycleDisposition.NoEntry, request.receipt.disposition)
+            assertNull(request.receipt.lease); assertTrue(previous === llm.lease()); assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun admissionSamplesAfterIntegrityFinishes() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store()
+            val allowed = java.util.concurrent.atomic.AtomicBoolean(true)
+            store.admission = ModelLoadAdmission { _, _ -> if (!allowed.get()) app.vezuna.localization.failMessage(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE) }
+            val manager = store.manager(llm); manager.select("a")
+            val lease = llm.lease(); bridge.events.clear(); store.events.clear()
+            val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+            store.beforeIntegrity = { entered.complete(Unit); release.await() }
+            val replacement = async { runCatching { manager.select("b") } }
+            try { entered.await(); allowed.set(false) } finally { release.complete(Unit) }
+            assertTrue(replacement.await().exceptionOrNull() is ModelResourceDenial)
+            assertTrue(lease === llm.lease()); assertEquals("a", manager.readyModelId())
+            assertTrue(bridge.events.isEmpty()); assertTrue(store.events.isEmpty())
+        }
+    }
+
+    @Test fun queuedReplacementSamplesAfterGenerationReturns() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
+            val llm = LlamatikLocalLlm(owner); val store = Store()
+            val allowed = java.util.concurrent.atomic.AtomicBoolean(true)
+            store.admission = ModelLoadAdmission { _, _ -> if (!allowed.get()) app.vezuna.localization.failMessage(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE) }
+            val manager = store.manager(llm); manager.select("a")
+            val lease = llm.lease(); bridge.events.clear(); store.events.clear()
+            val native = Barrier(); bridge.onGenerate = { native.block(); "answer" }
+            val generation = launch { llm.generate("hold") }; native.await()
+            val replacement = async { runCatching { manager.select("b") } }
+            try { signal(queued); allowed.set(false) } finally { native.release(); join(generation) }
+            assertTrue(replacement.await().exceptionOrNull() is ModelResourceDenial)
+            assertTrue(lease === llm.lease())
+            assertEquals("a", manager.readyModelId())
+            assertEquals("a", store.selected)
+            assertTrue(store.events.isEmpty())
+            assertEquals(listOf("generate"), bridge.events.toList())
         }
     }
 
