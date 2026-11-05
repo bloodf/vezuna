@@ -82,7 +82,7 @@ internal fun ColumnScope.DeviceOverview(ctx: RouteContext, data: ProfileData, to
     }
     if (data.vitals.isEmpty) {
         CategoryPanel(Category.ACTIVITY) {
-            EmptyState(Res.drawable.ill_device_link, vitaText(L10nKey.TR_VITALS_EMPTY_TITLE), vitaText(L10nKey.TR_VITALS_EMPTY_BODY))
+            EmptyState(Res.drawable.ill_device_link, vitaText(L10nKey.TR_VITALS_EMPTY_TITLE), vitaText(L10nKey.TR_VITALS_EMPTY_BODY), bodyColor = VezunaTokens.OnCategory)
             PrimaryButton(vitaText(L10nKey.TR_CONNECT_DEVICE), { ctx.navigate(AppScreen.Connections) }, Modifier.fillMaxWidth(), container = VezunaTokens.Pine, content = Color.White)
         }
         return

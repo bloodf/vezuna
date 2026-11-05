@@ -19,13 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -156,11 +153,6 @@ fun TextStyle.cappedScale(max: Float = 1.3f): TextStyle {
 fun singleWordAutoSize(maxFontSize: TextUnit): TextAutoSize =
     TextAutoSize.StepBased(minFontSize = with(LocalDensity.current) { 10.dp.toSp() }, maxFontSize = maxFontSize)
 
-private val LocalCategoryPanel = staticCompositionLocalOf { false }
-
-@Composable
-internal fun onCategoryPanel(): Boolean = LocalCategoryPanel.current && LocalContentColor.current == VezunaTokens.OnCategory
-
 @Composable
 fun CategoryPanel(
     category: Category,
@@ -175,9 +167,7 @@ fun CategoryPanel(
             illustration?.takeIf { decorativeArtShown() }?.let {
                 Image(painterResource(it), contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(width = 120.dp, height = 90.dp))
             }
-            CompositionLocalProvider(LocalCategoryPanel provides true) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), content = content)
-            }
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm), content = content)
         }
     }
     if (onClick != null) {

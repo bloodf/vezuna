@@ -86,17 +86,17 @@ fun SecondaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     icon: DrawableResource? = null,
+    onCategorySurface: Boolean = false,
 ) {
-    val category = onCategoryPanel()
     OutlinedButton(
         onClick = { if (!loading) onClick() },
         enabled = enabled,
         modifier = modifier.heightIn(min = VezunaTokens.RowHeight),
         shape = ButtonShape,
         contentPadding = ButtonPadding,
-        border = BorderStroke(1.dp, if (enabled && category) LocalContentColor.current else if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, if (enabled && onCategorySurface) VezunaTokens.OnCategory else if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = if (category) LocalContentColor.current else MaterialTheme.colorScheme.primary,
+            contentColor = if (onCategorySurface) VezunaTokens.OnCategory else MaterialTheme.colorScheme.primary,
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     ) { ButtonContent(text, icon, loading) }
@@ -104,7 +104,7 @@ fun SecondaryButton(
 
 /** Low-emphasis action, still at least 48dp tall. */
 @Composable
-fun TertiaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, color: Color = if (onCategoryPanel()) LocalContentColor.current else MaterialTheme.colorScheme.primary) {
+fun TertiaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, color: Color = MaterialTheme.colorScheme.primary) {
     TextButton(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = VezunaTokens.TouchTarget)) {
         Text(text, style = MaterialTheme.typography.labelLarge, color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant)
     }
