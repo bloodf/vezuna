@@ -227,7 +227,7 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
                         style = MaterialTheme.typography.displaySmall.cappedScale(),
                         modifier = Modifier.clearOfArt(120.dp).routeFocus().semantics { heading() },
                     )
-                    Text(vitaText(L10nKey.FIRST_PROFILE_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = roles.onHeaderMuted, modifier = Modifier.padding(end = 120.dp, top = VezunaTokens.SpaceSm))
+                    Text(vitaText(L10nKey.FIRST_PROFILE_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = roles.onHeaderMuted, modifier = Modifier.clearOfArt(120.dp).padding(top = VezunaTokens.SpaceSm))
                 }
             }
         }
