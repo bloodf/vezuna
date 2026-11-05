@@ -1440,4 +1440,7 @@ iOS: %2$s</string>
     <string name="em_phone_ios">Medical ID can be reachable from the lock screen if Show When Locked is on. Copy these details into it in the Health app: profile picture > Medical ID.</string>
     <string name="em_more_sub">Allergies, conditions and medications at a glance</string>
 <!-- /Emergency card -->
+    <string name="model_session_superseded">The model session changed. Leave and reopen the application session to use the assistant here.</string>
+    <string name="model_selection_unconfirmed">The saved model selection is unconfirmed. Refresh models to read it, or select a model to save it again.</string>
+    <string name="refresh_models">Refresh models</string>
 </resources>

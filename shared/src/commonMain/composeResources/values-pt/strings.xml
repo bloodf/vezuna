@@ -1440,4 +1440,7 @@ iOS: %2$s</string>
     <string name="em_phone_ios">A Ficha Médica pode ficar acessível na tela de bloqueio se “Mostrar quando bloqueado” estiver ativado. Copie estes dados nela no app Saúde: foto do perfil &gt; Ficha Médica.</string>
     <string name="em_more_sub">Resumo de alergias, condições e medicamentos</string>
 <!-- /Emergency card -->
+    <string name="model_session_superseded">A sessão do modelo mudou. Encerre e reabra a sessão do aplicativo para usar o assistente aqui.</string>
+    <string name="model_selection_unconfirmed">A seleção salva do modelo não está confirmada. Atualize os modelos para consultá-la ou selecione um modelo para salvá-la novamente.</string>
+    <string name="refresh_models">Atualizar modelos</string>
 </resources>

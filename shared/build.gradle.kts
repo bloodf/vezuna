@@ -15,6 +15,7 @@ kotlin {
         namespace = "app.vezuna.shared"
         compileSdk = 37
         minSdk = 26
+        withHostTestBuilder { sourceSetTreeName = "test" }
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }

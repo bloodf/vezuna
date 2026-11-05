@@ -5,6 +5,7 @@ import app.vezuna.localization.UserText
 import app.vezuna.localization.failMessage
 import app.vezuna.localization.message
 import app.vezuna.localization.toUserText
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,14 +85,20 @@ interface ModelFileStore {
     suspend fun verifyIntegrity(model: InstalledModel): Boolean
 }
 
+sealed interface SavedModelSelection {
+    data object Unknown : SavedModelSelection
+    data class Known(val modelId: String?) : SavedModelSelection
+}
+
 data class ModelManagerState(
     val installed: List<InstalledModel> = emptyList(),
     val selectedModelId: String? = null,
+    val selection: SavedModelSelection = SavedModelSelection.Unknown,
+    val metadataNeedsRefresh: Boolean = false,
     val loadedModelId: String? = null,
     val busy: Boolean = false,
     val error: UserText? = null,
     val catalog: ModelCatalog = ModelCatalog.unconfigured(),
-    /** Set when the bundled catalog could not be read; distinct from the intentional empty catalog. */
     val catalogError: UserText? = null,
 )
 
@@ -102,10 +109,112 @@ class InstalledModelManager(
     private val capacity: DeviceCapacity = UnknownDeviceCapacity,
 ) {
     private val mutex = Mutex()
+    private val managed = llm as? ManagedLlmLifecycle
+    private var loadedLease: EngineLease? = null
     var catalog: ModelCatalog = initialCatalog
         private set
     private val mutableState = MutableStateFlow(ModelManagerState(catalog = initialCatalog))
     val state: StateFlow<ModelManagerState> = mutableState.asStateFlow()
+    internal val ownerStatus: StateFlow<EngineOwnerStatus>? get() = managed?.ownerStatus
+
+    internal fun readyModelId(status: EngineOwnerStatus? = ownerStatus?.value): String? =
+        if (managed == null || status is EngineOwnerStatus.Current &&
+            status.readiness == EngineReadiness.KnownLoaded && status.lease === loadedLease)
+            mutableState.value.loadedModelId else null
+
+    private fun checkSession() {
+        if (ownerStatus?.value == EngineOwnerStatus.Superseded) sessionSuperseded()
+    }
+    private fun selection(value: SavedModelSelection) {
+        mutableState.value = mutableState.value.copy(selection = value, selectedModelId = (value as? SavedModelSelection.Known)?.modelId)
+    }
+    private suspend fun <T> external(key: L10nKey, action: suspend () -> T): T {
+        checkSession()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        return try { action() }
+        catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+        catch (expected: ModelOperationFailure) { throw expected }
+        catch (failure: Exception) { throw ModelOperationFailure(failure.toUserText(key), failure) }
+    }
+    private suspend fun saveSelection(id: String?) {
+        checkSession()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        selection(SavedModelSelection.Unknown)
+        external(L10nKey.MODEL_ACTION_FAILED) { files.saveSelection(id) }
+        selection(SavedModelSelection.Known(id))
+    }
+    private suspend fun readInstalled(): List<InstalledModel> {
+        val installed = external(L10nKey.MODEL_RESTORATION_FAILED) { files.installed() }
+            .filter { catalog.byId(it.pack.modelId) == it.pack }
+        mutableState.value = mutableState.value.copy(installed = installed, metadataNeedsRefresh = false)
+        return installed
+    }
+    private suspend fun readSelection(): String? {
+        selection(SavedModelSelection.Unknown)
+        val observed = external(L10nKey.MODEL_RESTORATION_FAILED) { files.savedSelection() }
+        selection(SavedModelSelection.Known(observed))
+        return observed
+    }
+    private suspend fun lifecycle(command: LifecycleCommand, modelId: String? = null) {
+        if (command != LifecycleCommand.Shutdown) checkSession()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        val capability = managed
+        if (capability != null) {
+            val request = LifecycleRequest(command, (capability.ownerStatus.value as? EngineOwnerStatus.Current)?.lease)
+            try { capability.applyLifecycle(request) }
+            finally {
+                // Historical receipts never write the capability's live owner status.
+                when (request.receipt.disposition) {
+                    LifecycleDisposition.LoadAcknowledged -> {
+                        loadedLease = request.receipt.lease
+                        mutableState.value = mutableState.value.copy(loadedModelId = modelId)
+                    }
+                    LifecycleDisposition.ShutdownAcknowledged, LifecycleDisposition.Uncertain -> mutableState.value = mutableState.value.copy(loadedModelId = null)
+                    else -> Unit
+                }
+            }
+        } else {
+            when (command) {
+                LifecycleCommand.Shutdown -> if (mutableState.value.loadedModelId != null) {
+                    external(L10nKey.MODEL_LOADING_FAILED) { llm.unload() }
+                    mutableState.value = mutableState.value.copy(loadedModelId = null)
+                }
+                is LifecycleCommand.Replace -> {
+                    if (mutableState.value.loadedModelId != null) {
+                        external(L10nKey.MODEL_LOADING_FAILED) { llm.unload() }
+                        mutableState.value = mutableState.value.copy(loadedModelId = null)
+                    }
+                    external(L10nKey.MODEL_LOADING_FAILED) { llm.load(command.path, command.settings) }
+                    mutableState.value = mutableState.value.copy(loadedModelId = modelId)
+                }
+            }
+        }
+    }
+    private suspend fun legacyCleanup() {
+        if (managed == null) {
+            try { llm.unload() }
+            catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+            catch (_: Exception) { /* Existing best-effort legacy cleanup. */ }
+            mutableState.value = mutableState.value.copy(loadedModelId = null)
+        }
+    }
+    private suspend fun operation(absorb: Boolean = false, rejectSuperseded: Boolean = true, action: suspend () -> Unit) = mutex.withLock {
+        mutableState.value = mutableState.value.copy(busy = true, error = null)
+        try {
+            if (rejectSuperseded) checkSession()
+            action()
+        } catch (canceled: kotlinx.coroutines.CancellationException) {
+            throw canceled
+        } catch (failure: ModelOperationFailure) {
+            mutableState.value = mutableState.value.copy(error = failure.userText)
+            if (!absorb) throw failure
+        } catch (failure: app.vezuna.localization.VitaMessageException) {
+            mutableState.value = mutableState.value.copy(error = failure.userText)
+            if (!absorb) throw ModelOperationFailure(failure.userText, failure)
+        } finally {
+            mutableState.value = mutableState.value.copy(busy = false)
+        }
+    }
 
     /** Loads the bundled catalog; a failure leaves it empty and sets [ModelManagerState.catalogError]. Call [refresh] afterwards. */
     suspend fun configureCatalog(load: suspend () -> ModelCatalog) {
@@ -124,41 +233,29 @@ class InstalledModelManager(
         }
     }
 
-    suspend fun refresh() = mutex.withLock {
-        val previous = mutableState.value
-        mutableState.value = previous.copy(busy = true, error = null)
+    suspend fun refresh() = operation(absorb = true) {
         try {
-            val installed = files.installed().filter { candidate -> catalog.byId(candidate.pack.modelId) == candidate.pack }
-            val savedSelection = files.savedSelection()
-            val selected = savedSelection.takeIf { id -> installed.any { it.pack.modelId == id } }
-            if (selected != savedSelection) files.saveSelection(null)
-            var loaded = previous.loadedModelId.takeIf { it == selected && installed.any { model -> model.pack.modelId == it } }
-            var loadError: UserText? = null
-            if (loaded == null && previous.loadedModelId != null) llm.unload()
-            if (selected != null && loaded == null) {
+            val installed = readInstalled()
+            val observed = readSelection()
+            val selected = observed.takeIf { id -> installed.any { it.pack.modelId == id } }
+            if (selected != observed) saveSelection(null)
+            if (selected == null) {
+                lifecycle(LifecycleCommand.Shutdown)
+            } else if (readyModelId() != selected) {
                 val model = installed.first { it.pack.modelId == selected }
                 try {
-                    if (!files.verifyIntegrity(model)) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-                    llm.load(model.localPath, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength)))
-                    loaded = selected
-                } catch (cancellation: kotlinx.coroutines.CancellationException) {
-                    throw cancellation
-                } catch (error: Throwable) {
-                    runCatching { llm.unload() }
-                    loadError = message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected)
+                    if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
+                    lifecycle(LifecycleCommand.Replace(model.localPath, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength))), selected)
+                } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+                catch (failure: ModelOperationFailure) {
+                    throw ModelOperationFailure(message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected), failure)
+                } catch (failure: app.vezuna.localization.VitaMessageException) {
+                    throw ModelOperationFailure(message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected), failure)
                 }
             }
-            mutableState.value = previous.copy(installed = installed, selectedModelId = selected, loadedModelId = loaded, busy = false, error = loadError)
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-            throw cancellation
-        } catch (error: Throwable) {
-            runCatching { llm.unload() }
-            mutableState.value = previous.copy(
-                busy = false,
-                loadedModelId = null,
-                error = error.toUserText(L10nKey.MODEL_RESTORATION_FAILED),
-            )
-        }
+        } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+        catch (failure: ModelOperationFailure) { legacyCleanup(); throw failure }
+        catch (failure: app.vezuna.localization.VitaMessageException) { legacyCleanup(); throw failure }
     }
 
     /** Runs before the pack is downloaded; on failure the reason is put in [ModelManagerState.error] and false is returned. */
@@ -170,75 +267,46 @@ class InstalledModelManager(
         false
     }
 
-    suspend fun install(pack: ModelPack, sourcePath: String, installedAtEpochSeconds: Long) = mutex.withLock {
+    suspend fun install(pack: ModelPack, sourcePath: String, installedAtEpochSeconds: Long) = operation() {
         if (catalog.byId(pack.modelId) != pack) failMessage(L10nKey.MODEL_NOT_IN_CATALOG)
-        mutableState.value = mutableState.value.copy(busy = true, error = null)
-        try {
-            ModelFitPolicy.requireFits(pack, capacity, delivered = true)
-            val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
-            // Verified atomic replace first: a failed install keeps the loaded model and the old file.
-            files.install(model, sourcePath)
-            if (mutableState.value.loadedModelId == pack.modelId) {
-                llm.unload()
-                mutableState.value = mutableState.value.copy(loadedModelId = null)
-            }
-            if (mutableState.value.selectedModelId == pack.modelId) files.saveSelection(pack.modelId)
-            mutableState.value = mutableState.value.copy(installed = files.installed(), busy = false)
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-            throw cancellation
-        } catch (error: Throwable) {
-            mutableState.value = mutableState.value.copy(
-                busy = false,
-                error = error.toUserText(L10nKey.MODEL_INSTALLATION_FAILED),
-            )
-            throw error
-        }
+        ModelFitPolicy.requireFits(pack, capacity, delivered = true)
+        val model = InstalledModel(pack, pack.fileName, installedAtEpochSeconds)
+        val replacingLoaded = mutableState.value.loadedModelId == pack.modelId
+        if (managed != null && (replacingLoaded || (ownerStatus?.value as? EngineOwnerStatus.Current)?.readiness == EngineReadiness.Uncertain)) lifecycle(LifecycleCommand.Shutdown)
+        checkSession()
+        mutableState.value = mutableState.value.copy(metadataNeedsRefresh = true)
+        external(L10nKey.MODEL_INSTALLATION_FAILED) { files.install(model, sourcePath) }
+        if (managed == null && replacingLoaded) lifecycle(LifecycleCommand.Shutdown)
+        if ((mutableState.value.selection as? SavedModelSelection.Known)?.modelId == pack.modelId) saveSelection(pack.modelId)
+        readInstalled()
     }
 
-    suspend fun select(modelId: String, settings: LlmGenerationSettings = LlmGenerationSettings()) = mutex.withLock {
-        val model = files.installed().firstOrNull { it.pack.modelId == modelId && catalog.byId(modelId) == it.pack }
-            ?: failMessage(L10nKey.INSTALL_MODEL_FIRST)
+    suspend fun select(modelId: String, settings: LlmGenerationSettings = LlmGenerationSettings()) = operation() {
+        val model = readInstalled().firstOrNull { it.pack.modelId == modelId } ?: failMessage(L10nKey.INSTALL_MODEL_FIRST)
         if (settings.contextLength > model.pack.maximumContextLength) failMessage(L10nKey.CONTEXT_EXCEEDS_MODEL_LIMIT)
-        mutableState.value = mutableState.value.copy(busy = true, error = null)
         try {
-            if (!files.verifyIntegrity(model)) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-            if (mutableState.value.loadedModelId != null) {
-                llm.unload()
-                mutableState.value = mutableState.value.copy(loadedModelId = null)
-            }
-            llm.load(model.localPath, settings)
-            files.saveSelection(modelId)
-            mutableState.value = mutableState.value.copy(busy = false, selectedModelId = modelId, loadedModelId = modelId)
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-            throw cancellation
-        } catch (error: Throwable) {
-            runCatching { llm.unload() }
-            mutableState.value = mutableState.value.copy(
-                busy = false,
-                loadedModelId = null,
-                error = error.toUserText(L10nKey.MODEL_LOADING_FAILED),
-            )
-            throw error
-        }
+            if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
+            lifecycle(LifecycleCommand.Replace(model.localPath, settings), modelId)
+            saveSelection(modelId)
+        } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+        catch (failure: ModelOperationFailure) { legacyCleanup(); throw failure }
+        catch (failure: app.vezuna.localization.VitaMessageException) { legacyCleanup(); throw failure }
     }
 
-    suspend fun unload() = mutex.withLock {
-        if (mutableState.value.loadedModelId != null) llm.unload()
-        mutableState.value = mutableState.value.copy(loadedModelId = null)
-    }
+    suspend fun unload() = operation(rejectSuperseded = false) { lifecycle(LifecycleCommand.Shutdown) }
 
-    suspend fun delete(modelId: String) = mutex.withLock {
-        val model = files.installed().firstOrNull { it.pack.modelId == modelId } ?: return@withLock
-        if (mutableState.value.loadedModelId == modelId) {
-            llm.unload()
-            mutableState.value = mutableState.value.copy(loadedModelId = null)
-        }
-        if (mutableState.value.selectedModelId == modelId) files.saveSelection(null)
-        files.delete(model)
-        mutableState.value = mutableState.value.copy(
-            installed = files.installed(),
-            selectedModelId = mutableState.value.selectedModelId.takeUnless { it == modelId },
-            loadedModelId = mutableState.value.loadedModelId.takeUnless { it == modelId },
-        )
+    suspend fun delete(modelId: String) = operation() {
+        val model = readInstalled().firstOrNull { it.pack.modelId == modelId } ?: return@operation
+        if (mutableState.value.selection == SavedModelSelection.Unknown) readSelection()
+        if (mutableState.value.loadedModelId == modelId || (ownerStatus?.value as? EngineOwnerStatus.Current)?.readiness == EngineReadiness.Uncertain) lifecycle(LifecycleCommand.Shutdown)
+        if (mutableState.value.selectedModelId == modelId) saveSelection(null)
+        checkSession()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        val before = mutableState.value.selection
+        selection(SavedModelSelection.Unknown)
+        mutableState.value = mutableState.value.copy(metadataNeedsRefresh = true)
+        external(L10nKey.MODEL_ACTION_FAILED) { files.delete(model) }
+        if (before is SavedModelSelection.Known) selection(SavedModelSelection.Known(before.modelId.takeUnless { it == modelId }))
+        readInstalled()
     }
 }
