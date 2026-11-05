@@ -75,6 +75,6 @@ class StreamingChatTest {
 private class ScriptedLlm(private val stream: Flow<String>) : LocalLlm {
     override suspend fun load(modelPath: String, settings: LlmGenerationSettings) = Unit
     override suspend fun generate(prompt: String): String = ""
-    override fun generateStream(prompt: String): Flow<String> = stream
+    override fun generateStream(prompt: app.vezuna.llm.HealthPrompt): Flow<String> = stream
     override suspend fun unload() = Unit
 }

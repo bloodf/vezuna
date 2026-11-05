@@ -29,6 +29,7 @@ internal interface AndroidLlamaBridge {
     fun params(settings: LlmGenerationSettings)
     fun init(path: String): Boolean
     fun generate(prompt: String): String
+    fun render(messages: List<Pair<String, String>>): String? = null
     fun stream(prompt: String, callbacks: GenStream)
     fun cancel()
     fun shutdown()
@@ -42,6 +43,7 @@ private object NativeLlamaBridge : AndroidLlamaBridge {
         numThreads = 4, useMmap = true, flashAttention = false, gpuLayers = 0, batchSize = 512,
     )
     override fun init(path: String) = LlamaBridge.initGenerateModel(path)
+    override fun render(messages: List<Pair<String, String>>) = LlamaBridge.applyChatTemplate(messages, true)
     override fun generate(prompt: String) = LlamaBridge.generate(prompt)
     override fun stream(prompt: String, callbacks: GenStream) = LlamaBridge.generateStream(prompt, callbacks)
     override fun cancel() = LlamaBridge.nativeCancelGenerate()
@@ -65,6 +67,7 @@ class LlamatikLocalLlm internal constructor(private val owner: AndroidEngineOwne
     internal fun lease() = (ownerStatus.value as? EngineOwnerStatus.Current)?.lease
     override suspend fun generate(prompt: String): String = owner.generate(this, lease(), prompt)
     override fun generateStream(prompt: String): Flow<String> = owner.stream(this, prompt)
+    override fun generateStream(prompt: HealthPrompt): Flow<String> = owner.streamHealth(this, prompt)
 }
 
 /** Hooks only observe scheduling boundaries; tests inject positive barriers without replacing owner logic. */
@@ -84,6 +87,7 @@ internal class AndroidEngineOwner(
     private var holder: LlamatikLocalLlm? = null
     private var lease: EngineLease? = null
     private var readiness = EngineReadiness.NotLoaded
+    private var healthSettings: LlmGenerationSettings? = null
     private var active: Attempt? = null
     private enum class Phase { Waiting, Calling, Terminal, Returned }
     private class Attempt(val generation: Boolean) {
@@ -171,11 +175,13 @@ internal class AndroidEngineOwner(
                             if (holder !== wrapper) holder?.publish(EngineOwnerStatus.Superseded)
                             holder = wrapper
                             lease = EngineLease()
+                            healthSettings = null
                             wrapper.publish(EngineOwnerStatus.Current(checkNotNull(lease), EngineReadiness.NotLoaded))
                         }
                         receipt = receipt.copy(lease = lease)
                     }
                     fun shutdown() {
+                        synchronized(control) { healthSettings = null }
                         receipt = receipt.copy(entered = true, lastStage = NativeStage.Shutdown, disposition = LifecycleDisposition.Uncertain)
                         synchronized(control) { publish(wrapper, EngineReadiness.Uncertain) }
                         bridge.shutdown()
@@ -195,7 +201,10 @@ internal class AndroidEngineOwner(
                         bridge.params(command.settings)
                         check(bridge.init(command.path)) { "Model initialization failed" }
                         receipt = receipt.copy(disposition = LifecycleDisposition.LoadAcknowledged)
-                        synchronized(control) { publish(wrapper, EngineReadiness.KnownLoaded) }
+                        synchronized(control) {
+                            healthSettings = command.settings.takeIf { command.verifiedDigest?.sha256 == QWEN_SHA256 }
+                            publish(wrapper, EngineReadiness.KnownLoaded)
+                        }
                     }
                 } catch (canceled: CancellationException) {
                     throw canceled
@@ -220,7 +229,30 @@ internal class AndroidEngineOwner(
         }
     }
 
-    fun stream(wrapper: LlamatikLocalLlm, prompt: String): Flow<String> = callbackFlow {
+    fun streamHealth(wrapper: LlamatikLocalLlm, prompt: HealthPrompt): Flow<String> = streamPrepared(wrapper) {
+        val settings = synchronized(control) { healthSettings } ?: failMessage(L10nKey.PROMPT_UNSUPPORTED)
+        if (!safeBmp(prompt.system) || prompt.system.any { it == '<' || it == '>' } || !safeBmp(prompt.userData) ||
+            prompt.userData.any { it == '<' || it == '>' || it == '\n' || it == '\r' }) {
+            failMessage(L10nKey.PROMPT_UNSUPPORTED)
+        }
+        val rendered = bridge.render(listOf("system" to prompt.system, "user" to prompt.userData))
+        val expected = "<|im_start|>system\n${prompt.system}<|im_end|>\n" +
+            "<|im_start|>user\n${prompt.userData}<|im_end|>\n<|im_start|>assistant\n"
+        if (rendered != expected || !safeBmp(rendered)) failMessage(L10nKey.PROMPT_UNSUPPORTED)
+        val capacity = settings.contextLength.toLong()
+        val generation = settings.maxTokens.toLong()
+        if (capacity <= 0 || generation <= 0 || capacity < generation + 16L ||
+            rendered.encodeToByteArray().size.toLong() > capacity - generation - 16L) {
+            failMessage(L10nKey.PROMPT_TOO_LARGE)
+        }
+        rendered
+    }
+
+    private fun safeBmp(value: String): Boolean = value.none { it == '\u0000' || it.isSurrogate() }
+
+    fun stream(wrapper: LlamatikLocalLlm, prompt: String): Flow<String> = streamPrepared(wrapper) { prompt }
+
+    private fun streamPrepared(wrapper: LlamatikLocalLlm, prepare: () -> String): Flow<String> = callbackFlow {
         val expected = wrapper.lease() // Captured at collection, before waiting.
         val attempt = Attempt(true)
         val callbacks = object : GenStream {
@@ -243,6 +275,8 @@ internal class AndroidEngineOwner(
         launch {
             try {
                 work(attempt) {
+                    synchronized(control) { requireReady(wrapper, expected) }
+                    val prompt = prepare()
                     synchronized(control) { requireReady(wrapper, expected); calling(attempt) }
                     bridge.stream(prompt, callbacks)
                 }
@@ -252,3 +286,5 @@ internal class AndroidEngineOwner(
         awaitClose { cancel(attempt) }
     }.buffer(Channel.UNLIMITED)
 }
+
+private const val QWEN_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"

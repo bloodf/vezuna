@@ -24,6 +24,63 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AndroidEngineOwnershipTest {
+    private val CANDIDATE = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+
+    @Test fun healthRenderBudgetAndPolicyAreBoundToLease() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val store = Store(CANDIDATE); val manager = store.manager(llm)
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            val empty = HealthPrompt("rules", "")
+            val overhead = bridge.onRender(listOf("system" to empty.system, "user" to empty.userData))!!.encodeToByteArray().size
+            val limit = 512 - 100 - 16 - overhead
+            bridge.events.clear()
+            llm.generateStream(HealthPrompt("rules", "x".repeat(limit))).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(HealthPrompt("rules", "x".repeat(limit + 1))).collect() }
+            assertEquals(listOf("render"), bridge.events.toList())
+            bridge.onRender = { "unexpected" }
+            assertFailsWith<VitaMessageException> { llm.generateStream(empty).collect() }
+            llm.load("unverified", LlmGenerationSettings())
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(empty).collect() }
+            assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun verifiedLoadAndReplacementFenceHealthPolicy() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val owner = AndroidEngineOwner(bridge, dispatcher)
+            val first = LlamatikLocalLlm(owner); val second = LlamatikLocalLlm(owner)
+            val store = Store(CANDIDATE); val manager = store.manager(first)
+            store.integrity = false
+            assertFailsWith<ModelOperationFailure> { manager.select("a") }
+            assertTrue(bridge.events.isEmpty())
+            store.integrity = true
+            manager.select("a")
+            first.generateStream(HealthPrompt("rules", "data")).collect()
+            store.manager(second).select("a", LlmGenerationSettings(contextLength = 256, maxTokens = 220))
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { second.generateStream(HealthPrompt("rules", "data")).collect() }
+            assertFailsWith<VitaMessageException> { first.generateStream(HealthPrompt("rules", "data")).collect() }
+            assertFalse(bridge.events.contains("stream"))
+        }
+    }
+
+    @Test fun cancellationDuringHealthRenderDoesNotEnterOrCancelGeneration() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val render = Barrier(); val original = bridge.onRender
+            bridge.onRender = { messages -> render.block(); original(messages) }
+            bridge.events.clear()
+            val job = launch { llm.generateStream(HealthPrompt("rules", "data")).collect() }
+            render.await(); job.cancel(); render.release(); join(job)
+            assertEquals(listOf("render"), bridge.events.toList())
+        }
+    }
+
     @Test fun injectedAdapterStartsWithoutJni() = boundedTest {
         val calls = mutableListOf<String>()
         val bridge = object : AndroidLlamaBridge {
@@ -59,6 +116,10 @@ class AndroidEngineOwnershipTest {
         var onGenerate: () -> String = { "answer" }
         var onStream: (GenStream) -> Unit = { it.onDelta("answer"); it.onComplete() }
         var onCancel: () -> Unit = {}
+        var onRender: (List<Pair<String, String>>) -> String? = { messages ->
+            "<|im_start|>system\n${messages[0].second}<|im_end|>\n<|im_start|>user\n${messages[1].second}<|im_end|>\n<|im_start|>assistant\n"
+        }
+        override fun render(messages: List<Pair<String, String>>): String? { events += "render"; return onRender(messages) }
         override fun params(settings: LlmGenerationSettings) { events += "params"; onParams() }
         override fun init(path: String): Boolean { events += "init:$path"; return onInit() }
         override fun shutdown() { events += "shutdown"; onShutdown() }
@@ -66,13 +127,14 @@ class AndroidEngineOwnershipTest {
         override fun stream(prompt: String, callbacks: GenStream) { events += "stream"; onStream(callbacks) }
         override fun cancel() { events += "cancel"; onCancel() }
     }
-    private class Store : ModelFileStore {
-        val a = ModelPack("a", "A", "a.gguf", "android-a", "ios-a", 1, 1, 4096, "0".repeat(64))
+    private class Store(sha: String = "0".repeat(64)) : ModelFileStore {
+        val a = ModelPack("a", "A", "a.gguf", "android-a", "ios-a", 1, 1, 4096, sha)
         val b = a.copy(modelId = "b", fileName = "b.gguf", displayName = "B")
         var entries = listOf(InstalledModel(a, "a.gguf", 1), InstalledModel(b, "b.gguf", 1))
         var selected: String? = null
         val events = CopyOnWriteArrayList<String>()
         var save: suspend (String?) -> Unit = { selected = it }
+        var integrity = true
         var installAction: suspend () -> Unit = {}
         var deleteAction: suspend () -> Unit = {}
         var read: suspend () -> Unit = {}
@@ -81,7 +143,7 @@ class AndroidEngineOwnershipTest {
         override suspend fun saveSelection(modelId: String?) { events += "save:$modelId"; save(modelId) }
         override suspend fun install(model: InstalledModel, sourcePath: String) { events += "install"; installAction() }
         override suspend fun delete(model: InstalledModel) { events += "delete"; deleteAction(); entries = entries.filterNot { it == model }; if (selected == model.pack.modelId) selected = null }
-        override suspend fun verifyIntegrity(model: InstalledModel) = true
+        override suspend fun verifyIntegrity(model: InstalledModel) = integrity
         fun manager(llm: LocalLlm) = InstalledModelManager(ModelCatalog(listOf(a, b)), this, llm)
     }
     private suspend fun join(job: Job) = withContext(NonCancellable) { withTimeout(5_000) { job.join() } }
@@ -297,7 +359,7 @@ class AndroidEngineOwnershipTest {
         fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED); val canceled = CompletableDeferred<Unit>()
             val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
-            val store = Store(); store.selected = "a"; val manager = store.manager(llm)
+            val store = Store(CANDIDATE); store.selected = "a"; val manager = store.manager(llm)
             val repository = InMemoryVezunaRepository()
             val now = Instant.parse("2026-01-01T00:00:00Z")
             repository.createProfile(Profile("A", "A", createdAt = now)); repository.createProfile(Profile("B", "B", createdAt = now))

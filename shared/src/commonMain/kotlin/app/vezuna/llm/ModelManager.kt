@@ -245,7 +245,7 @@ class InstalledModelManager(
                 val model = installed.first { it.pack.modelId == selected }
                 try {
                     if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-                    lifecycle(LifecycleCommand.Replace(model.localPath, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength))), selected)
+                    lifecycle(LifecycleCommand.Replace(model.localPath, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength)), VerifiedModelDigest(model.pack.sha256)), selected)
                 } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
                 catch (failure: ModelOperationFailure) {
                     throw ModelOperationFailure(message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected), failure)
@@ -286,7 +286,7 @@ class InstalledModelManager(
         if (settings.contextLength > model.pack.maximumContextLength) failMessage(L10nKey.CONTEXT_EXCEEDS_MODEL_LIMIT)
         try {
             if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-            lifecycle(LifecycleCommand.Replace(model.localPath, settings), modelId)
+            lifecycle(LifecycleCommand.Replace(model.localPath, settings, VerifiedModelDigest(model.pack.sha256)), modelId)
             saveSelection(modelId)
         } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
         catch (failure: ModelOperationFailure) { legacyCleanup(); throw failure }
