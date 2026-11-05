@@ -26,6 +26,7 @@ class AndroidSecureVault(
         directory,
         KeyStore.getInstance("AndroidKeyStore").apply { load(null) },
     )
+    override val supportsAcknowledgedWrites: Boolean = true
     private val files = GenerationalFileStore(directory)
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope {
@@ -55,6 +56,8 @@ class AndroidSecureVault(
 
     override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): VaultWriteResult =
         files.writeAcknowledged(safeName(key), ciphertext)
+
+    override suspend fun acknowledgeCurrent(key: String): VaultWriteResult = files.acknowledgeCurrent(safeName(key))
 
     override suspend fun readGeneration(key: String): VaultGeneration? = files.readGeneration(safeName(key))
 

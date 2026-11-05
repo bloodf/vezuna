@@ -12,6 +12,8 @@ data class CipherEnvelope(
 )
 
 interface SecureVault {
+    /** Only classified transactional writes may rely on this capability. Legacy callers use a separate no-cursor API. */
+    val supportsAcknowledgedWrites: Boolean get() = false
     suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope
     suspend fun decrypt(envelope: CipherEnvelope): ByteArray
 
@@ -27,6 +29,10 @@ interface SecureVault {
     /** A normal legacy write return is not a durability acknowledgement. Unsupported backends refuse before writing. */
     suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): VaultWriteResult =
         VaultWriteResult.Rejected(IllegalStateException("Acknowledged writes unsupported"))
+
+    /** Re-establishes the visible whole generation's storage acknowledgement without writing new bytes. */
+    suspend fun acknowledgeCurrent(key: String): VaultWriteResult =
+        VaultWriteResult.Rejected(IllegalStateException("Recovery acknowledgement unsupported"))
 
     /** Unlike [read], this exposes missing-current recovery as one whole previous generation. */
     suspend fun readGeneration(key: String): VaultGeneration? = read(key)?.let { VaultGeneration(it, false) }

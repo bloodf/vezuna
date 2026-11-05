@@ -32,6 +32,7 @@ import kotlin.test.assertTrue
 
 /** In-memory vault with toy crypto and a previous generation per key, like the Android file store. */
 internal class GenerationalMemoryVault : SecureVault {
+    override val supportsAcknowledgedWrites: Boolean = true
     val current = mutableMapOf<String, ByteArray>()
     val previous = mutableMapOf<String, ByteArray>()
     val quarantined = mutableMapOf<String, ByteArray>()

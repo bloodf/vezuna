@@ -37,12 +37,8 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
             throw error
         } catch (error: StorageSchemaTooNewException) {
             throw error
-        } catch (error: app.vezuna.security.VaultUnreadableException) {
-            if (error.failure != app.vezuna.security.VaultFailure.CORRUPT) throw error
-            onUnreadable(error)
-            if (!vault.quarantineCurrent(key(profileId))) blocked += profileId
-            return null
         } catch (error: Exception) {
+            if (error is app.vezuna.security.VaultUnreadableException && error.failure != app.vezuna.security.VaultFailure.CORRUPT) throw error
             onUnreadable(error)
             val previous = vault.readPrevious(key(profileId))
             val recovered = previous?.let {
@@ -82,17 +78,29 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
     }
 
     /** Legacy callers keep the entire local state. Paging uses [commit] for classified acknowledgement. */
-    suspend fun save(profileId: String, vitals: ProfileVitals) {
+    suspend fun save(profileId: String, vitals: ProfileVitals) { saveLegacy(profileId, vitals) }
+
+    /** No cursor/provenance input and no transactional receipt. Keeps local state exactly as read. */
+    internal suspend fun saveLegacy(profileId: String, vitals: ProfileVitals): StoredVitals {
         val old = loadStored(profileId)?.value ?: StoredVitals()
         assertPreservable(profileId)
         val next = old.copy(clinical = vitals, revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
         writeIndex(readIndex() + profileId)
         try { vault.write(key(profileId), encode(profileId, next)) }
         catch (error: Exception) { blocked += profileId; throw error }
+        return next
     }
+
+    internal suspend fun acknowledgeCurrent(profileId: String): Boolean {
+        assertPreservable(profileId, allowBlocked = true)
+        return vault.supportsAcknowledgedWrites && vault.acknowledgeCurrent(key(profileId)) == VaultWriteResult.Acknowledged
+    }
+
+    internal fun clearResolvedBlock(profileId: String) { blocked -= profileId }
 
     internal suspend fun commit(profileId: String, value: StoredVitals): VaultWriteResult {
         assertPreservable(profileId)
+        if (!vault.supportsAcknowledgedWrites) return VaultWriteResult.Rejected(IllegalStateException("Transactional acknowledgement unsupported"))
         val bytes = encode(profileId, value)
         // Discovery metadata precedes the sole authoritative data/cursor write.
         try { writeIndex(readIndex() + profileId) }

@@ -106,6 +106,8 @@ class VaultBackedRepository(
     private val blockedVitals = mutableSetOf<String>()
     private val uncertainVitals = mutableSetOf<String>()
     private val pendingReplacements = mutableSetOf<String>()
+    private data class PendingVitals(val profileId: String, val oldCommitId: String, val oldRevision: Long, val newRevision: Long)
+    private val pendingVitals = mutableMapOf<String, PendingVitals>()
     // Keys whose corrupt current file was replaced by the previous generation; quarantined before the next write of that key.
     private val pendingQuarantine = mutableSetOf<String>()
     // Index entries whose record is missing; carried forward in the index so their vitals and files are never swept.
@@ -142,7 +144,8 @@ class VaultBackedRepository(
 
     /** Called once by the app before any controller can observe profiles. */
     suspend fun load() = mutex.withLock {
-        if (!initialized) restore()
+        if (!initialized) try { restore() }
+        catch (future: StorageSchemaTooNewException) { throw VaultUnreadableException(VaultFailure.SCHEMA_NEWER, future) }
     }
 
     /**
@@ -435,16 +438,37 @@ class VaultBackedRepository(
 
     private suspend fun beginReplacement(id: String) {
         vitalsStore.assertPreservable(id)
+        if (!vault.supportsAcknowledgedWrites) check((vitalsStore.loadStored(id)?.value?.local ?: WeightLocalState()) == WeightLocalState()) {
+            "A backend without acknowledgement cannot replace transactional local state"
+        }
+        val existingIntent = vault.read(replacementKey(id))
+        if (existingIntent != null && !existingIntent.contentEquals(byteArrayOf(1))) throw StorageSchemaTooNewException(Int.MAX_VALUE, 1)
         if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == id) vitalsSyncGeneration += 1
         pendingReplacements += id
-        val outcome = vault.writeAcknowledged(replacementKey(id), byteArrayOf(1))
-        check(outcome == VaultWriteResult.Acknowledged) { "Replacement intent was not acknowledged" }
+        if (vault.supportsAcknowledgedWrites) {
+            val outcome = vault.writeAcknowledged(replacementKey(id), byteArrayOf(1))
+            check(outcome == VaultWriteResult.Acknowledged) { "Replacement intent was not acknowledged" }
+        } else vault.write(replacementKey(id), byteArrayOf(1))
     }
 
     private suspend fun replaceVitalsLocked(id: String, clinical: ProfileVitals) {
         val old = vitalsStore.loadStored(id)?.value ?: StoredVitals()
         val next = StoredVitals(clinical = clinical.copy(lastSync = null), revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
-        check(vitalsStore.commit(id, next) == VaultWriteResult.Acknowledged) { "Replacement was not acknowledged" }
+        if (vault.supportsAcknowledgedWrites) {
+            val result = vitalsStore.commit(id, next)
+            if (result != VaultWriteResult.Acknowledged) {
+                val cause = when (result) {
+                    is VaultWriteResult.Rejected -> result.cause
+                    is VaultWriteResult.Indeterminate -> result.cause
+                    VaultWriteResult.Acknowledged -> null
+                }
+                if (cause is CancellationException) throw cause
+                error("Replacement was not acknowledged")
+            }
+        } else {
+            check(old.local == WeightLocalState()) { "Transactional state requires acknowledged replacement" }
+            vitalsStore.saveLegacy(id, next.clinical)
+        }
         vitals[id] = next.clinical
         // Intent removal failure leaves the profile blocked, including after restart.
         vault.delete(replacementKey(id))
@@ -465,7 +489,7 @@ class VaultBackedRepository(
         catch (_: Exception) { false }
     }
 
-    private fun replacementKey(id: String) = "repository-vitals-replacement-$id-v1"
+    private fun replacementKey(id: String) = "repository-replacement-intent-$id-v1"
 
     override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         ensureInitialized()
@@ -485,19 +509,55 @@ class VaultBackedRepository(
         val updated = conservativeVitals(vitals[id] ?: ProfileVitals(), batch, now, context.zone)
         // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
         val old = vitalsStore.loadStored(id)?.value ?: StoredVitals()
-        val next = old.copy(clinical = updated, revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
-        val result = vitalsStore.commit(id, next)
-        if (result != VaultWriteResult.Acknowledged) {
-            if (result is VaultWriteResult.Indeterminate) { vitalsSyncGeneration += 1; blockedVitals += id; uncertainVitals += id }
+        var next = old.copy(clinical = updated, revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        // Existing nonpaging callers cannot propose or advance local state. Unsupported backends retain that legacy contract.
+        val result = if (vault.supportsAcknowledgedWrites) vitalsStore.commit(id, next) else {
+            try { next = vitalsStore.saveLegacy(id, updated) }
+            catch (error: Exception) { blockedVitals += id; uncertainVitals += id; throw error }
+            null
+        }
+        if (result != null && result != VaultWriteResult.Acknowledged) {
+            if (result is VaultWriteResult.Indeterminate) {
+                vitalsSyncGeneration += 1; blockedVitals += id; uncertainVitals += id
+                pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+            }
+            if (result is VaultWriteResult.Indeterminate && result.cause is CancellationException) throw result.cause
             error("Vitals write was not acknowledged")
         }
         vitals[id] = updated
         records[id] = records.getValue(id).copy(vitals = ProfileVitals())
         vitalsSyncGeneration += 1
         try { if (healthLinkId != id) persistHealthLink(id) }
-        catch (error: Exception) { blockedVitals += id; throw error }
+        catch (error: Exception) {
+            blockedVitals += id
+            pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+            throw error
+        }
         currentCoroutineContext().ensureActive()
         VitalsSyncCommit(DeviceVitals.storedCount(updated, batch), VitalsSyncContext(id, vitalsSyncGeneration, updated.lastSync, context.zone))
+    }
+
+    override suspend fun resolveVitalsWrite(operationId: String): Boolean = mutex.withLock {
+        val pending = pendingVitals[operationId] ?: return@withLock false
+        val id = pending.profileId
+        if (id in pendingReplacements) return@withLock false
+        try {
+            if (!vitalsStore.acknowledgeCurrent(id)) return@withLock false
+            val saved = vitalsStore.loadStored(id)?.value ?: return@withLock false
+            val isCandidate = saved.commitId == operationId && saved.revision == pending.newRevision
+            val isOld = saved.commitId == pending.oldCommitId && saved.revision == pending.oldRevision
+            if (!isCandidate && !isOld) return@withLock false
+            val link = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+            healthLinkId = link
+            vitals[id] = saved.clinical
+            vitalsSyncGeneration += 1
+            vitalsStore.clearResolvedBlock(id)
+            blockedVitals -= id
+            uncertainVitals -= id
+            pendingVitals.remove(operationId)
+            true
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
     }
 
     private fun checkVitalsAvailable(id: String) {
@@ -520,22 +580,25 @@ class VaultBackedRepository(
 
     override suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome = commitVitals(state) { old ->
         val reduced = WeightChanges.reduce(old.clinical, old.local, page)
-        old.copy(clinical = reduced.vitals, local = reduced.local)
+        old.copy(clinical = reduced.vitals, local = reduced.local) to reduced.storedCount
     }
 
     override suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome {
         require(window.zone == state.context.zone) { "Aggregate zone changed" }
-        return commitVitals(state) { old -> old.copy(clinical = DeviceVitals.ingestAggregates(old.clinical, window)) }
+        return commitVitals(state) { old ->
+            val clinical = DeviceVitals.ingestAggregates(old.clinical, window)
+            old.copy(clinical = clinical) to (window.steps.distinctBy { it.date }.count { item -> clinical.steps.any { it.date == item.date } } + window.heartRate.distinctBy { it.start }.count { item -> clinical.heartRateHourly.any { it.start == item.start } }) }
     }
 
-    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> StoredVitals): VitalsWriteOutcome = mutex.withLock {
+    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> Pair<StoredVitals, Int>): VitalsWriteOutcome = mutex.withLock {
         try { validateVitals(state.context) } catch (_: IllegalStateException) { return@withLock VitalsWriteOutcome.Rejected("stale or blocked") }
         val id = state.context.profileId
         val old = vitalsStore.loadStored(id)?.value ?: StoredVitals(clinical = vitals[id] ?: ProfileVitals())
         vitalsSyncGeneration += 1
         if (old.revision != state.revision) return@withLock VitalsWriteOutcome.Rejected("revision")
-        val next = try { fold(old).copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString()) }
+        val folded = try { fold(old) }
             catch (_: IllegalArgumentException) { return@withLock VitalsWriteOutcome.Rejected("invalid page") }
+        val next = folded.first.copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
         val result = vitalsStore.commit(id, next)
         // No provider reads here. Finish outcome publication even if cancellation arrived during an acknowledged write.
         val active = currentCoroutineContext().isActive
@@ -545,6 +608,7 @@ class VaultBackedRepository(
                 is VaultWriteResult.Indeterminate -> {
                     blockedVitals += id
                     uncertainVitals += id
+                    pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
                     VitalsWriteOutcome.Indeterminate(next.commitId)
                 }
                 VaultWriteResult.Acknowledged -> {
@@ -552,8 +616,11 @@ class VaultBackedRepository(
                     records[id] = records.getValue(id).copy(vitals = ProfileVitals())
                     var usable = active
                     try { if (healthLinkId != id) persistHealthLink(id) }
-                    catch (_: Exception) { blockedVitals += id; usable = false }
-                    VitalsWriteOutcome.Committed(next.commitId, next.revision, next.clinical.weights.size,
+                    catch (_: Exception) {
+                        blockedVitals += id; usable = false
+                        pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+                    }
+                    VitalsWriteOutcome.Committed(next.commitId, next.revision, folded.second,
                         if (usable) VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local) else null)
                 }
             }
@@ -668,6 +735,7 @@ class VaultBackedRepository(
         vitalsSyncGeneration += 1
         records.clear()
         vitals.clear()
+        pendingVitals.clear()
         blockedVitals.clear()
         uncertainVitals.clear()
         pendingReplacements.clear()

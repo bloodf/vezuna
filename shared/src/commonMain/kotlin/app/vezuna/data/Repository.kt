@@ -55,7 +55,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
-/** Successful commit and its same-lock successor. Failure after a durable save returns no successor. */
+/** Legacy nonpaging write and same-lock context. This is not a transactional cursor acknowledgement. */
 data class VitalsSyncCommit(val storedCount: Int, val context: VitalsSyncContext)
 
 /** Captured under the repository lock before a platform read; never recapture at commit time. */
@@ -132,6 +132,8 @@ interface VezunaRepository {
     suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit
     /** Runs source cleanup only while the original/successor context remains current. Action must not reenter this repository. */
     suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit)
+    /** Resolves storage/bookkeeping only; success never grants a paging successor or native authorization. */
+    suspend fun resolveVitalsWrite(operationId: String): Boolean = false
     suspend fun readVitalsState(context: VitalsSyncContext): VitalsReadState
     suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome
     suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome
@@ -352,25 +354,29 @@ class InMemoryVezunaRepository : VezunaRepository {
 
     override suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome = commitVitals(state) { old ->
         val result = WeightChanges.reduce(old.clinical, old.local, page)
-        old.copy(clinical = result.vitals, local = result.local)
+        old.copy(clinical = result.vitals, local = result.local) to result.storedCount
     }
 
-    override suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome = commitVitals(state) { old ->
-        old.copy(clinical = DeviceVitals.ingestAggregates(old.clinical, window))
+    override suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome {
+        require(window.zone == state.context.zone) { "Aggregate zone changed" }
+        return commitVitals(state) { old ->
+            val clinical = DeviceVitals.ingestAggregates(old.clinical, window)
+            old.copy(clinical = clinical) to (window.steps.distinctBy { it.date }.count { item -> clinical.steps.any { it.date == item.date } } + window.heartRate.distinctBy { it.start }.count { item -> clinical.heartRateHourly.any { it.start == item.start } }) }
     }
 
-    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> StoredVitals): VitalsWriteOutcome = mutex.withLock {
+    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> Pair<StoredVitals, Int>): VitalsWriteOutcome = mutex.withLock {
         try { validateVitals(state.context) } catch (_: IllegalStateException) { return@withLock VitalsWriteOutcome.Rejected("stale") }
         val id = state.context.profileId
         val old = (storedVitals[id] ?: StoredVitals()).copy(clinical = records.getValue(id).vitals)
         vitalsSyncGeneration += 1 // Every attempt consumes this generation, including rejected folds.
         if (state.revision != old.revision) return@withLock VitalsWriteOutcome.Rejected("revision")
-        val next = try { fold(old).copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString()) }
+        val folded = try { fold(old) }
             catch (_: IllegalArgumentException) { return@withLock VitalsWriteOutcome.Rejected("invalid page") }
+        val next = folded.first.copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
         storedVitals[id] = next
         healthLink = id
         publish(records + (id to records.getValue(id).copy(vitals = next.clinical)))
-        VitalsWriteOutcome.Committed(next.commitId, next.revision, next.clinical.weights.size,
+        VitalsWriteOutcome.Committed(next.commitId, next.revision, folded.second,
             VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local))
     }
 
@@ -408,7 +414,11 @@ class InMemoryVezunaRepository : VezunaRepository {
 /** Compatibility entry for native/legacy payloads: omission never removes weight, and local progress is untouched. */
 internal fun conservativeVitals(stored: ProfileVitals, batch: VitalsBatch, now: Instant, zone: TimeZone): ProfileVitals {
     val aggregate = if (batch.markSynced) DeviceVitals.ingestAggregates(stored,
-        AggregateWindow(batch.replaceFrom, batch.steps, batch.heartRate, now, zone)) else stored
+        AggregateWindow(batch.replaceFrom, batch.steps, batch.heartRate, now, zone)) else stored.copy(
+            // Legacy merge data is not a completed provider query and supplies no absence/replacement authority.
+            steps = (stored.steps + batch.steps.filter { app.vezuna.domain.StepsDay.ofOrNull(it.date, it.count) != null }).associateBy { it.date }.values.toList(),
+            heartRateHourly = (stored.heartRateHourly + batch.heartRate.filter { app.vezuna.domain.HeartRateBucket.ofOrNull(it.start, it.min, it.avg, it.max) != null }).associateBy { it.start }.values.toList(),
+        )
     val known = (stored.weights.map { it.recordId } + stored.samples.map { it.recordId }).toSet()
     val additions = batch.weights.filter { it.recordId !in known && app.vezuna.domain.WeightReading.ofOrNull(it.recordId, it.time, it.kg) != null }.distinctBy { it.recordId }
     return aggregate.copy(weights = stored.weights + additions)

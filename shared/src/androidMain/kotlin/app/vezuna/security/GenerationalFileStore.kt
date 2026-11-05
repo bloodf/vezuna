@@ -45,6 +45,15 @@ class GenerationalFileStore(
         }
     }
 
+    fun acknowledgeCurrent(name: String): VaultWriteResult = try {
+        val file = File(directory, name).takeIf { it.isFile }
+            ?: File(directory, "$name$PREVIOUS").takeIf { it.isFile }
+            ?: error("No visible generation to acknowledge")
+        FileChannel.open(file.toPath(), StandardOpenOption.WRITE).use { it.force(true) }
+        acknowledgeDirectory(directory)
+        VaultWriteResult.Acknowledged
+    } catch (error: Exception) { VaultWriteResult.Indeterminate(error) }
+
     fun readGeneration(name: String): VaultGeneration? =
         File(directory, name).takeIf { it.isFile }?.readBytes()?.let { VaultGeneration(it, false) }
             ?: readPrevious(name)?.let { VaultGeneration(it, true) }

@@ -85,7 +85,7 @@ class VitalsStoreSafetyTest {
     }
 
     @Test
-    fun replaceVitalsWritesTheFileAndKeepsLastSync() = runTest {
+    fun replaceVitalsWritesClinicalValuesAndClearsLastSync() = runTest {
         val vault = ControlledVault(canQuarantine = true)
         val repository = VaultBackedRepository(vault)
         repository.load()
@@ -95,7 +95,7 @@ class VitalsStoreSafetyTest {
 
         val reopened = VaultBackedRepository(vault)
         reopened.load()
-        assertEquals(restoredVitals, reopened.readProfile("a").vitals)
+        assertEquals(restoredVitals.copy(lastSync = null), reopened.readProfile("a").vitals)
         assertFailsWith<IllegalArgumentException> { repository.replaceVitals("missing", restoredVitals) }
     }
 

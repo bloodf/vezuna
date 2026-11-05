@@ -1,5 +1,7 @@
 package app.vezuna
 
+import app.vezuna.health.WeightCoverageLimit
+
 import app.vezuna.domain.HeartRateBucket
 import app.vezuna.domain.HeartRateDay
 import app.vezuna.domain.ProfileVitals
@@ -71,7 +73,7 @@ class WeightChangesTest {
         val changed = WeightChanges.reduce(old, WeightLocalState(), page(upsert("w", 80.0)))
         val equal = WeightChanges.reduce(changed.vitals, changed.local, page(upsert("w", 65.0)))
         assertEquals(listOf(weight("w", 65.0)), equal.vitals.weights)
-        assertEquals(WeightLocalState(unresolved = setOf(UnresolvedWeightId(source, "w", UnresolvedWeightReason.UPSERT_COLLISION))), equal.local)
+        assertEquals(WeightLocalState(unresolved = setOf(UnresolvedWeightId(source, "w", UnresolvedWeightReason.UPSERT_COLLISION)), coverage = setOf(WeightCoverageLimit.UNRESOLVED_IDS)), equal.local)
     }
 
     @Test
@@ -82,7 +84,7 @@ class WeightChangesTest {
         assertEquals(WeightLocalState(unresolved = setOf(
             UnresolvedWeightId(source, "legacy", UnresolvedWeightReason.UPSERT_COLLISION),
             UnresolvedWeightId(source, "legacy", UnresolvedWeightReason.UNPROVEN_TOMBSTONE),
-        )), result.local)
+        ), coverage = setOf(WeightCoverageLimit.UNRESOLVED_IDS)), result.local)
     }
 
     @Test
@@ -142,7 +144,7 @@ class WeightChangesTest {
         assertEquals(WeightLocalState(unresolved = setOf(
             UnresolvedWeightId(source, "legacy", UnresolvedWeightReason.UNPROVEN_TOMBSTONE),
             UnresolvedWeightId(source, "absent", UnresolvedWeightReason.UNPROVEN_TOMBSTONE),
-        ), continuation = next), result.local)
+        ), continuation = next, coverage = setOf(WeightCoverageLimit.UNRESOLVED_IDS)), result.local)
     }
 
     @Test
@@ -196,7 +198,7 @@ class WeightChangesTest {
         assertEquals(WeightContinuation.Replay(source, "old"), local.continuation)
         // Repeated evidence at the limit does not consume another slot.
         val repeated = WeightChanges.reduce(old, local, page(WeightMutation.Delete("unknown-0")))
-        assertEquals(local, repeated.local)
+        assertEquals(local.copy(coverage = setOf(WeightCoverageLimit.UNRESOLVED_IDS)), repeated.local)
     }
 
     @Test
@@ -206,7 +208,7 @@ class WeightChangesTest {
         val result = WeightChanges.reduce(ProfileVitals(), WeightLocalState(continuation = cursor),
             WeightPage(SourceClaim(ios), listOf(upsert("ios"))))
         assertEquals(listOf(weight("ios")), result.vitals.weights)
-        assertEquals(WeightLocalState(continuation = cursor), result.local)
+        assertEquals(WeightLocalState(continuation = cursor, coverage = setOf(WeightCoverageLimit.SOURCE_UNCERTAIN)), result.local)
     }
 
     @Test

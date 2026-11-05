@@ -13,7 +13,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 
 /** [replaceFrom] is the first local day to re-read (steps, heart rate, weight); weights are also read back to [weightsFrom]. */
-data class VitalsReadRequest(val replaceFrom: LocalDate, val weightsFrom: LocalDate, val zone: TimeZone)
+data class VitalsReadRequest(val replaceFrom: LocalDate, val weightsFrom: LocalDate, val zone: TimeZone, val now: Instant? = null)
 
 interface DeviceVitalsSource {
     suspend fun read(request: VitalsReadRequest): VitalsBatch
@@ -44,7 +44,7 @@ class DeviceVitalsSync(
         val now = clock()
         val lastSync = context.lastSync
         val tz = context.zone
-        val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz))
+        val batch = source.read(VitalsReadRequest(VitalsWindow.replaceFrom(lastSync, now, tz), VitalsWindow.weightsFrom(lastSync, now, tz), tz, now))
         currentCoroutineContext().ensureActive()
         if (source is WeightChangesSource) {
             check(batch.weights.isEmpty() && batch.deletedWeightIds.isEmpty()) { "Aggregate payload contained weight" }
@@ -53,7 +53,7 @@ class DeviceVitalsSync(
                 app.vezuna.domain.AggregateWindow(batch.replaceFrom, batch.steps, batch.heartRate, now, tz))
             if (aggregate !is VitalsWriteOutcome.Committed || aggregate.next == null) return@withLock 0
             val started = kotlin.time.TimeSource.Monotonic.markNow()
-            WeightPaging(source, repository, now) { started.elapsedNow() }.run(aggregate.next)
+            aggregate.storedCount + WeightPaging(source, repository, now) { started.elapsedNow() }.run(aggregate.next)
         } else repository.ingestDeviceVitals(context, batch, now)
     }
 }
@@ -98,9 +98,9 @@ internal class WeightPaging(
         }
         suspend fun commit(page: WeightPage): Boolean {
             validate()
-            return when (val result = repository.commitWeightPage(state, page.copy(access = access, retentionFrom = floor))) {
+            return when (val result = repository.commitWeightPage(state, page.copy(access = access, retentionFrom = if (page.mutations.isNotEmpty()) floor else null))) {
                 is VitalsWriteOutcome.Committed -> {
-                    storedCount = result.storedCount
+                    storedCount += result.storedCount
                     val next = result.next ?: return false
                     state = next
                     true

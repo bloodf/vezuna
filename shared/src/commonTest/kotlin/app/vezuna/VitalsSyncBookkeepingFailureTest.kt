@@ -44,6 +44,7 @@ class VitalsSyncBookkeepingFailureTest {
      * bytes (the uncertain write, which the repository has to survive elsewhere too).
      */
     private class FaultInjectingVault : SecureVault {
+    override val supportsAcknowledgedWrites: Boolean = true
         val files = mutableMapOf<String, ByteArray>()
 
         /** Every write attempt, in order, including the ones that failed. */
@@ -68,6 +69,15 @@ class VitalsSyncBookkeepingFailureTest {
             if (key in failBeforeStore) error("Vault write failed for $key")
             files[key] = ciphertext.copyOf()
             if (key in failAfterStore) error("Vault write failed for $key")
+        }
+
+        override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): app.vezuna.security.VaultWriteResult {
+            if (key in failBeforeStore) {
+                writeAttempts += key
+                return app.vezuna.security.VaultWriteResult.Rejected(IllegalStateException("before store"))
+            }
+            return try { write(key, ciphertext); app.vezuna.security.VaultWriteResult.Acknowledged }
+            catch (error: Exception) { app.vezuna.security.VaultWriteResult.Indeterminate(error) }
         }
 
         override suspend fun read(key: String): ByteArray? = files[key]?.copyOf()
@@ -140,10 +150,10 @@ class VitalsSyncBookkeepingFailureTest {
         assertEquals(listOf(firstStep), repository.peekProfile("a").vitals.steps)
         assertEquals(now, repository.peekProfile("a").vitals.lastSync)
         // The generation moved with the data, so the captured context can no longer be used.
-        assertEquals(context.generation + 1, repository.captureVitalsSync(zone).generation)
+        assertFailsWith<IllegalStateException> { repository.captureVitalsSync(zone) }
         assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(context, batch, now) }
-        // The commit handed out no successor, so the caller can only learn the new state by capturing again.
-        assertEquals(now, repository.captureVitalsSync(zone).lastSync)
+        // A committed-but-unpinned outcome blocks new sync until authoritative reload.
+        assertFailsWith<IllegalStateException> { repository.captureVitalsSync(zone) }
         // Nothing was routed to another profile.
         assertEquals("a", repository.linkedHealthProfileId())
         assertEquals(ProfileVitals(), repository.peekProfile("b").vitals)
@@ -169,19 +179,20 @@ class VitalsSyncBookkeepingFailureTest {
         }
         vault.failBeforeStore.clear()
 
-        val next = repository.captureVitalsSync(zone)
+        val reloaded = reopen(vault)
+        val next = reloaded.captureVitalsSync(zone)
         assertEquals("a", next.profileId)
         // The cursor already moved with the durable data, so the next sync reads the trailing window only.
         assertEquals(now, next.lastSync)
 
         // The platform re-reads the same window; the stored day is replaced, never counted twice.
-        val commit = repository.ingestDeviceVitalsAndCapture(next, VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(firstStep, secondStep)), later)
+        val commit = reloaded.ingestDeviceVitalsAndCapture(next, VitalsBatch(LocalDate(2026, 10, 25), steps = listOf(firstStep, secondStep)), later)
 
         assertEquals(2, commit.storedCount)
         assertEquals("a", commit.context.profileId)
         assertEquals(later, commit.context.lastSync)
-        assertEquals(listOf(firstStep, secondStep), repository.peekProfile("a").vitals.steps)
-        assertEquals("a", repository.explicitHealthLinkId())
+        assertEquals(listOf(firstStep, secondStep), reloaded.peekProfile("a").vitals.steps)
+        assertEquals("a", reloaded.explicitHealthLinkId())
         assertEquals(ProfileVitals(), repository.peekProfile("b").vitals)
     }
 

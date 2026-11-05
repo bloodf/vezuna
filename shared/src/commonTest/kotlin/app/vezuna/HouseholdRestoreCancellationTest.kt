@@ -54,21 +54,27 @@ class HouseholdRestoreCancellationTest {
 
     @Test
     fun cancellationDuringVitalsAfterRecordsCommitKeepsEveryReferencedPageOnReopen() = runTest {
-        val vault = GenerationalMemoryVault()
+        val memory = GenerationalMemoryVault()
+        var beforeVitals: suspend () -> Unit = {}
+        val vault = object : app.vezuna.security.SecureVault by memory {
+            override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): app.vezuna.security.VaultWriteResult {
+                if (key == "repository-vitals-restored-v1") beforeVitals()
+                return memory.writeAcknowledged(key, ciphertext)
+            }
+        }
         val repository = VaultBackedRepository(vault).also { it.load() }
         val store = VaultSourceFileStore(vault)
         val sentinel = seedSentinel(repository, store)
         val cancellation = CancellationException("cancel after durable record restore")
         var reachedVitals = false
-        val cancelling = object : VezunaRepositoryDelegate(repository) {
-            override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) {
-                reachedVitals = true
-                val durable = VaultBackedRepository(vault).also { it.load() }.readProfile(profileId)
-                assertEquals(listOf("scan"), durable.documents.map { it.documentId })
-                assertPages(store, durable)
-                throw cancellation
-            }
+        beforeVitals = {
+            reachedVitals = true
+            val durable = VaultBackedRepository(vault).also { it.load() }.readProfile("restored")
+            assertEquals(listOf("scan"), durable.documents.map { it.documentId })
+            assertPages(store, durable)
+            throw cancellation
         }
+        val cancelling = repository
 
         assertSame(cancellation, assertFailsWith<CancellationException> {
             cancelling.restoreMembers(listOf(member()), RestoreMode.REPLACE_EXISTING, store) { error("unexpected remap") }
@@ -93,7 +99,7 @@ class HouseholdRestoreCancellationTest {
         val cancellation = CancellationException("cancel before record commit")
         var reachedRecords = false
         val cancelling = object : VezunaRepositoryDelegate(repository) {
-            override suspend fun restoreProfile(data: ProfileData) {
+            override suspend fun restoreProfileAndVitals(data: ProfileData): Boolean {
                 reachedRecords = true
                 assertPages(store, data)
                 throw cancellation
@@ -223,7 +229,9 @@ class HouseholdRestoreCancellationTest {
                 assertSame(failure, assertFailsWith<Exception> {
                     repository.restoreMembers(listOf(member()), RestoreMode.REPLACE_EXISTING, failingStore) { error("remap") }
                 })
-                assertEquals(before, memory.current.keys.toSet())
+                val intent = "repository-replacement-intent-restored-v1"
+                assertEquals(before, memory.current.keys.toSet() - intent)
+                if (stage == "profile-encryption") assertEquals(listOf<Byte>(1), memory.current[intent]?.toList())
                 armed = false
                 val reopened = VaultBackedRepository(vault).also { it.load() }
                 assertEquals(listOf("sentinel"), reopened.profiles.value.map { it.profileId })
@@ -239,6 +247,13 @@ class HouseholdRestoreCancellationTest {
             val memory = GenerationalMemoryVault()
             val reached = CompletableDeferred<Unit>()
             val vault = object : app.vezuna.security.SecureVault by memory {
+                override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): app.vezuna.security.VaultWriteResult {
+                    if (stage == "vitals" && key == "repository-vitals-restored-v1") {
+                        reached.complete(Unit)
+                        awaitCancellation()
+                    }
+                    return memory.writeAcknowledged(key, ciphertext)
+                }
                 override suspend fun write(key: String, ciphertext: ByteArray) {
                     memory.write(key, ciphertext)
                     if (stage == "profile-write" && key == "repository-profile-restored-v1") {
@@ -250,15 +265,7 @@ class HouseholdRestoreCancellationTest {
             val repository = VaultBackedRepository(vault).also { it.load() }
             val store = VaultSourceFileStore(vault)
             val sentinel = seedSentinel(repository, store)
-            val restoring = object : VezunaRepositoryDelegate(repository) {
-                override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) {
-                    if (stage == "vitals") {
-                        reached.complete(Unit)
-                        awaitCancellation()
-                    }
-                    repository.replaceVitals(profileId, vitals)
-                }
-            }
+            val restoring = repository
             val job = launch {
                 restoring.restoreMembers(listOf(member()), RestoreMode.REPLACE_EXISTING, store) { error("remap") }
             }

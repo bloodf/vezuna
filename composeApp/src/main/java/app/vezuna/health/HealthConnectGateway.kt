@@ -52,7 +52,7 @@ class AndroidHealthConnectImporter(private val context: Context) : WeightChanges
         check(sdkStatus() == HealthConnectClient.SDK_AVAILABLE) { "Health Connect is not available on this device" }
         check(hasPermissions()) { "Read-only Health Connect permissions have not been granted" }
         val zone = ZoneId.of(request.zone.id)
-        val now = Instant.now()
+        val now = request.now?.let { Instant.ofEpochMilli(it.toEpochMilliseconds()) } ?: Instant.now()
         val windowStart = request.replaceFrom.toJava().atStartOfDay(zone).toInstant()
         val steps = readSteps(request, zone, now)
         val heart = readHeartRate(windowStart, now)

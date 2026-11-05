@@ -282,7 +282,7 @@ class ProfileRestoreTest {
         var counter = 0
         repository.restoreProfile(data.remappedAsNew { "NEW-${counter++}" })
         assertEquals(2, repository.profiles.value.size)
-        assertEquals(data, repository.readProfile(data.profile.profileId))
+        assertEquals(data.copy(vitals = data.vitals.copy(lastSync = null)), repository.readProfile(data.profile.profileId))
     }
 
     @Test
@@ -291,7 +291,7 @@ class ProfileRestoreTest {
         val extra = data.copy(chat = data.chat + ChatMessage(data.profile.profileId, "OLD-extra", ChatMessage.Role.USER, "later", at))
         repository.restoreProfile(extra)
         repository.restoreProfile(data)
-        assertEquals(data, repository.readProfile(data.profile.profileId))
+        assertEquals(data.copy(vitals = data.vitals.copy(lastSync = null)), repository.readProfile(data.profile.profileId))
         assertEquals(1, repository.profiles.value.size)
     }
 
