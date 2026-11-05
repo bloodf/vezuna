@@ -228,6 +228,13 @@ class AndroidEngineOwnershipTest {
                     assertTrue(bridge.events.isEmpty())
                 }
             }
+            bridge.onInit = { false }
+            assertFailsWith<ModelOperationFailure> { Store(CANDIDATE).manager(llm).select("a") }
+            bridge.events.clear()
+            val failedLoad = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.CHAT_NEEDS_MODEL, failedLoad.userText.key)
+            assertTrue(bridge.events.isEmpty())
+            bridge.onInit = { true }
             Store("1".repeat(64)).manager(llm).select("a")
             bridge.events.clear()
             val unknown = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
@@ -237,6 +244,97 @@ class AndroidEngineOwnershipTest {
             val unloaded = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
             assertEquals(app.vezuna.localization.L10nKey.CHAT_NEEDS_MODEL, unloaded.userText.key)
             assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun healthBudgetCountsUtf8BytesAtExactEdgeAndUsesChangedReserve() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val manager = Store(CANDIDATE).manager(llm)
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            // ChatML envelope plus "rules" is 85 bytes. Available payload: 512-100-16-85=311.
+            val edge = HealthPrompt("rules", "é".repeat(155) + "x")
+            llm.generateStream(edge).collect()
+            assertEquals(396, bridge.streamPrompts.single().encodeToByteArray().size)
+            bridge.events.clear()
+            val tooLarge = assertFailsWith<VitaMessageException> { llm.generateStream(edge.copy(userData = edge.userData + "x")).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, tooLarge.userText.key)
+            assertEquals(listOf("render"), bridge.events.toList())
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 101))
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(edge).collect() }
+            assertEquals(listOf("render"), bridge.events.toList())
+            llm.generateStream(edge.copy(userData = "é".repeat(155))).collect()
+            assertEquals(395, bridge.streamPrompts.last().encodeToByteArray().size)
+        }
+    }
+
+    @Test fun realBuilderOverflowLeavesControllerConversationEmptyAndQuestionRetained() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val store = Store(CANDIDATE); store.selected = "a"
+            val manager = store.manager(llm)
+            val repository = InMemoryVezunaRepository()
+            val now = Instant.parse("2026-01-01T00:00:00Z")
+            repository.createProfile(Profile("A", "A", createdAt = now))
+            val controller = AppController(repository, manager, LocalHealthChat(repository, llm) { ContentLanguage.PT })
+            controller.initialize(); controller.switchProfile("A")
+            val data = repository.readProfile("A")
+            val prefix = "ação 😀\u0000"
+            val initial = HealthPromptBuilder.build(data, emptySet(), prefix, ContentLanguage.PT)
+            val envelope = "<|im_start|>system\n${initial.system}<|im_end|>\n<|im_start|>user\n${initial.userData}<|im_end|>\n<|im_start|>assistant\n"
+            // Requested4096 - answer512 - margin16 =3568 bytes, including escaped supplementary/control text.
+            val padding = 3568 - envelope.encodeToByteArray().size
+            assertTrue(padding > 0)
+            val accepted = prefix + "x".repeat(padding)
+            var input = accepted + "x"
+            bridge.events.clear()
+            if (controller.ask(input)) input = "" // Same retained-input contract as AssistantChat.
+            assertEquals(accepted + "x", input)
+            assertEquals(app.vezuna.localization.message(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE), controller.state.value.error)
+            assertNull(controller.state.value.streamingAnswer)
+            assertTrue(repository.readProfile("A").chat.isEmpty())
+            assertEquals(listOf("render"), bridge.events.toList())
+            assertTrue(bridge.streamPrompts.isEmpty())
+            input = accepted
+            if (controller.ask(input)) input = ""
+            assertEquals("", input)
+            assertEquals(3568, bridge.streamPrompts.single().encodeToByteArray().size)
+            val renderedData = bridge.renderCalls.last()[1].second
+            val parsed = kotlinx.serialization.json.Json.parseToJsonElement(renderedData) as kotlinx.serialization.json.JsonObject
+            assertEquals(accepted, (parsed["question"] as kotlinx.serialization.json.JsonPrimitive).content)
+            assertEquals(listOf(accepted, "answer"), repository.readProfile("A").chat.map { it.content })
+        }
+    }
+
+    @Test fun realHealthChatRejectsOversizedFactsWithoutPartialsAndAcceptsAllSelectedFacts() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val repository = InMemoryVezunaRepository()
+            val now = Instant.parse("2026-01-01T00:00:00Z")
+            repository.createProfile(Profile("A", "A", createdAt = now))
+            val fact = app.vezuna.domain.LabObservation("A", "selected", "r", "HGB", "Hemoglobin", 130.0, "g/L", 130.0, "g/L",
+                app.vezuna.domain.ReferenceRange(120.0, 140.0), now, app.vezuna.domain.ConfirmationStatus.CONFIRMED)
+            val original = repository.readProfile("A").copy(observations = listOf(fact, fact.copy(observationId = "unselected", displayName = "not selected")))
+            val chat = LocalHealthChat(repository, llm) { ContentLanguage.ES }
+            val partials = mutableListOf<String>()
+            val oversized = original.copy(observations = listOf(fact.copy(displayName = "é".repeat(4096))))
+            bridge.events.clear()
+            val failure = assertFailsWith<VitaMessageException> { chat.ask(oversized, setOf("selected"), "¿Qué significa?") { partials += it } }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, failure.userText.key)
+            assertTrue(partials.isEmpty()); assertTrue(repository.readProfile("A").chat.isEmpty())
+            assertEquals(listOf("render"), bridge.events.toList())
+            chat.ask(original, setOf("selected"), "¿Qué significa?") { partials += it }
+            val body = kotlinx.serialization.json.Json.parseToJsonElement(bridge.renderCalls.last()[1].second) as kotlinx.serialization.json.JsonObject
+            val facts = body["facts"] as kotlinx.serialization.json.JsonArray
+            assertEquals(1, facts.size)
+            val fields = (facts.single() as kotlinx.serialization.json.JsonObject).mapValues { (_, v) -> (v as kotlinx.serialization.json.JsonPrimitive).content }
+            assertEquals(mapOf("collectedAt" to "2026-01-01T00:00:00Z", "displayName" to "Hemoglobin", "testCode" to "HGB",
+                "reference" to "120–140", "originalValue" to "130", "originalUnit" to "g/L", "normalizedValue" to "130", "normalizedUnit" to "g/L"), fields)
+            assertEquals(listOf("answer"), partials)
+            assertEquals(listOf("¿Qué significa?", "answer"), repository.readProfile("A").chat.map { it.content })
+            assertEquals(fact, original.observations.first())
         }
     }
 

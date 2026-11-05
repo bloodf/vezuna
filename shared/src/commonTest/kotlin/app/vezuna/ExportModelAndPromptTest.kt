@@ -150,6 +150,34 @@ class ExportModelAndPromptTest {
     }
 
     @Test
+    fun factsAreCompleteOrderedAndFilteredInEveryLanguageIncludingEmptySelection() {
+        val older = observation("old").copy(displayName = "Older", valueDecimals = 2)
+        val newer = observation("new").copy(displayName = "Newer", collectedAt = time + kotlin.time.Duration.parse("1s"),
+            originalValue = 0.0, normalizedValue = 0.0, originalUnit = "", normalizedUnit = "",
+            qualitativeValue = "Negative", referenceRange = ReferenceRange(text = "Not detected", unit = "qualitative"))
+        val excluded = listOf(
+            observation("unselected").copy(displayName = "\uD800"),
+            observation("pending").copy(displayName = "\uD800", confirmation = ConfirmationStatus.UNREVIEWED),
+            observation("foreign").copy(displayName = "\uD800", profileId = "other"),
+        )
+        val data = ProfileData(Profile("p", "Patient", createdAt = time), observations = listOf(newer) + excluded + older)
+        for (language in app.vezuna.localization.ContentLanguage.entries) {
+            val prompt = HealthPromptBuilder.build(data, setOf("old", "new", "pending", "foreign"), "question", language)
+            val parsed = kotlinx.serialization.json.Json.parseToJsonElement(prompt.userData) as kotlinx.serialization.json.JsonObject
+            val facts = parsed["facts"] as kotlinx.serialization.json.JsonArray
+            fun record(index: Int) = (facts[index] as kotlinx.serialization.json.JsonObject).mapValues { (_, v) -> (v as kotlinx.serialization.json.JsonPrimitive).content }
+            assertEquals(2, facts.size)
+            assertEquals(mapOf("collectedAt" to "2026-01-10T10:00:00Z", "displayName" to "Older", "testCode" to "HGB",
+                "reference" to "120–140", "originalValue" to "130.00", "originalUnit" to "g/L", "normalizedValue" to "130", "normalizedUnit" to "g/L"), record(0))
+            assertEquals(mapOf("collectedAt" to "2026-01-10T10:00:01Z", "displayName" to "Newer", "testCode" to "HGB",
+                "reference" to "Not detected", "referenceText" to "Not detected", "referenceUnit" to "qualitative", "qualitativeResult" to "Negative"), record(1))
+            val empty = HealthPromptBuilder.build(data, emptySet(), "question", language)
+            assertEquals("{\"facts\":[],\"question\":\"question\"}", empty.userData)
+            assertTrue("If no records are selected, do not invent patient facts" in empty.system)
+        }
+    }
+
+    @Test
     fun modelManagerVerifiesInstallSwitchesAndDeletesIndependently() = runTest {
         val firstBytes = "first-model".encodeToByteArray()
         val secondBytes = "second-model".encodeToByteArray()
