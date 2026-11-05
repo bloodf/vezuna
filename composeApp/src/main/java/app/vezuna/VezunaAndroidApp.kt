@@ -40,7 +40,7 @@ fun VezunaAndroidApp(
     modelLoader: PlayAssetPackLoader,
     messageFlow: StateFlow<NativeText?>,
     busyFlow: StateFlow<Boolean>,
-    onHealthConnect: () -> Unit,
+    onHealthConnect: (app.vezuna.data.VitalsSyncContext?) -> Unit,
     onReminders: () -> Unit,
     backupFiles: BackupFileAccess,
     reminders: ReminderPlatformState,
@@ -87,9 +87,10 @@ fun VezunaAndroidApp(
                 available = androidNativeActions,
                 // Health stays listed but disabled while a device import runs, as the old menu item was.
                 enabled = if (nativeBusy) androidNativeActions - NativeAction.HEALTH else androidNativeActions,
+                performHealth = { onHealthConnect(it) },
             ) { action ->
                 when (action) {
-                    NativeAction.HEALTH -> onHealthConnect()
+                    NativeAction.HEALTH -> onHealthConnect(null)
                     NativeAction.REMINDERS -> onReminders()
                     NativeAction.PRIVACY -> context.startActivity(android.content.Intent(context, PermissionsRationaleActivity::class.java))
                     NativeAction.NOTICES -> context.startActivity(android.content.Intent(context, ThirdPartyNoticesActivity::class.java))

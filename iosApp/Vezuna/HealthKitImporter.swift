@@ -19,9 +19,13 @@ protocol HealthImporting {
 /// Weight is sparse and read as individual samples. Values are validated on the Kotlin side.
 final class HealthKitImporter: HealthImporting {
     private let store: HKHealthStore
+    private var expected: VitalsSyncContext?
+    private let requiresExpected: Bool
 
-    init(store: HKHealthStore = .init()) {
+    init(store: HKHealthStore = .init(), expected: VitalsSyncContext? = nil) {
         self.store = store
+        self.expected = expected
+        self.requiresExpected = expected != nil
     }
 
     static var supported: Bool { HKHealthStore.isHealthDataAvailable() }
@@ -37,6 +41,8 @@ final class HealthKitImporter: HealthImporting {
     }
 
     func importRecent() async throws -> HealthSampleBatch {
+        guard !requiresExpected || expected != nil else { throw HealthImportError.unavailable }
+        defer { expected = nil }
         let window = try await syncWindow()
         let from = Date(timeIntervalSince1970: TimeInterval(window.replaceFrom))
         let weightsFrom = Date(timeIntervalSince1970: TimeInterval(window.weightsFrom))
@@ -124,7 +130,7 @@ final class HealthKitImporter: HealthImporting {
 
     private func syncWindow() async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
         try await withCheckedThrowingContinuation { continuation in
-            IosRuntime.shared.vitalsSyncWindow { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
+            IosRuntime.shared.vitalsSyncWindow(expected: expected) { profileId, generation, zoneId, replaceFrom, weightsFrom, message in
                 if let message {
                     continuation.resume(throwing: HealthImportError.persistFailed(message.localized()))
                 } else {

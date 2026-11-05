@@ -73,10 +73,10 @@ struct ContentView: View {
             withTransaction(transaction) { model.sheet = nil }
         }
         .onAppear { nativeActions.model = model }
-        .sheet(item: $model.sheet) { sheet in
+        .sheet(item: $model.sheet, onDismiss: { model.requestedHealthImporter = nil }) { sheet in
             switch sheet {
             case .health:
-                HealthImportView(importer: model.healthImporter)
+                HealthImportView(importer: model.requestedHealthImporter ?? model.healthImporter)
             case .license:
                 LicenseView(manager: model.licenseManager)
             case .notices:
@@ -91,6 +91,14 @@ struct ContentView: View {
 /// Opens the native sheets that More lists (they used to live in the toolbar menu). Runs on the main queue.
 final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler {
     weak var model: AppShellModel?
+
+    func performHealth(context: VitalsSyncContext) {
+        DispatchQueue.main.async { [weak self] in
+            guard let model = self?.model, model.healthImporter != nil else { return }
+            model.requestedHealthImporter = HealthKitImporter(expected: context)
+            model.sheet = .health
+        }
+    }
 
     func perform(action: String) {
         let sheet: AppShellModel.Sheet?
@@ -110,7 +118,10 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
             return
         default: sheet = nil
         }
-        DispatchQueue.main.async { [weak self] in self?.model?.sheet = sheet }
+        DispatchQueue.main.async { [weak self] in
+            self?.model?.requestedHealthImporter = nil
+            self?.model?.sheet = sheet
+        }
     }
 }
 

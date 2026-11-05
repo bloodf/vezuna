@@ -31,9 +31,11 @@ class DeviceVitalsSync(
 ) {
     private val mutex = Mutex()
 
-    suspend fun synchronize(): Int = mutex.withLock {
+    suspend fun synchronize(expected: app.vezuna.data.VitalsSyncContext? = null): Int = mutex.withLock {
         beforeSync()
-        val context = repository.captureVitalsSync(zone())
+        val current = repository.captureVitalsSync(expected?.zone ?: zone())
+        check(expected == null || current.profileId == expected.profileId && current.generation == expected.generation) { "Device vitals sync is stale" }
+        val context = expected ?: current
         val now = clock()
         val lastSync = context.lastSync
         val tz = context.zone

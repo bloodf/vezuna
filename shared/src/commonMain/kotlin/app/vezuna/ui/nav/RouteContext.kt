@@ -47,8 +47,11 @@ enum class NativeAction {
 class NativeActions(
     val available: Set<NativeAction> = emptySet(),
     val enabled: Set<NativeAction> = available,
+    /** Onboarding health requests must retain this exact target through the system permission handoff. */
+    val performHealth: ((app.vezuna.data.VitalsSyncContext) -> Unit)? = null,
     val perform: (NativeAction) -> Unit = {},
 ) {
+    fun supportsOnboarding(action: NativeAction) = action in available && (action != NativeAction.HEALTH || performHealth != null)
     operator fun contains(action: NativeAction) = action in available
 }
 
