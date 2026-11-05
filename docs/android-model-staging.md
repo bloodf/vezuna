@@ -65,9 +65,9 @@ The metadata is the only source of truth for what gets staged. The tool reads it
 | `sizeBytes` | yes | Expected byte count, a positive integer. |
 | `sha256` | yes | Expected digest, 64 lowercase hex characters. |
 | `licenseEvidenceSha256` | yes | Digest of the license text that the tool is allowed to copy. The tool refuses to run without it. |
-| `upstreamRevision` | no | The pinned upstream revision, 40 lowercase hex characters. |
-| `upstreamRepository` | no | Where the artifact came from. |
-| `upstreamFilePath` | no | The file path inside that repository at that revision. |
+| `upstreamRevision` | yes | The pinned upstream revision, 40 lowercase hex characters. |
+| `upstreamRepository` | yes | Where the artifact came from. |
+| `upstreamFilePath` | yes | The file path inside that repository at that revision. |
 | `license` | no | The license identifier, for example `Apache-2.0`. |
 | `licenseUrl` | no | The address of the license text at the pinned revision. |
 | `modelId` | no | The identifier the catalog would later use. The tool records it and does nothing with it. |
@@ -103,7 +103,7 @@ The sidecar written next to the model carries the same provenance and no more:
 | The source must be a regular file that already exists | The tool never downloads and never creates an input. |
 | The byte count and the SHA-256 must match the metadata | A partial download or a different artifact must not be staged. |
 | The license text digest must match `licenseEvidenceSha256` | The pack must ship the license text that belongs to the pinned revision. |
-| The output directory must be a directory, and never inside `samples/` | `samples/` holds private medical documents. |
+| The output directory must be a directory, and never inside `samples/` or `models/` | Existing private documents and model inventories are protected; refusal happens before directory creation. |
 | Catalog fields in the metadata are refused | Catalog values need owner approval and belong to another change. |
 
 ## Verification order and failure behaviour
@@ -118,7 +118,11 @@ The sidecar written next to the model carries the same provenance and no more:
 
 Because the replacements happen last, a failed run preserves the previous artifact byte for byte. The temporary files the tool created are removed, and nothing else in the output directory is touched.
 
-The sidecar is replaced last on purpose. If a run is interrupted between the model replacement and the sidecar replacement, the sidecar still describes the previous artifact, and its digest no longer matches the model file. That is a visible mismatch rather than a silent success.
+All output entries must be regular files, and no destination may overwrite the metadata or license input. Before publication the tool retains same-filesystem hard links to the previous files. A handled replacement error restores the previously published files, or removes newly published files when no previous version existed. Temporary allocations are registered for cleanup immediately.
+
+If rollback itself fails, the command reports incomplete recovery and retains `.stage-backup-*` with the old files still available. Stop packaging and inspect the output; do not treat this as preserved or usable output. The tool never prints its success marker for this case.
+
+This is handled-error rollback, not crash-atomic multi-file publication. A process crash or machine interruption can leave a mixed set and retained backup directory. A packaging consumer must verify the model and license against the expected pinned metadata before using them, even if a prior staging run succeeded. Never infer acceptance from the existence of the three files.
 
 ## Determinism
 

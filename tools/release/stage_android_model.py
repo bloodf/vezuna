@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 import sys
@@ -27,7 +28,7 @@ SIDECAR_SUFFIX = ".provenance.json"
 LICENSE_SUFFIX = ".LICENSE.txt"
 SHA256_HEX_LENGTH = 64
 REVISION_HEX_LENGTH = 40
-REQUIRED_METADATA = ("fileName", "sizeBytes", "sha256")
+REQUIRED_METADATA = ("fileName", "sizeBytes", "sha256", "upstreamRepository", "upstreamRevision", "upstreamFilePath")
 OPTIONAL_METADATA = (
     "modelId",
     "upstreamRepository",
@@ -146,11 +147,12 @@ def _prepare_output_dir(output_dir):
         raise StagingError(f"output directory must not be a symlink: {output_dir}")
     if output_dir.exists() and not output_dir.is_dir():
         raise StagingError(f"output directory is not a directory: {output_dir}")
-    output_dir.mkdir(parents=True, exist_ok=True)
     resolved = output_dir.resolve()
-    private_samples = (ROOT / "samples").resolve()
-    if resolved == private_samples or private_samples in resolved.parents:
-        raise StagingError(f"refusing to stage into the private samples directory: {resolved}")
+    for name in ("samples", "models"):
+        protected = (ROOT / name).resolve()
+        if resolved == protected or protected in resolved.parents:
+            raise StagingError(f"refusing to stage into the protected {name} directory: {resolved}")
+    resolved.mkdir(parents=True, exist_ok=True)
     return resolved
 
 
@@ -204,6 +206,46 @@ def _replace(source, destination):
     os.replace(source, destination)
 
 
+def _publish(prepared, directory):
+    """Roll back handled replacement errors; preserve recovery links if rollback fails."""
+    backup_dir = Path(tempfile.mkdtemp(dir=directory, prefix=".stage-backup-"))
+    previous = {}
+    published = []
+    retain_backups = False
+    try:
+        # Hard links retain the previous bytes without copying a multi-GB model.
+        # All destinations were checked as regular files, on this same filesystem.
+        for _, destination in prepared:
+            if destination.exists():
+                backup = backup_dir / destination.name
+                os.link(destination, backup)
+                previous[destination] = backup
+        try:
+            for temporary, destination in prepared:
+                _replace(temporary, destination)
+                published.append(destination)
+        except OSError as publication_error:
+            failures = []
+            for destination in reversed(published):
+                try:
+                    if destination in previous:
+                        os.replace(previous[destination], destination)
+                    else:
+                        destination.unlink()
+                except OSError as rollback_error:
+                    failures.append(str(rollback_error))
+            if failures:
+                retain_backups = True
+                raise StagingError(
+                    f"publication failed and rollback is incomplete; preserve output and recovery files "
+                    f"at {backup_dir}: {'; '.join(failures)}"
+                ) from publication_error
+            raise
+    finally:
+        if not retain_backups:
+            shutil.rmtree(backup_dir)
+
+
 def _fsync_directory(directory):
     try:
         handle = os.open(directory, os.O_RDONLY)
@@ -238,6 +280,10 @@ def stage_model(source, output_dir, metadata_path, license_file, chunk_bytes=DEF
     for path in (model_path, sidecar_path, license_copy_path):
         if path.is_symlink():
             raise StagingError(f"staged artifact must not be a symlink: {path}")
+        if path.exists() and not path.is_file():
+            raise StagingError(f"staged artifact must be a regular file: {path}")
+        if path in (metadata_path.resolve(), license_path):
+            raise StagingError(f"publication destination collides with an input: {path}")
     if source_path == model_path:
         raise StagingError("source and staged destination are the same file")
     if resolved_output in source_path.parents:
@@ -248,10 +294,11 @@ def stage_model(source, output_dir, metadata_path, license_file, chunk_bytes=DEF
         )
 
     replaced_existing = model_path.exists()
-    model_temporary = _new_temporary(resolved_output, ".stage-model-")
-    license_temporary = _new_temporary(resolved_output, ".stage-license-")
-    sidecar_temporary = _new_temporary(resolved_output, ".stage-provenance-")
+    temporaries = []
     try:
+        for prefix in (".stage-model-", ".stage-license-", ".stage-provenance-"):
+            temporaries.append(_new_temporary(resolved_output, prefix))
+        model_temporary, license_temporary, sidecar_temporary = temporaries
         measured_size, measured_digest = _stream_file(source_path, model_temporary, chunk_bytes)
         if measured_size != expected_size:
             raise StagingError(
@@ -272,12 +319,11 @@ def stage_model(source, output_dir, metadata_path, license_file, chunk_bytes=DEF
         )
         for temporary in (model_temporary, license_temporary, sidecar_temporary):
             _apply_default_mode(temporary)
-        _replace(model_temporary, model_path)
-        _replace(license_temporary, license_copy_path)
-        _replace(sidecar_temporary, sidecar_path)
+        _publish([(model_temporary, model_path), (license_temporary, license_copy_path),
+                  (sidecar_temporary, sidecar_path)], resolved_output)
         _fsync_directory(resolved_output)
     finally:
-        for temporary in (model_temporary, license_temporary, sidecar_temporary):
+        for temporary in temporaries:
             if temporary.exists():
                 temporary.unlink()
     return StagingResult(

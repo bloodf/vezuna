@@ -97,6 +97,128 @@ class StagingTest(unittest.TestCase):
             sorted([FILE_NAME, FILE_NAME + ".provenance.json", FILE_NAME + ".LICENSE.txt"]),
         )
 
+    def test_each_publication_failure_restores_all_previous_files(self):
+        for failed_call in (1, 2, 3):
+            with self.subTest(failed_call=failed_call):
+                self.assertEqual(self.run_cli()[0], 0)
+                old = {p.name: p.read_bytes() for p in self.output.iterdir()}
+                self.source.write_bytes(PAYLOAD + b"new")
+                self.license.write_bytes(LICENSE_TEXT + b"new")
+                self.write_metadata(sizeBytes=len(PAYLOAD) + 3,
+                                    sha256=hashlib.sha256(PAYLOAD + b"new").hexdigest(),
+                                    licenseEvidenceSha256=hashlib.sha256(LICENSE_TEXT + b"new").hexdigest())
+                real_replace = staging._replace
+                calls = 0
+
+                def fail_once(source, destination):
+                    nonlocal calls
+                    calls += 1
+                    if calls == failed_call:
+                        raise OSError("synthetic publication failure")
+                    real_replace(source, destination)
+
+                with patch.object(staging, "_replace", side_effect=fail_once):
+                    code, out, _ = self.run_cli()
+                self.assertNotEqual(code, 0)
+                self.assertNotIn("ANDROID_MODEL_STAGED", out)
+                self.assertEqual({p.name: p.read_bytes() for p in self.output.iterdir()}, old)
+                self.source.write_bytes(PAYLOAD)
+                self.license.write_bytes(LICENSE_TEXT)
+                self.write_metadata()
+
+    def test_failed_first_publication_leaves_no_generation(self):
+        real_replace = staging._replace
+        calls = 0
+
+        def fail_second(source, destination):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("synthetic late failure")
+            real_replace(source, destination)
+
+        with patch.object(staging, "_replace", side_effect=fail_second):
+            self.assertNotEqual(self.run_cli()[0], 0)
+        self.assertEqual(list(self.output.iterdir()), [])
+
+    def test_failed_rollback_retains_recovery_files_and_reports_failure(self):
+        self.assertEqual(self.run_cli()[0], 0)
+        old = {p.name: p.read_bytes() for p in self.output.iterdir()}
+        self.source.write_bytes(PAYLOAD + b"new")
+        self.write_metadata(sizeBytes=len(PAYLOAD) + 3,
+                            sha256=hashlib.sha256(PAYLOAD + b"new").hexdigest())
+        real_replace = staging.os.replace
+        calls = 0
+
+        def fail_publish_and_rollback(source, destination):
+            nonlocal calls
+            calls += 1
+            if calls >= 2:
+                raise OSError("synthetic unavailable filesystem")
+            real_replace(source, destination)
+
+        with patch.object(staging.os, "replace", side_effect=fail_publish_and_rollback):
+            code, out, err = self.run_cli()
+        self.assertNotEqual(code, 0)
+        self.assertNotIn("ANDROID_MODEL_STAGED", out)
+        self.assertIn("rollback is incomplete", err)
+        backups = list(self.output.glob(".stage-backup-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual({p.name: p.read_bytes() for p in backups[0].iterdir()}, old)
+
+    def test_missing_upstream_locator_fails_without_mutating_output(self):
+        self.assertEqual(self.run_cli()[0], 0)
+        old = {p.name: p.read_bytes() for p in self.output.iterdir()}
+        for field in ("upstreamRepository", "upstreamRevision", "upstreamFilePath"):
+            document = self.metadata()
+            del document[field]
+            self.metadata_path.write_text(json.dumps(document))
+            code, out, _ = self.run_cli()
+            self.assertNotEqual(code, 0, field)
+            self.assertNotIn("ANDROID_MODEL_STAGED", out)
+            self.assertEqual({p.name: p.read_bytes() for p in self.output.iterdir()}, old)
+
+    def test_allocation_failure_removes_only_owned_partial_temporaries(self):
+        for fail_at in (2, 3):
+            real_new = staging._new_temporary
+            calls = 0
+
+            def fail_allocate(directory, prefix):
+                nonlocal calls
+                calls += 1
+                if calls == fail_at:
+                    raise OSError("synthetic allocation failure")
+                return real_new(directory, prefix)
+
+            with patch.object(staging, "_new_temporary", side_effect=fail_allocate):
+                self.assertNotEqual(self.run_cli()[0], 0)
+            self.assertEqual(list(self.output.iterdir()), [])
+
+    def test_output_directory_entry_rejected_before_any_replacement(self):
+        self.assertEqual(self.run_cli()[0], 0)
+        old = self.staged_model().read_bytes()
+        self.staged_license().unlink()
+        self.staged_license().mkdir()
+        self.assertNotEqual(self.run_cli()[0], 0)
+        self.assertEqual(self.staged_model().read_bytes(), old)
+        self.assertTrue(self.staged_license().is_dir())
+
+    def test_input_destination_collision_is_rejected(self):
+        self.output.mkdir(parents=True)
+        collision = self.staged_license()
+        collision.write_bytes(self.metadata_path.read_bytes())
+        before = collision.read_bytes()
+        self.assertNotEqual(self.run_cli(metadata=collision)[0], 0)
+        self.assertEqual(collision.read_bytes(), before)
+        self.assertFalse(self.staged_model().exists())
+
+    def test_protected_output_is_rejected_before_directory_creation(self):
+        with patch.object(staging, "ROOT", self.root):
+            for name in ("samples", "models"):
+                destination = self.root / name / "new-child"
+                self.assertNotEqual(self.run_cli(output=destination)[0], 0)
+                self.assertFalse(destination.exists())
+
     def test_exact_bytes_are_staged_and_the_sidecar_records_the_pinned_revision(self):
         code, out, err = self.run_cli()
         self.assertEqual(code, 0, err)
