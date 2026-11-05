@@ -71,6 +71,8 @@ internal fun AssistantChat(ctx: RouteContext) {
     val state = ctx.state
     val controller = ctx.controller
     val catalogState by controller.modelManager.state.collectAsState()
+    val ownerStatus = controller.modelManager.ownerStatus?.collectAsState()?.value
+    val readyModelId = controller.modelManager.readyModelId(ownerStatus)
     FocusedTaskScaffold(title = vitaText(L10nKey.ON_DEVICE_AI), onBack = ctx::back) {
         val data = state.data
         if (data == null) {
@@ -82,7 +84,7 @@ internal fun AssistantChat(ctx: RouteContext) {
         var confirmClear by remember { mutableStateOf(false) }
         val confirmed = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }
         val unavailable = catalogState.catalog.packs.isEmpty()
-        val canAsk = question.isNotBlank() && ctx.loadedModelId != null && !state.loading
+        val canAsk = question.isNotBlank() && readyModelId != null && !state.loading
         val ask = { askJob = ctx.scope.launch { if (controller.ask(question)) question = "" } }
 
         Column(Modifier.fillMaxSize()) {
@@ -93,6 +95,12 @@ internal fun AssistantChat(ctx: RouteContext) {
                 verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
             ) {
                 Text(vitaText(L10nKey.ON_DEVICE_AI_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
+                if (catalogState.selection == app.vezuna.llm.SavedModelSelection.Unknown) {
+                    Text(vitaText(L10nKey.MODEL_SELECTION_UNCONFIRMED))
+                }
+                if (ownerStatus == app.vezuna.llm.EngineOwnerStatus.Superseded) {
+                    Text(vitaText(L10nKey.MODEL_SESSION_SUPERSEDED))
+                }
                 catalogState.catalogError?.let { ListRow(it.resolve(), leadingIcon = Res.drawable.ic_chip) }
                 if (unavailable) {
                     if (catalogState.catalogError == null) {
@@ -102,11 +110,11 @@ internal fun AssistantChat(ctx: RouteContext) {
                     GroupedRows {
                         ListRow(
                             title = when {
-                                ctx.loadedModelId != null -> vitaText(L10nKey.MODEL_READY)
-                                ctx.selectedModelId != null -> vitaText(L10nKey.MODEL_SELECTED_NOT_LOADED)
+                                readyModelId != null -> vitaText(L10nKey.MODEL_READY)
+                                catalogState.selectedModelId != null -> vitaText(L10nKey.MODEL_SELECTED_NOT_LOADED)
                                 else -> vitaText(L10nKey.NO_MODEL_LOADED)
                             },
-                            supporting = ctx.loadedModelId ?: ctx.selectedModelId ?: vitaText(L10nKey.CHOOSE_LOCAL_MODEL),
+                            supporting = readyModelId ?: catalogState.selectedModelId ?: vitaText(L10nKey.CHOOSE_LOCAL_MODEL),
                             leadingIcon = Res.drawable.ic_chip,
                             onClick = { ctx.navigate(AppScreen.Models) },
                         )
@@ -152,7 +160,7 @@ internal fun AssistantChat(ctx: RouteContext) {
             if (!unavailable) {
                 Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = VezunaTokens.SpaceXs) {
                     Column(Modifier.fillMaxWidth().clearOfNavigationBar().padding(VezunaTokens.SpaceMd), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
-                        if (ctx.loadedModelId == null) {
+                        if (readyModelId == null) {
                             Text(vitaText(L10nKey.CHAT_NEEDS_MODEL), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         OutlinedTextField(
