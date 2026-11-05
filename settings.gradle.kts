@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "Vezuna"
 include(":shared")
 include(":composeApp")
+include(":model_asset_pack")

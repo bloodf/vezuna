@@ -28,6 +28,7 @@ val releaseVersionCode = rawVersionCode?.toIntOrNull() ?: 1
 val releaseVersionName = rawVersionName ?: "1.0"
 
 android {
+    assetPacks += listOf(":model_asset_pack")
     namespace = "app.vezuna"
     compileSdk = 37
 
