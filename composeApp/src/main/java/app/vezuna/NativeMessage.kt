@@ -1,6 +1,8 @@
 package app.vezuna
 
 import android.content.Context
+import app.vezuna.health.VitalsSyncOutcome
+import app.vezuna.health.VitalsSyncStatus
 
 enum class NativeKey {
     PRIVACY_POLICY, PRIVACY_POLICY_UNAVAILABLE,
@@ -8,7 +10,8 @@ enum class NativeKey {
     MEDICATION_CHANNEL_NAME, MEDICATION_CHANNEL_DESCRIPTION, MEDICATION_REMINDER_TITLE,
     TAKEN, SKIP, MINUTES_SNOOZE, REMINDERS_ENABLED, NOTIFICATION_PERMISSION_DENIED,
     HEALTH_CONNECT_PERMISSION_DENIED, HEALTH_CONNECT_UPDATE_REQUIRED, HEALTH_CONNECT_UNAVAILABLE,
-    HEALTH_CONNECT_IMPORT_COMPLETE, HEALTH_CONNECT_IMPORT_FAILED, REMINDER_SCHEDULES_ACTIVE,
+    HEALTH_CONNECT_IMPORT_COMPLETE, HEALTH_CONNECT_IMPORT_FAILED, HEALTH_CONNECT_IMPORT_PARTIAL,
+    HEALTH_CONNECT_IMPORT_STOPPED, HEALTH_CONNECT_IMPORT_UNCERTAIN, REMINDER_SCHEDULES_ACTIVE,
     EXPORT_SAVE_FAILED,
     PLAY_MODEL_DELIVERY, PLAY_WAITING_WIFI, PLAY_DOWNLOADING, CLOSE,
     DEVICE_INTEGRATION, OK,
@@ -32,6 +35,17 @@ class NativeMessageException(val userText: NativeText.Key) : IllegalArgumentExce
 
 fun nativeMessage(key: NativeKey, vararg args: Any) = NativeText.Key(key, args.toList())
 fun nativePlural(key: NativeKey, quantity: Int, vararg args: Any) = NativeText.Plural(key, quantity, args.toList())
+/** Only a clean terminal receipt may announce completion. Counts alone are not completion evidence. */
+fun VitalsSyncOutcome.toHealthConnectMessage(): NativeText = when (status) {
+    VitalsSyncStatus.COMPLETE -> nativePlural(NativeKey.HEALTH_CONNECT_IMPORT_COMPLETE, storedCount)
+    VitalsSyncStatus.UNRESOLVED,
+    VitalsSyncStatus.BUDGET,
+    VitalsSyncStatus.REBUILD -> nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_PARTIAL)
+    VitalsSyncStatus.REJECTED,
+    VitalsSyncStatus.BLOCKED -> nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_STOPPED)
+    VitalsSyncStatus.UNCERTAIN -> nativeMessage(NativeKey.HEALTH_CONNECT_IMPORT_UNCERTAIN)
+}
+
 fun failNative(key: NativeKey, vararg args: Any): Nothing = throw NativeMessageException(nativeMessage(key, *args))
 
 fun Throwable.toNativeText(fallback: NativeKey = NativeKey.EXPORT_SAVE_FAILED): NativeText = when (this) {

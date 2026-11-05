@@ -20,12 +20,13 @@ interface DeviceVitalsSource {
     suspend fun read(request: VitalsReadRequest): VitalsBatch
 }
 
-/**
- * Every sync re-reads a trailing window from the platform and replaces that window in the linked profile.
- * There is no change token or anchor to lose: the "synced up to" time is stored in the same write as the data,
- * so a failed save is retried over the same window without loss. Data older than the window that arrives late
- * (a device syncing after more than a week) is only picked up within the first-sync horizon of 30 days.
- */
+/** Counts acknowledged writes, including earlier pages when a later operation stops. */
+data class VitalsSyncOutcome(val storedCount: Int, val status: VitalsSyncStatus)
+
+/** COMPLETE covers current available pages with no unresolved IDs, not inaccessible historical data. */
+enum class VitalsSyncStatus { COMPLETE, UNRESOLVED, BUDGET, REBUILD, REJECTED, UNCERTAIN, BLOCKED }
+
+/** Re-reads aggregate windows and, for paged sources, acknowledges each weight page before continuing. */
 class DeviceVitalsSync(
     private val source: DeviceVitalsSource,
     private val repository: VezunaRepository,
@@ -35,7 +36,10 @@ class DeviceVitalsSync(
 ) {
     private val mutex = Mutex()
 
-    suspend fun synchronize(expected: VitalsSyncContext? = null): Int = mutex.withLock {
+    /** Count-only compatibility for existing nonpaging callers. Status consumers use [synchronizeOutcome]. */
+    suspend fun synchronize(expected: VitalsSyncContext? = null): Int = synchronizeOutcome(expected).storedCount
+
+    suspend fun synchronizeOutcome(expected: VitalsSyncContext? = null): VitalsSyncOutcome = mutex.withLock {
         currentCoroutineContext().ensureActive()
         val current = repository.captureVitalsSync(expected?.zone ?: zone())
         check(expected == null || current.profileId == expected.profileId && current.generation == expected.generation) { "Device vitals sync is stale" }
@@ -52,10 +56,16 @@ class DeviceVitalsSync(
             val state = repository.readVitalsState(context)
             val aggregate = repository.commitAggregateWindow(state,
                 app.vezuna.domain.AggregateWindow(batch.replaceFrom, batch.steps, batch.heartRate, now, tz))
-            if (aggregate !is VitalsWriteOutcome.Committed || aggregate.next == null) return@withLock 0
+            when (aggregate) {
+                is VitalsWriteOutcome.Rejected -> return@withLock VitalsSyncOutcome(0, VitalsSyncStatus.REJECTED)
+                is VitalsWriteOutcome.Indeterminate -> return@withLock VitalsSyncOutcome(0, VitalsSyncStatus.UNCERTAIN)
+                is VitalsWriteOutcome.Committed -> if (aggregate.next == null)
+                    return@withLock VitalsSyncOutcome(aggregate.storedCount, VitalsSyncStatus.BLOCKED)
+            }
             val started = kotlin.time.TimeSource.Monotonic.markNow()
-            aggregate.storedCount + WeightPaging(source, repository, now) { started.elapsedNow() }.run(aggregate.next)
-        } else repository.ingestDeviceVitals(context, batch, now)
+            val weights = WeightPaging(source, repository, now) { started.elapsedNow() }.run(aggregate.next)
+            weights.copy(storedCount = aggregate.storedCount + weights.storedCount)
+        } else VitalsSyncOutcome(repository.ingestDeviceVitals(context, batch, now), VitalsSyncStatus.COMPLETE)
     }
 }
 
@@ -79,12 +89,15 @@ internal class WeightPaging(
     private val now: Instant,
     private val elapsed: () -> kotlin.time.Duration,
 ) {
-    suspend fun run(initial: app.vezuna.health.VitalsReadState): Int {
+    suspend fun run(initial: VitalsReadState): VitalsSyncOutcome {
         var state = initial
         source.bindWeightTarget(state.context.profileId)
         var calls = 0
         var rebuilt = false
         var storedCount = 0
+        var stopped = VitalsSyncStatus.BLOCKED
+        fun outcome(status: VitalsSyncStatus) = VitalsSyncOutcome(storedCount, status)
+        fun terminal() = outcome(if (state.local.unresolved.isNotEmpty()) VitalsSyncStatus.UNRESOLVED else VitalsSyncStatus.COMPLETE)
         val access = source.weightAccess()
         val floor = VitalsWindow.weightsFrom(null, now, state.context.zone).atStartOfDayIn(state.context.zone)
         val seenChanges = mutableSetOf<String>()
@@ -104,11 +117,12 @@ internal class WeightPaging(
             return when (val result = repository.commitWeightPage(state, page.copy(access = access, retentionFrom = if (page.mutations.isNotEmpty()) floor else null))) {
                 is VitalsWriteOutcome.Committed -> {
                     storedCount += result.storedCount
-                    val next = result.next ?: return false
+                    val next = result.next ?: run { stopped = VitalsSyncStatus.BLOCKED; return false }
                     state = next
                     true
                 }
-                is VitalsWriteOutcome.Rejected, is VitalsWriteOutcome.Indeterminate -> false
+                is VitalsWriteOutcome.Rejected -> { stopped = VitalsSyncStatus.REJECTED; false }
+                is VitalsWriteOutcome.Indeterminate -> { stopped = VitalsSyncStatus.UNCERTAIN; false }
             }
         }
         suspend fun start(): Boolean {
@@ -126,22 +140,22 @@ internal class WeightPaging(
             return commit(WeightPage(SourceClaim(src), emptyList(), continuation))
         }
         if (state.local.access != null && state.local.access != access || state.local.continuation == null || state.local.continuation is WeightContinuation.RebuildRequired) {
-            if (!start()) return storedCount
+            if (!start()) return outcome(stopped)
         }
         while (calls < 20 && elapsed() < kotlin.time.Duration.parse("10s")) {
-            when (val progress = state.local.continuation ?: return storedCount) {
+            when (val progress = state.local.continuation ?: return outcome(VitalsSyncStatus.REBUILD)) {
                 is WeightContinuation.Snapshot -> {
                     // A restarted/long snapshot's baseline may expire. Inspect flags before using any payload.
                     permit()
                     val verification = source.weightChanges(progress.baselineToken)
                     if (verification.expired) {
-                        if (!commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.TOKEN_EXPIRED)))) return storedCount
-                        if (rebuilt) return storedCount
+                        if (!commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.TOKEN_EXPIRED)))) return outcome(stopped)
+                        if (rebuilt) return outcome(VitalsSyncStatus.REBUILD)
                         rebuilt = true
-                        if (!start()) return storedCount
+                        if (!start()) return outcome(stopped)
                         continue
                     }
-                    if (calls >= 20 || elapsed() >= kotlin.time.Duration.parse("10s")) return storedCount
+                    if (calls >= 20 || elapsed() >= kotlin.time.Duration.parse("10s")) return outcome(VitalsSyncStatus.BUDGET)
                     val end = minOf(progress.nextFrom + kotlin.time.Duration.parse("7d"), progress.until)
                     val seen = seenSnapshot.getOrPut(progress.nextFrom) { mutableSetOf() }
                     progress.pageToken?.let { seen += it }
@@ -153,7 +167,7 @@ internal class WeightPaging(
                         else if (end < progress.until) progress.copy(nextFrom = end, pageToken = null)
                         else WeightContinuation.Replay(progress.source, progress.baselineToken)
                     val claim = source.weightClaim(progress.source)
-                    if (!commit(WeightPage(claim, page.mutations, next))) return storedCount
+                    if (!commit(WeightPage(claim, page.mutations, next))) return outcome(stopped)
                 }
                 is WeightContinuation.Replay, is WeightContinuation.Steady -> {
                     val token = when (progress) {
@@ -165,25 +179,25 @@ internal class WeightPaging(
                     permit()
                     val page = source.weightChanges(token)
                     if (page.expired) {
-                        if (!commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.TOKEN_EXPIRED)))) return storedCount
-                        if (rebuilt) return storedCount
+                        if (!commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.TOKEN_EXPIRED)))) return outcome(stopped)
+                        if (rebuilt) return outcome(VitalsSyncStatus.REBUILD)
                         rebuilt = true
-                        if (!start()) return storedCount
+                        if (!start()) return outcome(stopped)
                         continue
                     }
                     if (page.nextToken.isBlank()) {
-                        commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.UNUSABLE_TOKEN)))
-                        return storedCount
+                        if (!commit(WeightPage(SourceClaim(progress.source), emptyList(), WeightContinuation.RebuildRequired(progress.source, RebuildReason.UNUSABLE_TOKEN)))) return outcome(stopped)
+                        return outcome(VitalsSyncStatus.REBUILD)
                     }
                     check(!page.hasMore || page.nextToken !in seenChanges) { "Repeated Changes token" }
                     val next = if (page.hasMore) WeightContinuation.Replay(progress.source, page.nextToken) else WeightContinuation.Steady(progress.source, page.nextToken)
                     val claim = source.weightClaim(progress.source)
-                    if (!commit(WeightPage(claim, page.mutations, next))) return storedCount
-                    if (!page.hasMore) return storedCount
+                    if (!commit(WeightPage(claim, page.mutations, next))) return outcome(stopped)
+                    if (!page.hasMore) return terminal()
                 }
-                is WeightContinuation.RebuildRequired -> return storedCount
+                is WeightContinuation.RebuildRequired -> return outcome(VitalsSyncStatus.REBUILD)
             }
         }
-        return storedCount
+        return outcome(VitalsSyncStatus.BUDGET)
     }
 }

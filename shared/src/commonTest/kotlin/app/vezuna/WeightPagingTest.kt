@@ -160,7 +160,8 @@ class WeightPagingTest {
                 WeightMutation.Upsert(w.copy(recordId = "out", time = Instant.parse("2025-11-01T03:59:59Z")))), null)
         }
         val count = WeightPaging(provider, repository, now) { if (provider.requests.size >= 3) 11.seconds else Duration.ZERO }.run(state)
-        assertEquals(1, count)
+        assertEquals(1, count.storedCount)
+        assertEquals(VitalsSyncStatus.BUDGET, count.status)
         assertEquals(listOf(w.copy(recordId = "in", time = floor)), repository.peekProfile("p").vitals.weights)
         assertEquals(setOf("in"), repository.readVitalsState(repository.captureVitalsSync(zone)).local.provenance.keys)
     }

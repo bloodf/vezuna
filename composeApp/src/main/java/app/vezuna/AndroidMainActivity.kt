@@ -314,9 +314,9 @@ class AndroidMainActivity : FragmentActivity() {
         mutableBusy.value = true
         lifecycleScope.launch {
             try {
-                val imported = app.healthSync.synchronize(expected)
+                val imported = app.healthSync.synchronizeOutcome(expected)
                 controller.refreshDashboard()
-                mutableMessage.value = nativePlural(NativeKey.HEALTH_CONNECT_IMPORT_COMPLETE, imported)
+                mutableMessage.value = imported.toHealthConnectMessage()
             } catch (error: Throwable) {
                 mutableMessage.value = error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)
             } finally {
