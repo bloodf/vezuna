@@ -14,13 +14,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/** The store that delivers a model asset. Android ships Play asset packs; iOS ships store asset packs. */
+enum class ModelPlatform { ANDROID, IOS }
+
 @Serializable
 data class ModelPack(
     val modelId: String,
     val displayName: String,
     val fileName: String,
-    val androidAssetPackId: String,
-    val iosAssetPackId: String,
+    // A pack may be offered on one platform only; the missing side stays null instead of naming a pack that does not exist.
+    val androidAssetPackId: String? = null,
+    val iosAssetPackId: String? = null,
     val sizeBytes: Long,
     val minimumRamBytes: Long,
     val maximumContextLength: Int,
@@ -29,9 +33,18 @@ data class ModelPack(
     init {
         require(modelId.isNotBlank() && displayName.isNotBlank())
         require(fileName.endsWith(".gguf") && !fileName.contains('/') && !fileName.contains('\\'))
-        require(androidAssetPackId.isNotBlank() && iosAssetPackId.isNotBlank())
+        // A named pack must be real, and at least one platform must deliver this model.
+        require(androidAssetPackId == null || androidAssetPackId.isNotBlank())
+        require(iosAssetPackId == null || iosAssetPackId.isNotBlank())
+        require(androidAssetPackId != null || iosAssetPackId != null)
         require(sizeBytes > 0 && minimumRamBytes > 0 && maximumContextLength > 0)
         if (!SHA256.matches(sha256)) failMessage(L10nKey.MODEL_SHA_REQUIRED)
+    }
+
+    /** The store pack id that delivers this model on [platform], or null when the model is not offered there. */
+    fun deliveryIdFor(platform: ModelPlatform): String? = when (platform) {
+        ModelPlatform.ANDROID -> androidAssetPackId
+        ModelPlatform.IOS -> iosAssetPackId
     }
 
     companion object { private val SHA256 = Regex("[0-9a-f]{64}") }
@@ -55,13 +68,21 @@ class ModelCatalog(packs: List<ModelPack>) {
     fun byId(modelId: String): ModelPack? = packsById[modelId]
     private val packsById = this.packs.associateBy { it.modelId }
 
+    /** The offers [platform] can actually deliver; packs meant for the other platform are dropped. */
+    fun forPlatform(platform: ModelPlatform): ModelCatalog =
+        ModelCatalog(packs.filter { it.deliveryIdFor(platform) != null })
+
     companion object {
         // Store shells provide signed pack metadata after configuring their own asset packs.
         fun unconfigured(): ModelCatalog = ModelCatalog(emptyList())
 
         private val json = Json { ignoreUnknownKeys = false }
 
-        /** Parses `composeResources/files/model-packs.json`, the one catalog source for Android and iOS. Throws on invalid content. */
+        /**
+         * Parses `composeResources/files/model-packs.json`, the one catalog source for Android and iOS. Throws on invalid content.
+         * Every entry is validated here, before any platform filtering, so a corrupt or duplicated pack is rejected even when
+         * it belongs to the other platform.
+         */
         fun fromJson(text: String): ModelCatalog = ModelCatalog(json.decodeFromString<List<ModelPack>>(text))
     }
 }
