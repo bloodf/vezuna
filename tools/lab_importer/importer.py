@@ -179,10 +179,13 @@ def folded(value: str) -> str:
     return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode().casefold()
 
 
-def parse_number(token: str) -> float:
+def parse_number(token: str, unit: str = "") -> float:
     token = token.strip()
     if "," in token:
         return float(token.replace(".", "").replace(",", "."))
+    compact_unit = re.sub(r"[\s^]", "", unit).casefold().replace("μ", "µ").replace("³", "3").replace("⁶", "6")
+    if re.fullmatch(r"[+-]?[1-9]\d{0,2}\.\d{3}", token) and re.fullmatch(r"10\d{1,2}/(?:mm3|µl|ul|mcl|l)", compact_unit):
+        return float(token)
     # Brazilian lab reports use a period as a thousands separator when there
     # are exactly three following digits (5.600 /µL).
     if re.fullmatch(r"[+-]?[1-9]\d{0,2}(?:\.\d{3})+", token):
@@ -240,7 +243,7 @@ def _reference(lower: float | None = None, upper: float | None = None, **extra: 
     return result
 
 
-def _find_references(rest: str) -> list[dict[str, Any]]:
+def _find_references(rest: str, unit: str | None) -> list[dict[str, Any]]:
     references: list[dict[str, Any]] = []
     range_pattern = re.compile(rf"({NUMBER})\s*(?:a|até|ate|to|–|—|-)\s*({NUMBER})\s*({UNIT_PATTERN})?", re.I)
     threshold_pattern = re.compile(
@@ -249,12 +252,12 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
     )
     occupied: list[tuple[int, int]] = []
     for match in range_pattern.finditer(rest):
-        lower, upper = parse_number(match.group(1)), parse_number(match.group(2))
+        reference_unit = match.group(3) or unit or ""
+        lower, upper = parse_number(match.group(1), reference_unit), parse_number(match.group(2), reference_unit)
         if lower > upper:
             continue
-        unit = match.group(3)
         references.append(
-            _reference(lower, upper, unit=unit, text=match.group(0).strip(), _start=match.start())
+            _reference(lower, upper, unit=match.group(3), text=match.group(0).strip(), _start=match.start())
         )
         occupied.append(match.span())
     for match in threshold_pattern.finditer(rest):
@@ -262,7 +265,7 @@ def _find_references(rest: str) -> list[dict[str, Any]]:
             continue
         operator_text = folded(match.group(1)) or match.group(1)
         symbol = match.group(1)
-        value = parse_number(match.group(2))
+        value = parse_number(match.group(2), match.group(3) or unit or "")
         if operator_text.startswith(("inferior", "menor", "até", "ate", "no maximo")) or symbol.startswith(("<", "≤")):
             reference = _reference(
                 upper=value,
@@ -297,7 +300,7 @@ def _parse_reference(rest: str, unit: str | None) -> tuple[dict[str, Any], list[
         reference.pop("lower", None)
         reference.pop("upper", None)
         return reference, []
-    references = _find_references(rest)
+    references = _find_references(rest, unit)
     if references:
         matching = [item for item in references if item.get("unit") == unit]
         return (matching[-1] if matching else references[-1]), references
@@ -412,8 +415,8 @@ def _parse_qualified_numeric(line: str) -> dict[str, Any] | None:
     if re.search(rf"{NUMBER}\s*{UNIT_PATTERN}$", match.group("name"), re.I):
         return None
     observation = _base_observation(match.group("name"))
-    value = parse_number(match.group("value"))
     unit = match.group("unit")
+    value = parse_number(match.group("value"), unit)
     reference, _ = _parse_reference(match.group("rest"), unit)
     _finish_numeric(observation, value, unit, reference)
     observation["value_operator"] = "<" if folded(match.group("qualifier")).startswith(("inferior", "menor")) else ">"
@@ -447,15 +450,15 @@ def _parse_numeric(line: str) -> dict[str, Any] | None:
         if not between:
             primary_index = 1
     number_match, unit_match = candidates[primary_index]
-    value = parse_number(number_match.group(1))
     unit = unit_match.group(1)
+    value = parse_number(number_match.group(1), unit)
     rest = line[unit_match.end() :].strip(" ;")
     reference, all_references = _parse_reference(rest, unit)
     observation = _base_observation(name)
     _finish_numeric(observation, value, unit, reference)
     if primary_index == 1:
-        additional_value = parse_number(first_number.group(1))
         additional_unit = first_unit.group(1)
+        additional_value = parse_number(first_number.group(1), additional_unit)
         additional_reference = next(
             (item for item in all_references if item is not reference), _reference(kind="undefined")
         )
