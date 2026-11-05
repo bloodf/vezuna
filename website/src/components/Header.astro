@@ -14,6 +14,7 @@ const home = localizedPath(locale);
 const docs = localizedPath(locale, 'docs');
 const support = localizedPath(locale, 'support');
 const pathname = Astro.url.pathname;
+const openSource = localizedPath(locale, 'open-source');
 const sectionLinks = [
   { href: '#how', label: copy.nav.how },
   { href: '#records', label: copy.nav.records },
@@ -35,11 +36,13 @@ const sectionLinks = [
             <>
               {sectionLinks.map((link) => <a href={link.href}>{link.label}</a>)}
               <a href={docs}>{copy.nav.docs}</a>
+              <a class="nav-source" href={openSource}>{copy.nav.openSource}</a>
             </>
           ) : (
             <>
               <a href={home}>{copy.nav.product}</a>
               <a href={docs} aria-current={pathname.includes('/docs') ? 'page' : undefined}>{copy.footer.docs}</a>
+              <a href={openSource} aria-current={pathname.endsWith('/open-source') ? 'page' : undefined}>{copy.nav.openSource}</a>
               <a href={support} aria-current={pathname.endsWith('/support') ? 'page' : undefined}>{copy.footer.support}</a>
             </>
           )}
