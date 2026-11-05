@@ -9,3 +9,11 @@ Build `:composeApp:assembleLocalPad` for package/manifest inspection. Once the a
 Before any device installation, inspect the exact APK/APKS manifest and signing identity, confirm the intended test-package identity and an exclusive phone lease, and verify that the test installation has a distinct UID and data directory. A suffix in source alone is not runtime isolation proof. Use synthetic records only. Never uninstall or clear `app.vezuna` for local delivery testing. Any replacement/cleanup of the disposable test installation remains a separately scoped device operation.
 
 Successful local delivery is separate from Play-served delivery, real license verification, model memory/quality/safety acceptance and native runtime obligations. This variant does not waive those release requirements.
+
+## Instrumentation target
+
+Normal builds retain debug instrumentation targeting `app.vezuna`. Only an explicit `-Pvezuna.localPadInstrumentation=true` selects the `localPad` test target. `false` retains debug; other values fail configuration. The flag changes the instrumentation target, not the catalog, resource policy or licensing policy.
+
+Build `:composeApp:assembleLocalPadAndroidTest -Pvezuna.localPadInstrumentation=true` through the same build semaphore and Java/SDK setup. Inspect the resulting instrumentation manifest and require target package `app.vezuna.padtest` before installation. Do not install a normal debug test APK against the isolated app. An assembled test APK is not device execution or delivery/inference proof. Existing tests remain opt-in where their fixtures are unstaged.
+
+The isolated app itself must still come from the reviewed local-testing APK set for PAD delivery testing. Running unrelated instrumented classes does not validate model delivery. A dedicated reviewed measurement test and an exclusive device assignment remain required; this flag does not authorize running the suite or manipulating any installed app.
