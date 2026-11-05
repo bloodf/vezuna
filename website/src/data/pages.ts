@@ -761,7 +761,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Exact statements about the implementation, so you can check them against the code.',
       items: [
         { term: 'Android vault', body: 'A non-exportable AES-256 key in Android Keystore, with AES-GCM encryption.' },
-        { term: 'iOS vault', body: 'CryptoKit AES-GCM with protected app-private files. The vault key is stored in the device-only Keychain, accessible after the first unlock.' },
+        { term: 'iOS vault', body: 'CryptoKit AES-GCM with protected app-private files. The normal key-storage path is the device-only Keychain, accessible after the first unlock. Protected legacy key files can remain until migration is verified; a protected file fallback is used if Keychain creation or read-back fails.' },
         { term: 'Backup file', body: 'Encrypted with the passphrase you choose, of at least twelve characters. There is no recovery path for a lost passphrase.' },
         { term: 'App lock', body: 'Biometrics or the device passcode when Vezuna opens, and after five minutes in the background. On Android, app lock blocks screenshots. On iOS, the app covers its content when the scene is inactive; this does not block screenshots taken while the app is active.' },
         { term: 'What is not claimed', body: 'No independent security audit has been performed. The statements above describe the implementation, not a third-party attestation.' },
@@ -829,7 +829,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Declarações exatas sobre a implementação, para você conferir no código.',
       items: [
         { term: 'Cofre no Android', body: 'Uma chave AES-256 não exportável no Android Keystore, com criptografia AES-GCM.' },
-        { term: 'Cofre no iOS', body: 'CryptoKit AES-GCM com arquivos protegidos no armazenamento privado do app. A chave do cofre fica no Keychain, restrita a este aparelho e acessível após o primeiro desbloqueio.' },
+        { term: 'Cofre no iOS', body: 'CryptoKit AES-GCM com arquivos protegidos no armazenamento privado do app. O caminho normal da chave é o Keychain, restrito a este aparelho e acessível após o primeiro desbloqueio. Arquivos de chave legados protegidos podem permanecer até a migração ser verificada; um arquivo protegido é usado como alternativa se a criação ou releitura no Keychain falhar.' },
         { term: 'Arquivo de backup', body: 'Criptografado com a frase-senha que você escolhe, de pelo menos doze caracteres. Frase-senha perdida não tem caminho de recuperação.' },
         { term: 'Bloqueio do app', body: 'Biometria ou a senha do aparelho quando o Vezuna abre, e depois de cinco minutos em segundo plano. No Android, o bloqueio do app impede capturas de tela. No iOS, o app cobre o conteúdo quando a cena está inativa; isso não bloqueia capturas enquanto o app está ativo.' },
         { term: 'O que não é alegado', body: 'Não houve auditoria de segurança independente. As afirmações acima descrevem a implementação, não um atestado de terceiro.' },
@@ -897,7 +897,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Declaraciones exactas sobre la implementación, para que puedas comprobarlas en el código.',
       items: [
         { term: 'Almacén en Android', body: 'Una clave AES-256 no exportable en Android Keystore, con cifrado AES-GCM.' },
-        { term: 'Almacén en iOS', body: 'CryptoKit AES-GCM con archivos protegidos en el almacenamiento privado de la app. La clave del almacén se guarda en el Keychain, solo para este dispositivo y accesible tras el primer desbloqueo.' },
+        { term: 'Almacén en iOS', body: 'CryptoKit AES-GCM con archivos protegidos en el almacenamiento privado de la app. La ruta normal de la clave es el Keychain, solo para este dispositivo y accesible tras el primer desbloqueo. Los archivos de clave antiguos protegidos pueden permanecer hasta verificar la migración; se usa un archivo protegido como alternativa si falla la creación o relectura en el Keychain.' },
         { term: 'Archivo de copia', body: 'Cifrado con la frase que eliges, de al menos doce caracteres. Una frase perdida no tiene camino de recuperación.' },
         { term: 'Bloqueo de la app', body: 'Biometría o el código del dispositivo cuando Vezuna se abre, y tras cinco minutos en segundo plano. En Android, el bloqueo de la app impide capturas de pantalla. En iOS, la app cubre el contenido cuando la escena está inactiva; esto no bloquea capturas mientras la app está activa.' },
         { term: 'Lo que no se afirma', body: 'No se ha hecho una auditoría de seguridad independiente. Las afirmaciones anteriores describen la implementación, no un certificado de terceros.' },

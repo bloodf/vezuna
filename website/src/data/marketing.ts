@@ -5,7 +5,7 @@ import type { Locale } from '../lib/i18n';
 // - Price US$9.99: saved in both stores (docs/RELEASING.md), not yet on sale, so it stays prospective.
 // - Android 8.0+ / iOS 18.5+: README.md requirements.
 // - Passphrase backups (12+ characters, no recovery): shared/.../values/strings.xml backup_*.
-// - App lock (biometrics or passcode, 5 minutes, screenshots blocked): strings.xml app_lock_*.
+// - App lock (biometrics or passcode, 5 minutes, Android screenshots blocked; iOS inactive-scene cover): strings.xml app_lock_*.
 // - AI: production model catalog is empty, so the page promises no AI feature.
 
 export interface Screenshot { src: string; alt: string; caption: string }
@@ -76,7 +76,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Weight, heart rate, steps', body: 'Type them in, or allow read-only import from Health Connect or Apple Health. Both are optional.' },
         { term: 'Exports', body: 'A PDF or CSV of confirmed results for an appointment, sent through your phone’s share sheet.' },
         { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose, for one profile with its vitals, or the whole household with vitals, original report files and stored documents (up to 24 MB). Restore it on a new phone.' },
-        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. Screenshots are blocked while it is on.' },
+        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. On Android, app lock blocks screenshots. On iOS, it covers inactive scenes but does not block screenshots while the app is active.' },
       ],
       screen: { src: shots.settings, alt: 'Vezuna More screen with entries for Profiles, Exports, Backups, Privacy and app lock, Device connections, and Assistant and local models, with a bottom bar of Today, Records, Care, Trends and More.', caption: 'More: profiles, exports, backups and privacy controls. Exports never depend on an AI model.' },
     },
@@ -184,7 +184,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Peso, frequência cardíaca, passos', body: 'Digite à mão ou permita importar, só leitura, do Health Connect ou do Apple Saúde. As duas opções são opcionais.' },
         { term: 'Exportações', body: 'Um PDF ou CSV dos resultados confirmados para levar à consulta, enviado pelo compartilhamento do celular.' },
         { term: 'Backups', body: 'Um arquivo criptografado com uma frase-senha que você escolhe, de um perfil com seus sinais vitais, ou da família toda com sinais vitais, arquivos originais dos laudos e documentos guardados (até 24 MB). Restaure num celular novo com a frase-senha.' },
-        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
+        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. No Android, o bloqueio do app impede capturas de tela. No iOS, cobre cenas inativas, mas não bloqueia capturas enquanto o app está ativo.' },
       ],
       screen: { src: shots.settings, alt: 'Tela More do Vezuna com entradas Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” e “Assistant and local models”, com barra inferior Today, Records, Care, Trends e More.', caption: 'Mais: perfis, exportações, backups e controles de privacidade. Exportar nunca depende de modelo de IA.' },
     },
@@ -292,7 +292,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Peso, frecuencia cardíaca, pasos', body: 'Escríbelos a mano o permite importarlos, solo lectura, desde Health Connect o Apple Salud. Ambas opciones son opcionales.' },
         { term: 'Exportaciones', body: 'Un PDF o CSV de los resultados confirmados para la consulta, enviado con el menú de compartir del teléfono.' },
         { term: 'Copias de seguridad', body: 'Un archivo cifrado con una frase de contraseña que tú eliges, de un perfil con sus signos vitales, o de toda la familia con signos vitales, archivos originales de los informes y documentos guardados (hasta 24 MB). Restáuralo en un teléfono nuevo con la frase.' },
-        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. Las capturas de pantalla se bloquean mientras está activo.' },
+        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. En Android, el bloqueo de la app impide capturas de pantalla. En iOS, cubre escenas inactivas, pero no bloquea capturas mientras la app está activa.' },
       ],
       screen: { src: shots.settings, alt: 'Pantalla More de Vezuna con accesos Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” y “Assistant and local models”, con barra inferior Today, Records, Care, Trends y More.', caption: 'Más: perfiles, exportaciones, copias de seguridad y controles de privacidad. Exportar nunca depende de un modelo de IA.' },
     },
