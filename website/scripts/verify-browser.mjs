@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { withPreview } from './with-preview.mjs';
 import { mkdirSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const cwd = process.cwd();
-const origin = 'http://127.0.0.1:4173';
 const routes = [
   '/', '/pt-br', '/es', '/support', '/pt-br/support', '/es/support', '/privacy', '/notices',
   '/docs', '/docs/getting-started', '/docs/lab-records', '/docs/medications-reminders-exports',
@@ -13,26 +11,9 @@ const routes = [
   '/pt-br/docs', '/pt-br/docs/getting-started', '/es/docs', '/es/docs/getting-started',
 ];
 mkdirSync('screenshots', { recursive: true });
-const server = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4173'], {
-  cwd,
-  detached: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-let serverOutput = '';
-server.stdout.on('data', (chunk) => { serverOutput += chunk; });
-server.stderr.on('data', (chunk) => { serverOutput += chunk; });
+await withPreview(async (origin) => {
 let browser;
-
 try {
-  let ready = false;
-  for (let attempt = 0; attempt < 60; attempt++) {
-    try {
-      const response = await fetch(origin);
-      if (response.ok) { ready = true; break; }
-    } catch { /* preview is still starting */ }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  assert(ready, `Preview did not start: ${serverOutput}`);
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
@@ -176,7 +157,5 @@ try {
   console.log(`BROWSER_VERIFIED layouts=${layoutChecks} axePages=${axeRoutes.length} captures=3 faqKeyboard=passed docsMobileMenu=passed layoutShift=passed reducedMotion=passed screenshots=6`);
 } finally {
   if (browser) await browser.close();
-  if (server.pid) {
-    try { process.kill(-server.pid, 'SIGTERM'); } catch { server.kill('SIGTERM'); }
-  }
 }
+});
