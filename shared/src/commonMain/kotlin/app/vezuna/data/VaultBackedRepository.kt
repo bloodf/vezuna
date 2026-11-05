@@ -777,8 +777,16 @@ class VaultBackedRepository(
         // A previous-generation index is one write behind: records it does not list are recovered, unless the user deleted them.
         // Captured now: reading a profile record can also fall back to its previous copy and flip the live flag.
         val indexFromPrevious = mutableOpenedFromPrevious.value
-        val extra = if (indexFromPrevious) orphanIds(listed.keys) else emptyList()
+        // Neither a stale index nor surviving clinical bytes can establish that an uncertain profile was not deleted.
+        // Keep the fallback index untouched too: rewriting it would give uncertain entries current authority next launch.
+        val suppressFallback = indexFromPrevious && (deletedProfileIds == null || deletedReset)
+        if (suppressFallback) {
+            selectedProfileId = null
+            healthLinkId = null
+        }
+        val extra = if (indexFromPrevious && !suppressFallback) orphanIds(listed.keys) else emptyList()
         (listed.keys + extra).forEach { id ->
+            if (suppressFallback) return@forEach
             if (id in listed && indexFromPrevious && deletedProfileIds?.contains(id) == true) {
                 // A previous-generation index is a write behind: an id the user deleted may still be listed, with its record
                 // left behind by a delete that did not finish. Leave it deleted; the index is rewritten without it.
@@ -838,13 +846,13 @@ class VaultBackedRepository(
 
     /**
      * Profile ids whose record file exists but which the loaded index does not list. Only reached for a previous-generation
-     * index. Ids with vitals count too, and an id the user deleted never does. When the tombstones cannot be read nothing
-     * new is recovered from record files; the vitals path keeps its earlier behavior.
+     * index. Ids with vitals count too, and an id the user deleted never does. Unknown or reset deletion history
+     * permits no automatic recovery, whether the candidate has clinical data or only a record.
      */
     private suspend fun orphanIds(listed: Set<String>): List<String> {
         val deleted = deletedProfileIds
-        val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted.orEmpty() && vault.read(profileKey(it)) != null }
-        if (deleted == null || deletedReset) return withVitals
+        if (deleted == null || deletedReset) return emptyList()
+        val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted && vault.read(profileKey(it)) != null }
         val byKey = vault.listKeys().orEmpty().mapNotNull(::profileIdOf)
         val byAssociatedData = vault.storedAssociatedData().orEmpty().mapNotNull { profileIdFromAssociatedData(it) }
         // Candidates only: each one is read through its own key, so a planted or renamed file cannot inject a record.
@@ -941,7 +949,13 @@ class VaultBackedRepository(
      * Null when nothing is stored. A newer schema is never read from the previous generation.
      */
     private suspend fun <T : Any> readDocument(key: String, associatedData: String, parse: (JsonElement) -> T): T? {
-        val current = vault.read(key) ?: return null
+        // Android read() silently serves .prev after current was quarantined. Preserve that provenance for the two
+        // documents that authorize recovery. Single-generation vaults use SecureVault's current-only default.
+        val current = if (key == INDEX_KEY || key == DELETED_KEY) {
+            val generation = vault.readGeneration(key) ?: return null
+            if (generation.previous) mutableOpenedFromPrevious.value = true
+            generation.bytes
+        } else vault.read(key) ?: return null
         return try {
             decode(current, associatedData, parse)
         } catch (error: CancellationException) {

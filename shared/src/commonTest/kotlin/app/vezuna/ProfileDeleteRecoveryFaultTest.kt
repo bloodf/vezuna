@@ -78,12 +78,19 @@ class ProfileDeleteRecoveryFaultTest {
         assertNull(disk.read(record))
         assertNull(disk.read(vitals))
         assertNotNull(disk.previous[deleted])
+        val liveKey = "repository-profile-live-v1"
+        val liveBytes = disk.current.getValue(liveKey).copyOf()
+        val previousLive = disk.previous[liveKey]?.copyOf()
         disk.current[deleted] = byteArrayOf(0)
         disk.current[index] = byteArrayOf(0)
 
         repeat(2) {
             val reopened = reopen(disk)
-            assertEquals(listOf("live"), ids(reopened))
+            // Unknown history also hides the live profile listed by the nonauthoritative fallback index.
+            assertEquals(emptyList(), ids(reopened))
+            assertNull(reopened.linkedHealthProfileId())
+            assertContentEquals(liveBytes, disk.current[liveKey])
+            assertContentEquals(previousLive, disk.previous[liveKey])
             assertNull(disk.read(record))
             assertNull(disk.read(vitals))
         }
@@ -143,12 +150,19 @@ class ProfileDeleteRecoveryFaultTest {
         repository.createProfile(Profile("orphan", "Orphan", createdAt = clinical.profile.createdAt))
         val key = "repository-profile-orphan-v1"
         val bytes = disk.current.getValue(key).copyOf()
+        val liveKey = "repository-profile-live-v1"
+        val liveBytes = disk.current.getValue(liveKey).copyOf()
+        val previousLive = disk.previous[liveKey]?.copyOf()
         disk.current[deleted] = byteArrayOf(0)
         disk.current[index] = byteArrayOf(0)
 
         val reopened = reopen(disk)
 
-        assertEquals(listOf("live"), ids(reopened))
+        // A listed live record has no stronger deletion evidence than the unlisted orphan in this compound fault.
+        assertEquals(emptyList(), ids(reopened))
+        assertNull(reopened.linkedHealthProfileId())
+        assertContentEquals(liveBytes, disk.current[liveKey])
+        assertContentEquals(previousLive, disk.previous[liveKey])
         assertFalse(reopened.profiles.value.any { it.profileId == "orphan" })
         assertContentEquals(bytes, disk.current[key], "fail closed suppresses recovery, not durable record bytes")
     }

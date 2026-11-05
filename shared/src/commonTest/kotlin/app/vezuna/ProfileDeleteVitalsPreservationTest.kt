@@ -172,12 +172,18 @@ class ProfileDeleteVitalsPreservationTest {
         assertNull(disk.current[vitals])
         assertNull(disk.previous[vitals])
         assertNotNull(disk.previous[deleted])
+        val liveKey = "repository-profile-live-v1"
+        val liveBytes = disk.current.getValue(liveKey).copyOf()
+        val previousLive = disk.previous[liveKey]?.copyOf()
         disk.current[deleted] = byteArrayOf(0)
         disk.current[index] = byteArrayOf(0)
         repeat(2) {
             val reopened = VaultBackedRepository(disk).also { it.load() }
-            assertEquals(listOf("live"), reopened.profiles.value.map { it.profileId })
-            assertEquals("live", reopened.linkedHealthProfileId())
+            // The successful target deletion remains complete; lost history separately hides the live fallback entry.
+            assertEquals(emptyList(), reopened.profiles.value)
+            assertNull(reopened.linkedHealthProfileId())
+            assertContentEquals(liveBytes, disk.current[liveKey])
+            assertContentEquals(previousLive, disk.previous[liveKey])
             assertNull(disk.current[record])
             assertNull(disk.previous[record])
             assertNull(disk.current[vitals])
