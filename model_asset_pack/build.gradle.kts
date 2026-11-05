@@ -1,4 +1,6 @@
+import javax.inject.Inject
 import org.gradle.api.artifacts.ConfigurablePublishArtifact
+import org.gradle.process.ExecOperations
 
 plugins {
     id("com.android.asset-pack")
@@ -9,39 +11,49 @@ assetPack {
     dynamicDelivery { deliveryType = "on-demand" }
 }
 
-// These are explicit local inputs, never downloads or committed model bytes.
-val modelSource = providers.gradleProperty("VEZUNA_MODEL_SOURCE")
-val modelMetadata = providers.gradleProperty("VEZUNA_MODEL_METADATA")
-val modelLicense = providers.gradleProperty("VEZUNA_MODEL_LICENSE")
-val generatedAssets = layout.projectDirectory.dir("src/main/assets")
-val stagingScript = rootProject.layout.projectDirectory.file("tools/release/stage_android_model.py")
+abstract class StageModelAssets : DefaultTask() {
+    @get:InputFile abstract val modelSource: RegularFileProperty
+    @get:InputFile abstract val modelMetadata: RegularFileProperty
+    @get:InputFile abstract val modelLicense: RegularFileProperty
+    @get:InputFile abstract val stagingScript: RegularFileProperty
+    @get:OutputDirectory abstract val assetDirectory: DirectoryProperty
+    @get:Inject abstract val execOperations: ExecOperations
 
-val stageModelAssets = tasks.register<Exec>("stageModelAssets") {
-    group = "distribution"
-    description = "Verify and stage the explicitly supplied local model before asset-pack consumption."
-    // Always verify bytes: an unchanged pathname is not an integrity receipt.
-    outputs.upToDateWhen { false }
-    doFirst {
-        val source = modelSource.orNull
-        val metadata = modelMetadata.orNull
-        val license = modelLicense.orNull
-        check(!source.isNullOrBlank() && !metadata.isNullOrBlank() && !license.isNullOrBlank()) {
-            "Asset-pack bundles require VEZUNA_MODEL_SOURCE, VEZUNA_MODEL_METADATA and VEZUNA_MODEL_LICENSE; see docs/android-asset-pack.md."
+    @TaskAction
+    fun stage() {
+        execOperations.exec {
+            commandLine("python3", stagingScript.get().asFile.absolutePath,
+                "--source", modelSource.get().asFile.absolutePath,
+                "--output-dir", assetDirectory.get().asFile.absolutePath,
+                "--metadata", modelMetadata.get().asFile.absolutePath,
+                "--license-file", modelLicense.get().asFile.absolutePath)
         }
-        commandLine("python3", stagingScript.asFile.absolutePath,
-            "--source", source, "--output-dir", generatedAssets.asFile.absolutePath,
-            "--metadata", metadata, "--license-file", license)
-    }
-    doLast {
-        val metadata = groovy.json.JsonSlurper().parse(file(modelMetadata.get())) as Map<*, *>
+        val metadata = groovy.json.JsonSlurper().parse(modelMetadata.get().asFile) as Map<*, *>
         val name = metadata["fileName"] as String
         val expected = setOf(name, "$name.LICENSE.txt", "$name.provenance.json")
-        val entries = generatedAssets.asFile.listFiles()?.toList().orEmpty()
+        val entries = assetDirectory.get().asFile.listFiles()?.toList().orEmpty()
         check(entries.all { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) } &&
             entries.map { it.name }.toSet() == expected) {
             "Asset directory contains unexpected files or recovery state; inspect it before packaging."
         }
     }
+}
+
+// These are explicit local inputs, never downloads or committed model bytes.
+val sourceInput = providers.gradleProperty("VEZUNA_MODEL_SOURCE")
+val metadataInput = providers.gradleProperty("VEZUNA_MODEL_METADATA")
+val licenseInput = providers.gradleProperty("VEZUNA_MODEL_LICENSE")
+val generatedAssets = layout.projectDirectory.dir("src/main/assets")
+val stageModelAssets = tasks.register<StageModelAssets>("stageModelAssets") {
+    group = "distribution"
+    description = "Verify and stage the explicitly supplied local model before asset-pack consumption."
+    modelSource.set(layout.file(sourceInput.map { require(File(it).isAbsolute); File(it) }))
+    modelMetadata.set(layout.file(metadataInput.map { require(File(it).isAbsolute); File(it) }))
+    modelLicense.set(layout.file(licenseInput.map { require(File(it).isAbsolute); File(it) }))
+    stagingScript.set(rootProject.layout.projectDirectory.file("tools/release/stage_android_model.py"))
+    assetDirectory.set(generatedAssets)
+    // Always verify bytes: an unchanged pathname is not an integrity receipt.
+    outputs.upToDateWhen { false }
 }
 
 // AGP 9.5 publishes src/main/assets through packElements. Bind the producer to
