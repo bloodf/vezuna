@@ -26,6 +26,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ExportModelAndPromptTest {
+    private val testCapacity = object : app.vezuna.llm.DeviceCapacity {
+        override fun totalRamBytes() = Long.MAX_VALUE
+        override fun freeStorageBytes() = Long.MAX_VALUE
+    }
+    private val testAdmission = app.vezuna.llm.ModelLoadAdmission { _, _ -> }
+
     private val time = Instant.parse("2026-01-10T10:00:00Z")
 
     @Test
@@ -185,7 +191,7 @@ class ExportModelAndPromptTest {
         val second = pack("second", secondBytes)
         val store = MemoryModelStore()
         val llm = RecordingLlm()
-        val manager = InstalledModelManager(ModelCatalog(listOf(first, second)), store, llm)
+        val manager = InstalledModelManager(ModelCatalog(listOf(first, second)), store, llm, testCapacity, testAdmission)
         manager.install(first, store.source(firstBytes), 1)
         manager.install(second, store.source(secondBytes), 2)
         manager.select(first.modelId)
@@ -208,7 +214,7 @@ class ExportModelAndPromptTest {
         store.write(InstalledModel(model, model.fileName, 1), bytes)
         store.saveSelection(model.modelId)
         val llm = RecordingLlm()
-        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm)
+        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm, testCapacity, testAdmission)
 
         manager.refresh()
 
@@ -227,7 +233,7 @@ class ExportModelAndPromptTest {
         store.saveSelection(model.modelId)
         store.tamper(model.modelId, "tampered-model".encodeToByteArray())
         val llm = RecordingLlm()
-        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm)
+        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm, testCapacity, testAdmission)
 
         manager.refresh()
 
@@ -245,7 +251,7 @@ class ExportModelAndPromptTest {
         val model = pack("stream", bytes)
         val store = MemoryModelStore()
         store.write(InstalledModel(model, model.fileName, 1), bytes)
-        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, RecordingLlm())
+        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, RecordingLlm(), testCapacity, testAdmission)
 
         manager.select(model.modelId)
 
@@ -261,7 +267,7 @@ class ExportModelAndPromptTest {
         store.write(InstalledModel(model, model.fileName, 1), bytes)
         store.saveSelection(model.modelId)
         val llm = RecordingLlm()
-        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm)
+        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, llm, testCapacity, testAdmission)
 
         manager.refresh()
         assertEquals(listOf(1024), llm.contextLengths)
@@ -277,7 +283,7 @@ class ExportModelAndPromptTest {
         val bytes = "reinstall".encodeToByteArray()
         val model = pack("reinstall", bytes)
         val store = MemoryModelStore()
-        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, RecordingLlm())
+        val manager = InstalledModelManager(ModelCatalog(listOf(model)), store, RecordingLlm(), testCapacity, testAdmission)
         manager.install(model, store.source(bytes), 1)
         manager.select(model.modelId)
 
@@ -292,7 +298,7 @@ class ExportModelAndPromptTest {
     fun modelManagerRejectsWrongHashBeforeWriting() = runTest {
         val bytes = "real".encodeToByteArray()
         val store = MemoryModelStore()
-        val manager = InstalledModelManager(ModelCatalog(listOf(pack("model", bytes))), store, RecordingLlm())
+        val manager = InstalledModelManager(ModelCatalog(listOf(pack("model", bytes))), store, RecordingLlm(), testCapacity, testAdmission)
         val result = runCatching { manager.install(pack("model", "fake".encodeToByteArray()), store.source(bytes), 1) }
         assertTrue(result.isFailure)
         assertTrue(store.installed().isEmpty())

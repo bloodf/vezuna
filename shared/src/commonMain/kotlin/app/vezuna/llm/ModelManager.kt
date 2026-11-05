@@ -128,6 +128,7 @@ class InstalledModelManager(
     private val files: ModelFileStore,
     private val llm: LocalLlm,
     private val capacity: DeviceCapacity = UnknownDeviceCapacity,
+    private val loadAdmission: ModelLoadAdmission = UnavailableModelLoadAdmission,
 ) {
     private val mutex = Mutex()
     private val managed = llm as? ManagedLlmLifecycle
@@ -201,6 +202,7 @@ class InstalledModelManager(
                     mutableState.value = mutableState.value.copy(loadedModelId = null)
                 }
                 is LifecycleCommand.Replace -> {
+                    command.admission()
                     if (mutableState.value.loadedModelId != null) {
                         external(L10nKey.MODEL_LOADING_FAILED) { llm.unload() }
                         mutableState.value = mutableState.value.copy(loadedModelId = null)
@@ -211,6 +213,13 @@ class InstalledModelManager(
             }
         }
     }
+    private fun replacement(model: InstalledModel, settings: LlmGenerationSettings): LifecycleCommand.Replace =
+        LifecycleCommand.Replace(model.localPath, settings, VerifiedModelDigest(model.pack.sha256)) {
+            try { loadAdmission.requireFits(model.pack, settings) }
+            catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+            catch (failure: app.vezuna.localization.VitaMessageException) { throw ModelResourceDenial(failure.userText, failure) }
+            catch (failure: Exception) { throw ModelResourceDenial(message(L10nKey.MODEL_CAPACITY_UNAVAILABLE), failure) }
+        }
     private suspend fun legacyCleanup() {
         if (managed == null) {
             try { llm.unload() }
@@ -266,8 +275,9 @@ class InstalledModelManager(
                 val model = installed.first { it.pack.modelId == selected }
                 try {
                     if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-                    lifecycle(LifecycleCommand.Replace(model.localPath, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength)), VerifiedModelDigest(model.pack.sha256)), selected)
+                    lifecycle(replacement(model, LlmGenerationSettings(contextLength = minOf(4096, model.pack.maximumContextLength))), selected)
                 } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+                catch (failure: ModelResourceDenial) { throw failure }
                 catch (failure: ModelOperationFailure) {
                     throw ModelOperationFailure(message(L10nKey.SELECTED_MODEL_NOT_LOADED, selected), failure)
                 } catch (failure: app.vezuna.localization.VitaMessageException) {
@@ -275,6 +285,7 @@ class InstalledModelManager(
                 }
             }
         } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+        catch (failure: ModelResourceDenial) { throw failure }
         catch (failure: ModelOperationFailure) { legacyCleanup(); throw failure }
         catch (failure: app.vezuna.localization.VitaMessageException) { legacyCleanup(); throw failure }
     }
@@ -307,9 +318,10 @@ class InstalledModelManager(
         if (settings.contextLength > model.pack.maximumContextLength) failMessage(L10nKey.CONTEXT_EXCEEDS_MODEL_LIMIT)
         try {
             if (!external(L10nKey.MODEL_INTEGRITY_FAILED) { files.verifyIntegrity(model) }) failMessage(L10nKey.MODEL_INTEGRITY_FAILED)
-            lifecycle(LifecycleCommand.Replace(model.localPath, settings, VerifiedModelDigest(model.pack.sha256)), modelId)
+            lifecycle(replacement(model, settings), modelId)
             saveSelection(modelId)
         } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
+        catch (failure: ModelResourceDenial) { throw failure }
         catch (failure: ModelOperationFailure) { legacyCleanup(); throw failure }
         catch (failure: app.vezuna.localization.VitaMessageException) { legacyCleanup(); throw failure }
     }
