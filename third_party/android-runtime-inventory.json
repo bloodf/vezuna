@@ -2283,16 +2283,16 @@
     "bundledFonts": []
   },
   {
-    "component": "com.llamatik:core-android:2.1.0",
+    "component": "com.llamatik:core-android:2.2.0",
     "artifact": "core-release.aar",
-    "sha256": "27dc1c0898d3385b5ace2423dc53171575ea9977662da6f9a01c23c3920c691b",
+    "sha256": "8fb2020cceb5396917c0363cd5852fb52532a003bc0b9ad51539859acc2a3fc3",
     "type": "aar",
     "pomLicenses": [
       {
         "name": "Apache-2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0",
-        "declaredBy": "com.llamatik:core-android:2.1.0",
-        "pomSha256": "b62f75aad6af05eb8f282e313623b5436509b6ea207dc1f7148cafb6c32ace50"
+        "declaredBy": "com.llamatik:core-android:2.2.0",
+        "pomSha256": "6af00a2e370476eb6ad3187dd31f31c89fa6a75c0f9d3e58b89c82c8d09c98d7"
       }
     ],
     "embeddedNotices": [],

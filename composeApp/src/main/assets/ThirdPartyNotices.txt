@@ -120,7 +120,7 @@ com.google.mlkit:text-recognition-bundled-common:17.0.0: ML Kit Terms of Service
 com.google.mlkit:text-recognition:16.0.1: ML Kit Terms of Service (https://developers.google.com/ml-kit/terms)
 com.google.mlkit:vision-common:17.3.0: ML Kit Terms of Service (https://developers.google.com/ml-kit/terms)
 com.google.mlkit:vision-interfaces:16.3.0: ML Kit Terms of Service (https://developers.google.com/ml-kit/terms)
-com.llamatik:core-android:2.1.0: Apache-2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+com.llamatik:core-android:2.2.0: Apache-2.0 (https://www.apache.org/licenses/LICENSE-2.0)
 com.tom-roush:pdfbox-android:2.0.27.0: The Apache Software License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 javax.inject:javax.inject:1: The Apache Software License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 org.bouncycastle:bcpkix-jdk15to18:1.72: Bouncy Castle Licence (http://www.bouncycastle.org/licence.html)
@@ -548,6 +548,7 @@ com.google.guava:guava:32.0.0-jre
    limitations under the License.
 
 ========================================================================
+llamatik 2.2.0 source release
 llamatik source release
 
 MIT License
@@ -599,6 +600,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ========================================================================
+stable-diffusion.cpp source pinned by Llamatik 2.2.0
 stable-diffusion.cpp source release
 
 MIT License
@@ -1618,6 +1620,7 @@ leejet/stable-diffusion.cpp: thirdparty/httplib.h
 
 ========================================================================
 OpenMP runtime: official Android NDK r28c notices
+OpenMP runtime: official Android NDK r29 notices
 
 
    Copyright (c) 2015, The Android Open Source Project
@@ -11496,6 +11499,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ========================================================================
 OpenMP runtime: official Android NDK r28c toolchain notices
+OpenMP runtime: official Android NDK r29 toolchain notices
 
 		    GNU GENERAL PUBLIC LICENSE
 		       Version 2, June 1991

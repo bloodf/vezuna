@@ -54,7 +54,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
-            implementation(libs.llamatik.core)
+            implementation(libs.llamatik.android.core)
         }
         iosMain.dependencies {
             implementation(libs.llamatik.core)

@@ -3,7 +3,7 @@
   "inventories": {
     "android": {
       "path": "third_party/android-runtime-inventory.json",
-      "sha256": "f8208a0171bfa20542a4f7342067a1a87bd90558f4b7994ae1855c5ddc4c0132"
+      "sha256": "4a294427dbee9adafe9a930a3025aeb4e7d77aec5dae5c6ce8974a65efb20557"
     },
     "ios": {
       "path": "third_party/ios-runtime-inventory.json",
@@ -1304,6 +1304,38 @@
         "android"
       ],
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "third_party/llamatik-2.2.0/llamatik-LICENSE.txt",
+      "component": "llamatik 2.2.0 source release",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "2d403c77e2c6f39e9e0385a23bb61b878b5aed8ca6393016243e018656b9567e"
+    },
+    {
+      "path": "third_party/llamatik-2.2.0/stable-diffusion.cpp-LICENSE.txt",
+      "component": "stable-diffusion.cpp source pinned by Llamatik 2.2.0",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "b53fa08f515cb5a6fff7b9fd8fcd0961a4b80df29d74372d25e1f9171aa042ee"
+    },
+    {
+      "path": "third_party/android-ndk-r28c/NOTICE",
+      "component": "OpenMP runtime: official Android NDK r29 notices",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e"
+    },
+    {
+      "path": "third_party/android-ndk-r28c/NOTICE.toolchain",
+      "component": "OpenMP runtime: official Android NDK r29 toolchain notices",
+      "platforms": [
+        "android"
+      ],
+      "sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a"
     }
   ],
   "outputs": {

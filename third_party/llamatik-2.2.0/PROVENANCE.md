@@ -1,0 +1,9 @@
+# Llamatik 2.2.0 Android: partial attribution evidence
+
+The resolved `com.llamatik:core-android:2.2.0` AAR is 83,718,561 bytes and has SHA-256 `8fb2020cceb5396917c0363cd5852fb52532a003bc0b9ad51539859acc2a3fc3`. Its POM declares Apache-2.0. The [2.2 source release LICENSE](https://github.com/llamatik/Llamatik/blob/10f3a99d5f74d727c43b3e1475b8931403e592d2/LICENSE) says MIT. Both are preserved without resolving the publisher-terms question.
+
+The source release pins llama.cpp `620d2225cc436ab0b001e3200e590e3b286ef9ab`, whisper.cpp `d1be6fde11ac6e0407606b4e42fe72d34add8037`, and stable-diffusion.cpp `77b72a2efed78f55de26892c7e909cee001e8b83`. The first two revisions match the 2.1 source release. The 2.2 Llamatik and stable-diffusion top-level license texts match the retained 2.1 copies. Ten previously recorded stable-diffusion vendor notice-source paths also have identical Git blob IDs at the two pinned revisions. This path comparison is not an exhaustive attribution audit and does not prove the source of every binary.
+
+The AAR packages `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` libraries. Each packaged `libomp.so` matches the corresponding official NDK r29 library after the documented strip operation. See [android-ndk-r29/PROVENANCE.json](android-ndk-r29/PROVENANCE.json) for the archive identity, SHA-1 metadata limitation, exact hashes, and scope of that byte comparison. The remaining native-library source and notice map is not established by this match.
+
+The stable-diffusion JNI implementation and pinned stable-diffusion revision changed in 2.2. The upstream Android target links stable-diffusion code into `libllama_jni.so`; the AAR has no separate stable-diffusion shared library. This observation does not establish the origin of every linked component or complete redistribution compliance. Native runtime behavior and final APK/AAB alignment require separate validation.
