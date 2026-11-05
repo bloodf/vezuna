@@ -118,6 +118,26 @@ assert.throws(() => p12Certificate.getCertData(Buffer.from('invalid DER'), 'synt
 console.log('Expo certificate/Buffer PEM and EAS/Expo P12 checks pass; forged signature, bad password and zero iterations rejected');
 // Exercise tar's create/list stream APIs against this source file, without extraction.
 (async () => {
+  const { parsedYamlFromWorkflowContents } = eas('./build/commandUtils/workflow/parse.js');
+  const steps = createRequire(eas.resolve('@expo/steps/package.json'));
+  const { readRawBuildConfigAsync } = steps('./dist/BuildConfig.js');
+  const { BuildConfigYAMLError } = steps('./dist/errors.js');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'vezuna-yaml-'));
+  try {
+    const file = path.join(dir, 'build.yml');
+    const normal = 'defaults: &defaults\n  image: latest\njob:\n  <<: *defaults\n  steps: [checkout, test]\n';
+    const expected = { defaults: { image: 'latest' }, job: { image: 'latest', steps: ['checkout', 'test'] } };
+    assert.deepEqual(parsedYamlFromWorkflowContents({ yamlConfig: normal }), expected);
+    fs.writeFileSync(file, 'build:\n  steps: [checkout, test]\n');
+    assert.deepEqual(await readRawBuildConfigAsync(file), { build: { steps: ['checkout', 'test'] } });
+    const hostile = '['.repeat(5000) + '1' + ']'.repeat(5000);
+    assert.throws(() => parsedYamlFromWorkflowContents({ yamlConfig: hostile }), BuildConfigYAMLError);
+    fs.writeFileSync(file, hostile);
+    await assert.rejects(readRawBuildConfigAsync(file), BuildConfigYAMLError);
+    console.log('EAS workflow and Expo build YAML accept normal input and reject deep input with YAMLParseError');
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
   const tar = eas('tar');
   const chunks = [];
   for await (const chunk of tar.c({ cwd: __dirname }, ['eas-compatibility.cjs'])) chunks.push(chunk);
