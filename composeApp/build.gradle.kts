@@ -73,6 +73,13 @@ android {
             if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
         }
     }
+    // Research instrumentation must explicitly target the separately installed app.
+    testBuildType = providers.gradleProperty("vezuna.localPadInstrumentation").map { value ->
+        require(value == "true" || value == "false") {
+            "vezuna.localPadInstrumentation must be true or false"
+        }
+        if (value == "true") "localPad" else "debug"
+    }.getOrElse("debug")
     buildFeatures {
         compose = true
         buildConfig = true
