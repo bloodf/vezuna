@@ -17,8 +17,15 @@ import javax.crypto.spec.GCMParameterSpec
 
 actual fun createPlatformVault(storagePath: String): SecureVault = AndroidSecureVault(File(storagePath))
 
-class AndroidSecureVault(private val directory: File) : SecureVault {
-    private val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+/** [keyStore] must already be loaded. The one-argument constructor loads the production AndroidKeyStore. */
+class AndroidSecureVault(
+    private val directory: File,
+    private val keyStore: KeyStore,
+) : SecureVault {
+    constructor(directory: File) : this(
+        directory,
+        KeyStore.getInstance("AndroidKeyStore").apply { load(null) },
+    )
     private val files = GenerationalFileStore(directory)
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope {
