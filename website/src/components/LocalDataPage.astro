@@ -82,7 +82,7 @@ const alternates: Alternates = {
         </header>
         <ul class="status-list status-list--dark">
           {copy.deletion.items.map((item) => (
-            <li><span class="status-mark" aria-hidden="true"></span><span>{item}</span></li>
+            <li><span class="status-mark" aria-hidden="true"></span><span><strong>{item.term}</strong><br />{item.body}</span></li>
           ))}
         </ul>
       </div>

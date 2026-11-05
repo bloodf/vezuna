@@ -20,3 +20,14 @@ const cssFiles = readdirSync(join(dist, '_astro')).filter((name) => name.endsWit
 assert(cssFiles.length > 0, 'Missing compiled CSS');
 assert(cssFiles.some((name) => readFileSync(join(dist, '_astro', name), 'utf8').includes('Noto Sans')), 'Compiled CSS does not contain Noto Sans');
 console.log(`PRODUCTION_BUILD_VERIFIED html=${htmlFiles.length} searchIndex=3-languages assets=local`);
+
+// Inspect rendered guidance in every locale, not just source strings or route existence.
+for (const [route, term, recovery] of [
+  ['local-data', 'Inside the app', 'previous encrypted generation'],
+  ['pt-br/local-data', 'Dentro do app', 'geração anterior criptografada'],
+  ['es/local-data', 'Dentro de la app', 'generación anterior cifrada'],
+]) {
+  const html = readFileSync(join(dist, route, 'index.html'), 'utf8');
+  assert(!html.includes('[object Object]'), `${route}: object rendered as text`);
+  assert(html.includes(term) && html.includes(recovery), `${route}: deletion guidance missing`);
+}

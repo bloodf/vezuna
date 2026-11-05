@@ -521,7 +521,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       items: [
         { term: 'Per profile', body: 'Schedules belong to one person. The reminder list always shows who a dose belongs to.' },
         { term: 'Three answers', body: 'Mark a dose as taken, skipped, or snoozed. Snoozing pushes it back by ten minutes.' },
-        { term: 'Adherence', body: 'The Today screen shows how many of the last thirty days were marked taken.' },
+        { term: 'Adherence', body: 'The Today screen shows recorded doses marked taken out of recorded completed doses over the last thirty days.' },
         { term: 'Local notifications', body: 'Reminders are scheduled on the device. Notification permission is optional, and the schedule itself stays on the phone either way.' },
       ],
     },
@@ -549,7 +549,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       title: 'Controls on the device',
       body: 'The More screen groups everything that is about the device rather than about a person.',
       items: [
-        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens, and again after five minutes in the background. Screenshots are blocked while it is on.' },
+        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens, and again after five minutes in the background. On Android, app lock blocks screenshots. On iOS, the app covers its content when the scene is inactive; this does not block screenshots taken while the app is active.' },
         { term: 'Device connections', body: 'Health Connect on Android and Apple Health on iPhone are read-only, and each one is off until you allow it.' },
         { term: 'Profiles', body: 'Every person in the household has a separate profile with a separate vault. Records never mix between profiles.' },
         { term: 'Third-party notices', body: 'The app carries the license texts for its own dependencies, readable offline under More, then Third-party notices.' },
@@ -599,7 +599,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       items: [
         { term: 'Por perfil', body: 'Os horários pertencem a uma pessoa. A lista de lembretes mostra sempre de quem é a dose.' },
         { term: 'Três respostas', body: 'Marque a dose como tomada, pulada ou adiada. Adiar empurra a dose dez minutos.' },
-        { term: 'Adesão', body: 'A tela Today mostra quantos dos últimos trinta dias foram marcados como tomados.' },
+        { term: 'Adesão', body: 'A tela Today mostra as doses registradas como tomadas em relação às doses com registro concluído nos últimos trinta dias.' },
         { term: 'Notificações locais', body: 'Os lembretes são agendados no aparelho. A permissão de notificação é opcional, e a agenda fica no celular de qualquer forma.' },
       ],
     },
@@ -627,7 +627,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       title: 'Controles no aparelho',
       body: 'A tela More reúne o que é do aparelho, e não de uma pessoa.',
       items: [
-        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abre, e de novo depois de cinco minutos em segundo plano. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
+        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abre, e de novo depois de cinco minutos em segundo plano. No Android, o bloqueio do app impede capturas de tela. No iOS, o app cobre o conteúdo quando a cena está inativa; isso não bloqueia capturas enquanto o app está ativo.' },
         { term: 'Conexões com o aparelho', body: 'Health Connect no Android e Apple Saúde no iPhone são só de leitura, e cada um fica desligado até você permitir.' },
         { term: 'Perfis', body: 'Cada pessoa da família tem um perfil e um cofre separados. Os registros nunca se misturam entre perfis.' },
         { term: 'Avisos de terceiros', body: 'O app traz os textos de licença das próprias dependências, legíveis offline em Mais, depois Avisos de terceiros.' },
@@ -677,7 +677,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       items: [
         { term: 'Por perfil', body: 'Los horarios pertenecen a una persona. La lista de recordatorios muestra siempre de quién es la dosis.' },
         { term: 'Tres respuestas', body: 'Marca la dosis como tomada, omitida o pospuesta. Posponer la retrasa diez minutos.' },
-        { term: 'Adherencia', body: 'La pantalla Today muestra cuántos de los últimos treinta días se marcaron como tomados.' },
+        { term: 'Adherencia', body: 'La pantalla Today muestra las dosis registradas como tomadas respecto a las dosis con registro completado en los últimos treinta días.' },
         { term: 'Notificaciones locales', body: 'Los recordatorios se programan en el dispositivo. El permiso de notificaciones es opcional, y la agenda se queda en el teléfono igual.' },
       ],
     },
@@ -705,7 +705,7 @@ export const howItWorksCopy: Record<Locale, HowItWorksCopy> = {
       title: 'Controles en el dispositivo',
       body: 'La pantalla More reúne lo que es del dispositivo y no de una persona.',
       items: [
-        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre, y otra vez tras cinco minutos en segundo plano. Las capturas de pantalla se bloquean mientras está activo.' },
+        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre, y otra vez tras cinco minutos en segundo plano. En Android, el bloqueo de la app impide capturas de pantalla. En iOS, la app cubre el contenido cuando la escena está inactiva; esto no bloquea capturas mientras la app está activa.' },
         { term: 'Conexiones con el dispositivo', body: 'Health Connect en Android y Apple Salud en iPhone son de solo lectura, y cada uno queda desactivado hasta que lo permites.' },
         { term: 'Perfiles', body: 'Cada persona de la familia tiene un perfil y un almacén separados. Los registros nunca se mezclan entre perfiles.' },
         { term: 'Avisos de terceros', body: 'La app lleva los textos de licencia de sus propias dependencias, legibles sin conexión en Más, luego Avisos de terceros.' },
@@ -761,9 +761,9 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Exact statements about the implementation, so you can check them against the code.',
       items: [
         { term: 'Android vault', body: 'A non-exportable AES-256 key in Android Keystore, with AES-GCM encryption.' },
-        { term: 'iOS vault', body: 'CryptoKit AES-GCM with protected app-private files. The key is not stored in the Keychain.' },
+        { term: 'iOS vault', body: 'CryptoKit AES-GCM with protected app-private files. The vault key is stored in the device-only Keychain, accessible after the first unlock.' },
         { term: 'Backup file', body: 'Encrypted with the passphrase you choose, of at least twelve characters. There is no recovery path for a lost passphrase.' },
-        { term: 'App lock', body: 'Biometrics or the device passcode when Vezuna opens, and after five minutes in the background. Screenshots are blocked while it is on.' },
+        { term: 'App lock', body: 'Biometrics or the device passcode when Vezuna opens, and after five minutes in the background. On Android, app lock blocks screenshots. On iOS, the app covers its content when the scene is inactive; this does not block screenshots taken while the app is active.' },
         { term: 'What is not claimed', body: 'No independent security audit has been performed. The statements above describe the implementation, not a third-party attestation.' },
       ],
     },
@@ -781,7 +781,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       title: 'Removing your data',
       body: 'Deletion is a normal operation on the device, and it has limits worth knowing.',
       items: [
-        { term: 'Inside the app', body: 'Deleting a record or a profile removes it from the vault on the device. The app keeps no separate copy.' },
+        { term: 'Inside the app', body: 'Deleting a record removes it from the active records. On Android, a previous encrypted generation may remain for recovery; damaged files may also be retained in quarantine. Profile deletion uses a separate removal path. Deletion is not a guarantee of immediate removal of every local copy or secure erasure.' },
         { term: 'Outside the app', body: 'A file you already exported, shared, or saved as a backup is no longer under the app’s control. Delete it where you put it.' },
         { term: 'Removing the app', body: 'Uninstalling removes the app’s private storage. Any backup file you saved elsewhere stays where it is.' },
         { term: 'What cannot be deleted', body: 'Nothing is kept on a server, so there is nothing to request the deletion of. This is the practical advantage of having no account.' },
@@ -829,9 +829,9 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Declarações exatas sobre a implementação, para você conferir no código.',
       items: [
         { term: 'Cofre no Android', body: 'Uma chave AES-256 não exportável no Android Keystore, com criptografia AES-GCM.' },
-        { term: 'Cofre no iOS', body: 'CryptoKit AES-GCM com arquivos protegidos no armazenamento privado do app. A chave não fica no Keychain.' },
+        { term: 'Cofre no iOS', body: 'CryptoKit AES-GCM com arquivos protegidos no armazenamento privado do app. A chave do cofre fica no Keychain, restrita a este aparelho e acessível após o primeiro desbloqueio.' },
         { term: 'Arquivo de backup', body: 'Criptografado com a frase-senha que você escolhe, de pelo menos doze caracteres. Frase-senha perdida não tem caminho de recuperação.' },
-        { term: 'Bloqueio do app', body: 'Biometria ou a senha do aparelho quando o Vezuna abre, e depois de cinco minutos em segundo plano. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
+        { term: 'Bloqueio do app', body: 'Biometria ou a senha do aparelho quando o Vezuna abre, e depois de cinco minutos em segundo plano. No Android, o bloqueio do app impede capturas de tela. No iOS, o app cobre o conteúdo quando a cena está inativa; isso não bloqueia capturas enquanto o app está ativo.' },
         { term: 'O que não é alegado', body: 'Não houve auditoria de segurança independente. As afirmações acima descrevem a implementação, não um atestado de terceiro.' },
       ],
     },
@@ -849,7 +849,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       title: 'Como remover seus dados',
       body: 'Apagar é uma operação normal no aparelho, e vale conhecer os limites.',
       items: [
-        { term: 'Dentro do app', body: 'Apagar um registro ou um perfil remove do cofre no aparelho. O app não guarda cópia separada.' },
+        { term: 'Dentro do app', body: 'Apagar um registro o remove dos registros ativos. No Android, uma geração anterior criptografada pode permanecer para recuperação; arquivos danificados também podem ficar em quarentena. A exclusão de perfil usa um caminho separado. Apagar não garante a remoção imediata de todas as cópias locais nem apagamento seguro.' },
         { term: 'Fora do app', body: 'Um arquivo que você já exportou, compartilhou ou salvou como backup não está mais sob controle do app. Apague onde você guardou.' },
         { term: 'Removendo o app', body: 'Desinstalar remove o armazenamento privado do app. Qualquer backup salvo em outro lugar continua onde está.' },
         { term: 'O que não pode ser apagado', body: 'Nada é guardado em servidor, então não há o que pedir para apagar. É a vantagem prática de não ter conta.' },
@@ -897,9 +897,9 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       body: 'Declaraciones exactas sobre la implementación, para que puedas comprobarlas en el código.',
       items: [
         { term: 'Almacén en Android', body: 'Una clave AES-256 no exportable en Android Keystore, con cifrado AES-GCM.' },
-        { term: 'Almacén en iOS', body: 'CryptoKit AES-GCM con archivos protegidos en el almacenamiento privado de la app. La clave no se guarda en el Keychain.' },
+        { term: 'Almacén en iOS', body: 'CryptoKit AES-GCM con archivos protegidos en el almacenamiento privado de la app. La clave del almacén se guarda en el Keychain, solo para este dispositivo y accesible tras el primer desbloqueo.' },
         { term: 'Archivo de copia', body: 'Cifrado con la frase que eliges, de al menos doce caracteres. Una frase perdida no tiene camino de recuperación.' },
-        { term: 'Bloqueo de la app', body: 'Biometría o el código del dispositivo cuando Vezuna se abre, y tras cinco minutos en segundo plano. Las capturas de pantalla se bloquean mientras está activo.' },
+        { term: 'Bloqueo de la app', body: 'Biometría o el código del dispositivo cuando Vezuna se abre, y tras cinco minutos en segundo plano. En Android, el bloqueo de la app impide capturas de pantalla. En iOS, la app cubre el contenido cuando la escena está inactiva; esto no bloquea capturas mientras la app está activa.' },
         { term: 'Lo que no se afirma', body: 'No se ha hecho una auditoría de seguridad independiente. Las afirmaciones anteriores describen la implementación, no un certificado de terceros.' },
       ],
     },
@@ -917,7 +917,7 @@ export const localDataCopy: Record<Locale, LocalDataCopy> = {
       title: 'Cómo eliminar tus datos',
       body: 'Borrar es una operación normal en el dispositivo, y tiene límites que conviene conocer.',
       items: [
-        { term: 'Dentro de la app', body: 'Borrar un registro o un perfil lo quita del almacén en el dispositivo. La app no guarda una copia aparte.' },
+        { term: 'Dentro de la app', body: 'Borrar un registro lo quita de los registros activos. En Android, una generación anterior cifrada puede permanecer para recuperación; los archivos dañados también pueden conservarse en cuarentena. La eliminación de perfiles usa una ruta distinta. Borrar no garantiza la eliminación inmediata de todas las copias locales ni el borrado seguro.' },
         { term: 'Fuera de la app', body: 'Un archivo que ya exportaste, compartiste o guardaste como copia ya no está bajo control de la app. Bórralo donde lo dejaste.' },
         { term: 'Quitar la app', body: 'Desinstalar borra el almacenamiento privado de la app. Cualquier copia guardada en otro sitio se queda donde está.' },
         { term: 'Lo que no se puede borrar', body: 'No se guarda nada en un servidor, así que no hay nada que pedir que se borre. Esa es la ventaja práctica de no tener cuenta.' },
@@ -944,7 +944,7 @@ export const galleryScreens: Record<Locale, Screenshot[]> = {
     {
       src: '/assets/android-home',
       alt: 'Vezuna Today screen for the profile Ana Silva: a next-dose card for Vitamin D with Mark as taken, Skip and Snooze buttons, a 30-day adherence row, and the next reminders listed below.',
-      caption: 'Today. The next dose, three ways to answer it, and how many of the last thirty days were taken.',
+      caption: 'Today. The next dose, three ways to answer it, and recorded doses taken out of recorded completed doses over the last thirty days.',
     },
     {
       src: '/assets/android-labs',
@@ -961,7 +961,7 @@ export const galleryScreens: Record<Locale, Screenshot[]> = {
     {
       src: '/assets/android-home',
       alt: 'Tela Today do Vezuna para o perfil Ana Silva: cartão Next dose de Vitamin D com os botões Mark as taken, Skip e Snooze, uma linha de adesão de 30 dias e os próximos lembretes.',
-      caption: 'Today. A próxima dose, três formas de responder, e quantos dos últimos trinta dias foram tomados.',
+      caption: 'Today. A próxima dose, três formas de responder, e doses registradas como tomadas em relação às doses com registro concluído nos últimos trinta dias.',
     },
     {
       src: '/assets/android-labs',
@@ -978,7 +978,7 @@ export const galleryScreens: Record<Locale, Screenshot[]> = {
     {
       src: '/assets/android-home',
       alt: 'Pantalla Today de Vezuna para el perfil Ana Silva: tarjeta Next dose de Vitamin D con los botones Mark as taken, Skip y Snooze, una fila de adherencia de 30 días y los próximos recordatorios.',
-      caption: 'Today. La próxima dosis, tres formas de responder, y cuántos de los últimos treinta días se tomaron.',
+      caption: 'Today. La próxima dosis, tres formas de responder, y dosis registradas como tomadas respecto a las dosis con registro completado en los últimos treinta días.',
     },
     {
       src: '/assets/android-labs',
