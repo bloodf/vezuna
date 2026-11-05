@@ -1,0 +1,91 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from './PageHero.astro';
+import { localDataCopy } from '../data/pages';
+import { localizedPath, repositoryUrl, type Alternates, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = localDataCopy[locale];
+const privacyDocs = '/docs/privacy-and-data';
+const policy = '/privacy';
+const alternates: Alternates = {
+  en: '/local-data',
+  'pt-br': '/pt-br/local-data',
+  es: '/es/local-data',
+};
+---
+<BaseLayout locale={locale} title={copy.meta.title} description={copy.meta.description} path={localizedPath(locale, 'local-data')} alternates={alternates}>
+  <main id="main-content">
+    <PageHero eyebrow={copy.hero.eyebrow} title={copy.hero.title} body={copy.hero.body} />
+
+    <section class="band" aria-labelledby="map-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="map-title">{copy.map.title}</h2>
+          <p class="section-lead">{copy.map.body}</p>
+        </header>
+        <div class="table-scroll" role="region" aria-labelledby="map-title" tabindex="0">
+          <table class="spec-table">
+            <thead>
+              <tr><th scope="col">{copy.map.columns.what}</th><th scope="col">{copy.map.columns.where}</th><th scope="col">{copy.map.columns.leaves}</th></tr>
+            </thead>
+            <tbody>
+              {copy.map.rows.map((row) => (
+                <tr><th scope="row">{row.what}</th><td data-label={copy.map.columns.where}>{row.where}</td><td data-label={copy.map.columns.leaves}>{row.leaves}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--subtle" aria-labelledby="keys-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="keys-title">{copy.keys.title}</h2>
+          <p class="section-lead">{copy.keys.body}</p>
+        </header>
+        <dl class="ledger">
+          {copy.keys.items.map((item) => (
+            <div><dt>{item.term}</dt><dd>{item.body}</dd></div>
+          ))}
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="permissions-title">
+      <div class="split wrap">
+        <div class="split-main">
+          <h2 id="permissions-title">{copy.permissions.title}</h2>
+          <p class="section-lead">{copy.permissions.body}</p>
+          <dl class="ledger">
+            {copy.permissions.items.map((item) => (
+              <div><dt>{item.term}</dt><dd>{item.body}</dd></div>
+            ))}
+          </dl>
+        </div>
+        <aside class="panel" aria-labelledby="site-title">
+          <h3 id="site-title">{copy.site.title}</h3>
+          <p>{copy.site.body}</p>
+          <p class="panel-note">{copy.audit.note}</p>
+          <p class="link-row"><a href={policy}>{copy.links.policy}</a><a href={privacyDocs}>{copy.links.details}</a><a href={repositoryUrl} rel="external">{copy.links.source}</a></p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="band band--dark" aria-labelledby="deletion-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="deletion-title">{copy.deletion.title}</h2>
+          <p class="section-lead">{copy.deletion.body}</p>
+        </header>
+        <ul class="status-list status-list--dark">
+          {copy.deletion.items.map((item) => (
+            <li><span class="status-mark" aria-hidden="true"></span><span><strong>{item.term}</strong><br />{item.body}</span></li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
