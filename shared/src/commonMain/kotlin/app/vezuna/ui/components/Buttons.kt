@@ -86,6 +86,7 @@ fun SecondaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     icon: DrawableResource? = null,
+    onCategorySurface: Boolean = false,
 ) {
     OutlinedButton(
         onClick = { if (!loading) onClick() },
@@ -93,9 +94,9 @@ fun SecondaryButton(
         modifier = modifier.heightIn(min = VezunaTokens.RowHeight),
         shape = ButtonShape,
         contentPadding = ButtonPadding,
-        border = BorderStroke(1.dp, if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, if (enabled && onCategorySurface) VezunaTokens.OnCategory else if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outlineVariant),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.primary,
+            contentColor = if (onCategorySurface) VezunaTokens.OnCategory else MaterialTheme.colorScheme.primary,
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     ) { ButtonContent(text, icon, loading) }

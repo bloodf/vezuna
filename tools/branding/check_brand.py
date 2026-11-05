@@ -34,6 +34,11 @@ def ratio(foreground, background):
     return (max(first, second) + 0.05) / (min(first, second) + 0.05)
 
 
+def composite(foreground, background, alpha):
+    channels = [round(int(foreground[i:i + 2], 16) * alpha + int(background[i:i + 2], 16) * (1 - alpha)) for i in (1, 3, 5)]
+    return "#" + "".join(f"{channel:02X}" for channel in channels)
+
+
 def check_vectors():
     """Every SVG master has its committed vector drawable, byte-identical to a fresh conversion."""
     masters = vector_masters()
@@ -129,6 +134,20 @@ def check_living_color(living, token_text):
         measured = ratio(category["onCategory"], category[fill])
         print(f"CONTRAST living onCategory/{fill}={measured:.2f}:1")
         assert measured >= 4.5, f"Insufficient category ink contrast on {fill}: {measured:.2f}"
+    # StatusTag draws a 12% status tint over its opaque theme surface.
+    # Theme.primary maps to link in light and primary in dark.
+    for theme in ("light", "dark"):
+        roles = living[theme]
+        for status in ("warning", "success", "danger", "link" if theme == "light" else "primary"):
+            background = composite(roles[status], roles["surface"], 0.12)
+            for foreground, minimum in ((status, 4.5),):
+                measured = ratio(roles[foreground], background)
+                print(f"CONTRAST status {theme} {foreground}/{status}-tinted-surface={measured:.2f}:1")
+                assert measured >= minimum, f"Insufficient status contrast: {theme} {foreground}/{status} {measured:.2f}"
+    # Category segmented buttons use white on pine for the selected segment.
+    measured = ratio("#FFFFFF", category["pine"])
+    print(f"CONTRAST category selected white/pine={measured:.2f}:1")
+    assert measured >= 4.5, f"Insufficient selected segment text contrast: {measured:.2f}"
     for background in (living["light"]["header"], living["dark"]["background"]):
         measured = ratio(category["mint"], background)
         assert measured >= 4.5, f"Mint selection on {background} too low: {measured:.2f}"

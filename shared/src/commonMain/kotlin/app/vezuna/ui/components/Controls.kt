@@ -55,7 +55,7 @@ import vezuna.shared.generated.resources.ic_warning
 /** Local tabs or a small exclusive choice. Each option keeps its full label. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier, onCategorySurface: Boolean = false) {
     SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
         options.forEachIndexed { index, label ->
             SegmentedButton(
@@ -63,8 +63,11 @@ fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) 
                 onClick = { onSelect(index) },
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 modifier = Modifier.heightIn(min = VezunaTokens.TouchTarget),
-                // Inactive labels follow the surrounding content colour so they stay ink on category fills in dark mode.
-                colors = SegmentedButtonDefaults.colors(inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current),
+                // The caller selects category styling only when this control sits directly on that fill.
+                colors = if (onCategorySurface) SegmentedButtonDefaults.colors(
+                    activeContainerColor = VezunaTokens.Pine, activeContentColor = Color.White, activeBorderColor = VezunaTokens.Pine,
+                    inactiveContainerColor = Color.Transparent, inactiveContentColor = VezunaTokens.OnCategory, inactiveBorderColor = VezunaTokens.OnCategory,
+                ) else SegmentedButtonDefaults.colors(inactiveContainerColor = Color.Transparent, inactiveContentColor = LocalContentColor.current),
                 label = { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, autoSize = singleWordAutoSize(MaterialTheme.typography.labelMedium.fontSize)) },
             )
         }
