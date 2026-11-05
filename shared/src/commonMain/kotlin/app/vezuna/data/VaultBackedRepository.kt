@@ -816,9 +816,9 @@ class VaultBackedRepository(
         if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
         // A listed, readable profile that is still marked deleted (crash between the tombstone and the index write) is live again.
         deletedProfileIds?.let { deleted -> (records.keys intersect deleted).takeIf { it.isNotEmpty() }?.let { writeDeleted(deleted - it) } }
-        // Vitals stay while their profile record file exists, readable or not, unless the user deleted it; this holds on every launch.
-        val deleted = deletedProfileIds.orEmpty()
-        val keep = vitalsStore.ids().filter { it !in deleted && vault.read(profileKey(it)) != null }
+        // Preserve vitals while any normally addressable record generation survives, readable or not, on every launch.
+        // Keeping encrypted evidence does not make a tombstoned profile eligible for recovery.
+        val keep = vitalsStore.ids().filter { vault.read(profileKey(it)) != null }
         vitalsStore.sweep(records.keys + skipped.keys + unreadableUnlisted + keep)
         if (legacyPresent) {
             try {
