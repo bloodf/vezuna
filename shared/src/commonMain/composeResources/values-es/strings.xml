@@ -1443,4 +1443,6 @@ iOS: %2$s</string>
     <string name="model_session_superseded">La sesión del modelo cambió. Cierra y vuelve a abrir la sesión de la aplicación para usar el asistente aquí.</string>
     <string name="model_selection_unconfirmed">La selección guardada del modelo no está confirmada. Actualiza los modelos para consultarla o selecciona un modelo para guardarla de nuevo.</string>
     <string name="refresh_models">Actualizar modelos</string>
+    <string name="prompt_unsupported">Este modelo no puede procesar esta solicitud de salud de forma segura.</string>
+    <string name="prompt_too_large">La solicitud es demasiado larga. Acorta la pregunta o selecciona menos registros.</string>
 </resources>

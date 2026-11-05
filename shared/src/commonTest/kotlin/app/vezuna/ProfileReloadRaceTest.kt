@@ -172,7 +172,7 @@ class ProfileReloadRaceTest {
         val (_, controller) = gatedApp(object : LocalLlm {
             override suspend fun load(modelPath: String, settings: LlmGenerationSettings) = Unit
             override suspend fun generate(prompt: String): String = ""
-            override fun generateStream(prompt: String) = kotlinx.coroutines.flow.flow {
+            override fun generateStream(prompt: app.vezuna.llm.HealthPrompt) = kotlinx.coroutines.flow.flow {
                 emit("partial")
                 release.await()
                 emit(" late")
