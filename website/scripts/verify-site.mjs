@@ -9,6 +9,9 @@ const routes = [
   '/docs', '/docs/getting-started', '/docs/lab-records', '/docs/medications-reminders-exports',
   '/docs/privacy-and-data', '/docs/offline-models', '/docs/developers',
   '/pt-br/docs', '/pt-br/docs/getting-started', '/es/docs', '/es/docs/getting-started',
+  '/open-source', '/screens', '/how-it-works', '/local-data',
+  '/pt-br/open-source', '/pt-br/screens', '/pt-br/how-it-works', '/pt-br/local-data',
+  '/es/open-source', '/es/screens', '/es/how-it-works', '/es/local-data',
 ];
 const expectedLang = (route) => route.startsWith('/pt-br') ? 'pt-BR' : route.startsWith('/es') ? 'es' : 'en';
 const htmlFile = (route) => join(dist, route === '/' ? 'index.html' : `${route.replace(/^\//, '')}/index.html`);
@@ -26,6 +29,21 @@ const requiredText = {
   '/docs/privacy-and-data': ['same device key', 'passphrase', 'App lock', 'Denying health permissions', 'Vercel'],
   '/privacy': ['Vezuna privacy policy', 'Publisher and contact', 'Vercel hosts the website'],
   '/support': ['GitHub private vulnerability reporting', 'Never attach actual medical documents'],
+  '/open-source': [
+    'The app source is MIT licensed',
+    'MIT license covers',
+    'does not cover',
+    'SIL Open Font License 1.1',
+    'ML Kit Terms of Service',
+    'Llamatik',
+    'github.com/bloodf/vezuna',
+    'No stable release has been published',
+  ],
+  '/pt-br/open-source': ['O código do app é MIT', 'Nenhuma versão estável foi publicada'],
+  '/es/open-source': ['El código de la app es MIT', 'No se ha publicado ninguna versión estable'],
+  '/screens': ['Every capture on this page came from the real app', 'android-home-800.webp', 'android-labs-800.webp', 'android-settings-800.webp'],
+  '/how-it-works': ['A report becomes a record only after you check it', 'twelve characters', '24 MB'],
+  '/local-data': ['AES-256', 'Android Keystore', 'CryptoKit', 'INTERNET permission', 'No independent security audit'],
 };
 
 assert(existsSync(dist), 'dist is missing; run npm run build first');

@@ -1,0 +1,78 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from './PageHero.astro';
+import Screen from './Screen.astro';
+import { galleryScreens, howItWorksCopy } from '../data/pages';
+import { localizedPath, type Alternates, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = howItWorksCopy[locale];
+const localData = localizedPath(locale, 'local-data');
+const screens = localizedPath(locale, 'screens');
+const openSource = localizedPath(locale, 'open-source');
+const alternates: Alternates = {
+  en: '/how-it-works',
+  'pt-br': '/pt-br/how-it-works',
+  es: '/es/how-it-works',
+};
+const detailSections = [copy.reminders, copy.exports, copy.backups, copy.controls];
+---
+<BaseLayout locale={locale} title={copy.meta.title} description={copy.meta.description} path={localizedPath(locale, 'how-it-works')} alternates={alternates}>
+  <main id="main-content">
+    <PageHero eyebrow={copy.hero.eyebrow} title={copy.hero.title} body={copy.hero.body} />
+
+    <section class="band" aria-labelledby="flow-title">
+      <div class="split wrap">
+        <div class="split-main">
+          <h2 id="flow-title">{copy.flow.title}</h2>
+          <p class="section-lead">{copy.flow.body}</p>
+          <ol class="steps">
+            {copy.flow.steps.map((step) => (
+              <li><h3>{step.title}</h3><p>{step.body}</p></li>
+            ))}
+          </ol>
+        </div>
+        <Screen screen={galleryScreens[locale][1]} crop={0.56} />
+      </div>
+    </section>
+
+    <section class="band band--subtle" aria-labelledby="details-title">
+      <div class="wrap">
+        <h2 id="details-title" class="visually-hidden">{copy.flow.title}</h2>
+        <div class="detail-grid offset-grid">
+          {detailSections.map((section) => (
+            <article class="detail-card">
+              <h3>{section.title}</h3>
+              <p class="detail-card-lead">{section.body}</p>
+              <dl class="detail-ledger">
+                {section.items.map((item) => (
+                  <div><dt>{item.term}</dt><dd>{item.body}</dd></div>
+                ))}
+              </dl>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--dark" aria-labelledby="never-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="never-title">{copy.never.title}</h2>
+          <p class="section-lead">{copy.never.body}</p>
+        </header>
+        <ul class="status-list status-list--dark">
+          {copy.never.items.map((item) => (
+            <li><span class="status-mark" aria-hidden="true"></span><span>{item}</span></li>
+          ))}
+        </ul>
+        <p class="link-row">
+          <a href={localData}>{copy.links.localData}</a>
+          <a href={screens}>{copy.links.screens}</a>
+          <a href={openSource}>{copy.links.openSource}</a>
+        </p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
