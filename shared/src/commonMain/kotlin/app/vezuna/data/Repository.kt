@@ -122,6 +122,12 @@ interface VezunaRepository {
 }
 
 
+/** Tracks whether attachment cleanup is still safe, including writes whose outcome is unknown. */
+internal class RestoreRecordWrite : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+    companion object Key : kotlin.coroutines.CoroutineContext.Key<RestoreRecordWrite>
+    var mayBeStored = false
+}
+
 /**
  * Restores a backup including its device vitals; the vitals replace whatever the profile had. `lastSync` is cleared so
  * the next device sync reads its full first window. Returns false when the profile was restored but the vitals could not
@@ -129,6 +135,7 @@ interface VezunaRepository {
  */
 suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean {
     restoreProfile(data.copy(vitals = ProfileVitals()))
+    kotlin.coroutines.coroutineContext[RestoreRecordWrite]?.mayBeStored = true
     return try {
         replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null))
         true
