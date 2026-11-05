@@ -177,7 +177,7 @@ private fun EmptyExport(ctx: RouteContext, data: ProfileData, options: ExportOpt
             if (unreviewed > 0) {
                 PrimaryButton(vitaText(L10nKey.EXPORT_REVIEW_IMPORTS), { ctx.navigate(AppScreen.ImportReview) }, Modifier.fillMaxWidth(), container = VezunaTokens.Pine, content = Color.White)
             }
-            SecondaryButton(vitaText(L10nKey.EXPORT_CHANGE_SELECTION), { ctx.back() }, Modifier.fillMaxWidth())
+            SecondaryButton(vitaText(L10nKey.EXPORT_CHANGE_SELECTION), { ctx.back() }, Modifier.fillMaxWidth(), onCategorySurface = true)
         }
         if (!csv) TertiaryButton(vitaText(L10nKey.EXPORT_CREATE_ANYWAY), onCreateAnyway, Modifier.fillMaxWidth())
     }

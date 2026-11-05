@@ -42,6 +42,8 @@ import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +51,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
+
+/** Successful commit and its same-lock successor. Failure after a durable save returns no successor. */
+data class VitalsSyncCommit(val storedCount: Int, val context: VitalsSyncContext)
 
 /** Captured under the repository lock before a platform read; never recapture at commit time. */
 data class VitalsSyncContext(val profileId: String, val generation: Long, val lastSync: Instant?, val zone: TimeZone)
@@ -111,16 +116,29 @@ interface VezunaRepository {
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
     suspend fun setLinkedHealthProfile(profileId: String)
+    /** Pins only the already resolved target; never replaces another profile's link. Returns the same-lock sync context. */
+    suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext?
     /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
     suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
     /** Atomically captures the resolved link, its generation and the stored sync window. */
     suspend fun captureVitalsSync(zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext
     /** Rejects stale contexts before any write; returns how many entries were actually stored. */
-    suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int
+    suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int =
+        ingestDeviceVitalsAndCapture(context, batch, now).storedCount
+    /** Returns the exact successor under the commit lock, never a freshly recaptured target. */
+    suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit
+    /** Runs source cleanup only while the original/successor context remains current. Action must not reenter this repository. */
+    suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit)
     /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
     suspend fun replaceVitals(profileId: String, vitals: ProfileVitals)
 }
 
+
+/** Tracks whether attachment cleanup is still safe, including writes whose outcome is unknown. */
+internal class RestoreRecordWrite : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+    companion object Key : kotlin.coroutines.CoroutineContext.Key<RestoreRecordWrite>
+    var mayBeStored = false
+}
 
 /**
  * Restores a backup including its device vitals; the vitals replace whatever the profile had. `lastSync` is cleared so
@@ -129,6 +147,7 @@ interface VezunaRepository {
  */
 suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean {
     restoreProfile(data.copy(vitals = ProfileVitals()))
+    kotlin.coroutines.coroutineContext[RestoreRecordWrite]?.mayBeStored = true
     return try {
         replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null))
         true
@@ -283,6 +302,12 @@ class InMemoryVezunaRepository : VezunaRepository {
         healthLink = profileId
     }
 
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != profileId) return@withLock null
+        healthLink = profileId
+        VitalsSyncContext(profileId, vitalsSyncGeneration, records.getValue(profileId).vitals.lastSync, zone)
+    }
+
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
         val data = records.getValue(profileId)
         if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
@@ -294,7 +319,8 @@ class InMemoryVezunaRepository : VezunaRepository {
         VitalsSyncContext(id, vitalsSyncGeneration, records.getValue(id).vitals.lastSync, zone)
     }
 
-    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit = mutex.withLock {
+        currentCoroutineContext().ensureActive()
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile })
         check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
         checkNotNull(id)
@@ -303,7 +329,14 @@ class InMemoryVezunaRepository : VezunaRepository {
         val updated = DeviceVitals.ingest(data.vitals, batch, now, context.zone)
         publish(records + (id to data.copy(vitals = updated)))
         vitalsSyncGeneration += 1
-        DeviceVitals.storedCount(updated, batch)
+        VitalsSyncCommit(DeviceVitals.storedCount(updated, batch), VitalsSyncContext(id, vitalsSyncGeneration, updated.lastSync, context.zone))
+    }
+
+    override suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit) = mutex.withLock {
+        val id = HealthLink.resolve(healthLink, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+        action()
     }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {

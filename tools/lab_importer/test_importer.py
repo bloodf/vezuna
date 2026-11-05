@@ -64,6 +64,30 @@ class GoldenImporterTests(unittest.TestCase):
         for token, expected in (("250.000", 250000), ("1.234,5", 1234.5), ("0.500", 0.5), ("-0.500", -0.5), ("1.020", 1020), ("7.350", 7350), ("5,7", 5.7)):
             self.assertEqual(parse_number(token), expected, token)
 
+    def test_scaled_count_values_and_reference_bounds(self) -> None:
+        cases = (
+            ("Leucócitos 7.500 10^3/µL 4.500 - 10.000 10^3/µL", 7.5, 4.5, 10),
+            ("Hemácias 4.500 10^12/L 4.000 - 5.500", 4.5, 4, 5.5),
+            ("Leucócitos 7.500 /µL 4.500 - 10.000 /µL", 7500, 4500, 10000),
+            ("Leucócitos inferior a 7.500 10³/µL inferior a 9.500", 7.5, None, 9.5),
+            ("Leucócitos 7.500 10^3/µL 4.500 - 10.000 /µL", 7.5, 4500, 10000),
+            ("Glicose 1.020 mg/dL 1.000 - 2.000 mg/dL", 1020, 1000, 2000),
+            ("Leucócitos 0.500 10^3/µL", 0.5, None, None),
+            ("Leucócitos 1.234.567 10^3/µL", 1234567, None, None),
+            ("Leucócitos 1.234,5 10^3/µL", 1234.5, None, None),
+        )
+        for row, value, lower, upper in cases:
+            with self.subTest(row=row):
+                observation = import_text(row, force_text=True)["observations"][0]
+                self.assertEqual(observation["value"], value)
+                self.assertEqual(observation["reference"].get("lower"), lower)
+                self.assertEqual(observation["reference"].get("upper"), upper)
+
+    def test_dual_values_use_their_own_units(self) -> None:
+        observation = import_text("Leucócitos 7.500 10^3/µL 7.500 /µL", force_text=True)["observations"][0]
+        self.assertEqual(observation["value"], 7500)
+        self.assertEqual(observation["additional_values"][0]["value"], 7.5)
+
     def test_03_digit_bearing_analytes_and_historical_rows(self) -> None:
         document = self.documents["04_comprehensive"]
         names = {observation["analyte"] for observation in document["observations"]}

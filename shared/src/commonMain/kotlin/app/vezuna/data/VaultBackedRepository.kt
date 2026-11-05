@@ -49,6 +49,8 @@ import app.vezuna.security.CipherEnvelopeCodec
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -352,10 +354,10 @@ class VaultBackedRepository(
         val stored = data.copy(vitals = ProfileVitals())
         val previous = records[data.profile.profileId]
         forgetDeleted(data.profile.profileId)
-        persist(stored)
+        persist(stored, restoreWrite = kotlin.coroutines.coroutineContext[RestoreRecordWrite])
         if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
-        // The record is durable from here on. Nothing below may throw for a profile that already existed: its index
-        // entry is repaired on the next load, and callers must not roll back files the durable record points at.
+        // The record is durable from here on. Ordinary index failure for an existing profile is repairable on load.
+        // Cancellation still propagates; the restore write boundary prevents rollback of referenced originals.
         try {
             skipped.remove(data.profile.profileId)
             writeIndex(indexWith(data.profile))
@@ -399,6 +401,13 @@ class VaultBackedRepository(
         if (changed) vitalsSyncGeneration += 1
     }
 
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        ensureInitialized()
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) != profileId) return@withLock null
+        persistHealthLink(profileId)
+        VitalsSyncContext(profileId, vitalsSyncGeneration, vitals[profileId]?.lastSync, zone)
+    }
+
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
         ensureInitialized()
         require(records.containsKey(profileId)) { "Profile not found" }
@@ -413,7 +422,8 @@ class VaultBackedRepository(
         VitalsSyncContext(id, vitalsSyncGeneration, vitals[id]?.lastSync, zone)
     }
 
-    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit = mutex.withLock {
+        currentCoroutineContext().ensureActive()
         ensureInitialized()
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
@@ -424,7 +434,15 @@ class VaultBackedRepository(
         vitals[id] = updated
         vitalsSyncGeneration += 1
         if (healthLinkId != id) persistHealthLink(id)
-        DeviceVitals.storedCount(updated, batch)
+        VitalsSyncCommit(DeviceVitals.storedCount(updated, batch), VitalsSyncContext(id, vitalsSyncGeneration, updated.lastSync, context.zone))
+    }
+
+    override suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit) = mutex.withLock {
+        ensureInitialized()
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+        action()
     }
 
     private fun ProfileData.withVitals() = copy(vitals = this@VaultBackedRepository.vitals[profile.profileId] ?: ProfileVitals())
@@ -493,9 +511,9 @@ class VaultBackedRepository(
 
     // ---- storage ----
 
-    private suspend fun persist(data: ProfileData) {
+    private suspend fun persist(data: ProfileData, restoreWrite: RestoreRecordWrite? = null) {
         val document = StorageSchema.stamp(json.encodeToJsonElement(ProfileData.serializer(), data) as JsonObject)
-        writeDocument(profileKey(data.profile.profileId), profileAssociatedData(data.profile.profileId), document)
+        writeDocument(profileKey(data.profile.profileId), profileAssociatedData(data.profile.profileId), document, restoreWrite)
     }
 
     private suspend fun writeIndex(profiles: List<Profile>) {
@@ -504,7 +522,7 @@ class VaultBackedRepository(
         writeDocument(INDEX_KEY, INDEX_ASSOCIATED_DATA, document)
     }
 
-    private suspend fun writeDocument(key: String, associatedData: String, document: JsonElement) {
+    private suspend fun writeDocument(key: String, associatedData: String, document: JsonElement, restoreWrite: RestoreRecordWrite? = null) {
         if (key in pendingQuarantine) {
             // If this throws the write fails, but the corrupt file is never rotated over the good previous copy.
             vault.quarantineCurrent(key)
@@ -512,7 +530,10 @@ class VaultBackedRepository(
         }
         val plain = json.encodeToString(JsonElement.serializer(), document).encodeToByteArray()
         val envelope = vault.encrypt(plain, associatedData.encodeToByteArray())
-        vault.write(key, CipherEnvelopeCodec.encode(envelope))
+        val encoded = CipherEnvelopeCodec.encode(envelope)
+        // A vault may throw after writing. From this point the record can reference staged originals.
+        restoreWrite?.mayBeStored = true
+        vault.write(key, encoded)
     }
 
     private suspend fun restore() {

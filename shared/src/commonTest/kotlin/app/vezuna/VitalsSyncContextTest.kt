@@ -9,6 +9,12 @@ import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.StepsDay
 import app.vezuna.domain.VitalsBatch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -100,6 +106,75 @@ class VitalsSyncContextTest {
     }
 
     @Test
+    fun onboardingLinkIsConditionalAndCapturedContextRejectsPermissionDelayAndAba() = runTest {
+        for (repository in repositories()) {
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a"))
+            assertEquals("a", repository.explicitHealthLinkId())
+            repository.setLinkedHealthProfile("b")
+            kotlin.test.assertNull(repository.linkOnboardingHealthProfile("a"))
+            assertEquals("b", repository.explicitHealthLinkId())
+            var reads = 0
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    reads++
+                    return batch
+                }
+            }
+            val sync = app.vezuna.health.DeviceVitalsSync(source, repository, { now })
+            assertFailsWith<IllegalStateException> { sync.synchronize(expected) }
+            repository.setLinkedHealthProfile("a")
+            assertFailsWith<IllegalStateException> { sync.synchronize(expected) }
+            assertEquals(0, reads)
+            assertEquals(1, sync.synchronize())
+            assertEquals(1, reads)
+        }
+    }
+
+    @Test
+    fun cancellationAfterPlatformReadDoesNotCommit() = runTest {
+        for (repository in repositories()) {
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a"))
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    currentCoroutineContext().cancel()
+                    return batch
+                }
+            }
+            val job = launch { app.vezuna.health.DeviceVitalsSync(source, repository, { now }).synchronize(expected) }
+            job.join()
+            kotlin.test.assertTrue(job.isCancelled)
+            assertEquals(ProfileVitals(), repository.peekProfile("a").vitals)
+            assertEquals(expected, repository.captureVitalsSync(expected.zone))
+        }
+    }
+
+    @Test
+    fun relinkWhileReadingRejectsCommitAndReadUsesCapturedZone() = runTest {
+        for (repository in repositories()) {
+            val zone = TimeZone.of("America/Sao_Paulo")
+            val expected = kotlin.test.assertNotNull(repository.linkOnboardingHealthProfile("a", zone))
+            val reading = CompletableDeferred<Unit>()
+            val resume = CompletableDeferred<Unit>()
+            val source = object : app.vezuna.health.DeviceVitalsSource {
+                override suspend fun read(request: app.vezuna.health.VitalsReadRequest): VitalsBatch {
+                    assertEquals(zone, request.zone)
+                    reading.complete(Unit)
+                    resume.await()
+                    return batch
+                }
+            }
+            val sync = app.vezuna.health.DeviceVitalsSync(source, repository, { now }, { TimeZone.UTC })
+            val job = launch { assertFailsWith<IllegalStateException> { sync.synchronize(expected) } }
+            withTimeout(5_000) { reading.await() }
+            repository.setLinkedHealthProfile("b")
+            resume.complete(Unit)
+            withTimeout(5_000) { job.join() }
+            assertEquals(ProfileVitals(), repository.peekProfile("a").vitals)
+            assertEquals(ProfileVitals(), repository.peekProfile("b").vitals)
+        }
+    }
+
+    @Test
     fun noOpRelinkAndUnrelatedProfileWritesKeepContextValid() = runTest {
         for (repository in repositories()) {
             val context = repository.captureVitalsSync()
@@ -109,4 +184,38 @@ class VitalsSyncContextTest {
             assertEquals(1, repository.ingestDeviceVitals(context, batch, now))
         }
     }
+    @Test
+    fun exactCommitSuccessorPreservesZoneAndRejectsRelinkedCleanup() = runTest {
+        for (repository in repositories()) {
+            val zone = TimeZone.of("America/Sao_Paulo")
+            val original = repository.captureVitalsSync(zone)
+            val commit = repository.ingestDeviceVitalsAndCapture(original, batch, now)
+            assertEquals(1, commit.storedCount)
+            assertEquals(original.copy(generation = original.generation + 1, lastSync = now), commit.context)
+            var deletes = 0
+            repository.withValidatedVitalsSync(commit.context) { deletes++ }
+            assertEquals(1, deletes)
+            repository.setLinkedHealthProfile("b")
+            repository.setLinkedHealthProfile("a")
+            assertFailsWith<IllegalStateException> { repository.withValidatedVitalsSync(commit.context) { deletes++ } }
+            assertEquals(1, deletes)
+        }
+    }
+
+    @Test
+    fun linkBookkeepingFailureAfterDurableCommitDoesNotReturnSuccessorOrCleanup() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = VaultBackedRepository(vault)
+        repository.load()
+        repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochSeconds(1)))
+        val original = repository.captureVitalsSync()
+        vault.failingWrites += "repository-health-link-v1"
+        assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(original, batch, now) }
+        // Vitals were already durable. Failure is not rollback and the original context cannot retry.
+        assertEquals(now, repository.peekProfile("a").vitals.lastSync)
+        assertEquals(now, VaultBackedRepository(vault).also { it.load() }.peekProfile("a").vitals.lastSync)
+        assertEquals(original.generation + 1, repository.captureVitalsSync().generation)
+        assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(original, batch, now) }
+    }
+
 }
