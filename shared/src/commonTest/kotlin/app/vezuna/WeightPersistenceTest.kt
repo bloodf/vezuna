@@ -22,11 +22,13 @@ class WeightPersistenceTest {
     private val key = "repository-vitals-p-v1"
 
     private class FaultVault : SecureVault {
-    override val supportsAcknowledgedWrites: Boolean = true
+    override var supportsAcknowledgedWrites: Boolean = true
         val memory = GenerationalMemoryVault()
         var fault = ""
         var intentWritten = false
         var recoveryAvailable = false
+        var linkEntered: CompletableDeferred<Unit>? = null
+        var releaseLink: CompletableDeferred<Unit>? = null
         override suspend fun acknowledgeCurrent(key: String): VaultWriteResult =
             if (recoveryAvailable) VaultWriteResult.Acknowledged else VaultWriteResult.Indeterminate(IllegalStateException("recovery unavailable"))
         override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray) = memory.encrypt(plainText, associatedData)
@@ -43,7 +45,12 @@ class WeightPersistenceTest {
         override suspend fun write(key: String, ciphertext: ByteArray) {
             if (fault == "profile" && intentWritten && key == "repository-profile-p-v1") throw CancellationException("profile interrupted")
             if (fault == "link" && key == "repository-health-link-v1") error("link bookkeeping")
+            if (key == "repository-health-link-v1") {
+                linkEntered?.complete(Unit)
+                releaseLink?.await()
+            }
             memory.write(key, ciphertext)
+            if (fault == "legacy-after" && key == "repository-vitals-p-v1") error("legacy post-write failure")
         }
         override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): VaultWriteResult {
             if (key.startsWith("repository-replacement-intent-")) {
@@ -173,6 +180,88 @@ class WeightPersistenceTest {
             assertEquals(WeightLocalState(), saved.local)
             assertEquals(ProfileVitals(weights = listOf(w.copy(kg = 65.0))), reopened.peekProfile("p").vitals)
         }
+    }
+
+    @Test fun replacementUncertaintyBlocksCachedReadsExportsAndSyncUntilExplicitRecovery() = runTest {
+        for (restore in listOf(false, true)) for (fault in listOf("uncertain-before", "uncertain-after", "legacy-after", "reject")) {
+            val vault = FaultVault()
+            val (repository, state) = seed(vault)
+            if (fault == "legacy-after") {
+                // Unsupported legacy backends may replace clinical-only state, never transactional local state.
+                repository.replaceVitals("p", ProfileVitals(weights = listOf(w)))
+                vault.supportsAcknowledgedWrites = false
+            }
+            val oldBytes = vault.memory.current.getValue(key).copyOf()
+            val oldStored = assertNotNull(VitalsStore(vault, json).loadStored("p")).value
+            val data = repository.peekProfile("p").copy(vitals = ProfileVitals(weights = listOf(w.copy(kg = 65.0))))
+            vault.fault = fault
+            if (restore) assertFalse(repository.restoreProfileAndVitals(data))
+            else assertFailsWith<IllegalStateException> { repository.replaceVitals("p", data.vitals) }
+            assertContentEquals(byteArrayOf(1), vault.memory.current["repository-replacement-intent-p-v1"])
+            val exactBytes = vault.memory.current.getValue(key).copyOf()
+            val written = fault == "uncertain-after" || fault == "legacy-after"
+            val saved = assertNotNull(VitalsStore(vault, json).loadStored("p")).value
+            if (!written) {
+                assertContentEquals(oldBytes, exactBytes)
+                assertEquals(oldStored, saved)
+            } else {
+                assertEquals(data.vitals, saved.clinical)
+                assertEquals(WeightLocalState(), saved.local)
+                assertEquals(oldStored.revision + 1, saved.revision)
+                assertNotEquals(oldStored.commitId, saved.commitId)
+            }
+            val expected = if (fault == "uncertain-after" || fault == "legacy-after") data.vitals else ProfileVitals(weights = listOf(w))
+            if (fault == "reject") {
+                assertEquals(expected, repository.peekProfile("p").vitals)
+                assertEquals(expected, repository.readProfile("p").vitals)
+                val backup = BackupService().create(repository.peekProfile("p"), "synthetic password".toCharArray())
+                assertEquals(expected, BackupService().open(backup, "synthetic password".toCharArray()).data.vitals)
+            } else {
+                assertFailsWith<IllegalStateException> { repository.peekProfile("p") }
+                assertFailsWith<IllegalStateException> { repository.readProfile("p") }
+                assertFailsWith<IllegalStateException> { BackupService().create(repository.peekProfile("p"), "synthetic password".toCharArray()) }
+            }
+            assertFailsWith<IllegalStateException> { repository.captureVitalsSync(zone) }
+            assertIs<VitalsWriteOutcome.Rejected>(repository.commitWeightPage(state, WeightPage(claim, emptyList())))
+            assertFalse(repository.resolveVitalsWrite("not-a-replacement-recovery"))
+            vault.fault = ""
+            val reopened = open(vault)
+            assertContentEquals(exactBytes, vault.memory.current[key])
+            assertEquals(expected, reopened.peekProfile("p").vitals)
+            assertFailsWith<IllegalStateException> { reopened.captureVitalsSync(zone) }
+            assertTrue(reopened.restoreProfileAndVitals(data))
+            assertNull(vault.memory.current["repository-replacement-intent-p-v1"])
+            assertEquals(data.vitals, reopened.peekProfile("p").vitals)
+            val fresh = reopened.readVitalsState(reopened.captureVitalsSync(zone))
+            assertEquals(WeightLocalState(), fresh.local)
+        }
+    }
+
+    @Test fun cancellationDuringSuspendedLinkWriteCannotReturnSuccessor() = runTest {
+        val vault = FaultVault()
+        val repository = open(vault)
+        repository.createProfile(Profile("p", "Synthetic", createdAt = now))
+        val state = repository.readVitalsState(repository.captureVitalsSync(zone))
+        vault.linkEntered = CompletableDeferred()
+        vault.releaseLink = CompletableDeferred()
+        var outcome: VitalsWriteOutcome? = null
+        val pages = Pages(source, now)
+        val job = launch {
+            outcome = repository.commitWeightPage(state, WeightPage(claim, listOf(WeightMutation.Upsert(w)), WeightContinuation.Steady(source, "T0")))
+            (outcome as? VitalsWriteOutcome.Committed)?.next?.let { WeightPaging(pages, repository, now) { Duration.ZERO }.run(it) }
+        }
+        vault.linkEntered!!.await()
+        val acknowledgedBytes = vault.memory.current.getValue(key).copyOf()
+        job.cancel()
+        vault.releaseLink!!.complete(Unit)
+        job.join()
+        assertNull(assertIs<VitalsWriteOutcome.Committed>(outcome).next)
+        assertEquals(0, pages.calls)
+        assertContentEquals(acknowledgedBytes, vault.memory.current[key])
+        assertFailsWith<IllegalStateException> { repository.readVitalsState(state.context) }
+        val reopened = open(vault)
+        assertEquals(listOf(w), reopened.peekProfile("p").vitals.weights)
+        assertEquals("T0", (reopened.readVitalsState(reopened.captureVitalsSync(zone)).local.continuation as WeightContinuation.Steady).token)
     }
 
     @Test fun aggregateInterleavingsAndPortableSerializationKeepLocalStatePrivate() = runTest {

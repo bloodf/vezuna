@@ -457,6 +457,10 @@ class VaultBackedRepository(
         if (vault.supportsAcknowledgedWrites) {
             val result = vitalsStore.commit(id, next)
             if (result != VaultWriteResult.Acknowledged) {
+                if (result is VaultWriteResult.Indeterminate) {
+                    blockedVitals += id
+                    uncertainVitals += id
+                }
                 val cause = when (result) {
                     is VaultWriteResult.Rejected -> result.cause
                     is VaultWriteResult.Indeterminate -> result.cause
@@ -467,7 +471,13 @@ class VaultBackedRepository(
             }
         } else {
             check(old.local == WeightLocalState()) { "Transactional state requires acknowledged replacement" }
-            vitalsStore.saveLegacy(id, next.clinical)
+            try { vitalsStore.saveLegacy(id, next.clinical) }
+            catch (error: Exception) {
+                // Unit writes cannot distinguish rejection from a failure after replacement.
+                blockedVitals += id
+                uncertainVitals += id
+                throw error
+            }
         }
         vitals[id] = next.clinical
         // Intent removal failure leaves the profile blocked, including after restart.
@@ -601,7 +611,7 @@ class VaultBackedRepository(
         val next = folded.first.copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
         val result = vitalsStore.commit(id, next)
         // No provider reads here. Finish outcome publication even if cancellation arrived during an acknowledged write.
-        val active = currentCoroutineContext().isActive
+        val callerContext = currentCoroutineContext()
         withContext(NonCancellable) {
             when (result) {
                 is VaultWriteResult.Rejected -> VitalsWriteOutcome.Rejected("storage rejected")
@@ -614,14 +624,14 @@ class VaultBackedRepository(
                 VaultWriteResult.Acknowledged -> {
                     vitals[id] = next.clinical
                     records[id] = records.getValue(id).copy(vitals = ProfileVitals())
-                    var usable = active
+                    var usable = true
                     try { if (healthLinkId != id) persistHealthLink(id) }
                     catch (_: Exception) {
                         blockedVitals += id; usable = false
                         pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
                     }
                     VitalsWriteOutcome.Committed(next.commitId, next.revision, folded.second,
-                        if (usable) VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local) else null)
+                        if (usable && callerContext.isActive) VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local) else null)
                 }
             }
         }
