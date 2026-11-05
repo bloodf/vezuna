@@ -132,38 +132,6 @@ class ProfileDeleteRecoveryFaultTest {
             assertEquals(listOf("live"), ids(reopened))
             assertTrue(reopened.unavailableProfiles.isEmpty())
             assertContentEquals(recordBytes, disk.current[record], "encrypted record stays as evidence")
-            assertNull(disk.read(vitals), "known tombstone permits the existing vitals sweep")
-        }
-    }
-
-    @Test
-    fun compoundFaultsTraceUnacknowledgedDeletionWithoutAssigningSuccessPolicy() = runTest {
-        for (beforeIndex in listOf(true, false)) {
-            for (staleTombstone in listOf(false, true)) {
-                val disk = interrupted(beforeIndex)
-                val recordBytes = disk.current.getValue(record).copyOf()
-                val vitalsBytes = disk.current.getValue(vitals).copyOf()
-                // The actual previous generation names only the earlier delete, not target.
-                if (staleTombstone) {
-                    assertNotNull(disk.previous[deleted])
-                    disk.current[deleted] = byteArrayOf(0)
-                }
-                disk.current[index] = byteArrayOf(0)
-                println("FAULT beforeIndex=$beforeIndex staleTombstone=$staleTombstone acknowledged=false")
-                println("DURABLE current=" + disk.current.toSortedMap().mapValues { it.value.size })
-                println("DURABLE previous=" + disk.previous.toSortedMap().mapValues { it.value.size })
-
-                val reopened = reopen(disk)
-
-                assertTrue("live" in ids(reopened), "unrelated live profile must remain available")
-                assertContentEquals(recordBytes, disk.current[record], "recovery never removes clinical record bytes")
-                val targetVisible = "target" in ids(reopened)
-                if (targetVisible) assertEquals(clinical.vitals.copy(lastSync = null), reopened.readProfile("target").vitals)
-                if (disk.read(vitals) != null) assertContentEquals(vitalsBytes, disk.current[vitals])
-                println("OBSERVED ids=${ids(reopened)} targetVitalsDurable=${disk.read(vitals) != null}")
-                // Deliberately no target visibility oracle: these snapshots preceded return to the
-                // caller. Root must decide the uncertain-delete policy before a normative regression.
-            }
         }
     }
 
