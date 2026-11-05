@@ -31,6 +31,7 @@ results_checks() {
 release_checks() {
   npm ci
   npx --no-install eas --version
+  timeout 30s node --max-old-space-size=256 tools/release/eas-compatibility.cjs
   bash -n scripts/build-ios.sh
 }
 run() { echo "==> $1"; "$1"; }
