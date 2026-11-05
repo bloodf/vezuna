@@ -49,7 +49,7 @@ class AppLaunchInstrumentedTest {
             val inputMethod = device.executeShellCommand("dumpsys input_method")
             assertTrue("Full software keyboard was not shown", inputMethod.contains("mInputShown=true") || inputMethod.contains("mShowRequested=true"))
             editor.text = "Child"
-            device.findObject(By.text("Add profile")).click()
+            device.tapText("Add profile")
             // Adding switches to the new profile and returns to Today, whose profile chip names it.
             assertTrue("Created profile did not become active", device.wait(Until.hasObject(By.descContains("Child")), 5_000))
 
@@ -70,7 +70,10 @@ class AppLaunchInstrumentedTest {
     private fun openManageProfiles(device: UiDevice) {
         device.wait(Until.findObject(By.descContains("Switch profile")), 5_000).click()
         // With many profiles the sheet scrolls, so the last row is below the fold.
-        device.scrollAndTapText("Manage profiles")
+        assertTrue("'Manage profiles' not reachable by scrolling", device.swipeToText("Manage profiles"))
+        // The sheet can still be settling after UiAutomator reports idle; an immediate tap can be lost.
+        Thread.sleep(2_000)
+        device.tapText("Manage profiles")
         assertTrue("Profiles page did not open", device.wait(Until.hasObject(By.text("New profile name")), 5_000))
     }
 }
