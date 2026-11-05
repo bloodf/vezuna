@@ -4,7 +4,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.vezuna.llm.LlamatikLocalLlm
 import app.vezuna.llm.LlmGenerationSettings
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -38,6 +43,49 @@ class LocalLlmInstrumentedTest {
             )
             assertTrue("Local model returned no text", answer.isNotBlank())
             println("LOCAL_LLM_SMOKE_PASSED responseChars=${answer.length}")
+        } finally {
+            llm.unload()
+        }
+    }
+
+    @Test
+    fun cancelsCollectorAfterPartialAndAllowsNextGeneration() = runBlocking {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val assets = instrumentation.context.assets
+        assertTrue("smoke.gguf not staged; run tools/release/stage_smoke_model.py", assets.list("")?.contains("smoke.gguf") == true)
+        val model = File(instrumentation.targetContext.cacheDir, "smoke.gguf")
+        model.outputStream().use { output -> assets.open("smoke.gguf").use { it.copyTo(output) } }
+
+        val llm = LlamatikLocalLlm()
+        try {
+            withTimeout(60_000) {
+                llm.load(model.absolutePath, LlmGenerationSettings(contextLength = 2048, maxTokens = 1024, temperature = 0.0f))
+            }
+            val partial = CompletableDeferred<Unit>()
+            val collector = launch {
+                llm.generateStream(
+                    "<|im_start|>user\nWrite a long numbered list of simple outdoor activities.<|im_end|>\n<|im_start|>assistant\n",
+                ).collect { chunk ->
+                    if (chunk.isNotEmpty()) {
+                        partial.complete(Unit)
+                        // Hold the collector for cancellation; the buffered native stream may already have completed.
+                        awaitCancellation()
+                    }
+                }
+            }
+            withTimeout(60_000) { partial.await() }
+            println("NATIVE_CANCEL_PARTIAL_OBSERVED")
+            assertTrue("Stream collector completed before cancellation", collector.isActive)
+            println("NATIVE_CANCEL_REQUESTED")
+            withTimeout(60_000) { collector.cancelAndJoin() }
+            assertTrue("Stream collector did not cancel", collector.isCancelled)
+            println("NATIVE_CANCEL_COLLECTOR_JOINED")
+
+            val successor = withTimeout(60_000) {
+                llm.generate("<|im_start|>user\nSay a short greeting.<|im_end|>\n<|im_start|>assistant\n")
+            }
+            assertTrue("Successor generation returned no text", successor.isNotBlank())
+            println("NATIVE_CANCEL_SUCCESSOR_PROGRESS chars=${successor.length}")
         } finally {
             llm.unload()
         }
