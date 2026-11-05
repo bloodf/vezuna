@@ -15,8 +15,9 @@ internal sealed interface EngineOwnerStatus {
 }
 internal enum class NativeStage { Shutdown, Load }
 internal enum class LifecycleDisposition { NoEntry, Superseded, ShutdownAcknowledged, LoadAcknowledged, Uncertain }
+internal data class VerifiedModelDigest(val sha256: String)
 internal sealed interface LifecycleCommand {
-    data class Replace(val path: String, val settings: LlmGenerationSettings) : LifecycleCommand
+    data class Replace(val path: String, val settings: LlmGenerationSettings, val verifiedDigest: VerifiedModelDigest? = null) : LifecycleCommand
     data object Shutdown : LifecycleCommand
 }
 internal data class LifecycleReceipt(
