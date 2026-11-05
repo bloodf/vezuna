@@ -8,6 +8,7 @@ import app.vezuna.security.CipherEnvelope
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultUnreadableException
 import java.io.File
+import java.security.KeyStore
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -25,25 +26,43 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * AndroidSecureVault against the real Android Keystore. The AES key is shared by the whole app, so these tests never
- * delete it; only the vault directory is private to each test.
+ * AndroidSecureVault against the real Android Keystore. Each test owns a UUID alias and directory.
+ * Explicit deletion covers missing-key recovery, not hardware invalidation. The production alias is never used.
  */
 @RunWith(AndroidJUnit4::class)
 class AndroidSecureVaultInstrumentedTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val testId = UUID.randomUUID().toString()
+    private val keyAlias = "app.vezuna.vault.test.$testId"
     private lateinit var dir: File
+    private lateinit var keyStore: KeyStore
     private lateinit var vault: AndroidSecureVault
     private val plain = "synthetic hemoglobin 13.5 g/dL".encodeToByteArray()
     private val aad = "profile-a".encodeToByteArray()
 
     @Before
     fun setUp() {
-        dir = File(context.cacheDir, "vault-test-${UUID.randomUUID()}")
-        vault = AndroidSecureVault(dir)
+        dir = File(context.cacheDir, "vault-test-$testId")
+        keyStore = loadedKeyStore()
+        assertFalse(keyStore.containsAlias(keyAlias))
+        vault = AndroidSecureVault(dir, keyStore, keyAlias)
     }
 
     @After
-    fun tearDown() { dir.deleteRecursively() }
+    fun tearDown() {
+        try {
+            if (::keyStore.isInitialized) {
+                keyStore.deleteEntry(keyAlias)
+                assertFalse(keyStore.containsAlias(keyAlias))
+            }
+        } finally {
+            if (::dir.isInitialized && dir.exists()) assertTrue(dir.deleteRecursively())
+        }
+    }
+
+    private fun loadedKeyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+
+    private fun reopenVault() = AndroidSecureVault(dir, loadedKeyStore(), keyAlias)
 
     private fun fileFor(key: String) = File(dir, Base64.encodeToString(key.encodeToByteArray(), Base64.URL_SAFE or Base64.NO_WRAP))
 
@@ -110,7 +129,31 @@ class AndroidSecureVaultInstrumentedTest {
     @Test
     fun keySurvivesANewVaultInstance() = runBlocking {
         val envelope = vault.encrypt(plain, aad)
-        assertArrayEquals(plain, AndroidSecureVault(dir).decrypt(envelope, aad))
+        assertArrayEquals(plain, reopenVault().decrypt(envelope, aad))
+    }
+
+    @Test
+    fun deletedOwnedAliasIsInvalidatedWithoutRemintUntilEncryptionAndReopens() = runBlocking {
+        val original = vault.encrypt(plain, aad)
+        assertEquals(keyAlias, original.keyId)
+        assertTrue(keyStore.containsAlias(keyAlias))
+        assertArrayEquals(plain, vault.decrypt(original, aad))
+
+        // Deliberate deletion of this test's entry, not simulated or hardware invalidation.
+        keyStore.deleteEntry(keyAlias)
+        assertFalse(keyStore.containsAlias(keyAlias))
+        repeat(2) {
+            assertEquals(VaultFailure.KEY_INVALIDATED, failureOf { vault.decrypt(original, aad) })
+            assertFalse(keyStore.containsAlias(keyAlias))
+        }
+        vault.discardUnusableKey()
+        assertFalse(keyStore.containsAlias(keyAlias))
+
+        val fresh = vault.encrypt(plain, aad)
+        assertEquals(keyAlias, fresh.keyId)
+        assertTrue(keyStore.containsAlias(keyAlias))
+        assertArrayEquals(plain, vault.decrypt(fresh, aad))
+        assertArrayEquals(plain, reopenVault().decrypt(fresh, aad))
     }
 
     @Test
@@ -122,7 +165,7 @@ class AndroidSecureVaultInstrumentedTest {
         try {
             val futures = (0 until threads).map {
                 pool.submit<CipherEnvelope> {
-                    val own = AndroidSecureVault(dir)
+                    val own = reopenVault()
                     ready.countDown(); go.await()
                     runBlocking { own.encrypt(plain, aad) }
                 }
@@ -130,7 +173,7 @@ class AndroidSecureVaultInstrumentedTest {
             assertTrue(ready.await(10, TimeUnit.SECONDS))
             go.countDown()
             val envelopes = futures.map { it.get(30, TimeUnit.SECONDS) }
-            // Not a cold-start race proof: the alias normally exists already. It only shows concurrent users share one key.
+            // The owned alias starts absent, so first-use calls exercise the process-wide creation lock.
             envelopes.forEach { assertArrayEquals(plain, runBlocking { vault.decrypt(it, aad) }) }
         } finally {
             pool.shutdownNow()
@@ -200,8 +243,7 @@ class AndroidSecureVaultInstrumentedTest {
         assertNotNull(dir.listFiles { f -> f.isDirectory }?.firstOrNull())
     }
 
-    // Not proven here: a missing alias mapping to KEY_INVALIDATED and discarding an invalidated key need a Keystore
-    // entry the test may not destroy (the app shares it). Only the healthy path is covered; #106 stays open for those.
+    // Platform-invalidated entries and hardware invalidation still require separate evidence for #106.
     @Test
     fun healthyKeyIsNotDiscarded() = runBlocking {
         val envelope = vault.encrypt(plain, aad)
