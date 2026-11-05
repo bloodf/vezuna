@@ -78,6 +78,41 @@ class UpgradeInputsTest(unittest.TestCase):
         self.assertNotIn('IOS_BUNDLE_METADATA_PASSED', out)
         self.assertNotIn('IOS_UPGRADE_PASSED', out)
 
+    def test_symlinks_are_rejected_before_metadata_is_read(self):
+        external = self.root / 'external'
+        external.mkdir()
+        (external / 'Info.plist').write_bytes((self.old / 'Info.plist').read_bytes())
+        (external / 'font.ttf').write_bytes(b'original font')
+        cases = [
+            ('Info.plist', external / 'Info.plist'),
+            ('NotoSans-Regular.ttf', external / 'font.ttf'),
+            ('compose-resources', external),
+            ('Info.plist', Path('../external/Info.plist')),
+            ('missing', Path('../absent')),
+            ('internal', Path('NotoSans-Regular.ttf')),
+        ]
+        original_current = self.current
+        for index, (name, target) in enumerate(cases):
+            with self.subTest(name=name, target=str(target)):
+                self.current = self.root / f'linked-{index}.app'
+                shutil.copytree(original_current, self.current)
+                link = self.current / name
+                if link.is_dir():
+                    shutil.rmtree(link)
+                elif link.exists():
+                    link.unlink()
+                link.symlink_to(target)
+                with self.assertRaisesRegex(ValueError, 'symlink'):
+                    preflight.bundle_digest(self.current)
+                code, out, err = self.run_cli()
+                self.assertNotEqual(code, 0)
+                self.assertIn('symlink', err)
+                self.assertNotIn('IOS_UPGRADE_INPUTS_PREFLIGHT_PASSED', out)
+                # Changing bytes outside the app must never turn rejection into success.
+                (external / 'font.ttf').write_bytes(b'changed font')
+                self.assertNotEqual(self.run_cli()[0], 0)
+        self.current = original_current
+
     def test_missing_app_and_mismatched_digest(self):
         self.old.rename(self.root / 'moved.app')
         self.assertNotEqual(self.run_cli()[0], 0)

@@ -19,12 +19,12 @@ DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def bundle_digest(app):
-    """Hash names, kinds, executable mode, file contents and symlink targets."""
+    """Hash a symlink-free bundle by names, kinds, executable mode and bytes."""
     digest = hashlib.sha256()
     for path in sorted(app.rglob('*'), key=lambda p: p.relative_to(app).as_posix()):
         name = path.relative_to(app).as_posix().encode()
         if path.is_symlink():
-            kind, data = b'L', str(path.readlink()).encode()
+            raise ValueError(f'unsupported bundle symlink: {path}')
         elif path.is_dir():
             kind, data = b'D', b''
         elif path.is_file():
