@@ -61,9 +61,15 @@ class PlayAssetPackLoader internal constructor(
             mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PREMIUM_UNAVAILABLE))
             return null
         }
+        // A pack without an Android store id cannot be delivered here; reject it before any provider work.
+        val packId = pack.deliveryIdFor(ModelPlatform.ANDROID)
+        if (packId == null) {
+            mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PACK_UNAVAILABLE))
+            return null
+        }
         mutableState.value = ModelPackLoadState.CheckingAvailability
         return try {
-            val location = manager.getPackLocation(pack.androidAssetPackId) ?: fetch(pack.androidAssetPackId)
+            val location = manager.getPackLocation(packId) ?: fetch(packId)
             if (location == null) {
                 mutableState.value = ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PACK_UNAVAILABLE))
                 return null
