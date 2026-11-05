@@ -21,6 +21,11 @@ final class StoreModelPackLoader: NSObject, ObservableObject, NativeModelPackLoa
             finish(completion, result: .failure(ModelPackError.premiumRequired))
             return
         }
+        // A pack without an iOS store id cannot be delivered here; reject it before any provider work.
+        guard let packId = pack.iosAssetPackId else {
+            finish(completion, result: .failure(ModelPackError.packUnavailable))
+            return
+        }
         guard beginLoad() else {
             finish(completion, result: .failure(ModelPackError.busy))
             return
@@ -29,9 +34,9 @@ final class StoreModelPackLoader: NSObject, ObservableObject, NativeModelPackLoa
             do {
                 let path: String
                 if #available(iOS 26.0, *) {
-                    path = try await loadManagedAsset(pack)
+                    path = try await loadManagedAsset(pack, packId: packId)
                 } else {
-                    path = try await loadOnDemandResource(pack)
+                    path = try await loadOnDemandResource(pack, packId: packId)
                 }
                 let attributes = try FileManager.default.attributesOfItem(atPath: path)
                 guard (attributes[.size] as? NSNumber)?.int64Value == pack.sizeBytes else { throw ModelPackError.sizeMismatch }
@@ -44,14 +49,14 @@ final class StoreModelPackLoader: NSObject, ObservableObject, NativeModelPackLoa
     }
 
     @available(iOS 26.0, *)
-    private func loadManagedAsset(_ pack: ModelPack) async throws -> String {
-        let asset = try await AssetPackManager.shared.assetPack(withID: pack.iosAssetPackId)
+    private func loadManagedAsset(_ pack: ModelPack, packId: String) async throws -> String {
+        let asset = try await AssetPackManager.shared.assetPack(withID: packId)
         try await AssetPackManager.shared.ensureLocalAvailability(of: asset)
         return try AssetPackManager.shared.url(for: FilePath(pack.fileName)).path
     }
 
-    private func loadOnDemandResource(_ pack: ModelPack) async throws -> String {
-        let request = NSBundleResourceRequest(tags: [pack.iosAssetPackId])
+    private func loadOnDemandResource(_ pack: ModelPack, packId: String) async throws -> String {
+        let request = NSBundleResourceRequest(tags: [packId])
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             request.beginAccessingResources { error in
                 if let error {
@@ -63,7 +68,7 @@ final class StoreModelPackLoader: NSObject, ObservableObject, NativeModelPackLoa
         }
         guard let url = Bundle.main.url(forResource: pack.fileName, withExtension: nil) else {
             request.endAccessingResources()
-            throw ModelPackError.assetUnavailable(pack.iosAssetPackId)
+            throw ModelPackError.assetUnavailable(packId)
         }
         // Kept alive so the resource stays on disk while Kotlin streams it; see releaseModelPack().
         lock.lock()
@@ -109,6 +114,8 @@ enum ModelPackError: LocalizedError {
     case premiumRequired
     case sizeMismatch
     case assetUnavailable(String)
+    /// The catalog entry names no store pack for this platform, so nothing can be delivered.
+    case packUnavailable
     case busy
 
     var bridgeMessage: NativeMessage {
@@ -117,6 +124,8 @@ enum ModelPackError: LocalizedError {
             return NativeMessage(key: "model_premium_required", args: [])
         case .sizeMismatch:
             return NativeMessage(key: "model_asset_size_mismatch", args: [])
+        case .packUnavailable:
+            return NativeMessage(key: "action_failed", args: [])
         case .busy:
             return NativeMessage(key: "action_failed", args: [])
         case .assetUnavailable(let identifier):
