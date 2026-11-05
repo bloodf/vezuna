@@ -113,7 +113,7 @@ python3 tools/release/build_notices.py --check
 
 The inventory commands resolve artifacts without compiling app code. A changed inventory requires review before refreshing its committed snapshot and the hashes in `third_party/notices-manifest.json`. Run `build_notices.py` without `--check` to regenerate the platform files after that review. The release scripts repeat these checks and verify the actual bundled text. They do not establish legal acceptance or approve uploads.
 
-`eas.json` defines the `production` submit profile. The CLI expands `$VAR` in `serviceAccountKeyPath`, `ascApiKeyPath`, `ascApiKeyId`, and `ascApiKeyIssuerId`. `package.json` pins `eas-cli` 27.2.0. EAS requires Node 20+ and a linked project even for external binaries. This repository is linked to [@bloodf/vezuna](https://expo.dev/accounts/bloodf/projects/vezuna), project ID `ed7ac985-98fd-4cb7-813a-ad16b25e98ba`, through `app.json`. This metadata does not change the native architecture. Contributors must use their own Expo project for independent distribution.
+`eas.json` defines the `production` submit profile. The CLI expands `$VAR` in `serviceAccountKeyPath`, `ascApiKeyPath`, `ascApiKeyId`, and `ascApiKeyIssuerId`. `package.json` pins `eas-cli` 27.4.1. This version requires Node 20.18.3 or later in the Node 20 line, or Node 22 or later, and a linked project even for external binaries. This repository is linked to [@bloodf/vezuna](https://expo.dev/accounts/bloodf/projects/vezuna), project ID `ed7ac985-98fd-4cb7-813a-ad16b25e98ba`, through `app.json`. This metadata does not change the native architecture. Contributors must use their own Expo project for independent distribution.
 
 ```sh
 npm install   # package-lock.json is committed; CI may use npm ci
