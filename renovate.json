@@ -29,6 +29,12 @@
         "@oclif/plugin-autocomplete"
       ],
       "allowedVersions": "3.2.40"
+    },
+    {
+      "matchPackageNames": [
+        "nanoid"
+      ],
+      "allowedVersions": "<4"
     }
   ]
 }
