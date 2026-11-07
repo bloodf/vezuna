@@ -10,6 +10,12 @@
         "actions/node-versions"
       ],
       "allowedVersions": "24.22.2"
+    },
+    {
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "allowedVersions": "<7"
     }
   ]
 }
