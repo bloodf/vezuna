@@ -130,7 +130,7 @@ class HouseholdBackupTest {
     fun failedRecordWriteRemovesTheFilesWrittenForThatMember() = runTest {
         val store = MemorySourceStore()
         val broken = object : VezunaRepositoryDelegate(InMemoryVezunaRepository()) {
-            override suspend fun restoreProfile(data: ProfileData) = error("disk full")
+            override suspend fun restoreProfileAndVitals(data: ProfileData): Boolean = error("disk full")
         }
 
         assertFailsWith<IllegalStateException> { broken.restoreMembers(household(), RestoreMode.REPLACE_EXISTING, store) { "x" } }

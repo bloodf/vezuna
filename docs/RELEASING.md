@@ -113,11 +113,11 @@ python3 tools/release/build_notices.py --check
 
 The inventory commands resolve artifacts without compiling app code. A changed inventory requires review before refreshing its committed snapshot and the hashes in `third_party/notices-manifest.json`. Run `build_notices.py` without `--check` to regenerate the platform files after that review. The release scripts repeat these checks and verify the actual bundled text. They do not establish legal acceptance or approve uploads.
 
-`eas.json` defines the `production` submit profile. The CLI expands `$VAR` in `serviceAccountKeyPath`, `ascApiKeyPath`, `ascApiKeyId`, and `ascApiKeyIssuerId`. `package.json` pins `eas-cli` 27.2.0. EAS requires Node 20+ and a linked project even for external binaries. This repository is linked to [@bloodf/vezuna](https://expo.dev/accounts/bloodf/projects/vezuna), project ID `ed7ac985-98fd-4cb7-813a-ad16b25e98ba`, through `app.json`. This metadata does not change the native architecture. Contributors must use their own Expo project for independent distribution.
+`eas.json` defines the `production` submit profile. The CLI expands `$VAR` in `serviceAccountKeyPath`, `ascApiKeyPath`, `ascApiKeyId`, and `ascApiKeyIssuerId`. `package.json` pins `eas-cli` 27.4.1 and `pnpm-lock.yaml` (converted from the former npm lock) is committed; CI uses `pnpm install --frozen-lockfile`. The pnpm override pins live in `pnpm-workspace.yaml` (pnpm 12 no longer reads settings from `package.json`). This version requires Node 20.18.3 or later in the Node 20 line, or Node 22 or later, and a linked project even for external binaries. This repository is linked to [@bloodf/vezuna](https://expo.dev/accounts/bloodf/projects/vezuna), project ID `ed7ac985-98fd-4cb7-813a-ad16b25e98ba`, through `app.json`. This metadata does not change the native architecture. Contributors must use their own Expo project for independent distribution.
 
 ```sh
-npm install   # package-lock.json is committed; CI may use npm ci
-npx eas login
+pnpm install   # pnpm-lock.yaml is committed; CI uses pnpm install --frozen-lockfile
+pnpm exec eas login
 ```
 
 `eas submit` only uploads an already built and signed binary; it never builds or signs.
@@ -128,7 +128,7 @@ Prerequisites: Play Console developer account; app created with package `app.vez
 
 ```sh
 export GOOGLE_SERVICE_ACCOUNT_KEY_PATH=$HOME/play-service-account.json
-npm run submit:android -- composeApp/build/outputs/bundle/release/composeApp-release.aab
+pnpm run submit:android -- composeApp/build/outputs/bundle/release/composeApp-release.aab
 ```
 
 The profile targets the `internal` track with `releaseStatus: draft`; change in `eas.json` when promoting. Do not run the upload command until distribution checks pass and the owner explicitly approves the upload.
@@ -147,7 +147,7 @@ Prerequisites: app record for bundle ID `app.vezuna` in App Store Connect; an Ap
 export ASC_API_KEY_PATH=$HOME/AuthKey_XXXXXXXXXX.p8
 export ASC_API_KEY_ISSUER_ID=...
 export ASC_API_KEY_ID=XXXXXXXXXX
-npm run submit:ios -- build/ios/export/Vezuna.ipa
+pnpm run submit:ios -- build/ios/export/Vezuna.ipa
 ```
 
 The verified App Store Connect app ID `6829336593`, Apple team `AAMZ7ZVM62`, and primary language `pt-BR` are configured in `submit.production.ios`. These are public identifiers, not signing credentials. Contributors distributing an independent app must replace them with their own app and team.

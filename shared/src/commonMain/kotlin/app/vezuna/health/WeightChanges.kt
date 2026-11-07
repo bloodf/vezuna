@@ -88,6 +88,8 @@ data class WeightLocalState(
     val provenance: Map<String, SourceContinuityEvidence> = emptyMap(),
     val unresolved: Set<UnresolvedWeightId> = emptySet(),
     val continuation: WeightContinuation? = null,
+    val access: WeightAccess? = null,
+    val coverage: Set<WeightCoverageLimit> = emptySet(),
 ) {
     init {
         require(provenance.keys.all { it.isNotBlank() })
@@ -115,6 +117,8 @@ data class WeightPage(
     val claim: SourceClaim,
     val mutations: List<WeightMutation>,
     val nextContinuation: WeightContinuation? = null,
+    val access: WeightAccess? = null,
+    val retentionFrom: Instant? = null,
 ) {
     init {
         require(nextContinuation == null || nextContinuation.source == claim.source)
@@ -122,7 +126,7 @@ data class WeightPage(
 }
 
 /** Caller must commit both members in one encrypted replacement, under its existing sync fences. */
-data class WeightReduction(val vitals: ProfileVitals, val local: WeightLocalState)
+data class WeightReduction(val vitals: ProfileVitals, val local: WeightLocalState, val storedCount: Int)
 
 /** No absence subtraction, migration, retention or aggregate/lastSync changes. */
 object WeightChanges {
@@ -133,6 +137,7 @@ object WeightChanges {
         val unresolved = local.unresolved.toMutableSet()
         val source = page.claim.source
         val continuous = page.claim.continuity != null
+        val accepted = mutableSetOf<String>()
 
         fun recordUnresolved(id: String, reason: UnresolvedWeightReason) {
             unresolved.add(UnresolvedWeightId(source, id, reason))
@@ -160,12 +165,14 @@ object WeightChanges {
                     } else {
                         weights[index] = reading
                     }
+                    accepted += reading.recordId
                     if (continuous) clearUnresolved(reading.recordId)
                 }
                 is WeightMutation.Delete -> {
                     if (mutation.recordId !in legacyIds && continuous && provenance[mutation.recordId]?.source == source) {
                         weights.removeAll { it.recordId == mutation.recordId }
                         provenance.remove(mutation.recordId)
+                        accepted -= mutation.recordId
                         clearUnresolved(mutation.recordId)
                     } else {
                         recordUnresolved(mutation.recordId, UnresolvedWeightReason.UNPROVEN_TOMBSTONE)
@@ -173,9 +180,49 @@ object WeightChanges {
                 }
             }
         }
+        page.retentionFrom?.let { floor ->
+            weights.removeAll { it.time < floor }
+            provenance.keys.retainAll(weights.map { it.recordId }.toSet())
+        }
         return WeightReduction(
             stored.copy(weights = weights.toList()),
-            WeightLocalState(provenance.toMap(), unresolved.toSet(), page.nextContinuation ?: local.continuation),
+            WeightLocalState(provenance.toMap(), unresolved.toSet(), page.nextContinuation ?: local.continuation, page.access ?: local.access,
+                local.coverage + buildSet {
+                    if (!continuous) add(WeightCoverageLimit.SOURCE_UNCERTAIN)
+                    if (page.access?.let { !it.history && it.firstGrant == null } == true) add(WeightCoverageLimit.UNKNOWN_HISTORY_BOUNDARY)
+                    if (unresolved.isNotEmpty()) add(WeightCoverageLimit.UNRESOLVED_IDS)
+                    if (page.nextContinuation is WeightContinuation.RebuildRequired) add(WeightCoverageLimit.REBUILD_GAP)
+                }),
+            accepted.count { id -> weights.any { it.recordId == id } },
         )
     }
 }
+
+/** Unknown firstGrant stays unknown; it must never become a rolling now-minus-30-days claim. */
+@Serializable
+data class WeightAccess(val firstGrant: Instant? = null, val history: Boolean = false, val permissionEpoch: String = "unknown")
+
+/**
+ * Continuity is bounded to a live importer and target. Durable token/provenance bytes never recreate it.
+ * The random scope separates observation chains; it is NOT evidence of an OS store identity.
+ */
+class WeightSourceSession {
+    private var target: String? = null
+    private val live = mutableSetOf<WeightSource>()
+
+    fun bindTarget(profileId: String) {
+        if (target != profileId) { live.clear(); target = profileId }
+    }
+
+    fun baselineAcquired(token: String): WeightSource {
+        check(target != null)
+        require(token.isNotBlank())
+        return WeightSource(WeightProvider.HEALTH_CONNECT, kotlin.uuid.Uuid.random().toString(), "weight-only/all-origins/v1").also { live += it }
+    }
+
+    fun claim(source: WeightSource): SourceClaim = SourceClaim(source,
+        if (source in live) SourceContinuityEvidence(source, "baseline acquired in this live importer and target") else null)
+}
+
+@Serializable
+enum class WeightCoverageLimit { SOURCE_UNCERTAIN, UNKNOWN_HISTORY_BOUNDARY, UNRESOLVED_IDS, REBUILD_GAP }

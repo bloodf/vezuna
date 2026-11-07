@@ -21,6 +21,7 @@ import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.ModelPlatform
 import app.vezuna.llm.loadBundledModelCatalog
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
@@ -742,11 +743,11 @@ object IosRuntime {
         }
     }
 
-    /** Same bundled catalog file as Android (shared compose resources). */
+    /** Same bundled catalog file as Android (shared compose resources); only iOS-deliverable offers are kept. */
     private suspend fun loadCatalog(): ModelCatalog {
         catalogError = null
         return try {
-            loadBundledModelCatalog()
+            loadBundledModelCatalog(ModelPlatform.IOS)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {

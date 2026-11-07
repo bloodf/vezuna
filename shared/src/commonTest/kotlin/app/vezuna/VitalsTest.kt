@@ -209,12 +209,12 @@ class VitalsTest {
     }
 
     @Test
-    fun replaceVitalsStoresExactlyWhatWasGiven() = runTest {
+    fun replaceVitalsStoresClinicalValuesAndClearsDeviceSyncTime() = runTest {
         val repository = InMemoryVezunaRepository()
         repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochSeconds(1)))
         val vitals = ProfileVitals(steps = listOf(StepsDay(LocalDate(2026, 10, 1), 5)), lastSync = now)
         repository.replaceVitals("a", vitals)
-        assertEquals(vitals, repository.readProfile("a").vitals)
+        assertEquals(vitals.copy(lastSync = null), repository.readProfile("a").vitals)
     }
 
     @Test

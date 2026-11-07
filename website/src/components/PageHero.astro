@@ -1,0 +1,26 @@
+---
+import type { Fact } from '../data/pages';
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  body: string;
+  facts?: Fact[];
+}
+const { eyebrow, title, body, facts = [] } = Astro.props;
+---
+<section class="page-hero">
+  <div class="wrap page-hero-inner">
+    <p class="eyebrow"><span class="eyebrow-rule" aria-hidden="true"></span>{eyebrow}</p>
+    <h1>{title}</h1>
+    <p class="hero-lead">{body}</p>
+    {facts.length > 0 && (
+      <dl class="fact-sheet">
+        {facts.map((fact) => (
+          <div><dt>{fact.term}</dt><dd>{fact.value}</dd></div>
+        ))}
+      </dl>
+    )}
+    <slot />
+  </div>
+</section>

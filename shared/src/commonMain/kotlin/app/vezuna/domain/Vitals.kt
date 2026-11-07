@@ -144,6 +144,9 @@ object DeviceVitals {
 
     /** Preserves weights, legacy samples and legacy summaries exactly; never migrates whole vitals. */
     fun ingestAggregates(stored: ProfileVitals, window: AggregateWindow): ProfileVitals {
+        val through = window.now.toLocalDateTime(window.zone).date
+        require(window.steps.all { it.date >= window.replaceFrom && it.date <= through && StepsDay.ofOrNull(it.date, it.count) != null }) { "Steps outside completed window" }
+        require(window.heartRate.all { it.start <= window.now && it.start.toLocalDateTime(window.zone).date >= window.replaceFrom && HeartRateBucket.ofOrNull(it.start, it.min, it.avg, it.max) != null }) { "Heart rate outside completed window" }
         val cutoff = window.now - RAW_DAYS.days
         val steps = (stored.steps.filter { it.date < window.replaceFrom } + window.steps)
             .associateBy { it.date }.values.toList()

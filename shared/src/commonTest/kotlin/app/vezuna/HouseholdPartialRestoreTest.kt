@@ -84,15 +84,11 @@ class HouseholdPartialRestoreTest {
         val store = VaultSourceFileStore(vault)
         val a = member("A")
         val b = member("B")
-        val oldVitals = sampleProfileData("old").vitals
+        val oldVitals = sampleProfileData("old").vitals.copy(lastSync = null)
         repository.restoreProfile(a.data.copy(documents = a.data.documents.map { it.copy(vaultKey = null, pageVaultKeys = emptyList()) }, vitals = oldVitals))
         repository.replaceVitals("A-profile", oldVitals)
-        val failing = object : VezunaRepositoryDelegate(repository) {
-            override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) {
-                if (profileId == "A-profile") error("disk full")
-                repository.replaceVitals(profileId, vitals)
-            }
-        }
+        vault.failingWrites += "repository-vitals-A-profile-v1"
+        val failing = repository
 
         val outcome = failing.restoreMembers(listOf(a, b), RestoreMode.REPLACE_EXISTING, store) { error("unexpected remap") }
 
