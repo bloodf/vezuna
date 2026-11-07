@@ -400,7 +400,7 @@ class HealthRecordsTest {
     fun theAssistantNeverReceivesThem() {
         val data = withRecords()
         val prompt = HealthPromptBuilder.build(data, data.observations.map { it.observationId }.toSet(), "What should I know?")
-        data.healthRecords.forEach { assertFalse(it.title in prompt, it.title) }
+        data.healthRecords.forEach { assertFalse(it.title in prompt.userData, it.title) }
     }
 
     @Test

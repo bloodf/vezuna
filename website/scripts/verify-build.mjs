@@ -12,7 +12,7 @@ const walk = (directory) => {
   }
 };
 walk(dist);
-assert.equal(htmlFiles.length, 20, `Expected 20 HTML routes, found ${htmlFiles.length}`);
+assert.equal(htmlFiles.length, 32, `Expected 32 HTML routes, found ${htmlFiles.length}`);
 for (const path of ['pagefind/pagefind-component-ui.js', 'pagefind/pagefind-component-ui.css', 'pagefind/pagefind.js', 'assets/android-home.png', 'assets/android-labs.png', 'assets/android-settings.png', 'assets/og-1200x630.png', 'fonts/NotoSans-Regular.ttf', 'fonts/NotoSans-Bold.ttf', 'fonts/NotoSans-Regular-latin.woff2', 'fonts/NotoSans-Bold-latin.woff2', 'assets/android-home-800.webp', 'assets/android-labs-800.webp', 'assets/android-settings-800.webp', 'fonts/NOTO-LICENSE.txt', 'icons/favicon.ico']) {
   assert(existsSync(join(dist, path)), `Missing production asset: ${path}`);
 }
@@ -20,3 +20,14 @@ const cssFiles = readdirSync(join(dist, '_astro')).filter((name) => name.endsWit
 assert(cssFiles.length > 0, 'Missing compiled CSS');
 assert(cssFiles.some((name) => readFileSync(join(dist, '_astro', name), 'utf8').includes('Noto Sans')), 'Compiled CSS does not contain Noto Sans');
 console.log(`PRODUCTION_BUILD_VERIFIED html=${htmlFiles.length} searchIndex=3-languages assets=local`);
+
+// Inspect rendered guidance in every locale, not just source strings or route existence.
+for (const [route, term, recovery] of [
+  ['local-data', 'Inside the app', 'previous encrypted generation'],
+  ['pt-br/local-data', 'Dentro do app', 'geração anterior criptografada'],
+  ['es/local-data', 'Dentro de la app', 'generación anterior cifrada'],
+]) {
+  const html = readFileSync(join(dist, route, 'index.html'), 'utf8');
+  assert(!html.includes('[object Object]'), `${route}: object rendered as text`);
+  assert(html.includes(term) && html.includes(recovery), `${route}: deletion guidance missing`);
+}

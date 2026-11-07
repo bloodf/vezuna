@@ -1,8 +1,8 @@
 # Local CI checks
 
-`scripts/check-ci-local.sh` runs the commands in `.github/workflows/ci.yml` on the current checkout and adds Android host test validation and the EAS compatibility fixture. It stops at the first failure. The default `all` runs both jobs and prints `CHECK_CI_LOCAL_PASSED` only after every stage succeeds. This is local evidence, not a replacement for required GitHub checks or the mandatory full `scripts/check-all.sh` merge gate.
+`scripts/check-ci-local.sh` runs the commands in `.github/workflows/ci.yml` on the current checkout and adds Android host test validation and the EAS compatibility fixture. It stops at the first failure. The default `all` runs all three jobs and prints `CHECK_CI_LOCAL_PASSED` only after every stage succeeds. This is local evidence, not a replacement for required GitHub checks or the mandatory full `scripts/check-all.sh` merge gate.
 
-The workflow uses Ubuntu, Python 3.15, Temurin Java 25, Android SDK platform 37.0 and build tools 37.0.0, and Node 26. Install the matching prerequisites, including npm and the Android SDK, before running. The runner does not install system tools. Gradle may resolve its normal dependencies, and the release stage runs `npm ci`, which replaces this checkout's `node_modules`. A macOS pass does not establish Linux runner equivalence. CI setup actions and artifact environment are not reproduced.
+The workflow uses Ubuntu, Python 3.15, Temurin Java 25, Android SDK platform 37.0 and build tools 37.0.0, and Node 24.22.2 with pnpm 12.18.0. Install the matching prerequisites, including pnpm and the Android SDK, before running. The runner does not install system tools. Gradle may resolve its normal dependencies, and the release stage runs `pnpm install --frozen-lockfile`, which replaces this checkout's `node_modules`. A macOS pass does not establish Linux runner equivalence. CI setup actions and artifact environment are not reproduced.
 
 Android host tests load Llamatik's `GenStream` class, which uses Java 21 bytecode (class-file version 65). Java 17 cannot run those tests even though the Android Kotlin output targets JVM 17. Use a compatible process-scoped `JAVA_HOME` for the entire Android Gradle stage, including coverage; matching the workflow's Java 25 is the default. A local Java 27 pass is separate evidence, not proof that every intervening JDK works. Record `java -version` and the effective `JAVA_HOME` with the results. Do not change global Java settings or exclude failing host tests to obtain a pass.
 
@@ -21,7 +21,8 @@ Select one stage to avoid repeating a heavy build. A selected stage reports only
 scripts/check-ci-local.sh python   # seven Android Python checks
 scripts/check-ci-local.sh gradle   # four workflow Gradle tasks plus the explicit Android host task
 scripts/check-ci-local.sh results  # JVM, app unit, and Android host results plus debug APK ELF alignment
-scripts/check-ci-local.sh release  # npm ci, EAS version, compatibility fixture, iOS script syntax
+scripts/check-ci-local.sh website  # website frozen install, check, test, and build
+scripts/check-ci-local.sh release  # pnpm install --frozen-lockfile, EAS version, compatibility fixture, iOS script syntax
 ```
 
 The `results` stage reads existing outputs: it does not establish that they came from the current commit or a successful build. Run it after the local Gradle stage on the same checkout, and preserve the build and results evidence together. Assembling the instrumented test APK does not execute instrumented tests. `scripts/check-all.sh` remains a separate, broader merge gate; run it through the same semaphore and observe its required success marker. Required GitHub checks must still pass and must not be bypassed.

@@ -20,6 +20,7 @@ import org.junit.Test
 import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PlayAssetPackLoaderTest {
@@ -45,6 +46,7 @@ class PlayAssetPackLoaderTest {
     private class Recorder {
         val confirmations = AtomicInteger()
         val cancels = AtomicInteger()
+        val providerCalls = AtomicInteger()
         var listener: AssetPackStateUpdateListener? = null
     }
 
@@ -52,10 +54,10 @@ class PlayAssetPackLoaderTest {
         javaClass.classLoader, arrayOf(AssetPackManager::class.java),
     ) { _, method, args ->
         when (method.name) {
-            "getPackLocation" -> null
+            "getPackLocation" -> { recorder.providerCalls.incrementAndGet(); null }
             "registerListener" -> { recorder.listener = args[0] as AssetPackStateUpdateListener; null }
             "unregisterListener" -> null
-            "fetch", "getPackStates" -> Tasks.forResult(FakeStates(initial))
+            "fetch", "getPackStates" -> { recorder.providerCalls.incrementAndGet(); Tasks.forResult(FakeStates(initial)) }
             "showConfirmationDialog", "showCellularDataConfirmation" -> { recorder.confirmations.incrementAndGet(); Tasks.forResult(Activity.RESULT_OK) }
             "cancel" -> { recorder.cancels.incrementAndGet(); FakeStates(initial) }
             else -> error("unexpected ${method.name}")
@@ -122,6 +124,18 @@ class PlayAssetPackLoaderTest {
         assertEquals(null, result.await())
         assertTrue(loader.state.value is ModelPackLoadState.Failed)
         assertEquals(1, recorder.cancels.get())
+    }
+
+    @Test
+    fun packWithoutAnAndroidStoreIdIsRejectedBeforeAnyProviderWork() = runTest {
+        val recorder = Recorder()
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.DOWNLOADING)) }, allowAll)
+        val androidLess = ModelPack("m", "M", "m.gguf", null, "ios", 10, 10, 4096, "a".repeat(64))
+        assertNull(loader.load(androidLess))
+        val unavailable = loader.state.value
+        assertTrue(unavailable is ModelPackLoadState.Unavailable)
+        assertEquals(NativeKey.MODEL_PACK_UNAVAILABLE, ((unavailable as ModelPackLoadState.Unavailable).reason as NativeText.Key).key)
+        assertEquals(0, recorder.providerCalls.get())
     }
 
     @Test

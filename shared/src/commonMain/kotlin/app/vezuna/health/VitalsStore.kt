@@ -59,6 +59,8 @@ class VitalsStore(private val vault: SecureVault, private val json: Json) {
         if (document != null && "vitalsFormat" in document) {
             val version = (document["vitalsFormat"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull
             if (version != 1 || document.keys.any { it !in setOf("vitalsFormat", "commitId", "revision", "clinical", "local") }) throw StorageSchemaTooNewException(version ?: Int.MAX_VALUE, 1)
+            try { json.decodeFromJsonElement(StoredVitals.serializer(), document) }
+            catch (_: kotlinx.serialization.SerializationException) { throw StorageSchemaTooNewException(Int.MAX_VALUE, 1) }
         }
     }
 

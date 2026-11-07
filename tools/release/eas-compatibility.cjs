@@ -1,4 +1,4 @@
-// Run after npm ci: node tools/release/eas-compatibility.cjs
+// Run after pnpm install --frozen-lockfile: node tools/release/eas-compatibility.cjs
 // All keys/certificates are disposable synthetic data held only in memory.
 'use strict';
 const assert = require('node:assert/strict');
