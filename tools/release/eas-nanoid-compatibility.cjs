@@ -126,12 +126,21 @@ for (const size of [6, 10]) {
   const choices = configs.getAccountChoices({
     id: 'user-1',
     accounts: [
-      { name: 'team-acc', ownerUserActor: { id: 'user-2' } },
-      { name: 'personal-acc', ownerUserActor: { id: 'user-1' } },
+      {
+        name: 'team-acc',
+        ownerUserActor: { id: 'user-2' },
+        viewerUserPermission2: { effectivePermissions: ['PUBLISH'], permissions: ['PUBLISH'] },
+      },
+      {
+        name: 'personal-acc',
+        ownerUserActor: { id: 'user-1' },
+        viewerUserPermission2: { effectivePermissions: ['PUBLISH'], permissions: ['PUBLISH'] },
+      },
     ],
   });
   assert(Array.isArray(choices));
   assert.equal(choices.length, 2);
+  assert(choices.every(choice => !choice.disabled), 'Synthetic accounts must allow publishing');
 
   const graph = eas('./build/project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync.js');
   const fsExtra = eas('fs-extra');
