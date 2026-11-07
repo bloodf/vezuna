@@ -430,6 +430,46 @@ class WeightPersistenceTest {
         assertTrue(vault.memory.quarantined.isEmpty())
     }
 
+    @Test fun unknownNestedFieldsInPreviousEnvelopeBlockRotationAndDeletion() = runTest {
+        for (section in listOf("clinical", "local")) {
+            val vault = GenerationalMemoryVault()
+            suspend fun encoded(plain: String) = CipherEnvelopeCodec.encode(vault.encrypt(plain.encodeToByteArray(), "Vezuna vitals v1:p".encodeToByteArray()))
+            val current = encoded(json.encodeToString(StoredVitals.serializer(), StoredVitals()))
+            val previous = encoded("""{"vitalsFormat":1,"$section":{"futureField":true}}""")
+            vault.current[key] = current
+            vault.previous[key] = previous
+            val store = VitalsStore(vault, json)
+
+            assertFailsWith<StorageSchemaTooNewException> { store.load("p") }
+            assertFailsWith<StorageSchemaTooNewException> { store.save("p", ProfileVitals()) }
+            assertFailsWith<StorageSchemaTooNewException> { store.delete("p") }
+            assertFailsWith<StorageSchemaTooNewException> { store.sweep(emptySet()) }
+            assertContentEquals(current, vault.current[key])
+            assertContentEquals(previous, vault.previous[key])
+            assertTrue(vault.quarantined.isEmpty())
+            assertTrue(vault.writes.isEmpty())
+        }
+    }
+
+    @Test fun invalidLocalStateInPreviousEnvelopeNeverQuarantinesReadableCurrent() = runTest {
+        val vault = GenerationalMemoryVault()
+        suspend fun encoded(plain: String) = CipherEnvelopeCodec.encode(vault.encrypt(plain.encodeToByteArray(), "Vezuna vitals v1:p".encodeToByteArray()))
+        val current = encoded(json.encodeToString(StoredVitals.serializer(), StoredVitals(clinical = ProfileVitals(weights = listOf(w)))))
+        val previous = encoded("""{"vitalsFormat":1,"local":{"provenance":{"":{"source":{"provider":"HEALTH_KIT","store":"synthetic","originPolicy":"weight-only"},"basis":"synthetic"}}}}""")
+        vault.current[key] = current
+        vault.previous[key] = previous
+        val store = VitalsStore(vault, json)
+
+        assertFailsWith<StorageSchemaTooNewException> { store.load("p") }
+        assertFailsWith<StorageSchemaTooNewException> { store.save("p", ProfileVitals()) }
+        assertFailsWith<StorageSchemaTooNewException> { store.delete("p") }
+        assertFailsWith<StorageSchemaTooNewException> { store.sweep(emptySet()) }
+        assertContentEquals(current, vault.current[key])
+        assertContentEquals(previous, vault.previous[key])
+        assertTrue(vault.quarantined.isEmpty())
+        assertTrue(vault.writes.isEmpty())
+    }
+
     @Test fun legacyAndFutureGenerationsPreserveLiteralBytesAndClinicalValues() = runTest {
         val vault = GenerationalMemoryVault()
         val clinical = ProfileVitals(weights = listOf(w), samples = listOf(VitalSample("legacy", VitalMetric.WEIGHT_KG, 64.0, now, now)))
