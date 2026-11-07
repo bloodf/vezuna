@@ -40,6 +40,7 @@ final class AppShellModel: ObservableObject {
             try AppFileStorage.preparePrivateDirectory(models)
             IosAesGcmBridge.shared.install(implementation: CryptoKitAesGcm())
             IosKeyStoreBridge.shared.install(keyStore: KeychainKeyStore())
+            IosRuntime.shared.processHeadroom = ProcessHeadroomProvider()
             IosRuntime.shared.licenseProvider = licenseManager
             IosRuntime.shared.sourcePicker = sourcePicker
             IosRuntime.shared.backupFiles = backupFiles

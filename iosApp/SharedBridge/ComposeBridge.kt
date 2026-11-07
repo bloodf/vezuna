@@ -202,6 +202,7 @@ object IosRuntime {
     private lateinit var llm: LocalLlm
     private var initialized = false
 
+    var processHeadroom: NativeProcessHeadroom? = null
     var sourcePicker: NativeSourcePicker? = null
     var backupFiles: NativeBackupFiles? = null
     var exportFiles: NativeExportFiles? = null // L9
@@ -336,7 +337,15 @@ object IosRuntime {
             llm = llamatikLocalLlm()
             val catalog = loadCatalog()
             val files = IosModelFileStore(modelPath, premiumActive = { licenseProvider?.isPremiumActive() == true })
-            val manager = InstalledModelManager(catalog, files, llm, IosDeviceCapacity())
+            val capacity = IosDeviceCapacity(processHeadroom)
+            // No qualified native build identity or approved iOS budgets exist yet.
+            val admission = app.vezuna.llm.BudgetedModelLoadAdmission(
+                nativeBuild = "",
+                budgets = emptyMap(),
+                metric = app.vezuna.llm.LoadMemoryMetric.IOS_PROCESS_HEADROOM_BYTES,
+                snapshotProvider = capacity::loadMemorySnapshot,
+            )
+            val manager = InstalledModelManager(catalog, files, llm, capacity, admission)
             controller = AppController(repository, manager, LocalHealthChat(repository, llm), backup = BackupService(vault), sourceStore = VaultSourceFileStore(vault),
                 warn = { message, error -> println("Vezuna: $message (${error::class.simpleName})") })
             initialized = true
