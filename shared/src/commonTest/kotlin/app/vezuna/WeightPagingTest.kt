@@ -65,7 +65,7 @@ class WeightPagingTest {
         for (deny in listOf(false, true)) {
             val (repository, state) = seed()
             val provider = Provider()
-            provider.changes = { if (deny) throw SecurityException("revoked") else WeightChangesPage(listOf(WeightMutation.Delete("W")), "T0", true, false) }
+            provider.changes = { if (deny) throw TestAccessDeniedException("revoked") else WeightChangesPage(listOf(WeightMutation.Delete("W")), "T0", true, false) }
             assertFails { WeightPaging(provider, repository, now) { Duration.ZERO }.run(state) }
             assertEquals(listOf("changes:T0"), provider.requests)
             assertEquals(state, repository.readVitalsState(state.context))
