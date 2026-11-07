@@ -80,6 +80,9 @@ android {
         }
         if (value == "true") "localPad" else "debug"
     }.getOrElse("debug")
+    if (testBuildType == "localPad") {
+        sourceSets.getByName("androidTest").kotlin.srcDir("src/localPadResearchAndroidTest/java")
+    }
     buildFeatures {
         compose = true
         buildConfig = true
