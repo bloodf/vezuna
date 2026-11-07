@@ -66,6 +66,11 @@ internal class AssistantController(
                         }
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                persisted = false
+                if (ownsRequest()) core.mutableState.value = core.mutableState.value.copy(error = error.toUserText())
             } finally {
                 if (activeRequest === request) {
                     core.mutableState.value = core.mutableState.value.copy(streamingAnswer = null, loading = false)
