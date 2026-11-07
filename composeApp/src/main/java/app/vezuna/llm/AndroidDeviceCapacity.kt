@@ -27,7 +27,7 @@ class AndroidModelLoadAdmission(
     budgets: Map<ModelLoadPolicyKey, Long> = emptyMap(),
 ) : ModelLoadAdmission {
     private val appContext = context.applicationContext
-    private val admission = BudgetedModelLoadAdmission(nativeBuild, budgets) {
+    private val admission = BudgetedModelLoadAdmission(nativeBuild, budgets, LoadMemoryMetric.ANDROID_SYSTEM_AVAILABLE_BYTES) {
         val manager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             ?: failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE)
         val info = ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
