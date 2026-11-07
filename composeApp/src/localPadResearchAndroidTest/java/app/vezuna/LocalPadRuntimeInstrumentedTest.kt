@@ -11,7 +11,7 @@ import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.InstalledModel
 import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.llamatikLocalLlm
-import app.vezuna.llm.LlamatikLocalLlm
+import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelPackSource
 import app.vezuna.llm.ModelPackLoadState
@@ -286,7 +286,7 @@ class LocalPadRuntimeInstrumentedTest {
         check(state.loadedModelId == installed.pack.modelId.takeIf { loaded })
     }
 
-    private suspend fun generate(case: LocalPadResearchFixture.Case, llm: LlamatikLocalLlm, evidence: ResearchEvidence) {
+    private suspend fun generate(case: LocalPadResearchFixture.Case, llm: LocalLlm, evidence: ResearchEvidence) {
         val start = monotonicMs()
         var firstPartial: Long? = null
         var nonblank = false
