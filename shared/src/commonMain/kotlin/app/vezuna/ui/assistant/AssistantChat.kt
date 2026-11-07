@@ -79,13 +79,20 @@ internal fun AssistantChat(ctx: RouteContext) {
             EmptyState(Res.drawable.ill_assistant, vitaText(L10nKey.NO_CHAT), vitaText(L10nKey.SELECT_PROFILE_FIRST), Modifier.padding(VezunaTokens.Gutter))
             return@FocusedTaskScaffold
         }
-        var question by remember { mutableStateOf("") }
+        val draft = remember { AssistantDraft() }
+        val question = draft.text
         var askJob by remember { mutableStateOf<Job?>(null) }
         var confirmClear by remember { mutableStateOf(false) }
         val confirmed = data.observations.filter { it.confirmation == ConfirmationStatus.CONFIRMED }
         val unavailable = catalogState.catalog.packs.isEmpty()
         val canAsk = question.isNotBlank() && readyModelId != null && !state.loading
-        val ask = { askJob = ctx.scope.launch { if (controller.ask(question)) question = "" } }
+        val ask = {
+            val submitted = draft.version
+            val submittedQuestion = draft.text
+            askJob = ctx.scope.launch {
+                if (controller.ask(submittedQuestion)) draft.clearSubmitted(submitted)
+            }
+        }
 
         Column(Modifier.fillMaxSize()) {
             Column(
@@ -165,7 +172,7 @@ internal fun AssistantChat(ctx: RouteContext) {
                         }
                         OutlinedTextField(
                             value = question,
-                            onValueChange = { question = it },
+                            onValueChange = draft::edit,
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(vitaText(L10nKey.ASK_RECORD_EDUCATION)) },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -204,5 +211,22 @@ private fun ChatBubble(message: ChatMessage, live: Boolean = false) {
                 if (!user) Text(vitaText(L10nKey.GENERATED_TEXT_DISCLAIMER), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+/** A revision distinguishes edits even when the user returns to the submitted text. */
+internal class AssistantDraft {
+    var text by mutableStateOf("")
+        private set
+    var version: Long = 0
+        private set
+
+    fun edit(value: String) {
+        text = value
+        version++
+    }
+
+    fun clearSubmitted(submittedVersion: Long) {
+        if (version == submittedVersion) edit("")
     }
 }
