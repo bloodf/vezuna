@@ -10,6 +10,8 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -69,7 +71,7 @@ class IosModelFileStore(
         }
     }
 
-    override suspend fun install(model: InstalledModel, sourcePath: String) = mutex.withLock {
+    override suspend fun install(model: InstalledModel, sourcePath: String) = withContext(Dispatchers.Default) { mutex.withLock {
         require(model.pack.fileName == model.localPath || model.pack.fileName == model.localPath.substringAfterLast('/'))
         val destination = "$directory/${model.pack.fileName}"
         preparePrivateDirectory(directory)
@@ -88,7 +90,7 @@ class IosModelFileStore(
         val stored = model.copy(localPath = destination)
         val models = readIndex().filterNot { it.pack.modelId == model.pack.modelId } + stored
         writePrivateText(indexPath, json.encodeToString(ListSerializer(InstalledModel.serializer()), models))
-    }
+    } }
 
     /** Copies in 1 MiB chunks while hashing; throws on size, GGUF magic or SHA-256 mismatch. */
     private fun streamVerifiedCopy(source: String, destination: String, expectedSize: Long, expectedSha256: String, checkCancelled: () -> Unit) {
