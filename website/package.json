@@ -6,7 +6,7 @@
   "description": "Vezuna marketing website and public documentation. Native app tooling remains in the repository root.",
   "packageManager": "pnpm@12.18.0",
   "engines": {
-    "node": ">=24.22.2 <25"
+    "node": ">=24.22.2 <27"
   },
   "scripts": {
     "dev": "astro dev",
