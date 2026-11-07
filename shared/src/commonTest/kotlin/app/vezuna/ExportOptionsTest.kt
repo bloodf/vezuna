@@ -129,11 +129,11 @@ class ExportOptionsTest {
     }
 
     @Test
-    fun csvNegativeNumbersStayExactButDashFormulasAreGuarded() {
+    fun csvNumericLookingTextAndDashFormulasAreGuarded() {
         val exporter = CsvDoctorExporter()
-        assertEquals("\"-1.5\"", exporter.escape("-1.5"))
-        assertEquals("\"-2.0\"", exporter.escape("-2.0"))
-        assertEquals("\"-0\"", exporter.escape("-0"))
+        assertEquals("\"'-1.5\"", exporter.escape("-1.5"))
+        assertEquals("\"'-2.0\"", exporter.escape("-2.0"))
+        assertEquals("\"'-0\"", exporter.escape("-0"))
         assertEquals("\"'-1+2\"", exporter.escape("-1+2"))
         assertEquals("\"'-cmd|calc\"", exporter.escape("-cmd|calc"))
         assertEquals("\"'+1.5\"", exporter.escape("+1.5"))

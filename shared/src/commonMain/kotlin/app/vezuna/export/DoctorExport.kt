@@ -458,21 +458,21 @@ class CsvDoctorExporter {
             .sortedBy { it.collectedAt }
             .forEach { observation ->
                 val values = listOf(
-                    observation.profileId,
-                    observation.collectedAt.toString(),
-                    observation.testCode,
-                    observation.displayName,
-                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.originalValue, observation.valueDecimals),
-                    observation.originalUnit,
-                    if (observation.isQualitative) "" else DoctorReportFormat.recorded(observation.normalizedValue, observation.valueDecimals.takeIf { observation.normalizedValue == observation.originalValue }),
-                    observation.normalizedUnit,
-                    observation.referenceRange.lower?.let { DoctorReportFormat.value(it) }.orEmpty(),
-                    observation.referenceRange.upper?.let { DoctorReportFormat.value(it) }.orEmpty(),
-                    observation.referenceRange.unit.orEmpty(),
-                    observation.referenceRange.text.orEmpty(),
-                    observation.qualitativeValue.orEmpty(),
+                    escape(observation.profileId),
+                    escape(observation.collectedAt.toString()),
+                    escape(observation.testCode),
+                    escape(observation.displayName),
+                    if (observation.isQualitative) number(null) else number(observation.originalValue, observation.valueDecimals),
+                    escape(observation.originalUnit),
+                    if (observation.isQualitative) number(null) else number(observation.normalizedValue, observation.valueDecimals.takeIf { observation.normalizedValue == observation.originalValue }),
+                    escape(observation.normalizedUnit),
+                    number(observation.referenceRange.lower),
+                    number(observation.referenceRange.upper),
+                    escape(observation.referenceRange.unit.orEmpty()),
+                    escape(observation.referenceRange.text.orEmpty()),
+                    escape(observation.qualitativeValue.orEmpty()),
                 )
-                appendLine(values.joinToString(",") { escape(it) })
+                appendLine(values.joinToString(","))
             }
         if (includeMedications) appendMedications(data, language)
         appendHealthRecords(data, language)
@@ -502,16 +502,16 @@ class CsvDoctorExporter {
         }
     }
 
+    private fun number(value: Double?, decimals: Int? = null): String =
+        "\"${value?.let { DoctorReportFormat.recorded(it, decimals) }.orEmpty()}\""
+
     internal fun escape(raw: String): String {
         // Spreadsheets run a cell as a formula after =, +, -, @ (even behind blanks) and after a leading tab or carriage return.
-        // A plain signed decimal (-1.5) is a number, not a formula: it stays exact so spreadsheets keep it numeric.
-        val protected = if (PLAIN_NUMBER.matches(raw)) raw
-        else if (raw.firstOrNull() in LEADING_CONTROL || raw.firstOrNull { !it.isWhitespace() } in FORMULA_STARTS) "'$raw" else raw
+        val protected = if (raw.firstOrNull() in LEADING_CONTROL || raw.firstOrNull { !it.isWhitespace() } in FORMULA_STARTS) "'$raw" else raw
         return "\"${protected.replace("\"", "\"\"")}\""
     }
 
     private companion object {
-        val PLAIN_NUMBER = Regex("-?\\d+(\\.\\d+)?")
         val LEADING_CONTROL = setOf('\t', '\r')
         val FORMULA_STARTS = setOf('=', '+', '-', '@', '＝', '＋', '－', '＠')
     }
