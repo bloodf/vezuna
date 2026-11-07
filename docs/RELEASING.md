@@ -17,7 +17,7 @@ Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fai
 
 ## Moving from earlier tester builds
 
-Earlier Android tester builds used `com.bloodf.vitahearth`. Vezuna (`app.vezuna`) installs beside them and starts empty. It does not read, move, or delete their data. Android sandboxes and Keystore keys are per application ID, and no cross-app migration code exists.
+Earlier Android tester builds used a different application ID (see the [historical migration record](https://github.com/bloodf/vezuna/issues/111)). Vezuna (`app.vezuna`) installs beside them and starts empty. It does not read, move, or delete their data. Android sandboxes and Keystore keys are per application ID, and no cross-app migration code exists.
 
 Before uninstalling the old build or clearing its storage, preserve the records through an export that the old build supports:
 
