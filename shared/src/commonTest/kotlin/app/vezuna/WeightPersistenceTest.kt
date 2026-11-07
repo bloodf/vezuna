@@ -315,9 +315,9 @@ class WeightPersistenceTest {
         val (repository, state) = seed(vault)
         val bytes = vault.memory.current.getValue(key).copyOf()
         val denied = object : DeviceVitalsSource {
-            override suspend fun read(request: VitalsReadRequest): VitalsBatch = throw SecurityException("query failed")
+            override suspend fun read(request: VitalsReadRequest): VitalsBatch = throw TestAccessDeniedException("query failed")
         }
-        assertFailsWith<SecurityException> { DeviceVitalsSync(denied, repository, { now }).synchronize(state.context) }
+        assertFailsWith<TestAccessDeniedException> { DeviceVitalsSync(denied, repository, { now }).synchronize(state.context) }
         assertContentEquals(bytes, vault.memory.current[key])
         assertEquals(state, repository.readVitalsState(state.context))
         val rejected = repository.commitAggregateWindow(state, AggregateWindow(LocalDate(2026, 10, 30),
