@@ -17,11 +17,17 @@ import javax.crypto.spec.GCMParameterSpec
 
 actual fun createPlatformVault(storagePath: String): SecureVault = AndroidSecureVault(File(storagePath))
 
-/** [keyStore] must already be loaded. The one-argument constructor loads the production AndroidKeyStore. */
+/**
+ * [keyStore] must already be loaded. The one-argument constructor loads the production AndroidKeyStore.
+ * The explicit [keyAlias] overload lets tests own an isolated entry; production constructors retain the default alias.
+ */
 class AndroidSecureVault(
     private val directory: File,
     private val keyStore: KeyStore,
+    private val keyAlias: String,
 ) : SecureVault {
+    constructor(directory: File, keyStore: KeyStore) : this(directory, keyStore, KEY_ALIAS)
+
     constructor(directory: File) : this(
         directory,
         KeyStore.getInstance("AndroidKeyStore").apply { load(null) },
@@ -33,11 +39,11 @@ class AndroidSecureVault(
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key())
         cipher.updateAAD(associatedData)
-        return CipherEnvelope(ALGORITHM, KEY_ALIAS, cipher.iv, cipher.doFinal(plainText), associatedData)
+        return CipherEnvelope(ALGORITHM, keyAlias, cipher.iv, cipher.doFinal(plainText), associatedData)
     }
 
     override suspend fun decrypt(envelope: CipherEnvelope): ByteArray {
-        if (envelope.algorithm != ALGORITHM || envelope.keyId != KEY_ALIAS) throw VaultUnreadableException(VaultFailure.CORRUPT)
+        if (envelope.algorithm != ALGORITHM || envelope.keyId != keyAlias) throw VaultUnreadableException(VaultFailure.CORRUPT)
         try {
             // Never mint a fresh key while decrypting: a missing alias means the old key is gone for good.
             val secret = existingKey() ?: throw VaultUnreadableException(VaultFailure.KEY_INVALIDATED)
@@ -86,17 +92,17 @@ class AndroidSecureVault(
         } catch (_: UnrecoverableKeyException) {
             false
         }
-        if (!usable) keyStore.deleteEntry(KEY_ALIAS)
+        if (!usable) keyStore.deleteEntry(keyAlias)
     }
 
-    private fun existingKey(): SecretKey? = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+    private fun existingKey(): SecretKey? = keyStore.getKey(keyAlias, null) as? SecretKey
 
     /** Two first-use calls must not mint competing keys: the lookup and the creation run under one process-wide lock. */
     private fun key(): SecretKey = synchronized(KEY_LOCK) {
         existingKey()?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
-            KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)

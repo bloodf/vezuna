@@ -13,7 +13,7 @@ essential: false
 Profiles, laboratory results, OCR candidates, medications, dose events, and local chat messages are stored in an encrypted, profile-isolated vault on the device.
 
 - **Android:** AES-256-GCM with a non-exportable key in Android Keystore. StrongBox is not requested. Cloud backup and device transfer are disabled for app data.
-- **iOS:** AES-GCM through CryptoKit and `NSFileProtectionComplete`. The master key is a protected 32-byte file, **not a Keychain item**; the key and ciphertext reside in the same app sandbox.
+- **iOS:** AES-GCM through CryptoKit. The normal master-key storage path is the device-only Keychain, accessible after the first unlock (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, without synchronization). Protected legacy key files can remain or be used until migration and reconciliation are verified. If Keychain creation or read-back fails, the vault can use a protected 32-byte key file in the app sandbox. Vault files and directories use `NSFileProtectionCompleteUntilFirstUserAuthentication`.
 
 No independent security audit or certification has been completed. Device lock and platform protection remain important.
 
@@ -41,7 +41,7 @@ Denying health permissions does not prevent manual recordkeeping. You can keep e
 
 ## App lock
 
-App lock is optional. When it is on, Vezuna asks for biometrics or the device passcode when it opens and after five minutes in the background, and it blocks screenshots and app-switcher previews. It needs a screen lock on the device: if the screen lock is removed, app lock turns itself off and says so.
+App lock is optional. When it is on, Vezuna asks for biometrics or the device passcode when it opens and after five minutes in the background, with platform-specific screen protection. Android uses `FLAG_SECURE` to block screenshots while app lock is enabled. iOS covers inactive scenes for app-switcher snapshots; it does not block screenshots while the app is active. It needs a screen lock on the device: if the screen lock is removed, app lock turns itself off and says so.
 
 ## Backups and app-identity changes
 

@@ -497,6 +497,9 @@ iOS: %2$s</string>
     <string name="chart_converted_points">%1$s points are converted values.</string>
     <string name="generated_text_disclaimer">Generated text, may be wrong</string>
     <string name="stop_generating">Stop</string>
+    <string name="model_capacity_unavailable">Device resource information is unavailable. Try again later.</string>
+    <string name="model_memory_pressure">Not enough memory is available to load this model right now.</string>
+    <string name="model_load_policy_unavailable">Loading this model is not supported on this device yet.</string>
     <string name="model_insufficient_ram">This model needs at least %1$s MB of RAM; this device has %2$s MB.</string>
     <string name="model_insufficient_storage">Not enough free storage: %1$s MB needed, %2$s MB available.</string>
     <string name="export_options">Export options</string>
@@ -1443,4 +1446,6 @@ iOS: %2$s</string>
     <string name="model_session_superseded">The model session changed. Leave and reopen the application session to use the assistant here.</string>
     <string name="model_selection_unconfirmed">The saved model selection is unconfirmed. Refresh models to read it, or select a model to save it again.</string>
     <string name="refresh_models">Refresh models</string>
+    <string name="prompt_unsupported">This model cannot safely process this health request.</string>
+    <string name="prompt_too_large">The request is too long. Shorten your question or select fewer records.</string>
 </resources>
