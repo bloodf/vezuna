@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
@@ -90,27 +92,50 @@ class PlayAssetPackLoader internal constructor(
     /** Activity used to show Play confirmation dialogs; held weakly so the loader can outlive recreation. */
     fun bindActivity(activity: Activity?) {
         activityRef = activity?.let(::WeakReference)
-        if (activity != null) session?.retryPendingConfirmation()
+        if (activity != null) session?.let { current ->
+            synchronized(current) {
+                if (!current.done.isCompleted) {
+                    runCatching { current.retryPendingConfirmation() }.onFailure { current.done.completeExceptionally(it) }
+                }
+            }
+        }
     }
 
     private suspend fun fetch(packId: String): AssetPackLocation? = coroutineScope {
         val current = AssetPackFetchSession(packId, manager, this, { activityRef?.get() }, ::updateFrom)
         session = current
-        val listener = AssetPackStateUpdateListener { state -> if (state.name() == packId) current.handle(state) }
-        manager.registerListener(listener)
+        fun handle(state: AssetPackState): Unit = synchronized(current) {
+            if (state.name() == packId && !current.done.isCompleted) {
+                runCatching { current.handle(state) }.onFailure { current.done.completeExceptionally(it) }
+            }
+        }
+        val listener = AssetPackStateUpdateListener(::handle)
         var succeeded = false
         try {
-            // Listener is registered before fetch; states are re-read afterwards to catch updates emitted in between.
-            manager.fetch(listOf(packId)).await().packStates()[packId]?.let(current::handle)
-            manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let(current::handle)
+            manager.registerListener(listener)
+            // Keep the timeout and terminal listener active even if a Play task never completes.
+            launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    manager.fetch(listOf(packId)).await().packStates()[packId]?.let(::handle)
+                    manager.getPackStates(listOf(packId)).await().packStates()[packId]?.let(::handle)
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    current.done.completeExceptionally(error)
+                }
+            }
             awaitWithInactivityTimeout(current)
             succeeded = true
         } finally {
             session = null
-            manager.unregisterListener(listener)
+            synchronized(current) { current.done.cancel() }
             coroutineContext.job.cancelChildren()
-            // Stops a half-finished download when the caller gave up or the delivery failed.
-            if (!succeeded) runCatching { manager.cancel(listOf(packId)) }
+            try {
+                manager.unregisterListener(listener)
+            } finally {
+                // Stops a half-finished download even if listener cleanup throws.
+                if (!succeeded) runCatching { manager.cancel(listOf(packId)) }
+            }
         }
         manager.getPackLocation(packId)
     }

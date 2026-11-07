@@ -6,6 +6,7 @@ import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackLoadState
 import app.vezuna.llm.PlayAssetPackLoader
 import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.play.core.assetpacks.AssetPackManager
 import com.google.android.play.core.assetpacks.AssetPackState
 import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener
@@ -47,18 +48,40 @@ class PlayAssetPackLoaderTest {
         val confirmations = AtomicInteger()
         val cancels = AtomicInteger()
         val providerCalls = AtomicInteger()
+        val unregisters = AtomicInteger()
+        val calls = mutableListOf<String>()
+        var stalledMethod: String? = null
+        var failedMethod: String? = null
+        var rejectConfirmation = false
+        var queriedState: AssetPackState? = null
+        var unregisterThrows = false
+        var confirmationThrows = false
+        var emitDuringFetch: AssetPackState? = null
         var listener: AssetPackStateUpdateListener? = null
     }
 
     private fun manager(recorder: Recorder, initial: AssetPackState): AssetPackManager = Proxy.newProxyInstance(
         javaClass.classLoader, arrayOf(AssetPackManager::class.java),
     ) { _, method, args ->
+        recorder.calls += method.name
+        if (recorder.failedMethod == method.name) error("${method.name} failed")
         when (method.name) {
             "getPackLocation" -> { recorder.providerCalls.incrementAndGet(); null }
             "registerListener" -> { recorder.listener = args[0] as AssetPackStateUpdateListener; null }
-            "unregisterListener" -> null
-            "fetch", "getPackStates" -> { recorder.providerCalls.incrementAndGet(); Tasks.forResult(FakeStates(initial)) }
-            "showConfirmationDialog", "showCellularDataConfirmation" -> { recorder.confirmations.incrementAndGet(); Tasks.forResult(Activity.RESULT_OK) }
+            "unregisterListener" -> {
+                recorder.unregisters.incrementAndGet()
+                if (recorder.unregisterThrows) error("unregister failed")
+                null
+            }
+            "fetch", "getPackStates" -> {
+                recorder.providerCalls.incrementAndGet()
+                if (method.name == "fetch") recorder.emitDuringFetch?.let { recorder.listener!!.onStateUpdate(it) }
+                if (recorder.stalledMethod == method.name) TaskCompletionSource<AssetPackStates>().task
+                else Tasks.forResult(FakeStates(if (method.name == "getPackStates") recorder.queriedState ?: initial else initial))
+            }
+            "showConfirmationDialog", "showCellularDataConfirmation" -> { recorder.confirmations.incrementAndGet()
+                if (recorder.confirmationThrows) error("confirmation failed")
+                Tasks.forResult(if (recorder.rejectConfirmation) Activity.RESULT_CANCELED else Activity.RESULT_OK) }
             "cancel" -> { recorder.cancels.incrementAndGet(); FakeStates(initial) }
             else -> error("unexpected ${method.name}")
         }
@@ -152,4 +175,105 @@ class PlayAssetPackLoaderTest {
         runCurrent()
         assertEquals(1, recorder.cancels.get())
     }
+    @Test
+    fun stalledPlayTasksAreBoundedAndCleanupRunsOnce() = runTest {
+        for (method in listOf("fetch", "getPackStates")) {
+            val recorder = Recorder().apply { stalledMethod = method }
+            val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.DOWNLOADING)) }, allowAll, 1_000)
+            val result = async(start = CoroutineStart.UNDISPATCHED) { loader.load(pack) }
+            advanceTimeBy(2_001)
+            runCurrent()
+            assertNull(result.await())
+            assertEquals(1, recorder.unregisters.get())
+            assertEquals(1, recorder.cancels.get())
+            assertTrue(recorder.calls.indexOf("registerListener") < recorder.calls.indexOf("fetch"))
+            val terminal = loader.state.value
+            recorder.listener!!.onStateUpdate(FakeState(AssetPackStatus.WAITING_FOR_WIFI))
+            assertEquals(terminal, loader.state.value)
+            assertEquals(0, recorder.confirmations.get())
+        }
+    }
+
+    @Test
+    fun terminalCallbackDuringFetchDoesNotWaitForStalledTask() = runTest {
+        val recorder = Recorder().apply {
+            stalledMethod = "fetch"
+            emitDuringFetch = FakeState(AssetPackStatus.FAILED)
+        }
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.PENDING)) }, allowAll)
+        assertNull(loader.load(pack))
+        assertEquals(1, recorder.unregisters.get())
+        assertEquals(1, recorder.cancels.get())
+    }
+
+    @Test
+    fun unregisterFailureStillCancelsPackOnce() = runTest {
+        val recorder = Recorder().apply { unregisterThrows = true }
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.FAILED)) }, allowAll)
+        assertNull(loader.load(pack))
+        assertEquals(1, recorder.unregisters.get())
+        assertEquals(1, recorder.cancels.get())
+    }
+
+    @Test
+    fun wifiWaitRequiresExplicitDialogAndThrownDialogFailsDelivery() = runTest {
+        val recorder = Recorder().apply { confirmationThrows = true }
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.WAITING_FOR_WIFI)) }, allowAll)
+        val result = async(start = CoroutineStart.UNDISPATCHED) { loader.load(pack) }
+        runCurrent()
+        assertEquals(ModelPackLoadState.WaitingForWifi, loader.state.value)
+        assertEquals(0, recorder.confirmations.get())
+        loader.bindActivity(Activity())
+        runCurrent()
+        assertNull(result.await())
+        assertEquals(1, recorder.confirmations.get())
+        assertEquals(1, recorder.cancels.get())
+    }
+
+    @Test
+    fun providerFailuresAndCallerCancellationCleanUpExactlyOnce() = runTest {
+        for (method in listOf("registerListener", "fetch", "getPackStates")) {
+            val recorder = Recorder().apply { failedMethod = method }
+            val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.DOWNLOADING)) }, allowAll)
+            assertNull(loader.load(pack))
+            assertTrue(loader.state.value is ModelPackLoadState.Failed)
+            assertEquals(1, recorder.unregisters.get())
+            assertEquals(1, recorder.cancels.get())
+        }
+        val recorder = Recorder().apply { stalledMethod = "getPackStates" }
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.DOWNLOADING)) }, allowAll)
+        val result = async(start = CoroutineStart.UNDISPATCHED) { loader.load(pack) }
+        result.cancel()
+        runCurrent()
+        assertTrue(result.isCancelled)
+        assertEquals(1, recorder.unregisters.get())
+        assertEquals(1, recorder.cancels.get())
+    }
+
+    @Test
+    fun decliningEitherConfirmationStopsDelivery() = runTest {
+        for (status in listOf(AssetPackStatus.REQUIRES_USER_CONFIRMATION, AssetPackStatus.WAITING_FOR_WIFI)) {
+            val recorder = Recorder().apply { rejectConfirmation = true }
+            val loader = PlayAssetPackLoader({ manager(recorder, FakeState(status)) }, allowAll)
+            loader.bindActivity(Activity())
+            assertNull(loader.load(pack))
+            assertEquals(1, recorder.confirmations.get())
+            assertEquals(1, recorder.unregisters.get())
+            assertEquals(1, recorder.cancels.get())
+        }
+    }
+
+    @Test
+    fun immediateStateQueryFindsMissedCompletionWithoutCancellingSuccessfulDelivery() = runTest {
+        val recorder = Recorder().apply { queriedState = FakeState(AssetPackStatus.COMPLETED) }
+        val loader = PlayAssetPackLoader({ manager(recorder, FakeState(AssetPackStatus.PENDING)) }, allowAll)
+        // This fake has no installed location; only the fetch lifecycle completes successfully.
+        assertNull(loader.load(pack))
+        assertEquals(ModelPackLoadState.Unavailable(nativeMessage(NativeKey.MODEL_PACK_UNAVAILABLE)), loader.state.value)
+        assertEquals(1, recorder.unregisters.get())
+        assertEquals(0, recorder.cancels.get())
+        assertTrue(recorder.calls.indexOf("registerListener") < recorder.calls.indexOf("fetch"))
+        assertTrue(recorder.calls.indexOf("fetch") < recorder.calls.indexOf("getPackStates"))
+    }
+
 }
