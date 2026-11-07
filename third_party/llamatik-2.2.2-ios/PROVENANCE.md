@@ -1,6 +1,6 @@
 # Llamatik 2.2.2 iOS candidate evidence
 
-The catalog selects `com.llamatik:core:2.2.2` for iOS only. Android remains independently pinned to 2.2.0. On 2026-11-07, all five published device ARM64 KLIB files were downloaded from versioned Maven Central URLs and their actual bytes matched the publication SHA-256 metadata. [artifact-inventory.json](artifact-inventory.json) records the URLs, sizes, actual hashes, embedded archive hashes and license-entry inventory.
+The catalog selects `com.llamatik:core:2.2.2` for iOS only. Android is independently pinned to 2.2.2; see its separate [candidate provenance](../llamatik-2.2.2/PROVENANCE.md). On 2026-11-07, all five published device ARM64 KLIB files were downloaded from versioned Maven Central URLs and their actual bytes matched the publication SHA-256 metadata. [artifact-inventory.json](artifact-inventory.json) records the URLs, sizes, actual hashes, embedded archive hashes and license-entry inventory.
 
 The llama, stableDiffusion and multimodal KLIBs each embed the same 86,829,376-byte `libllama_merged.a`, SHA-256 `f035538d82977136f0e1468f5fcf9742a6a1dfe95973f91d04be65fb96b29d71`. Apple nm finds defined `sd_init`, `sd_supports_video_generation`, `sd_txt2video_frames` and `sd_free_video_frames` symbols in this actual archive. This verifies symbol presence, not a reproduction of the supplier build or inference behavior. The KLIBs contain no license or notice entries.
 
