@@ -10,6 +10,7 @@ import app.vezuna.llm.AndroidDeviceCapacity
 import app.vezuna.llm.AndroidModelFileStore
 import app.vezuna.llm.InstalledModel
 import app.vezuna.llm.InstalledModelManager
+import app.vezuna.llm.llamatikLocalLlm
 import app.vezuna.llm.LlamatikLocalLlm
 import app.vezuna.llm.ModelCatalog
 import app.vezuna.llm.ModelPackSource
@@ -42,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference
 class LocalPadRuntimeInstrumentedTest {
     @Test
     fun verifiedPadSevenTypedHealthCasesAndLifecycle() {
+        // Remove only with independently reviewed host watchdog, identity-safe termination and exit proof.
+        check(false) { "LOCAL_PAD_RUNTIME_DISABLED_PENDING_REVIEWED_HOST_TERMINATION" }
         val started = monotonicMs()
         val controller = ResearchController(started)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -110,7 +113,7 @@ class LocalPadRuntimeInstrumentedTest {
             measurements.start()
             measurements.boundary("BEFORE_DELIVERY", controller)
             val files = AndroidModelFileStore(target)
-            val llm = LlamatikLocalLlm() // The sole real adapter in this experiment process.
+            val llm = llamatikLocalLlm() // The sole real adapter in this experiment process.
             val admission = ResearchOnlyLoadAdmission(target, testContext, expected, evidence)
             val models = InstalledModelManager(
                 ModelCatalog(listOf(LocalPadResearchFixture.pack)), files, llm, AndroidDeviceCapacity(target), admission,

@@ -60,6 +60,18 @@ Each run requires a new `noBackupFilesDir/local-pad-research/<runId>` directory.
 
 ## Remaining host runner contract and runtime hold
 
+The reconciled research method now fails unconditionally with
+`LOCAL_PAD_RUNTIME_DISABLED_PENDING_REVIEWED_HOST_TERMINATION` before reading
+instrumentation arguments, creating threads or evidence, or accessing PAD or the
+native adapter. No runner argument or acknowledgement file enables it. This is a
+failure, never a skipped test or runtime acceptance. Remove this source guard only
+in an independently reviewed change delivering the concrete watchdog, bounded
+cancellation outcome, identity-safe termination and confirmed actual exit below.
+The research adapter uses the same process owner factory as the application.
+Physical execution, cancellation, native deadlock recovery and termination are
+`NOT_RUN`, deferred until the software contract and exclusive hardware lease exist.
+
+
 No executable host runner, process-termination mechanism or device assignment is delivered by this source-only slice. **Runtime remains HOLD** until root supplies and independently reviews that concrete runner, covers the final integrated tree with its local gates, rebuilds the local-testing app APK set, and assigns an exclusive physical-device lease and execution owner. The runner must satisfy all of these conditions before launch:
 
 1. Pin its executable SHA256, exact device host/id and lease, final source SHA, rebuilt app APKS/test APK SHA256, manifest/signing identities, ABI and packaged native-library hashes. Verify the exact target `app.vezuna.padtest`, test package `app.vezuna.padtest.test`, provider `app.vezuna.padtest.files`, no shared UID and distinct UID/data directory from `app.vezuna`. An unowned existing test installation blocks replacement. Require a pristine owned package because `VezunaApplication.onCreate` loads its own vault and schedules notifications even without an Activity. Owner-app identity inspection must never read records.
