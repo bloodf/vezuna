@@ -4,6 +4,8 @@ import app.vezuna.data.VezunaRepository
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.localization.L10nKey
 import app.vezuna.localization.message
+import app.vezuna.localization.toUserText
+import kotlinx.coroutines.CancellationException
 import app.vezuna.ui.ControllerCore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -16,41 +18,68 @@ internal class AssistantController(
     private val chat: LocalHealthChat,
 ) {
     private var askJob: Job? = null
+    private var activeRequest: Any? = null
 
     /** A profile switch ends a running answer: it belongs to the previous profile. */
-    fun cancelAsk() { askJob?.cancel() }
+    fun cancelAsk() {
+        activeRequest = null
+        val job = askJob ?: return
+        job.cancel()
+        askJob = null
+        core.mutableState.value = core.mutableState.value.copy(streamingAnswer = null, loading = false)
+    }
 
     private fun isOpen(profileId: String) = core.mutableState.value.data?.profile?.profileId == profileId
 
-    /** Returns true when the answer was stored; on failure (or cancellation of the calling job) the caller keeps the user's question. */
+    /** Only the current request may update the composer or report a persisted answer. */
     suspend fun ask(question: String): Boolean {
-        var persisted = false
+        val request = Any()
+        askJob?.cancel()
+        activeRequest = request
         askJob = currentCoroutineContext()[Job]
+        var persisted = false
+        var cancellation: CancellationException? = null
+        var profileId: String? = null
+        var before = 0
+        fun ownsRequest() = activeRequest === request && profileId?.let(::isOpen) != false
+        core.mutableState.value = core.mutableState.value.copy(loading = true, error = null, notice = null, streamingAnswer = "")
         try {
-            core.operation {
-                val data = core.requireData()
-                val before = data.chat.size
-                val profileId = data.profile.profileId
-                core.mutableState.value = core.mutableState.value.copy(streamingAnswer = "")
-                try {
-                    chat.ask(data, core.mutableState.value.selectedObservationIds, question) { partial ->
-                        if (isOpen(profileId)) core.mutableState.value = core.mutableState.value.copy(streamingAnswer = partial)
-                    }
-                } finally {
-                    if (isOpen(profileId)) core.mutableState.value = core.mutableState.value.copy(streamingAnswer = null)
-                    // Stop may arrive after the exchange was saved: reload so the screen shows what was stored.
+            val data = core.requireData()
+            profileId = data.profile.profileId
+            before = data.chat.size
+            chat.ask(data, core.mutableState.value.selectedObservationIds, question) { partial ->
+                if (ownsRequest()) core.mutableState.value = core.mutableState.value.copy(streamingAnswer = partial)
+            }
+            persisted = true
+        } catch (cancelled: CancellationException) {
+            // Stop can arrive after the exchange was saved. Reload below before deciding whether to clear the draft.
+            cancellation = cancelled
+        } catch (error: Throwable) {
+            if (ownsRequest()) core.mutableState.value = core.mutableState.value.copy(error = error.toUserText())
+        } finally {
+            try {
+                if (ownsRequest() && profileId != null) {
                     withContext(NonCancellable) {
                         core.reloadCurrentProfile()
-                        persisted = isOpen(profileId) && (core.mutableState.value.data?.chat?.size ?: before) > before
+                        if (ownsRequest() && cancellation != null) {
+                            persisted = (core.mutableState.value.data?.chat?.size ?: before) > before
+                        }
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                persisted = false
+                if (ownsRequest()) core.mutableState.value = core.mutableState.value.copy(error = error.toUserText())
+            } finally {
+                if (activeRequest === request) {
+                    core.mutableState.value = core.mutableState.value.copy(streamingAnswer = null, loading = false)
+                    askJob = null
+                }
             }
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-            // The answer is already stored, so the caller should clear the input as for a normal success.
-            if (persisted) return true
-            throw cancellation
         }
-        return core.mutableState.value.error == null
+        if (cancellation != null && !(ownsRequest() && persisted)) throw cancellation
+        return ownsRequest() && persisted
     }
 
     /** Permanently deletes every chat message of the current profile through the repository. Records are untouched. */
