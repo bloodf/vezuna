@@ -4,6 +4,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). No rele
 
 ## [Unreleased]
 
+- Report PDF reading progress and honor cancellation while reading embedded text.
+
 Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 
 ### Added
