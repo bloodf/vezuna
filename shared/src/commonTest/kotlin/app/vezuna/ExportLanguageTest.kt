@@ -31,6 +31,31 @@ class ExportLanguageTest {
     )
 
     @Test
+    fun csvKeepsTypedNegativeNumbersAndGuardsNumericLookingText() {
+        val observation = data.observations.single().copy(
+            testCode = "-2.0", displayName = "-2.0", originalValue = -2.0,
+            normalizedValue = -20.0, valueDecimals = 2,
+            referenceRange = ReferenceRange(-30.5, -1.0, unit = "-2.0", text = "-2.0"),
+            qualitativeValue = null,
+        )
+        val row = CsvDoctorExporter().export(data.copy(observations = listOf(observation))).lines()[1]
+        assertEquals(
+            "\"p\",\"2026-03-05T08:30:00Z\",\"'-2.0\",\"'-2.0\",\"-2.00\",\"g/dL\",\"-20\",\"g/L\",\"-30.5\",\"-1\",\"'-2.0\",\"'-2.0\",\"\"",
+            row,
+        )
+    }
+
+    @Test
+    fun csvGuardsFormulaPrefixesAndLeadingControlsInText() {
+        val exporter = CsvDoctorExporter()
+        listOf("=1+1", "+1", "-2.0", "@SUM(A1)", "  =1", "\tplain", "\rplain", "\t=1", "\r=1", "＝1", "＋1", "－1", "＠1").forEach { raw ->
+            assertEquals("\"'$raw\"", exporter.escape(raw))
+        }
+        assertEquals("\"a,\"\"b\"\"\"", exporter.escape("a,\"b\""))
+        assertEquals("\"2.0\"", exporter.escape("2.0"))
+    }
+
+    @Test
     fun numbersFollowTheExportLanguageButUnitsStay() {
         assertEquals("12.5", DoctorReportFormat.value(12.5, ContentLanguage.EN))
         assertEquals("12,5", DoctorReportFormat.value(12.5, ContentLanguage.PT))
