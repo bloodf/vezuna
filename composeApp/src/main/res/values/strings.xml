@@ -17,7 +17,10 @@
         <item quantity="one">Health Connect import complete: %1$d metric sample upserted. Data remains encrypted on this device.</item>
         <item quantity="other">Health Connect import complete: %1$d metric samples upserted. Data remains encrypted on this device.</item>
     </plurals>
-    <string name="health_connect_import_failed">Health Connect import failed. The previous cursor and encrypted samples were preserved.</string>
+    <string name="health_connect_import_failed">Health Connect import did not finish. Some data may already have been saved on this device.</string>
+    <string name="health_connect_import_partial">Health Connect import is incomplete. Some weight changes remain pending or unresolved. Last import records the daily-summary refresh, not completion of weight reconciliation.</string>
+    <string name="health_connect_import_stopped">Health Connect import stopped before it could finish. Earlier saved pages remain on this device.</string>
+    <string name="health_connect_import_uncertain">Health Connect import could not confirm a save. Import completion is unknown; earlier pages may already have been saved.</string>
     <string name="reminder_schedules_active">Recorded medication schedules are active. Reminder actions record taken or skipped; snooze waits 10 minutes.</string>
     <string name="export_save_failed">Could not save the export.</string>
     <string name="play_model_delivery">Play model delivery</string>

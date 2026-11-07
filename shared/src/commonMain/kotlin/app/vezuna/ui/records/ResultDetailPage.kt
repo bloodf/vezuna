@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,10 +34,10 @@ import app.vezuna.localization.vitaPlural
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.Category
-import app.vezuna.ui.ChartPoint
-import app.vezuna.ui.LineChart
-import app.vezuna.domain.TrendSeries
-import app.vezuna.domain.referenceBand
+import app.vezuna.ui.trends.SeriesChart
+import app.vezuna.ui.trends.ReadingTable
+import app.vezuna.ui.trends.historyPresentation
+import app.vezuna.ui.trends.labValue
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.CategoryPanel
 import app.vezuna.ui.components.EmptyState
@@ -134,15 +134,16 @@ private fun History(ctx: RouteContext, data: ProfileData, observation: LabObserv
     var range by rememberSaveable { mutableStateOf(HistoryRange.ALL) }
     val full = RecordsListing.history(data, observation, null) ?: return
     SectionHeading(vitaText(L10nKey.RESULT_DETAIL_HISTORY))
+    if (full.droppedUnits.isNotEmpty()) Text(vitaText(L10nKey.TREND_UNITS_DROPPED, full.droppedUnits.joinToString(", "), full.unit))
     if (full.points.size < 2) {
         Text(vitaText(L10nKey.RESULT_DETAIL_ONE_RESULT), style = MaterialTheme.typography.bodyLarge)
         return
     }
     RangeChips(range, { range = it })
     val windowed = RecordsListing.history(data, observation, range.months) ?: full
-    if (windowed.points.size >= 2) {
-        TrendChart(windowed, Modifier.fillMaxWidth().height(200.dp))
-    }
+    val series = remember(windowed, data.reports) { windowed.historyPresentation(data.reports) }
+    var selected by remember(series) { mutableStateOf(series.points.indexOfFirst { it.id == observation.observationId }.takeIf { it >= 0 }) }
+    SeriesChart(series, observation.displayName, series.unit, selected, { selected = it }, Category.RECORDS, ::labValue)
     RecordsListing.changeSincePrevious(full, observation.observationId)?.let { change ->
         val sign = when {
             change.delta > 0 -> "+"
@@ -152,15 +153,7 @@ private fun History(ctx: RouteContext, data: ProfileData, observation: LabObserv
         val amount = "$sign${formatLabValue(abs(change.delta), change.decimals)} ${change.unit}".trim()
         Text(vitaText(L10nKey.RESULT_DETAIL_CHANGE_SINCE, amount, formatUiDate(change.since)), style = MaterialTheme.typography.titleMedium.tabular())
     }
-    GroupedRows {
-        windowed.points.asReversed().forEach { point ->
-            val converted = if (point.converted) " (${vitaText(L10nKey.RESULT_DETAIL_CONVERTED)})" else ""
-            ListRow(
-                title = "${formatLabValue(point.y, point.observation.valueDecimals.takeUnless { point.converted })} ${windowed.unit}$converted",
-                supporting = formatUiDate(point.observation.collectedAt),
-            )
-        }
-    }
+    ReadingTable(series, vitaText(L10nKey.RESULT_DETAIL_HISTORY), series.unit, selected, { selected = it }, ::labValue)
     TertiaryButton(vitaText(L10nKey.RESULT_DETAIL_OPEN_TRENDS), { ctx.navigate(AppScreen.TrendDetail(full.testCode)) })
 }
 
@@ -196,27 +189,4 @@ private fun Details(ctx: RouteContext, data: ProfileData, observation: LabObserv
             )
         }
     }
-}
-
-/** Dated chart for a result's history, drawn with the shared [LineChart] at actual elapsed-time positions. */
-@Composable
-private fun TrendChart(series: TrendSeries, modifier: Modifier) {
-    val points = series.points
-    val values = points.map { it.y }
-    val first = points.first().xEpochSeconds
-    val span = (points.last().xEpochSeconds - first).coerceAtLeast(1L).toFloat()
-    val convertedCount = points.count { it.converted }
-    val summary = vitaPlural(
-        L10nKey.TREND_CHART_ACCESSIBILITY, points.size, series.unit,
-        formatLabValue(values.min()), formatLabValue(values.max()), formatLabValue(values.last()),
-    )
-    val description = if (convertedCount == 0) summary else "$summary ${vitaText(L10nKey.CHART_CONVERTED_POINTS, convertedCount)}"
-    LineChart(
-        points = points.map { ChartPoint((it.xEpochSeconds - first) / span, it.y, hollow = it.converted) },
-        identity = "${series.testCode}|${series.unit}",
-        description = description,
-        modifier = modifier,
-        unit = series.unit,
-        band = series.referenceBand(),
-    )
 }

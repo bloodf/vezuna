@@ -29,7 +29,7 @@ python3 tools/release/stage_smoke_model.py models/qwen2.5-0.5b-instruct-q4_k_m.g
 python3 tools/localization/check_test_results.py --instrumentation
 ```
 
-The inference test needs the official Qwen fixture pinned in `third_party/qwen2.5-0.5b-instruct-q4_k_m/provenance.json`. Obtain that exact file from the pinned official repository revision. The staging command checks its size and SHA-256, then copies it and its license into `composeApp/build/generated/modelSmokeAssets/`. Gradle includes that directory only in the test APK. No model download happens during a build. Without staging, `LocalLlmInstrumentedTest` fails with `FileNotFoundException: smoke.gguf`. Never upload the test APK or commit the model.
+The inference tests need the official Qwen fixture pinned in `third_party/qwen2.5-0.5b-instruct-q4_k_m/provenance.json`. Obtain that exact file from the pinned official repository revision. The staging command checks its size and SHA-256, then copies it and its license into `composeApp/build/generated/modelSmokeAssets/`. Gradle includes that directory only in the test APK. No model download happens during a build. Without staging, both `LocalLlmInstrumentedTest` methods report assumption skips. For dedicated staged smoke acceptance, verify that `loadsVerifiedGgufAndGeneratesOnDevice` and `cancelsCollectorAfterPartialAndAllowsNextGeneration` each actually pass with zero skips; the JUnit `OK` count alone does not establish this. Never upload the test APK or commit the model.
 
 iOS simulator build (macOS, Xcode):
 

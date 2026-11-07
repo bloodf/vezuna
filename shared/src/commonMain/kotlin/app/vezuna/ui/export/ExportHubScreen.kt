@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -115,7 +116,7 @@ private fun FamilyOption(family: ExportFamily, selected: Boolean, onSelect: () -
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSmd),
     ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background(Color.White.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
             Icon(painterResource(style.icon), contentDescription = null, tint = style.category.onFill, modifier = Modifier.size(24.dp))
         }
         Column(Modifier.weight(1f)) {

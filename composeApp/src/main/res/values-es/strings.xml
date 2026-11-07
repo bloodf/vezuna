@@ -17,7 +17,10 @@
         <item quantity="one">Importación de Health Connect completada: %1$d muestra métrica actualizada. Los datos permanecen cifrados en este dispositivo.</item>
         <item quantity="other">Importación de Health Connect completada: %1$d muestras métricas actualizadas. Los datos permanecen cifrados en este dispositivo.</item>
     </plurals>
-    <string name="health_connect_import_failed">Error al importar de Health Connect. Se conservaron el cursor anterior y las muestras cifradas.</string>
+    <string name="health_connect_import_failed">La importación de Health Connect no terminó. Es posible que algunos datos ya se hayan guardado en este dispositivo.</string>
+    <string name="health_connect_import_partial">La importación de Health Connect está incompleta. Algunos cambios de peso siguen pendientes o sin resolver. La última importación registra la actualización de los resúmenes diarios, no la finalización de la conciliación de peso.</string>
+    <string name="health_connect_import_stopped">La importación de Health Connect se detuvo antes de terminar. Las páginas guardadas anteriormente permanecen en este dispositivo.</string>
+    <string name="health_connect_import_uncertain">La importación de Health Connect no pudo confirmar un guardado. Se desconoce si la importación terminó; es posible que ya se hayan guardado páginas anteriores.</string>
     <string name="reminder_schedules_active">Los horarios de medicación registrados están activos. Las acciones registran tomas u omisiones; posponer espera 10 minutos.</string>
     <string name="export_save_failed">No se pudo guardar la exportación.</string>
     <string name="play_model_delivery">Entrega de modelos de Play</string>

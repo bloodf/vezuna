@@ -32,6 +32,7 @@ import kotlin.test.assertTrue
 
 /** In-memory vault with toy crypto and a previous generation per key, like the Android file store. */
 internal class GenerationalMemoryVault : SecureVault {
+    override val supportsAcknowledgedWrites: Boolean = true
     val current = mutableMapOf<String, ByteArray>()
     val previous = mutableMapOf<String, ByteArray>()
     val quarantined = mutableMapOf<String, ByteArray>()
@@ -53,6 +54,14 @@ internal class GenerationalMemoryVault : SecureVault {
         current[key]?.let { previous[key] = it }
         current[key] = ciphertext.copyOf()
     }
+
+    override suspend fun writeAcknowledged(key: String, ciphertext: ByteArray): app.vezuna.security.VaultWriteResult =
+        try { write(key, ciphertext); app.vezuna.security.VaultWriteResult.Acknowledged }
+        catch (error: Exception) { app.vezuna.security.VaultWriteResult.Rejected(error) }
+
+    override suspend fun readGeneration(key: String): app.vezuna.security.VaultGeneration? =
+        current[key]?.copyOf()?.let { app.vezuna.security.VaultGeneration(it, false) }
+            ?: previous[key]?.copyOf()?.let { app.vezuna.security.VaultGeneration(it, true) }
 
     override suspend fun read(key: String): ByteArray? = current[key]?.copyOf() ?: previous[key]?.copyOf()
     override suspend fun readPrevious(key: String): ByteArray? = previous[key]?.copyOf()

@@ -31,10 +31,10 @@ class DeviceVitalsTimeZoneTest {
                 val repository = if (persistent) VaultBackedRepository(vault).also { it.load() } else InMemoryVezunaRepository()
                 repository.createProfile(Profile("a", "A", createdAt = Instant.fromEpochSeconds(1)))
                 val outside = HeartRateBucket(Instant.parse("2026-10-24T20:00:00Z"), 60.0, 70.0, 80.0)
-                repository.replaceVitals("a", ProfileVitals(
-                    steps = listOf(StepsDay(LocalDate(2026, 10, 24), 42)), heartRateHourly = listOf(outside),
-                    lastSync = Instant.parse("2026-11-01T12:00:00Z"),
-                ))
+                repository.ingestDeviceVitals(repository.captureVitalsSync(TimeZone.UTC), VitalsBatch(
+                    replaceFrom = LocalDate(2026, 10, 1),
+                    steps = listOf(StepsDay(LocalDate(2026, 10, 24), 42)), heartRate = listOf(outside),
+                ), Instant.parse("2026-11-01T12:00:00Z"))
                 val entered = CompletableDeferred<Unit>()
                 val release = CompletableDeferred<Unit>()
                 var zone: TimeZone = TimeZone.UTC

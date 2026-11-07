@@ -358,6 +358,7 @@ iOS: %2$s</string>
     <string name="section_device_health">Datos de salud del dispositivo</string>
     <string name="linked_profile_explanation">La frecuencia cardíaca, los pasos y el peso de Health Connect o Apple Salud se guardan en un único perfil vinculado. Los demás perfiles nunca los reciben, y cambiar el vínculo no mueve los datos ya guardados.</string>
     <string name="linked_profile_current">Perfil vinculado: %1$s</string>
+    <string name="onboarding_health_link_note">Conectar guarda %1$s como el perfil vinculado a este dispositivo antes de pedir acceso. Si deniegas o cancelas el acceso, el vínculo sigue guardado, pero no se importa ninguna lectura. Siempre puedes elegir Listo y añadir registros.</string>
     <string name="link_this_profile">Vincular este perfil</string>
     <string name="view_vitals">Ver signos del dispositivo</string>
     <string name="vitals_other_profile">Los signos del dispositivo se guardan en %1$s. Cambie a ese perfil para verlos.</string>
@@ -496,6 +497,9 @@ iOS: %2$s</string>
     <string name="chart_converted_points">%1$s puntos son valores convertidos.</string>
     <string name="generated_text_disclaimer">Texto generado, puede ser incorrecto</string>
     <string name="stop_generating">Detener</string>
+    <string name="model_capacity_unavailable">La información de recursos del dispositivo no está disponible. Inténtalo de nuevo más tarde.</string>
+    <string name="model_memory_pressure">No hay suficiente memoria disponible para cargar este modelo ahora.</string>
+    <string name="model_load_policy_unavailable">La carga de este modelo aún no es compatible con este dispositivo.</string>
     <string name="model_insufficient_ram">Este modelo necesita al menos %1$s MB de RAM; este dispositivo tiene %2$s MB.</string>
     <string name="model_insufficient_storage">Almacenamiento libre insuficiente: se necesitan %1$s MB, hay %2$s MB disponibles.</string>
     <string name="export_options">Opciones de exportación</string>
@@ -1439,4 +1443,9 @@ iOS: %2$s</string>
     <string name="em_phone_ios">La Ficha médica puede ser accesible desde la pantalla de bloqueo si “Mostrar con pantalla bloqueada” está activado. Copia estos datos en la app Salud: foto de perfil &gt; Ficha médica.</string>
     <string name="em_more_sub">Alergias, afecciones y medicamentos de un vistazo</string>
 <!-- /Emergency card -->
+    <string name="model_session_superseded">La sesión del modelo cambió. Cierra y vuelve a abrir la sesión de la aplicación para usar el asistente aquí.</string>
+    <string name="model_selection_unconfirmed">La selección guardada del modelo no está confirmada. Actualiza los modelos para consultarla o selecciona un modelo para guardarla de nuevo.</string>
+    <string name="refresh_models">Actualizar modelos</string>
+    <string name="prompt_unsupported">Este modelo no puede procesar esta solicitud de salud de forma segura.</string>
+    <string name="prompt_too_large">La solicitud es demasiado larga. Acorta la pregunta o selecciona menos registros.</string>
 </resources>

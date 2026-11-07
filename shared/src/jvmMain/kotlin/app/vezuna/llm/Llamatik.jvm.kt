@@ -11,3 +11,11 @@ class JvmUnavailableLocalLlm : LocalLlm {
 
     override suspend fun unload() = Unit
 }
+
+internal actual class EngineControl actual constructor() {
+    private val monitor = Any()
+    actual fun <T> withLock(action: () -> T): T = synchronized(monitor, action)
+}
+
+internal actual fun productionEngineOwner(): LlamatikEngineOwner =
+    throw UnsupportedOperationException("Llamatik inference is available in Android and iOS app targets")
