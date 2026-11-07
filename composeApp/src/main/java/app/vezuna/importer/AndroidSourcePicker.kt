@@ -258,10 +258,8 @@ class AndroidSourcePicker(
         return PickedSource(name, type, first, candidates, header.laboratoryName, header.orderedAt, more)
     }
 
-    private fun readBytes(uri: Uri, name: String): ByteArray = activity.contentResolver.openInputStream(uri)?.use { input ->
-        val data = input.readBytes()
-        if (data.size > MAX_SOURCE_BYTES) throw ImportFailure(ImportFailureReason.TOO_LARGE, name)
-        data
+    private suspend fun readBytes(uri: Uri, name: String): ByteArray = activity.contentResolver.openInputStream(uri)?.use { input ->
+        readBoundedSource(input, MAX_SOURCE_BYTES) ?: throw ImportFailure(ImportFailureReason.TOO_LARGE, name)
     } ?: throw ImportFailure(ImportFailureReason.UNREADABLE, name)
 
     private fun fail(error: Throwable, name: String? = null, owner: CompletableDeferred<PickedSource?>? = pending) {
