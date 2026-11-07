@@ -214,7 +214,7 @@ class VitalsSyncContextTest {
         // Vitals were already durable. Failure is not rollback and the original context cannot retry.
         assertEquals(now, repository.peekProfile("a").vitals.lastSync)
         assertEquals(now, VaultBackedRepository(vault).also { it.load() }.peekProfile("a").vitals.lastSync)
-        assertEquals(original.generation + 1, repository.captureVitalsSync().generation)
+        assertFailsWith<IllegalStateException> { repository.captureVitalsSync() }
         assertFailsWith<IllegalStateException> { repository.ingestDeviceVitalsAndCapture(original, batch, now) }
     }
 

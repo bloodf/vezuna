@@ -5,14 +5,14 @@ import type { Locale } from '../lib/i18n';
 // - Price US$9.99: saved in both stores (docs/RELEASING.md), not yet on sale, so it stays prospective.
 // - Android 8.0+ / iOS 18.5+: README.md requirements.
 // - Passphrase backups (12+ characters, no recovery): shared/.../values/strings.xml backup_*.
-// - App lock (biometrics or passcode, 5 minutes, screenshots blocked): strings.xml app_lock_*.
+// - App lock (biometrics or passcode, 5 minutes, Android screenshots blocked; iOS inactive-scene cover): strings.xml app_lock_*.
 // - AI: production model catalog is empty, so the page promises no AI feature.
 
 export interface Screenshot { src: string; alt: string; caption: string }
 
 export interface MarketingCopy {
   meta: { title: string; description: string };
-  nav: { how: string; records: string; privacy: string; price: string; faq: string; docs: string; menu: string; home: string; product: string };
+  nav: { how: string; records: string; privacy: string; price: string; faq: string; docs: string; menu: string; home: string; product: string; openSource: string; screens: string; howItWorks: string; localData: string };
   hero: {
     title: string; body: string; primary: string; secondary: string;
     facts: { term: string; value: string }[];
@@ -28,7 +28,9 @@ export interface MarketingCopy {
   };
   price: { amount: string; title: string; body: string; status: string; primary: string; secondary: string };
   faq: { title: string; items: { question: string; answer: string }[] };
-  footer: { tagline: string; docs: string; support: string; privacy: string; source: string; notices: string; medical: string; licenses: string };
+  footer: { tagline: string; docs: string; support: string; privacy: string; source: string; notices: string; medical: string; licenses: string; openSource: string; screens: string; howItWorks: string; localData: string };
+  openSource: { title: string; body: string; points: string[]; terms: { term: string; body: string }[]; cta: string; secondary: string };
+  explore: { title: string; body: string; more: string; cards: { key: string; title: string; body: string }[] };
 }
 
 const shots = {
@@ -43,7 +45,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       title: 'Vezuna: health records for your household, kept on your phone',
       description: 'Lab results, medication reminders, and health data for each person in your household, encrypted on your phone. No account, no app server. Android and iPhone.',
     },
-    nav: { how: 'How it works', records: 'What it keeps', privacy: 'Privacy', price: 'Price', faq: 'Questions', docs: 'Documentation', menu: 'Menu', home: 'Vezuna home', product: 'Product' },
+    nav: { how: 'How it works', records: 'What it keeps', privacy: 'Privacy', price: 'Price', faq: 'Questions', docs: 'Documentation', menu: 'Menu', home: 'Vezuna home', product: 'Product', openSource: 'Open source', screens: 'Screens', howItWorks: 'How it works', localData: 'Local data' },
     hero: {
       title: 'Keep your household’s health records on your phone.',
       body: 'Import lab reports, check every value before it is saved, and get medication reminders for each person you care for. Records are encrypted on the phone. There is no account and no Vezuna server.',
@@ -74,7 +76,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Weight, heart rate, steps', body: 'Type them in, or allow read-only import from Health Connect or Apple Health. Both are optional.' },
         { term: 'Exports', body: 'A PDF or CSV of confirmed results for an appointment, sent through your phone’s share sheet.' },
         { term: 'Backups', body: 'An encrypted file protected by a passphrase you choose, for one profile with its vitals, or the whole household with vitals, original report files and stored documents (up to 24 MB). Restore it on a new phone.' },
-        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. Screenshots are blocked while it is on.' },
+        { term: 'App lock', body: 'Ask for biometrics or the device passcode when Vezuna opens. On Android, app lock blocks screenshots. On iOS, it covers inactive scenes but does not block screenshots while the app is active.' },
       ],
       screen: { src: shots.settings, alt: 'Vezuna More screen with entries for Profiles, Exports, Backups, Privacy and app lock, Device connections, and Assistant and local models, with a bottom bar of Today, Records, Care, Trends and More.', caption: 'More: profiles, exports, backups and privacy controls. Exports never depend on an AI model.' },
     },
@@ -115,6 +117,35 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       tagline: 'Your health, in one place.', docs: 'Documentation', support: 'Support', privacy: 'Privacy policy', source: 'Source code', notices: 'Third-party notices',
       medical: 'Vezuna organizes personal health records. It does not replace advice from a qualified healthcare professional.',
       licenses: 'Source and original artwork under MIT. Noto Sans under SIL OFL 1.1.',
+      openSource: 'Open source', screens: 'Screens', howItWorks: 'How it works', localData: 'Local data',
+    },
+    openSource: {
+      title: 'The app source is MIT licensed.',
+      body: 'Vezuna is built in public. The app source is under the MIT license, so you can read it, build it on your machine, and change it. The license reaches the project code and the original artwork. It does not reach fonts, dependencies, model files, or prebuilt native libraries, and this site lists each one with its own terms.',
+      points: [
+        'MIT for shared, composeApp, iosApp, tools, scripts, docs, and this website.',
+        'Separate terms for Noto Sans, ML Kit, Play Core, model files, and the Llamatik native libraries.',
+        'Contributions welcome: one change per pull request, three string catalogs, synthetic data only.',
+      ],
+      terms: [
+        { term: 'App source', body: 'MIT, in the LICENSE file at the repository root.' },
+        { term: 'Original artwork', body: 'MIT under brand/LICENSE, without trademark rights.' },
+        { term: 'Fonts', body: 'Noto Sans under SIL OFL 1.1, not relicensed by MIT.' },
+        { term: 'Model files', body: 'None in the repository. The terms of a GGUF pack are unresolved.' },
+        { term: 'Native libraries', body: 'Llamatik attribution is still an open release gate.' },
+      ],
+      cta: 'Read the open source page', secondary: 'Browse the repository',
+    },
+    explore: {
+      title: 'More from this site',
+      body: 'Four pages that go deeper than the summary above.',
+      more: 'Read more',
+      cards: [
+        { key: 'screens', title: 'Screens', body: 'Real captures of the app, and exactly what they do and do not prove.' },
+        { key: 'howItWorks', title: 'How it works', body: 'From a paper report to a confirmed value, a reminder, an export, and a restorable backup.' },
+        { key: 'localData', title: 'Local data', body: 'Where each record is stored, which keys protect it, and how to remove it.' },
+        { key: 'openSource', title: 'Open source', body: 'The MIT license, what it covers, what it does not, and how to build the app yourself.' },
+      ],
     },
   },
   'pt-br': {
@@ -122,7 +153,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       title: 'Vezuna: registros de saúde da família, guardados no seu celular',
       description: 'Exames, lembretes de medicamentos e dados de saúde de cada pessoa da família, criptografados no seu celular. Sem conta e sem servidor. Android e iPhone.',
     },
-    nav: { how: 'Como funciona', records: 'O que guarda', privacy: 'Privacidade', price: 'Preço', faq: 'Perguntas', docs: 'Documentação', menu: 'Menu', home: 'Início do Vezuna', product: 'Produto' },
+    nav: { how: 'Como funciona', records: 'O que guarda', privacy: 'Privacidade', price: 'Preço', faq: 'Perguntas', docs: 'Documentação', menu: 'Menu', home: 'Início do Vezuna', product: 'Produto', openSource: 'Código aberto', screens: 'Telas', howItWorks: 'Como funciona', localData: 'Dados locais' },
     hero: {
       title: 'Guarde os registros de saúde da família no seu celular.',
       body: 'Importe exames, confira cada valor antes de salvar e receba lembretes de medicamentos para cada pessoa de quem você cuida. Os registros ficam criptografados no celular. Não tem conta nem servidor do Vezuna.',
@@ -153,7 +184,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Peso, frequência cardíaca, passos', body: 'Digite à mão ou permita importar, só leitura, do Health Connect ou do Apple Saúde. As duas opções são opcionais.' },
         { term: 'Exportações', body: 'Um PDF ou CSV dos resultados confirmados para levar à consulta, enviado pelo compartilhamento do celular.' },
         { term: 'Backups', body: 'Um arquivo criptografado com uma frase-senha que você escolhe, de um perfil com seus sinais vitais, ou da família toda com sinais vitais, arquivos originais dos laudos e documentos guardados (até 24 MB). Restaure num celular novo com a frase-senha.' },
-        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. Capturas de tela ficam bloqueadas enquanto estiver ligado.' },
+        { term: 'Bloqueio do app', body: 'Peça biometria ou a senha do aparelho quando o Vezuna abrir. No Android, o bloqueio do app impede capturas de tela. No iOS, cobre cenas inativas, mas não bloqueia capturas enquanto o app está ativo.' },
       ],
       screen: { src: shots.settings, alt: 'Tela More do Vezuna com entradas Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” e “Assistant and local models”, com barra inferior Today, Records, Care, Trends e More.', caption: 'Mais: perfis, exportações, backups e controles de privacidade. Exportar nunca depende de modelo de IA.' },
     },
@@ -194,6 +225,35 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       tagline: 'Sua saúde, em um só lugar.', docs: 'Documentação', support: 'Suporte', privacy: 'Política de privacidade', source: 'Código-fonte', notices: 'Avisos de terceiros',
       medical: 'O Vezuna organiza registros pessoais de saúde. Ele não substitui a orientação de um profissional de saúde qualificado.',
       licenses: 'Código e arte original sob MIT. Noto Sans sob SIL OFL 1.1.',
+      openSource: 'Código aberto', screens: 'Telas', howItWorks: 'Como funciona', localData: 'Dados locais',
+    },
+    openSource: {
+      title: 'O código do app é MIT.',
+      body: 'O Vezuna é construído em público. O código do app está sob a licença MIT, então você pode ler, compilar na sua máquina e alterar. A licença alcança o código do projeto e a arte original. Ela não alcança fontes, dependências, arquivos de modelo nem bibliotecas nativas pré-compiladas, e este site lista cada um com os próprios termos.',
+      points: [
+        'MIT para shared, composeApp, iosApp, tools, scripts, docs e este site.',
+        'Termos separados para Noto Sans, ML Kit, Play Core, arquivos de modelo e as bibliotecas nativas do Llamatik.',
+        'Contribuições são bem-vindas: uma mudança por pull request, três catálogos de texto, só dados sintéticos.',
+      ],
+      terms: [
+        { term: 'Código do app', body: 'MIT, no arquivo LICENSE da raiz do repositório.' },
+        { term: 'Arte original', body: 'MIT em brand/LICENSE, sem direito de marca registrada.' },
+        { term: 'Fontes', body: 'Noto Sans sob SIL OFL 1.1, não relicenciada pelo MIT.' },
+        { term: 'Arquivos de modelo', body: 'Nenhum no repositório. Os termos de um pacote GGUF não estão resolvidos.' },
+        { term: 'Bibliotecas nativas', body: 'A atribuição do Llamatik continua sendo uma pendência de release.' },
+      ],
+      cta: 'Ler a página de código aberto', secondary: 'Ver o repositório',
+    },
+    explore: {
+      title: 'Mais neste site',
+      body: 'Quatro páginas que vão além do resumo acima.',
+      more: 'Leia mais',
+      cards: [
+        { key: 'screens', title: 'Telas', body: 'Capturas reais do app, e exatamente o que elas provam e não provam.' },
+        { key: 'howItWorks', title: 'Como funciona', body: 'Do laudo em papel ao valor confirmado, o lembrete, a exportação e o backup restaurável.' },
+        { key: 'localData', title: 'Dados locais', body: 'Onde cada registro é guardado, quais chaves protegem e como remover.' },
+        { key: 'openSource', title: 'Código aberto', body: 'A licença MIT, o que ela cobre, o que não cobre, e como compilar o app você mesmo.' },
+      ],
     },
   },
   es: {
@@ -201,7 +261,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       title: 'Vezuna: registros de salud de tu familia, guardados en tu teléfono',
       description: 'Análisis, recordatorios de medicamentos y datos de salud de cada persona de tu familia, cifrados en tu teléfono. Sin cuenta y sin servidor. Android y iPhone.',
     },
-    nav: { how: 'Cómo funciona', records: 'Qué guarda', privacy: 'Privacidad', price: 'Precio', faq: 'Preguntas', docs: 'Documentación', menu: 'Menú', home: 'Inicio de Vezuna', product: 'Producto' },
+    nav: { how: 'Cómo funciona', records: 'Qué guarda', privacy: 'Privacidad', price: 'Precio', faq: 'Preguntas', docs: 'Documentación', menu: 'Menú', home: 'Inicio de Vezuna', product: 'Producto', openSource: 'Código abierto', screens: 'Pantallas', howItWorks: 'Cómo funciona', localData: 'Datos locales' },
     hero: {
       title: 'Guarda los registros de salud de tu familia en tu teléfono.',
       body: 'Importa análisis, revisa cada valor antes de guardarlo y recibe recordatorios de medicamentos para cada persona que cuidas. Los registros se cifran en el teléfono. No hay cuenta ni servidor de Vezuna.',
@@ -232,7 +292,7 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
         { term: 'Peso, frecuencia cardíaca, pasos', body: 'Escríbelos a mano o permite importarlos, solo lectura, desde Health Connect o Apple Salud. Ambas opciones son opcionales.' },
         { term: 'Exportaciones', body: 'Un PDF o CSV de los resultados confirmados para la consulta, enviado con el menú de compartir del teléfono.' },
         { term: 'Copias de seguridad', body: 'Un archivo cifrado con una frase de contraseña que tú eliges, de un perfil con sus signos vitales, o de toda la familia con signos vitales, archivos originales de los informes y documentos guardados (hasta 24 MB). Restáuralo en un teléfono nuevo con la frase.' },
-        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. Las capturas de pantalla se bloquean mientras está activo.' },
+        { term: 'Bloqueo de la app', body: 'Pide biometría o el código del dispositivo cuando Vezuna se abre. En Android, el bloqueo de la app impide capturas de pantalla. En iOS, cubre escenas inactivas, pero no bloquea capturas mientras la app está activa.' },
       ],
       screen: { src: shots.settings, alt: 'Pantalla More de Vezuna con accesos Profiles, Exports, Backups, “Privacy and app lock”, “Device connections” y “Assistant and local models”, con barra inferior Today, Records, Care, Trends y More.', caption: 'Más: perfiles, exportaciones, copias de seguridad y controles de privacidad. Exportar nunca depende de un modelo de IA.' },
     },
@@ -273,6 +333,35 @@ export const marketingCopy: Record<Locale, MarketingCopy> = {
       tagline: 'Tu salud, en un solo lugar.', docs: 'Documentación', support: 'Soporte', privacy: 'Política de privacidad', source: 'Código fuente', notices: 'Avisos de terceros',
       medical: 'Vezuna organiza registros personales de salud. No sustituye el consejo de un profesional de la salud calificado.',
       licenses: 'Código y arte original bajo MIT. Noto Sans bajo SIL OFL 1.1.',
+      openSource: 'Código abierto', screens: 'Pantallas', howItWorks: 'Cómo funciona', localData: 'Datos locales',
+    },
+    openSource: {
+      title: 'El código de la app es MIT.',
+      body: 'Vezuna se construye en público. El código de la app está bajo la licencia MIT, así que puedes leerlo, compilarlo en tu equipo y cambiarlo. La licencia alcanza el código del proyecto y el arte original. No alcanza las fuentes, las dependencias, los archivos de modelo ni las bibliotecas nativas precompiladas, y este sitio lista cada uno con sus propios términos.',
+      points: [
+        'MIT para shared, composeApp, iosApp, tools, scripts, docs y este sitio web.',
+        'Términos aparte para Noto Sans, ML Kit, Play Core, los archivos de modelo y las bibliotecas nativas de Llamatik.',
+        'Se aceptan contribuciones: un cambio por pull request, tres catálogos de texto, solo datos sintéticos.',
+      ],
+      terms: [
+        { term: 'Código de la app', body: 'MIT, en el archivo LICENSE de la raíz del repositorio.' },
+        { term: 'Arte original', body: 'MIT en brand/LICENSE, sin derechos de marca registrada.' },
+        { term: 'Fuentes', body: 'Noto Sans bajo SIL OFL 1.1, sin relicenciar por MIT.' },
+        { term: 'Archivos de modelo', body: 'Ninguno en el repositorio. Los términos de un paquete GGUF no están resueltos.' },
+        { term: 'Bibliotecas nativas', body: 'La atribución de Llamatik sigue siendo una pendiente de publicación.' },
+      ],
+      cta: 'Leer la página de código abierto', secondary: 'Ver el repositorio',
+    },
+    explore: {
+      title: 'Más en este sitio',
+      body: 'Cuatro páginas que van más allá del resumen de arriba.',
+      more: 'Leer más',
+      cards: [
+        { key: 'screens', title: 'Pantallas', body: 'Capturas reales de la app, y exactamente qué demuestran y qué no.' },
+        { key: 'howItWorks', title: 'Cómo funciona', body: 'Del informe en papel al valor confirmado, el recordatorio, la exportación y la copia restaurable.' },
+        { key: 'localData', title: 'Datos locales', body: 'Dónde se guarda cada registro, qué claves lo protegen y cómo eliminarlo.' },
+        { key: 'openSource', title: 'Código abierto', body: 'La licencia MIT, qué cubre, qué no, y cómo compilar la app tú mismo.' },
+      ],
     },
   },
 };

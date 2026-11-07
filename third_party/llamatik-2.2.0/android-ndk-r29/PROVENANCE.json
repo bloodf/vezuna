@@ -1,0 +1,57 @@
+{
+  "ndkVersion": "29.0.14206865",
+  "officialMetadata": "https://dl.google.com/android/repository/repository2-3.xml",
+  "archive": "https://dl.google.com/android/repository/android-ndk-r29-darwin.zip",
+  "archiveSizeBytes": 1049519838,
+  "publishedArchiveSha1": "03d29fbb57e3c05a7d53597dd011d856c1456a4f",
+  "localArchiveSha256": "ce5e4b100ec5fe5be4eb3edcb2c02528824ff9cda3860f5304619be6c3da34d3",
+  "sha1Limitation": "Official metadata provides SHA-1; the SHA-256 is locally computed, not publisher authenticated.",
+  "transformation": "NDK r28c llvm-strip --strip-unneeded -o <copy> <NDK r29 libomp.so>",
+  "matchedAar": "com.llamatik:core-android:2.2.0 sha256 8fb2020cceb5396917c0363cd5852fb52532a003bc0b9ad51539859acc2a3fc3",
+  "matchedLibraries": [
+    {
+      "abi": "arm64-v8a",
+      "original_sha256": "b0b507bb9e89360304272ba335d5fb2f6661f88842c2b3c749474cb7b8acda76",
+      "stripped_sha256": "cb47b6557429b3c10861cdf2c9819d8ac89a5388e71ed929afca7c533ba312aa",
+      "aar_sha256": "cb47b6557429b3c10861cdf2c9819d8ac89a5388e71ed929afca7c533ba312aa",
+      "matches": true
+    },
+    {
+      "abi": "armeabi-v7a",
+      "original_sha256": "c533187575eedfa92b56f8b462ba66bb8ab809b03a04d951d07bff7720ef9c5f",
+      "stripped_sha256": "795ce0c53b41a935d83e76c228f48363fd2c98a2e6f4f7afae5b4dc7903e217a",
+      "aar_sha256": "795ce0c53b41a935d83e76c228f48363fd2c98a2e6f4f7afae5b4dc7903e217a",
+      "matches": true
+    },
+    {
+      "abi": "x86",
+      "original_sha256": "73899858bfd7e88f8516a887b6fd3c064649c64a2559aaad565f47f1a353fc66",
+      "stripped_sha256": "812886c73b1f6f7f1d9f7e3495c5700f4ca3ab34194919022f48fa1e44b978a0",
+      "aar_sha256": "812886c73b1f6f7f1d9f7e3495c5700f4ca3ab34194919022f48fa1e44b978a0",
+      "matches": true
+    },
+    {
+      "abi": "x86_64",
+      "original_sha256": "dbd0e8727752ff227ebb0c2a4dcb23a76a9c66d90bb86d22c30f47bb719022bf",
+      "stripped_sha256": "1d37739192b7d9494431d5c7b9bf194487d209325f56254a5987f58b2468f042",
+      "aar_sha256": "1d37739192b7d9494431d5c7b9bf194487d209325f56254a5987f58b2468f042",
+      "matches": true
+    }
+  ],
+  "noticeFiles": [
+    {
+      "file": "../../android-ndk-r28c/NOTICE",
+      "sha256": "faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e"
+    },
+    {
+      "file": "../../android-ndk-r28c/NOTICE.toolchain",
+      "sha256": "789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a"
+    },
+    {
+      "file": "source.properties",
+      "sha256": "716f3518a923198cfab037abb32dc3f1b1f7e9a9dcdcda6b66be5906215d2658"
+    }
+  ],
+  "scope": "Byte equality after the stated transformation; does not establish provenance for other AAR libraries or complete redistribution compliance.",
+  "noticeReuse": "The two official r29 notice files are byte-identical to the retained r28c notice files referenced above."
+}

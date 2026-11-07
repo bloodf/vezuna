@@ -28,6 +28,7 @@ val releaseVersionCode = rawVersionCode?.toIntOrNull() ?: 1
 val releaseVersionName = rawVersionName ?: "1.0"
 
 android {
+    assetPacks += listOf(":model_asset_pack")
     namespace = "app.vezuna"
     compileSdk = 37
 
@@ -55,6 +56,15 @@ android {
         debug {
             buildConfigField("boolean", "DEBUG_PREMIUM_BYPASS", "true")
         }
+        create("localPad") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".padtest"
+            versionNameSuffix = "-padtest"
+            matchingFallbacks += listOf("debug")
+            // Local bundletool tests must not depend on a real Play license.
+            // This override belongs only to this separately installed debug variant.
+            buildConfigField("String", "LVL_PUBLIC_KEY", "\"\"")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -63,6 +73,13 @@ android {
             if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
         }
     }
+    // Research instrumentation must explicitly target the separately installed app.
+    testBuildType = providers.gradleProperty("vezuna.localPadInstrumentation").map { value ->
+        require(value == "true" || value == "false") {
+            "vezuna.localPadInstrumentation must be true or false"
+        }
+        if (value == "true") "localPad" else "debug"
+    }.getOrElse("debug")
     buildFeatures {
         compose = true
         buildConfig = true
@@ -111,6 +128,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation(libs.llamatik.android.core)
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test:core-ktx:1.7.0")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.1")

@@ -497,6 +497,9 @@ iOS: %2$s</string>
     <string name="chart_converted_points">%1$s pontos são valores convertidos.</string>
     <string name="generated_text_disclaimer">Texto gerado, pode estar errado</string>
     <string name="stop_generating">Parar</string>
+    <string name="model_capacity_unavailable">As informações de recursos do dispositivo estão indisponíveis. Tente novamente mais tarde.</string>
+    <string name="model_memory_pressure">Não há memória disponível suficiente para carregar este modelo agora.</string>
+    <string name="model_load_policy_unavailable">O carregamento deste modelo ainda não é compatível com este dispositivo.</string>
     <string name="model_insufficient_ram">Este modelo precisa de pelo menos %1$s MB de RAM; este dispositivo tem %2$s MB.</string>
     <string name="model_insufficient_storage">Armazenamento livre insuficiente: %1$s MB necessários, %2$s MB disponíveis.</string>
     <string name="export_options">Opções de exportação</string>
@@ -1440,4 +1443,9 @@ iOS: %2$s</string>
     <string name="em_phone_ios">A Ficha Médica pode ficar acessível na tela de bloqueio se “Mostrar quando bloqueado” estiver ativado. Copie estes dados nela no app Saúde: foto do perfil &gt; Ficha Médica.</string>
     <string name="em_more_sub">Resumo de alergias, condições e medicamentos</string>
 <!-- /Emergency card -->
+    <string name="model_session_superseded">A sessão do modelo mudou. Encerre e reabra a sessão do aplicativo para usar o assistente aqui.</string>
+    <string name="model_selection_unconfirmed">A seleção salva do modelo não está confirmada. Atualize os modelos para consultá-la ou selecione um modelo para salvá-la novamente.</string>
+    <string name="refresh_models">Atualizar modelos</string>
+    <string name="prompt_unsupported">Este modelo não pode processar esta solicitação de saúde com segurança.</string>
+    <string name="prompt_too_large">A solicitação é longa demais. Encurte a pergunta ou selecione menos registros.</string>
 </resources>

@@ -3,6 +3,10 @@ package app.vezuna.health
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
+import androidx.health.connect.client.changes.UpsertionChange
+import androidx.health.connect.client.changes.DeletionChange
+import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
@@ -34,7 +38,9 @@ val VezunaHealthPermissions: Set<String> = setOf(
  * Without READ_HEALTH_DATA_HISTORY (deliberately not requested) data older than 30 days before the first grant is
  * unavailable, so older weights simply do not appear.
  */
-class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsSource {
+class AndroidHealthConnectImporter(private val context: Context) : WeightChangesSource {
+    // In-memory evidence only. Restored containers and cold starts cannot establish provider-store continuity.
+    private val weightSession = WeightSourceSession()
     private val client: HealthConnectClient get() = HealthConnectClient.getOrCreate(context)
 
     fun sdkStatus(): Int = HealthConnectClient.getSdkStatus(context)
@@ -46,17 +52,15 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
         check(sdkStatus() == HealthConnectClient.SDK_AVAILABLE) { "Health Connect is not available on this device" }
         check(hasPermissions()) { "Read-only Health Connect permissions have not been granted" }
         val zone = ZoneId.of(request.zone.id)
-        val now = Instant.now()
+        val now = request.now?.let { Instant.ofEpochMilli(it.toEpochMilliseconds()) } ?: Instant.now()
         val windowStart = request.replaceFrom.toJava().atStartOfDay(zone).toInstant()
         val steps = readSteps(request, zone, now)
         val heart = readHeartRate(windowStart, now)
-        val weights = readWeights(request.weightsFrom.toJava().atStartOfDay(zone).toInstant(), now)
         return VitalsBatch(
             replaceFrom = request.replaceFrom,
             steps = steps.items,
             heartRate = heart.items,
-            weights = weights.items,
-            skipped = steps.skipped + heart.skipped + weights.skipped,
+            skipped = steps.skipped + heart.skipped,
         )
     }
 
@@ -92,16 +96,40 @@ class AndroidHealthConnectImporter(private val context: Context) : DeviceVitalsS
         return Mapped(mapped, groups.size - mapped.size)
     }
 
-    private suspend fun readWeights(start: Instant, end: Instant): Mapped<WeightReading> {
-        val records = mutableListOf<WeightRecord>()
-        var pageToken: String? = null
-        do {
-            val response = client.readRecords(ReadRecordsRequest(WeightRecord::class, TimeRangeFilter.between(start, end), pageToken = pageToken))
-            records += response.records
-            pageToken = response.pageToken
-        } while (pageToken != null)
-        val mapped = records.mapNotNull { WeightReading.ofOrNull(it.metadata.id, it.time.toKotlin(), it.weight.inKilograms) }
-        return Mapped(mapped, records.size - mapped.size)
+    override suspend fun weightAccess(): WeightAccess {
+        if (!hasPermissions()) throw SecurityException("Health Connect read access unavailable")
+        val granted = client.permissionController.getGrantedPermissions()
+        val historyAvailable = client.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+        return WeightAccess(history = historyAvailable && HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY in granted)
+    }
+
+    override fun bindWeightTarget(profileId: String) = weightSession.bindTarget(profileId)
+    override fun weightSource(token: String): WeightSource = weightSession.baselineAcquired(token)
+    override fun weightClaim(source: WeightSource): SourceClaim = weightSession.claim(source)
+
+    override suspend fun weightToken(): String = client.getChangesToken(ChangesTokenRequest(setOf(WeightRecord::class)))
+
+    override suspend fun weightSnapshot(from: kotlin.time.Instant, until: kotlin.time.Instant, pageToken: String?, pageSize: Int): WeightSnapshotPage {
+        val response = client.readRecords(ReadRecordsRequest(WeightRecord::class,
+            TimeRangeFilter.between(Instant.ofEpochMilli(from.toEpochMilliseconds()), Instant.ofEpochMilli(until.toEpochMilliseconds())),
+            pageToken = pageToken, pageSize = pageSize))
+        return WeightSnapshotPage(response.records.map { WeightMutation.Upsert(WeightReading(it.metadata.id, it.time.toKotlin(), it.weight.inKilograms)) }, response.pageToken)
+    }
+
+    override suspend fun weightChanges(token: String): WeightChangesPage {
+        val response = client.getChanges(token)
+        // Expired response payloads are intentionally not even decoded into clinical mutations.
+        val mutations = if (response.changesTokenExpired) emptyList() else response.changes.map { change ->
+            when (change) {
+                is DeletionChange -> WeightMutation.Delete(change.recordId)
+                is UpsertionChange -> {
+                    val record = change.record as? WeightRecord ?: error("Non-weight record on weight-only token")
+                    WeightMutation.Upsert(WeightReading(record.metadata.id, record.time.toKotlin(), record.weight.inKilograms))
+                }
+                else -> error("Unknown Health Connect change")
+            }
+        }
+        return WeightChangesPage(mutations, response.nextChangesToken, response.hasMore, response.changesTokenExpired)
     }
 
     private fun Instant.toKotlin() = kotlin.time.Instant.fromEpochMilliseconds(toEpochMilli())

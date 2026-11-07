@@ -76,7 +76,10 @@ class RestoreBackupControllerTest {
     fun vitalsFailureStillRestoresTheProfileAndSaysSo() = runTest {
         val inner = InMemoryVezunaRepository()
         val repository = object : VezunaRepository by inner {
-            override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = throw IllegalStateException("disk full")
+            override suspend fun restoreProfileAndVitals(data: app.vezuna.domain.ProfileData): Boolean {
+                inner.restoreProfile(data.copy(vitals = ProfileVitals()))
+                return false
+            }
         }
         val controller = controller(repository)
         controller.restoreBackup(data, RestoreMode.REPLACE_EXISTING)
@@ -202,7 +205,7 @@ class RestoreBackupControllerTest {
     fun defaultProfileIsKeptWhenTheRestoreFails() = runTest {
         val inner = InMemoryVezunaRepository()
         val repository = object : VezunaRepository by inner {
-            override suspend fun restoreProfile(data: app.vezuna.domain.ProfileData) = throw IllegalStateException("wrong passphrase")
+            override suspend fun restoreProfileAndVitals(data: app.vezuna.domain.ProfileData): Boolean = throw IllegalStateException("wrong passphrase")
         }
         val controller = controller(repository)
         controller.startFirstRunRestore()
