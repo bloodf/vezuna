@@ -50,6 +50,17 @@ class HouseholdBackupTest {
     private val service = BackupService()
 
     @Test
+    fun householdBackupKeepsRelationshipLabelsWithTheirProfiles() = runTest {
+        val members = household().mapIndexed { index, member ->
+            BackupMember(member.data.copy(profile = member.data.profile.copy(relationship = if (index == 0) "Parent" else null)), member.files, member.omitted)
+        }
+        val file = service.createHousehold(members, pass.copyOf())
+        val opened = service.open(file, pass.copyOf())
+        assertEquals(members.map { it.data }, opened.members.map { it.data })
+        assertEquals(listOf("Parent", null), opened.members.map { it.data.profile.relationship })
+    }
+
+    @Test
     fun householdBackupCarriesEveryProfileItsVitalsAndOriginalFiles() = runTest {
         val file = service.createHousehold(household(), pass.copyOf())
 

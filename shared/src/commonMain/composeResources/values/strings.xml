@@ -457,6 +457,7 @@ iOS: %2$s</string>
     <string name="more_export_share">Export and share</string>
     <string name="more_section_records">Records and assistant</string>
     <string name="more_section_device">Device and app</string>
+    <string name="profile_relationship_optional">Relationship (optional)</string>
     <string name="birth_date">Birth date</string>
     <string name="birth_date_not_set">Not set</string>
     <string name="birth_date_invalid">Birth date cannot be in the future or more than 130 years ago</string>

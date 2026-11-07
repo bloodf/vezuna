@@ -51,7 +51,7 @@ internal class ProfileController(
         if (repository.profiles.value.filter { it.profileId !in restoredIds }.map { it.profileId } != listOf(defaultId)) return
         try {
             val me = repository.peekProfile(defaultId)
-            val untouched = DefaultProfileName.isDefault(me.profile.displayName) && me.profile.birthDate == null &&
+            val untouched = DefaultProfileName.isDefault(me.profile.displayName) && me.profile.birthDate == null && me.profile.relationship == null &&
                 me.documents.isEmpty() && me.vaultDocuments.isEmpty() && me.reports.isEmpty() && me.observations.isEmpty() && me.ocrCandidates.isEmpty() &&
                 me.medications.isEmpty() && me.doseEvents.isEmpty() && me.chat.isEmpty() && me.healthRecords.isEmpty() && me.appointments.isEmpty() && me.vitals.isEmpty &&
                 me.vitals.lastSync == null && repository.explicitHealthLinkId() != defaultId
@@ -91,10 +91,10 @@ internal class ProfileController(
         core.openProfile(profileId)
     }
 
-    suspend fun createProfile(displayName: String) = core.operation {
+    suspend fun createProfile(displayName: String, relationship: String = "") = core.operation {
         firstRunRestoreProfileId = null
         if (displayName.isBlank()) failMessage(L10nKey.PROFILE_NAME_REQUIRED)
-        val profile = Profile(randomId(), displayName.trim(), createdAt = currentInstant())
+        val profile = Profile(randomId(), displayName.trim(), createdAt = currentInstant(), relationship = relationship.trim().ifEmpty { null })
         repository.createProfile(profile)
         state.value = state.value.copy(profiles = repository.profiles.value)
         switchProfile(profile.profileId)
@@ -109,13 +109,21 @@ internal class ProfileController(
         core.reloadCurrentProfile()
     }
 
+    suspend fun setRelationship(profileId: String, relationship: String) = core.operation {
+        val profile = repository.profiles.value.firstOrNull { it.profileId == profileId } ?: failMessage(L10nKey.SELECT_PROFILE_FIRST)
+        repository.updateProfile(profile.copy(relationship = relationship.trim().ifEmpty { null }))
+        state.value = state.value.copy(profiles = repository.profiles.value)
+        core.reloadCurrentProfile()
+    }
+
     /** Saves the first profile; finish ends onboarding. A blank name keeps the default. */
-    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true) {
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true, relationship: String = "") {
         val current = state.value.data?.profile?.profileId
         val profile = repository.profiles.value.let { all -> all.firstOrNull { it.profileId == current } ?: all.firstOrNull() } ?: return skipOnboarding()
         core.clearMessages()
         if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
         if (birthDate != null) setBirthDate(profile.profileId, birthDate)
+        if (state.value.error == null && relationship.isNotBlank()) setRelationship(profile.profileId, relationship)
         if (finish && state.value.error == null) skipOnboarding()
     }
 

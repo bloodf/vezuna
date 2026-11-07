@@ -8,6 +8,8 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 
 ### Added
 
+- Optional relationship labels on household profiles, stored with the profile and included in backups.
+
 - User-entered allergies and intolerances, conditions and history, and vaccinations: kept as written per profile, included in backups, and selectable as PDF and CSV sections. Never inferred from results and not sent to the assistant.
 - Visits per profile (#101): upcoming and past, with date, time, clinician and notes, editable and deletable, stored in the encrypted vault and included in backups. An optional per-visit reminder is scheduled locally on the device (same mechanism as dose reminders) and cancelled when the visit is deleted or the reminder switched off; nothing is sent over the network.
 - Kotlin Multiplatform shared module (`shared/`) with Compose Multiplatform UI, domain logic, encrypted-vault contract, model lifecycle, comparisons, and PDF/CSV export.
