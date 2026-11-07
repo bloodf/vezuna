@@ -10,6 +10,12 @@
         "actions/node-versions"
       ],
       "allowedVersions": "24.22.2"
+    },
+    {
+      "matchPackageNames": [
+        "@oclif/plugin-autocomplete"
+      ],
+      "allowedVersions": "3.2.40"
     }
   ]
 }
