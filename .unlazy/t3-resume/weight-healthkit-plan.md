@@ -1,5 +1,10 @@
 # Weight change persistence and HealthKit batching plan
 
+> [!NOTE]
+> **Historical Plan Preserved for Context Only**
+> This original candidate plan (`132d15f`) is preserved for architectural history and comparison. It is **superseded** by the revised plan at [`.unlazy/t3-resume/weight-healthkit-plan-v2.md`](file:///Users/heitor/.t3/worktrees/vezuna/t3-15edeefa/.unlazy/t3-resume/weight-healthkit-plan-v2.md) (merged via PR #187).
+> The proposed index-only downgrade fence (`StorageSchema 5` index barrier) was rejected/withdrawn and is not active; current `main` implements the private encrypted `StoredVitals` storage envelope (`vitalsFormat = 1`) without repository schema or backup version bumps, and separates provenance from authorization contexts. Refer to `weight-healthkit-plan-v2.md` and current `main` code for authoritative contracts.
+
 Refs #62, #59, #63. Design candidate only. Independent consequential review is pending. No implementation, build, test execution, device boot, merge, push, or issue comment is authorized by this document.
 
 ## Scope and evidence boundary
@@ -71,6 +76,8 @@ Smallest compatible proposal: private storage-only `StoredVitals(schemaVersion=5
 Before the first envelope write, durably stamp the authoritative repository index at schema 5 under the repository mutex. All later index writers must stamp at least 5. If that fence fails, write no new-format vitals. An interrupted fence with old vitals is safe for the new reader and intentionally blocks downgrade. A released schema-4 reader must stop at `SCHEMA_NEWER` before opening the new vitals file. Add 4-to-5 repository migration with no clinical changes. New VitalsStore must recognize a newer envelope before its generic corruption catch and propagate `SCHEMA_NEWER`, preserving ciphertext and preventing fallback to embedded older values.
 
 This fence adds a deliberate downgrade restriction. Parent must approve it independently and map actual released readers before selecting it for implementation. Test the real older reader with current index, previous index, interrupted index writes, and corrupt index paths. If any supported reader bypasses the fence, STOP and revise the storage compatibility design. Do not silently ship a parallel `v2` vitals key with stale `v1` data, overwrite an old-readable mirror, or weaken strict decoding. Index corruption plus fallback to an old schema must not cause an older reader to quarantine the new vitals envelope; downgrade/fallback compatibility is an explicit unresolved proof obligation.
+
+*(Reconciliation note: This proposed index-only fence was withdrawn in PR #187 / `weight-healthkit-plan-v2.md` F1 because older readers with corrupt/missing indices or generational fallbacks bypass index-level checks and reach `VitalsStore.load` directly. `main` maintains `StorageSchema.CURRENT = 4` and isolates local sync metadata inside `StoredVitals(vitalsFormat = 1)`).*
 
 `WeightSyncState` is a tagged Android or iOS state, not two nullable unrelated token strings. Persist provider, query-policy version, locally generated installation/health-connection epoch, and opaque continuation. Android rebuild also records fixed range/chunk progress and phase. iOS stores a securely archived anchor and query predicate identity. Local source-owned weight IDs are needed where restored/imported values cannot be proven to originate in this connection; portable values remain untouched by absence reconciliation. Track ownership in this envelope, prune it with retained weights, and clear it with local state. Tokens, anchors, state and IDs never enter logs or backup metadata. Existing legacy or restored IDs begin with unknown ownership; a positively read upsert in the current connection can establish ownership. Do not classify every old ID as current-device data on migration.
 
