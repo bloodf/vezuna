@@ -1,0 +1,53 @@
+name: iOS native compile
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-native:
+    name: iOS native compile (no runtime tests)
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Record native toolchain
+        run: |
+          test "$(uname -m)" = arm64
+          test -d "$DEVELOPER_DIR"
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+      - name: Compile Kotlin native test sources
+        run: bash gradlew --init-script iosApp/SharedBridge.gradle :shared:compileTestKotlinIosSimulatorArm64 --console=plain
+      - name: Build shared framework and iOS app
+        run: bash scripts/build-ios.sh
+      - name: Build XCTest targets without running them
+        run: |
+          xcodebuild build-for-testing \
+            -project iosApp/Vezuna.xcodeproj \
+            -scheme Vezuna \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath iosApp/.ios-build/derived-data/Debug \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            ARCHS=arm64
