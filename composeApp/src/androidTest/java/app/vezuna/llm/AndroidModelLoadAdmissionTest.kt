@@ -39,10 +39,19 @@ class AndroidModelLoadAdmissionTest {
     @Test
     fun approvedBudgetWithMissingActivityServiceFailsCapacity() {
         val context = NoActivityService(InstrumentationRegistry.getInstrumentation().targetContext)
-        val key = ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, "build")
+        val key = ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, "build", LoadMemoryMetric.ANDROID_SYSTEM_AVAILABLE_BYTES)
         val admission = AndroidModelLoadAdmission(context, "build", mapOf(key to 100L))
         assertDenial(L10nKey.MODEL_CAPACITY_UNAVAILABLE) { admission.requireFits(pack, settings) }
         assertEquals(1, context.activityServiceCalls)
+    }
+
+    @Test
+    fun iosBudgetFailsBeforeActivityServiceAccess() {
+        val context = NoActivityService(InstrumentationRegistry.getInstrumentation().targetContext)
+        val key = ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, "build", LoadMemoryMetric.IOS_PROCESS_HEADROOM_BYTES)
+        val admission = AndroidModelLoadAdmission(context, "build", mapOf(key to 100L))
+        assertDenial(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE) { admission.requireFits(pack, settings) }
+        assertEquals(0, context.activityServiceCalls)
     }
 
     private fun assertDenial(expected: L10nKey, block: () -> Unit) {

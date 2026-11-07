@@ -12,6 +12,7 @@ import com.google.android.vending.licensing.ServerManagedPolicy
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 interface PremiumLicenseGate {
@@ -41,19 +42,21 @@ internal class LicenseCheckRunner(
         // finally covers result, cancellation and failure, so the probe never outlives its check.
         try {
             suspendCancellableCoroutine { continuation ->
+                val completed = AtomicBoolean(false)
+                continuation.invokeOnCancellation { completed.set(true) }
+                fun finish(allowed: Boolean) {
+                    if (completed.compareAndSet(false, true)) continuation.resume(allowed)
+                }
                 val callback = object : LicenseCheckerCallback {
                     override fun allow(reason: Int) = finish(policy.allowAccess())
                     override fun dontAllow(reason: Int) = finish(reason == Policy.RETRY && policy.allowAccess())
                     override fun applicationError(errorCode: Int) = finish(false)
 
-                    private fun finish(allowed: Boolean) {
-                        if (continuation.isActive) continuation.resume(allowed)
-                    }
                 }
                 try {
                     probe.checkAccess(callback)
                 } catch (_: Throwable) {
-                    if (continuation.isActive) continuation.resume(false)
+                    finish(false)
                 }
             }
         } finally {

@@ -17,7 +17,14 @@ Android release tasks (`bundleRelease`, `packageRelease`, `assembleRelease`) fai
 
 ## Moving from earlier tester builds
 
-Earlier tester builds used a different application ID. Vezuna (`app.vezuna`) installs beside them and does not read, move or delete their data: Android sandboxes and Keystore keys are per application ID, and no migration code exists. Testers who need old records must, before uninstalling the old build, use that build's own CSV or PDF export, which is for manual re-entry only (Vezuna does not import those files as records). Only a passphrase-sealed portable backup in Vezuna's own format can be restored in Vezuna; a backup from an earlier build is restorable only if that build wrote this format. Same-device envelopes from the old app cannot be opened by Vezuna. Say this in release notes for any tester who has an older build installed.
+Earlier Android tester builds used a different application ID (see the [historical migration record](https://github.com/bloodf/vezuna/issues/111)). Vezuna (`app.vezuna`) installs beside them and starts empty. It does not read, move, or delete their data. Android sandboxes and Keystore keys are per application ID, and no cross-app migration code exists.
+
+Before uninstalling the old build or clearing its storage, preserve the records through an export that the old build supports:
+
+- CSV or PDF exports are references for manual re-entry. Vezuna does not import those files as records.
+- A passphrase-sealed portable backup can be restored only if the old build wrote Vezuna's supported backup format. Keep the passphrase with access to the backup. A same-device encrypted envelope from the old app cannot be opened by Vezuna.
+
+The current [backup service](../shared/src/commonMain/kotlin/app/vezuna/security/BackupService.kt) and [backup controller](../shared/src/commonMain/kotlin/app/vezuna/ui/security/BackupController.kt) implement the portable backup path. They do not establish which export features a historical tester build provided. If the old build cannot export a compatible backup, use its CSV or PDF export for manual re-entry if available. No automatic migration or recovery from an uninstalled old app is provided. See [Storage and backup](ARCHITECTURE.md#storage-and-backup) for supported formats. Include this limitation in release notes for testers with an older build installed.
 
 ## Android: signed release
 
