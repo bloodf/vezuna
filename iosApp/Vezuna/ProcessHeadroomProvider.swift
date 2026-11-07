@@ -6,7 +6,7 @@ import VezunaShared
 final class ProcessHeadroomProvider: NativeProcessHeadroom {
     private let sample: () -> UInt
 
-    init(sample: @escaping () -> UInt = { os_proc_available_memory() }) {
+    init(sample: @escaping () -> UInt = { UInt(bitPattern: os_proc_available_memory()) }) {
         self.sample = sample
     }
 
