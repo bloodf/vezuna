@@ -20,6 +20,12 @@
     },
     {
       "matchPackageNames": [
+        "typescript"
+      ],
+      "allowedVersions": "<7"
+    },
+    {
+      "matchPackageNames": [
         "@oclif/plugin-autocomplete"
       ],
       "allowedVersions": "3.2.40"

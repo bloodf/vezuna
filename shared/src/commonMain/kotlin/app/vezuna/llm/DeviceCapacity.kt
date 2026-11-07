@@ -24,6 +24,31 @@ object UnavailableModelLoadAdmission : ModelLoadAdmission {
         failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
 }
 
+data class ModelLoadPolicyKey(
+    val sha256: String,
+    val sizeBytes: Long,
+    val settings: LlmGenerationSettings,
+    val nativeBuild: String,
+)
+
+class BudgetedModelLoadAdmission(
+    private val nativeBuild: String,
+    budgets: Map<ModelLoadPolicyKey, Long>,
+    private val snapshotProvider: () -> LoadMemorySnapshot,
+) : ModelLoadAdmission {
+    private val approvedBudgets = budgets.toMap()
+
+    override fun requireFits(pack: ModelPack, settings: LlmGenerationSettings) {
+        val budget = approvedBudgets[ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, nativeBuild)]
+            ?.takeIf { it > 0 } ?: failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
+        val snapshot = try { snapshotProvider() }
+        catch (canceled: CancellationException) { throw canceled }
+        catch (failure: app.vezuna.localization.VitaMessageException) { throw failure }
+        catch (_: Exception) { failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE) }
+        requireLoadMemory(pack, snapshot, budget)
+    }
+}
+
 /** One platform memory reading; budget values must come from an approved artifact-specific policy. */
 data class LoadMemorySnapshot(val totalBytes: Long, val availableBytes: Long, val lowMemory: Boolean, val thresholdBytes: Long)
 
