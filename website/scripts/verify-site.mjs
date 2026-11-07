@@ -46,7 +46,7 @@ const requiredText = {
   '/local-data': ['AES-256', 'Android Keystore', 'CryptoKit', 'INTERNET permission', 'No independent security audit'],
 };
 
-assert(existsSync(dist), 'dist is missing; run npm run build first');
+assert(existsSync(dist), 'dist is missing; run pnpm run build first');
 const documents = new Map();
 for (const route of routes) {
   const file = htmlFile(route);
