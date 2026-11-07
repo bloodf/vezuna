@@ -198,6 +198,47 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(try PendingDoseResponseStore(url: url).load(), [])
     }
 
+    func testPendingQueueRetriesOpeningAndPreservesOrderAcrossRestart() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("responses.json")
+        let first = PendingDoseResponse(notificationIdentifier: "n", action: "taken", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date(timeIntervalSince1970: 100))
+        let second = PendingDoseResponse(notificationIdentifier: "n", action: "skip", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date(timeIntervalSince1970: 101))
+        var available = false
+        let queue = PendingResponseQueue(open: {
+            guard available else { throw CocoaError(.fileReadNoPermission) }
+            return PendingDoseResponseStore(url: url)
+        })
+        XCTAssertThrowsError(try queue.append(first))
+        XCTAssertThrowsError(try queue.append(second))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        available = true
+        XCTAssertEqual(try queue.load(), [first, second])
+        XCTAssertEqual(try PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }).load(), [first, second])
+    }
+
+    func testPendingQueueRetriesAmbiguousWriteWithoutDuplicatingOrReordering() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("responses.json")
+        let first = PendingDoseResponse(notificationIdentifier: "n", action: "taken", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date(timeIntervalSince1970: 100))
+        let second = PendingDoseResponse(notificationIdentifier: "n", action: "skip", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date(timeIntervalSince1970: 101))
+        var fail = true
+        let queue = PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }, write: { store, response in
+            try store.append(response)
+            if fail { throw CocoaError(.fileWriteNoPermission) }
+        })
+        XCTAssertThrowsError(try queue.append(first))
+        XCTAssertThrowsError(try queue.append(second))
+        XCTAssertEqual(try PendingDoseResponseStore(url: url).load(), [first])
+        fail = false
+        XCTAssertEqual(try queue.load(), [first, second])
+        try queue.remove(first)
+        XCTAssertEqual(try PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }).load(), [second])
+    }
+
     func testCorruptResponseFileIsSetAsideAndStoreContinues() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
