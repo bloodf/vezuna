@@ -1,0 +1,80 @@
+[
+  {
+    "coordinate": "com.llamatik:core-iosarm64:2.2.2",
+    "file": "core-iosarm64-2.2.2.klib",
+    "sha256": "011a17e4a46a7f8524e669a7656bea99ceebb63ca4a9ab35832214991c77b832",
+    "size": 60775,
+    "head_status": 200,
+    "content_length": "60775",
+    "url": "https://repo.maven.apache.org/maven2/com/llamatik/core-iosarm64/2.2.2/core-iosarm64-2.2.2.klib",
+    "actualSha256": "011a17e4a46a7f8524e669a7656bea99ceebb63ca4a9ab35832214991c77b832",
+    "native": [],
+    "licenseEntries": []
+  },
+  {
+    "coordinate": "com.llamatik:core-iosarm64:2.2.2",
+    "file": "core-iosarm64-2.2.2-cinterop-llama.klib",
+    "sha256": "592e8a14ce9f747fcdb7ce8afb1ef35737033d57ad18dc3f59936fd6b302be43",
+    "size": 28237149,
+    "head_status": 200,
+    "content_length": "28237149",
+    "url": "https://repo.maven.apache.org/maven2/com/llamatik/core-iosarm64/2.2.2/core-iosarm64-2.2.2-cinterop-llama.klib",
+    "actualSha256": "592e8a14ce9f747fcdb7ce8afb1ef35737033d57ad18dc3f59936fd6b302be43",
+    "native": [
+      {
+        "entry": "default/targets/ios_arm64/included/libllama_merged.a",
+        "sha256": "f035538d82977136f0e1468f5fcf9742a6a1dfe95973f91d04be65fb96b29d71",
+        "size": 86829376
+      }
+    ],
+    "licenseEntries": []
+  },
+  {
+    "coordinate": "com.llamatik:core-iosarm64:2.2.2",
+    "file": "core-iosarm64-2.2.2-cinterop-whisper.klib",
+    "sha256": "b3173757625add17621cb22da5e7ff2966114ebfdb7d7099a6f703b8e43a2d98",
+    "size": 6962,
+    "head_status": 200,
+    "content_length": "6962",
+    "url": "https://repo.maven.apache.org/maven2/com/llamatik/core-iosarm64/2.2.2/core-iosarm64-2.2.2-cinterop-whisper.klib",
+    "actualSha256": "b3173757625add17621cb22da5e7ff2966114ebfdb7d7099a6f703b8e43a2d98",
+    "native": [],
+    "licenseEntries": []
+  },
+  {
+    "coordinate": "com.llamatik:core-iosarm64:2.2.2",
+    "file": "core-iosarm64-2.2.2-cinterop-stableDiffusion.klib",
+    "sha256": "c490f1f5f5e70d7cd3dc37f677314053a36c4ff9f558f9f6571cca97c0cfc530",
+    "size": 28232794,
+    "head_status": 200,
+    "content_length": "28232794",
+    "url": "https://repo.maven.apache.org/maven2/com/llamatik/core-iosarm64/2.2.2/core-iosarm64-2.2.2-cinterop-stableDiffusion.klib",
+    "actualSha256": "c490f1f5f5e70d7cd3dc37f677314053a36c4ff9f558f9f6571cca97c0cfc530",
+    "native": [
+      {
+        "entry": "default/targets/ios_arm64/included/libllama_merged.a",
+        "sha256": "f035538d82977136f0e1468f5fcf9742a6a1dfe95973f91d04be65fb96b29d71",
+        "size": 86829376
+      }
+    ],
+    "licenseEntries": []
+  },
+  {
+    "coordinate": "com.llamatik:core-iosarm64:2.2.2",
+    "file": "core-iosarm64-2.2.2-cinterop-multimodal.klib",
+    "sha256": "1141334d003fb7d4442cb15666d0f7a0823b682bdd0718f9cadcd312c5d24c98",
+    "size": 28232926,
+    "head_status": 200,
+    "content_length": "28232926",
+    "url": "https://repo.maven.apache.org/maven2/com/llamatik/core-iosarm64/2.2.2/core-iosarm64-2.2.2-cinterop-multimodal.klib",
+    "actualSha256": "1141334d003fb7d4442cb15666d0f7a0823b682bdd0718f9cadcd312c5d24c98",
+    "native": [
+      {
+        "entry": "default/targets/ios_arm64/included/libllama_merged.a",
+        "sha256": "f035538d82977136f0e1468f5fcf9742a6a1dfe95973f91d04be65fb96b29d71",
+        "size": 86829376
+      }
+    ],
+    "licenseEntries": []
+  }
+]
