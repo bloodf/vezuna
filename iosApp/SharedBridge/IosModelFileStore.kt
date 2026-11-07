@@ -10,6 +10,10 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
@@ -67,15 +71,17 @@ class IosModelFileStore(
         }
     }
 
-    override suspend fun install(model: InstalledModel, sourcePath: String) = mutex.withLock {
+    override suspend fun install(model: InstalledModel, sourcePath: String) = withContext(Dispatchers.Default) { mutex.withLock {
         require(model.pack.fileName == model.localPath || model.pack.fileName == model.localPath.substringAfterLast('/'))
         val destination = "$directory/${model.pack.fileName}"
         preparePrivateDirectory(directory)
         val temporary = "$directory/.${model.pack.fileName}.${NSUUID().UUIDString}.tmp"
         try {
-            streamVerifiedCopy(sourcePath, temporary, model.pack.sizeBytes, model.pack.sha256)
+            val context = currentCoroutineContext()
+            streamVerifiedCopy(sourcePath, temporary, model.pack.sizeBytes, model.pack.sha256) { context.ensureActive() }
             protectAndExclude(temporary)
             // rename(2) replaces atomically on the same volume; the previous model survives any failure.
+            currentCoroutineContext().ensureActive()
             check(rename(temporary, destination) == 0) { "Could not move verified model pack into place" }
             protectAndExclude(destination)
         } finally {
@@ -84,10 +90,10 @@ class IosModelFileStore(
         val stored = model.copy(localPath = destination)
         val models = readIndex().filterNot { it.pack.modelId == model.pack.modelId } + stored
         writePrivateText(indexPath, json.encodeToString(ListSerializer(InstalledModel.serializer()), models))
-    }
+    } }
 
     /** Copies in 1 MiB chunks while hashing; throws on size, GGUF magic or SHA-256 mismatch. */
-    private fun streamVerifiedCopy(source: String, destination: String, expectedSize: Long, expectedSha256: String) {
+    private fun streamVerifiedCopy(source: String, destination: String, expectedSize: Long, expectedSha256: String, checkCancelled: () -> Unit) {
         val input = fopen(source, "rb") ?: error("Model pack source is unavailable")
         try {
             val output = fopen(destination, "wb") ?: error("Could not create model pack temporary file")
@@ -100,6 +106,7 @@ class IosModelFileStore(
                     val header = ByteArray(4)
                     var total = 0L
                     while (true) {
+                        checkCancelled()
                         val count = buffer.usePinned { pinned ->
                             fread(pinned.addressOf(0), 1uL, buffer.size.toULong(), input)
                         }.toInt()
@@ -109,8 +116,11 @@ class IosModelFileStore(
                             check(buffer.usePinned { CC_SHA256_Update(context.ptr, it.addressOf(0), count.toUInt()) } == 1) { "SHA-256 update failed" }
                             val written = buffer.usePinned { fwrite(it.addressOf(0), 1uL, count.toULong(), output) }.toInt()
                             check(written == count) { "Could not write model pack" }
-                            val offset = (total - count).toInt()
-                            if (offset < header.size) buffer.copyInto(header, offset, 0, minOf(count, header.size - offset))
+                            val offset = total - count
+                            if (offset < header.size) {
+                                val headerOffset = offset.toInt()
+                                buffer.copyInto(header, headerOffset, 0, minOf(count, header.size - headerOffset))
+                            }
                         }
                         if (count < buffer.size) {
                             check(ferror(input) == 0) { "Could not read model pack" }
