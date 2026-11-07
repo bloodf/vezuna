@@ -15,6 +15,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ios-network:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check iOS network guard
+        run: |
+          bash scripts/test-check-ios-network.sh
+          bash scripts/check-ios-network.sh
   website:
     runs-on: ubuntu-latest
     defaults:
