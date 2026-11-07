@@ -150,21 +150,48 @@ final class HealthKitImporter: HealthImporting {
         return hours
     }
 
+    // The anchor is local to this read. A failed or cancelled import starts from scratch on retry.
+    static func collectWeightPages<Cursor>(check: () throws -> Void,
+                                           read: (Cursor?) async throws -> ([Weight], [String], Cursor)) async throws -> [Weight] {
+        var cursor: Cursor?
+        var weights: [Weight] = []
+        while true {
+            try check()
+            let (page, deleted, next) = try await read(cursor)
+            try check()
+            let deletedIds = Set(deleted)
+            weights.removeAll { deletedIds.contains($0.recordId) }
+            weights.append(contentsOf: page)
+            if page.isEmpty && deleted.isEmpty { return weights }
+            cursor = next
+        }
+    }
+
     private func weightSamples(from: Date) async throws -> [Weight] {
         let type = try quantityType(.bodyMass)
-        let samples: [HKQuantitySample] = try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, results, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
-                }
-            }
-            store.execute(query)
-        }
+        let pageSize = 500
+        let predicate = HKQuery.predicateForSamples(withStart: from, end: nil, options: [])
         let kilograms = HKUnit.gramUnit(with: .kilo)
-        return samples.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
+        return try await Self.collectWeightPages(check: checkRequest) { (anchor: HKQueryAnchor?) in
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKAnchoredObjectQuery(type: type, predicate: predicate, anchor: anchor, limit: pageSize) { _, samples, deleted, next, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else if let next {
+                        let quantities = (samples ?? []).compactMap { $0 as? HKQuantitySample }
+                        guard quantities.count == (samples?.count ?? 0) else {
+                            continuation.resume(throwing: HealthImportError.unsupportedType)
+                            return
+                        }
+                        let page = quantities.map { Weight(recordId: $0.uuid.uuidString, epochSeconds: Int64($0.startDate.timeIntervalSince1970), kg: $0.quantity.doubleValue(for: kilograms)) }
+                        continuation.resume(returning: (page, (deleted ?? []).map { $0.uuid.uuidString }, next))
+                    } else {
+                        continuation.resume(throwing: HealthImportError.unavailable)
+                    }
+                }
+                self.store.execute(query)
+            }
+        }
     }
 
     private func syncWindow(expected: VitalsSyncContext?) async throws -> (profileId: String, generation: Int64, zoneId: String, replaceFrom: Int64, weightsFrom: Int64) {
