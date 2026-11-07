@@ -150,7 +150,7 @@ for (const size of [6, 10]) {
   assert(choices.every(choice => !choice.disabled), 'Synthetic accounts must allow publishing');
   const deniedChoices = configs.getAccountChoices({
     id: 'user-1',
-    accounts: [{ name: 'denied', viewerUserPermission2: { effectivePermissions: [] } }],
+    accounts: [{ name: 'denied', viewerUserPermission2: { effectivePermissions: [], permissions: [] } }],
   });
   assert.equal(deniedChoices[0].disabled, true, 'Missing PUBLISH permission must disable the account');
 
