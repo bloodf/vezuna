@@ -191,10 +191,10 @@ class DeviceVitalsSyncOutcomeTest {
     @Test fun providerFailureAfterCommittedPageKeepsPartialDurableProgress() = runTest {
         val repo = seed()
         val provider = Provider().also { it.continuous = true; it.changes = { token ->
-            if (token != "T0") throw SecurityException("synthetic access revoked")
+            if (token != "T0") throw TestAccessDeniedException("synthetic access revoked")
             WeightChangesPage(listOf(WeightMutation.Upsert(w.copy(kg = 71.0))), "T1", true, false)
         } }
-        assertFailsWith<SecurityException> { execute(provider, repo) }
+        assertFailsWith<TestAccessDeniedException> { execute(provider, repo) }
         assertEquals(listOf(w.copy(kg = 71.0)), repo.peekProfile("p").vitals.weights)
         assertEquals(WeightContinuation.Replay(src, "T1"), local(repo).continuation)
         assertEquals(steps, repo.peekProfile("p").vitals.steps)

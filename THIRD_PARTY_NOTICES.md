@@ -37,7 +37,7 @@ Versions come from `gradle/libs.versions.toml` and `composeApp/build.gradle.kts`
 | `androidx.core:core-ktx`, `exifinterface`, `activity-compose`, `lifecycle-runtime-ktx` | 1.17.0; 1.4.1; 1.12.4; 2.9.4 | Android platform | The Apache Software License, Version 2.0 |
 | `androidx.health.connect:connect-client` | 1.1.0 | Health Connect read | The Apache Software License, Version 2.0 |
 | `com.llamatik:core-android` | 2.2.0 (Android) | Local LLM inference | Retained POM declares `Apache-2.0`; publisher clarified MIT for library code on 2026-11-05. Metadata and collected notices remain unchanged; see [Android provenance](third_party/llamatik-2.2.0/PROVENANCE.md) |
-| `com.llamatik:core` | 2.1.0 (iOS) | Local LLM inference | POM declares `Apache-2.0`; pinned source declares MIT. Android 2.2.0 evidence does not validate the iOS artifact; collected notices remain retained |
+| `com.llamatik:core` | 2.2.2 (iOS) | Local LLM inference | Candidate source distinguishes MIT library code from restricted artwork; actual device KLIB/archive hashes and remaining notice limits are recorded in [iOS provenance](third_party/llamatik-2.2.2-ios/PROVENANCE.md). Original collected notices remain retained |
 | `com.google.mlkit:text-recognition` (and `text-recognition-bundled-common` 17.0.0) | 16.0.1 | Android OCR | ML Kit Terms of Service (`https://developers.google.com/ml-kit/terms`); not an open-source license |
 | `com.google.android.play:asset-delivery` (and `core-common` 2.0.4) | 2.3.0 | Model-pack delivery | Play Core Software Development Kit Terms of Service (`https://developer.android.com/guide/playcore/license`); not an open-source license |
 | `com.tom-roush:pdfbox-android` | 2.0.27.0 | PDF text extraction | The Apache Software License, Version 2.0 |
