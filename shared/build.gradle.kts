@@ -109,5 +109,13 @@ kover {
         verify {
             rule { minBound(80) }
         }
+        total {
+            // :shared:koverLog exposes domain/data results without hiding them in the combined gate.
+            log {
+                groupBy = kotlinx.kover.gradle.plugin.dsl.GroupingEntityType.PACKAGE
+                coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE
+                format = "<entity> line coverage: <value>% (target: 80%)"
+            }
+        }
     }
 }
