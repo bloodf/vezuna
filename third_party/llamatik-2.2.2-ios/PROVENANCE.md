@@ -1,0 +1,9 @@
+# Llamatik 2.2.2 iOS candidate evidence
+
+The catalog selects `com.llamatik:core:2.2.2` for iOS only. Android remains independently pinned to 2.2.0. On 2026-11-07, all five published device ARM64 KLIB files were downloaded from versioned Maven Central URLs and their actual bytes matched the publication SHA-256 metadata. [artifact-inventory.json](artifact-inventory.json) records the URLs, sizes, actual hashes, embedded archive hashes and license-entry inventory.
+
+The llama, stableDiffusion and multimodal KLIBs each embed the same 86,829,376-byte `libllama_merged.a`, SHA-256 `f035538d82977136f0e1468f5fcf9742a6a1dfe95973f91d04be65fb96b29d71`. Apple nm finds defined `sd_init`, `sd_supports_video_generation`, `sd_txt2video_frames` and `sd_free_video_frames` symbols in this actual archive. This verifies symbol presence, not a reproduction of the supplier build or inference behavior. The KLIBs contain no license or notice entries.
+
+The [candidate source](https://github.com/llamatik/Llamatik/tree/52404abe5979ffba91c187c4f97365846c67ec17) pins llama.cpp `620d2225cc436ab0b001e3200e590e3b286ef9ab`, whisper.cpp `d1be6fde11ac6e0407606b4e42fe72d34add8037` and stable-diffusion.cpp `77b72a2efed78f55de26892c7e909cee001e8b83`. The last revision differs from historical iOS 2.1.0. Retained [2.2 source notices and limitations](../llamatik-2.2.0/PROVENANCE.md) cover this source revision without establishing iOS binary/source correspondence or complete native notices. Keep all original collected licenses and notices. Source library licensing and proprietary artwork restrictions remain distinct; no right to redistribute Llamatik artwork is inferred.
+
+Physical device load, generation, cancellation and restart are NOT_RUN and deferred. Framework/app compilation does not establish hardware acceptance or distribution readiness. Complete native attribution and source-to-binary correspondence remain unresolved.
