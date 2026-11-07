@@ -1,0 +1,114 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../core/2.2.2/core-2.2.2.module",
+    "group": "com.llamatik",
+    "module": "core",
+    "version": "2.2.2",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.8.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.21"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "core-release.aar",
+          "url": "core-android-2.2.2.aar",
+          "size": 83718561,
+          "sha512": "25e25e577f4952c8a2f5761a95f702057feba61f9213aeec048383d5dff6f5db51a66bd800d628f6060ecb91c6189cf81cba810322f47fea289d1edf435ba3d9",
+          "sha256": "8fb2020cceb5396917c0363cd5852fb52532a003bc0b9ad51539859acc2a3fc3",
+          "sha1": "d5f679e6f55ca0ddd8362e3c335898c63832f6bf",
+          "md5": "bc798990a351425488f4b0150b83d87a"
+        }
+      ]
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.3.21"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "core-release.aar",
+          "url": "core-android-2.2.2.aar",
+          "size": 83718561,
+          "sha512": "25e25e577f4952c8a2f5761a95f702057feba61f9213aeec048383d5dff6f5db51a66bd800d628f6060ecb91c6189cf81cba810322f47fea289d1edf435ba3d9",
+          "sha256": "8fb2020cceb5396917c0363cd5852fb52532a003bc0b9ad51539859acc2a3fc3",
+          "sha1": "d5f679e6f55ca0ddd8362e3c335898c63832f6bf",
+          "md5": "bc798990a351425488f4b0150b83d87a"
+        }
+      ]
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "core-android-2.2.2-sources.jar",
+          "url": "core-android-2.2.2-sources.jar",
+          "size": 11557,
+          "sha512": "0cab6a04717ac97d5c7cbbfdfa0c693bce56026de95800c02e406f68dbce94dc6c1253ce882ff38f04e7f65362d9510b5fd5da916623f9c1899bbd2f2b3e3414",
+          "sha256": "4aeba2e15a032e11109466d511bc758ec7c10658b710d7c24fa2b68cdebb173e",
+          "sha1": "03f676d9f60466ab90a9f093ab161ebd7204eae2",
+          "md5": "35c72b537d48210b6df1a9c6ef318bae"
+        }
+      ]
+    }
+  ]
+}
