@@ -10,6 +10,13 @@
         "actions/node-versions"
       ],
       "allowedVersions": "24.22.2"
+    },
+    {
+      "matchPackageNames": [
+        "minimatch"
+      ],
+      "matchCurrentVersion": "^5.0.0",
+      "allowedVersions": "<6"
     }
   ]
 }
