@@ -106,6 +106,20 @@ class VaultBackedRepositoryStorageTest {
     private suspend fun open(persistSelection: Boolean = false) = VaultBackedRepository(vault, persistSelection = persistSelection).also { it.load() }
 
     @Test
+    fun relationshipSurvivesVaultReopenAndBackup() = runTest {
+        val repository = open()
+        val profile = Profile("rel", "Ana", createdAt = t, relationship = "Parent")
+        repository.createProfile(profile)
+        repository.createProfile(Profile("other", "Bia", createdAt = t))
+        val data = open().readProfile("rel")
+        assertEquals(profile, data.profile)
+        assertNull(open().readProfile("other").profile.relationship)
+        val service = app.vezuna.security.BackupService()
+        val backup = service.create(data, "correct horse battery".toCharArray())
+        assertEquals(data, service.open(backup, "correct horse battery".toCharArray()).data)
+    }
+
+    @Test
     fun missingProfileRecordIsSkippedInsteadOfLockingOutEveryProfile() = runTest {
         val repository = open()
         repository.createProfile(Profile("a", "Ana", createdAt = t))

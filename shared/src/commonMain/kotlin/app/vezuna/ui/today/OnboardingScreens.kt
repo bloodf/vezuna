@@ -207,6 +207,7 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
     val state = ctx.state
     var name by remember { mutableStateOf(state.data?.profile?.displayName.orEmpty()) }
     var birthDate by remember { mutableStateOf<LocalDate?>(null) }
+    var relationship by remember { mutableStateOf("") }
     val roles = MaterialTheme.vezuna
     val birthError = (state.error as? UserText.Key)?.takeIf { it.key == L10nKey.BIRTH_DATE_INVALID }?.resolve()
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).clearOfNavigationBar()) {
@@ -241,12 +242,13 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
                 Text(vitaText(L10nKey.FIRST_PROFILE_HINT), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 LabeledField(vitaText(L10nKey.ONBOARDING_NAME), name, { name = it })
                 BirthDateField(birthDate, { birthDate = it }, error = birthError)
+                LabeledField(vitaText(L10nKey.PROFILE_RELATIONSHIP_OPTIONAL), relationship, { relationship = it })
                 Text(vitaText(L10nKey.ONBOARDING_PRIVACY), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 PrimaryButton(
                     vitaText(L10nKey.FIRST_PROFILE_CREATE),
                     {
                         ctx.scope.launch {
-                            ctx.controller.completeOnboarding(name, birthDate, finish)
+                            ctx.controller.completeOnboarding(name, birthDate, finish, relationship)
                             if (ctx.controller.state.value.error == null) onDone()
                         }
                     },

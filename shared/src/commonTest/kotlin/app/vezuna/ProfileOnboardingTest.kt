@@ -37,6 +37,23 @@ class ProfileOnboardingTest {
         AppController(repository, InstalledModelManager(ModelCatalog.unconfigured(), NoModels, NoLlm), LocalHealthChat(repository, NoLlm), clock = { now }, timeZone = { TimeZone.UTC })
 
     @Test
+    fun relationshipIsOptionalAndIsolatedAcrossProfiles() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val c = controller(repository)
+        c.initialize()
+        c.completeOnboarding("Ana", LocalDate(1990, 5, 4), relationship = " Parent ")
+        val first = repository.profiles.value.single()
+        assertEquals("Parent", first.relationship)
+        c.createProfile("Bia", " Child ")
+        val second = repository.profiles.value.first { it.profileId != first.profileId }
+        assertEquals("Child", second.relationship)
+        c.setRelationship(second.profileId, "  ")
+        assertNull(repository.readProfile(second.profileId).profile.relationship)
+        assertEquals("Parent", repository.readProfile(first.profileId).profile.relationship)
+        assertEquals(LocalDate(1990, 5, 4), repository.readProfile(first.profileId).profile.birthDate)
+    }
+
+    @Test
     fun ageCountsCompletedCalendarYears() {
         val today = LocalDate(2026, 11, 1)
         assertEquals(36, ProfileAge.years(LocalDate(1990, 11, 1), today))

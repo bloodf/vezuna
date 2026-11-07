@@ -67,6 +67,7 @@ internal fun ProfilesScreen(ctx: RouteContext, focusNewName: Boolean = false) {
     val state = ctx.state
     val currentId = state.data?.profile?.profileId
     var newName by remember { mutableStateOf("") }
+    var newRelationship by remember { mutableStateOf("") }
     val today = ProfileAge.today(currentInstant(), TimeZone.currentSystemDefault())
     FocusedTaskScaffold(vitaText(L10nKey.PROFILES_TITLE), ctx::back) {
         Column(
@@ -91,15 +92,17 @@ internal fun ProfilesScreen(ctx: RouteContext, focusNewName: Boolean = false) {
             val nameFocus = remember { FocusRequester() }
             LaunchedEffect(focusNewName) { if (focusNewName) runCatching { nameFocus.requestFocus() } }
             LabeledField(vitaText(L10nKey.NEW_PROFILE_NAME), newName, { newName = it }, Modifier.focusRequester(nameFocus))
+            LabeledField(vitaText(L10nKey.PROFILE_RELATIONSHIP_OPTIONAL), newRelationship, { newRelationship = it })
             PrimaryButton(
                 vitaText(L10nKey.ADD_PROFILE),
                 {
                     val name = newName.trim()
                     ctx.scope.launch {
                         // Creating switches to the new profile, which resets every stack to its root (profile isolation).
-                        ctx.controller.createProfile(name)
+                        ctx.controller.createProfile(name, newRelationship)
                         if (ctx.controller.state.value.error == null) {
                             newName = ""
+                            newRelationship = ""
                             ctx.controller.announce(message(L10nKey.PROFILE_CREATED, name))
                         }
                     }
@@ -130,8 +133,9 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
     val isCurrent = state.data?.profile?.profileId == profile.profileId
     var name by remember(profile.profileId) { mutableStateOf(profile.displayName) }
     var birthDate by remember(profile.profileId) { mutableStateOf(profile.birthDate) }
+    var relationship by remember(profile.profileId) { mutableStateOf(profile.relationship.orEmpty()) }
     var confirmDelete by remember { mutableStateOf(false) }
-    val changed = name.trim() != profile.displayName || birthDate != profile.birthDate
+    val changed = name.trim() != profile.displayName || birthDate != profile.birthDate || relationship.trim().ifEmpty { null } != profile.relationship
     val nameError = if (name.isBlank()) vitaText(L10nKey.PROFILE_NAME_REQUIRED) else null
     Column(
         PageModifier.verticalScroll(rememberScrollState()).clearOfNavigationBar().padding(VezunaTokens.GutterNarrow),
@@ -140,6 +144,7 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
         ProfileAvatar(profile.displayName, Modifier.align(Alignment.CenterHorizontally), size = 96)
         LabeledField(vitaText(L10nKey.ONBOARDING_NAME), name, { name = it }, error = nameError)
         BirthDateField(birthDate, { birthDate = it }, error = state.error.ifKey(L10nKey.BIRTH_DATE_INVALID)?.resolve())
+        LabeledField(vitaText(L10nKey.PROFILE_RELATIONSHIP_OPTIONAL), relationship, { relationship = it })
         PrimaryButton(
             vitaText(L10nKey.PROFILE_SAVE),
             {
@@ -147,6 +152,7 @@ private fun ProfileEditForm(profile: Profile, ctx: RouteContext) {
                     val controller = ctx.controller
                     if (name.trim() != profile.displayName) controller.renameProfile(profile.profileId, name)
                     if (controller.state.value.error == null && birthDate != profile.birthDate) controller.setBirthDate(profile.profileId, birthDate)
+                    if (controller.state.value.error == null && relationship.trim().ifEmpty { null } != profile.relationship) controller.setRelationship(profile.profileId, relationship)
                     if (controller.state.value.error == null) controller.announce(message(L10nKey.PROFILE_SAVED))
                 }
             },

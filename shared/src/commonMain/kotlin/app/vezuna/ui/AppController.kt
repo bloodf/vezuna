@@ -121,13 +121,14 @@ class AppController(
     // profiles
     suspend fun initialize() = profiles.initialize()
     suspend fun switchProfile(profileId: String) = profiles.switchProfile(profileId)
-    suspend fun createProfile(displayName: String) = profiles.createProfile(displayName)
+    suspend fun createProfile(displayName: String, relationship: String = "") = profiles.createProfile(displayName, relationship)
 
     /** Sets or clears (null) the birth date. Rejects future dates and ages above [app.vezuna.domain.ProfileAge.MAX_YEARS]. */
     suspend fun setBirthDate(profileId: String, birthDate: LocalDate?) = profiles.setBirthDate(profileId, birthDate)
+    suspend fun setRelationship(profileId: String, relationship: String) = profiles.setRelationship(profileId, relationship)
 
     /** Saves the first profile; finish ends onboarding. A blank name keeps the default. */
-    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true) = profiles.completeOnboarding(displayName, birthDate, finish)
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true, relationship: String = "") = profiles.completeOnboarding(displayName, birthDate, finish, relationship)
     fun skipOnboarding() = profiles.skipOnboarding()
 
     /** Welcome screen's Restore: like [skipOnboarding], and marks the next successful restore as the first-time one. */

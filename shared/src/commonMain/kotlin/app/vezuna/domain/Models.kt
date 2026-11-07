@@ -13,6 +13,9 @@ data class Profile(
     val displayName: String,
     val birthDate: LocalDate? = null,
     val createdAt: Instant,
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val relationship: String? = null,
 )
 
 @Serializable

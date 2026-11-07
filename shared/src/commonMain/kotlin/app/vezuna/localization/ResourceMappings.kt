@@ -524,6 +524,7 @@ private val stringResources = mapOf<L10nKey, StringResource>(
     L10nKey.MORE_EXPORT_SHARE to Res.string.more_export_share,
     L10nKey.MORE_SECTION_RECORDS to Res.string.more_section_records,
     L10nKey.MORE_SECTION_DEVICE to Res.string.more_section_device,
+    L10nKey.PROFILE_RELATIONSHIP_OPTIONAL to Res.string.profile_relationship_optional,
     L10nKey.BIRTH_DATE to Res.string.birth_date,
     L10nKey.BIRTH_DATE_NOT_SET to Res.string.birth_date_not_set,
     L10nKey.BIRTH_DATE_INVALID to Res.string.birth_date_invalid,
