@@ -29,28 +29,68 @@ data class ModelLoadPolicyKey(
     val sizeBytes: Long,
     val settings: LlmGenerationSettings,
     val nativeBuild: String,
+    val metric: LoadMemoryMetric,
 )
 
 class BudgetedModelLoadAdmission(
     private val nativeBuild: String,
+    // Positive minimum bytes of the key's metric, never a measured reading.
     budgets: Map<ModelLoadPolicyKey, Long>,
-    private val snapshotProvider: () -> LoadMemorySnapshot,
+    private val metric: LoadMemoryMetric,
+    private val snapshotProvider: () -> LoadMemoryReading?,
 ) : ModelLoadAdmission {
     private val approvedBudgets = budgets.toMap()
 
     override fun requireFits(pack: ModelPack, settings: LlmGenerationSettings) {
-        val budget = approvedBudgets[ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, nativeBuild)]
+        if (nativeBuild.isBlank() || pack.sizeBytes <= 0 || pack.sha256.length != 64 ||
+            pack.sha256.any { it !in "0123456789abcdefABCDEF" } ||
+            settings.contextLength <= 0 || settings.maxTokens <= 0 ||
+            !settings.temperature.isFinite() || settings.temperature < 0) failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
+        val budget = approvedBudgets[ModelLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, nativeBuild, metric)]
             ?.takeIf { it > 0 } ?: failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
         val snapshot = try { snapshotProvider() }
         catch (canceled: CancellationException) { throw canceled }
         catch (failure: app.vezuna.localization.VitaMessageException) { throw failure }
         catch (_: Exception) { failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE) }
-        requireLoadMemory(pack, snapshot, budget)
+        if (snapshot == null) failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE)
+        if (snapshot.metric != metric) failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
+        when (snapshot) {
+            is LoadMemorySnapshot -> requireLoadMemory(pack, snapshot, budget)
+            is ProcessHeadroomSnapshot -> requireProcessHeadroom(pack, snapshot, budget)
+        }
     }
 }
 
-/** One platform memory reading; budget values must come from an approved artifact-specific policy. */
-data class LoadMemorySnapshot(val totalBytes: Long, val availableBytes: Long, val lowMemory: Boolean, val thresholdBytes: Long)
+/** Each metric requires separate artifact/native/settings qualification. All quantities are bytes. */
+enum class LoadMemoryMetric { ANDROID_SYSTEM_AVAILABLE_BYTES, IOS_PROCESS_HEADROOM_BYTES }
+
+sealed interface LoadMemoryReading {
+    val metric: LoadMemoryMetric
+}
+
+/** Android ActivityManager fields. Threshold validity is required independently of the budget. */
+data class LoadMemorySnapshot(val totalBytes: Long, val availableBytes: Long, val lowMemory: Boolean, val thresholdBytes: Long) : LoadMemoryReading {
+    override val metric = LoadMemoryMetric.ANDROID_SYSTEM_AVAILABLE_BYTES
+}
+
+/**
+ * Remaining process dirty-memory allowance, not system availability or pressure.
+ * Both fields accept 1..Long.MAX_VALUE bytes. Headroom is not bounded by physical RAM.
+ */
+data class ProcessHeadroomSnapshot(val totalRamBytes: Long, val headroomBytes: Long) : LoadMemoryReading {
+    override val metric = LoadMemoryMetric.IOS_PROCESS_HEADROOM_BYTES
+}
+
+/** Positive qualified minimum headroom; no Android budget or pressure inference is valid here. */
+private fun requireProcessHeadroom(pack: ModelPack, snapshot: ProcessHeadroomSnapshot, requiredHeadroomBytes: Long) {
+    if (requiredHeadroomBytes <= 0) failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
+    // Zero can mean an exceeded process limit or an unavailable reading. Both deny admission.
+    if (snapshot.totalRamBytes <= 0 || snapshot.headroomBytes <= 0) failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE)
+    if (snapshot.totalRamBytes < pack.minimumRamBytes) {
+        failMessage(L10nKey.MODEL_INSUFFICIENT_RAM, pack.minimumRamBytes / 1_000_000, snapshot.totalRamBytes / 1_000_000)
+    }
+    if (snapshot.headroomBytes < requiredHeadroomBytes) failMessage(L10nKey.MODEL_MEMORY_PRESSURE)
+}
 
 fun requireLoadMemory(pack: ModelPack, snapshot: LoadMemorySnapshot, requiredAvailableBytes: Long) {
     if (requiredAvailableBytes <= 0) failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
