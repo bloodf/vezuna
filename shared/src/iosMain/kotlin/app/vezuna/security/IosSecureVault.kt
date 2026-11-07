@@ -12,7 +12,7 @@ import platform.Foundation.NSFileProtectionKey
 import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.writeToFile
-import app.vezuna.platform.currentInstant
+import platform.Foundation.NSUUID
 import platform.Security.SecRandomCopyBytes
 import platform.Security.kSecRandomDefault
 
@@ -41,7 +41,11 @@ object IosKeyStoreBridge {
 actual fun createPlatformVault(storagePath: String): SecureVault = IosSecureVault(storagePath)
 
 @OptIn(ExperimentalForeignApi::class)
-class IosSecureVault internal constructor(private val directory: String, keyStore: VaultKeyStore?) : SecureVault {
+class IosSecureVault internal constructor(
+    private val directory: String,
+    keyStore: VaultKeyStore?,
+    private val move: (String, String) -> Boolean = { from, to -> NSFileManager.defaultManager.moveItemAtPath(from, to, null) },
+) : SecureVault {
     constructor(directory: String) : this(directory, IosKeyStoreBridge.keyStore)
     private val manager = NSFileManager.defaultManager
     private val lock = Mutex()
@@ -59,29 +63,38 @@ class IosSecureVault internal constructor(private val directory: String, keyStor
     )
 
     override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): CipherEnvelope = lock.withLock {
+        requireNoPendingQuarantine()
         prepareDirectory()
         core.encrypt(plainText, associatedData)
     }
 
     override suspend fun decrypt(envelope: CipherEnvelope): ByteArray = lock.withLock {
+        requireNoPendingQuarantine()
         relaxExistingProtection()
         core.decrypt(envelope)
     }
 
     override suspend fun write(key: String, ciphertext: ByteArray) = lock.withLock {
+        requireNoPendingQuarantine()
         prepareDirectory()
         writeProtected(fileFor(key), ciphertext)
     }
 
     override suspend fun read(key: String): ByteArray? = lock.withLock {
+        requireNoPendingQuarantine()
         relaxExistingProtection()
         core.readData(fileFor(key))
     }
 
-    override suspend fun delete(key: String) { manager.removeItemAtPath(fileFor(key), null) }
+    override suspend fun delete(key: String) = lock.withLock {
+        requireNoPendingQuarantine()
+        manager.removeItemAtPath(fileFor(key), null)
+        Unit
+    }
 
     /** File names are hashes, so recovery learns what a file holds from the cleartext associated data of its envelope. */
     override suspend fun storedAssociatedData(): List<ByteArray>? = lock.withLock {
+        requireNoPendingQuarantine()
         relaxExistingProtection()
         IosFileOps().dataFiles().mapNotNull { path ->
             // A locked or unreadable file throws instead of silently shortening the list.
@@ -90,19 +103,24 @@ class IosSecureVault internal constructor(private val directory: String, keyStor
         }
     }
 
-    /** All-or-nothing: the Keychain key is archived first, files are moved only then, the key is deleted last. */
+    /** A pending directory blocks normal access until every file and the key have been preserved. */
     override suspend fun quarantineAll(): Boolean = lock.withLock {
         prepareDirectory()
         if (!core.archiveKey()) return@withLock false
-        val names = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty()
+        val target = "$directory/$PENDING"
+        if (!manager.fileExistsAtPath(target) && !manager.createDirectoryAtPath(target, withIntermediateDirectories = false, attributes = null, error = null)) return@withLock false
+        val names = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>)
+            ?: return@withLock false
+        val live = names
             .filterIsInstance<String>()
-            .filterNot { it.startsWith(QUARANTINE) }
-        if (names.isNotEmpty()) {
-            val target = "$directory/$QUARANTINE${currentInstant().toEpochMilliseconds()}"
-            if (!manager.createDirectoryAtPath(target, withIntermediateDirectories = true, attributes = null, error = null)) return@withLock false
-            if (!names.all { manager.moveItemAtPath("$directory/$it", "$target/$it", null) }) return@withLock false
-        }
-        core.deleteKey()
+            .filterNot { it.startsWith(QUARANTINE) || it == PENDING }
+        if (!live.all { move("$directory/$it", "$target/$it") }) return@withLock false
+        if (!core.deleteKey()) return@withLock false
+        move(target, "$directory/$QUARANTINE${NSUUID().UUIDString}")
+    }
+
+    private fun requireNoPendingQuarantine() {
+        if (manager.fileExistsAtPath("$directory/$PENDING")) throw VaultUnreadableException(VaultFailure.UNAVAILABLE)
     }
 
     /** Files written by older builds carry `.complete`; relax them so lock-screen dose actions can read them. Retried until every file succeeded. */
@@ -110,7 +128,7 @@ class IosSecureVault internal constructor(private val directory: String, keyStor
         if (protectionRelaxed) return
         val keyName = fileFor("master-key").substringAfterLast('/')
         protectionRelaxed = (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
-            .filterNot { it.startsWith(QUARANTINE) || it == keyName }
+            .filterNot { it.startsWith(QUARANTINE) || it == PENDING || it == keyName }
             .map { manager.setAttributes(mapOf<Any?, Any?>(NSFileProtectionKey to NSFileProtectionCompleteUntilFirstUserAuthentication), "$directory/$it", null) }
             .all { it }
     }
@@ -130,7 +148,7 @@ class IosSecureVault internal constructor(private val directory: String, keyStor
         override fun dataFiles(): List<String> {
             val keyName = fileFor("master-key").substringAfterLast('/')
             return (manager.contentsOfDirectoryAtPath(directory, null) as? List<*>).orEmpty().filterIsInstance<String>()
-                .filterNot { it.startsWith(QUARANTINE) || it == keyName }
+                .filterNot { it.startsWith(QUARANTINE) || it == PENDING || it == keyName }
                 .map { "$directory/$it" }
         }
     }
@@ -166,6 +184,7 @@ class IosSecureVault internal constructor(private val directory: String, keyStor
 
     private companion object {
         const val QUARANTINE = "unreadable-"
+        const val PENDING = ".quarantine-pending"
         const val KEY_ID = "ios-protected-key-v1"
         const val ALGORITHM = "AES-256-GCM-IOS-FILE-PROTECTION"
     }
