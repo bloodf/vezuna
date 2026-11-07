@@ -1,0 +1,11 @@
+> Historical snapshot only. Current repository instructions and central policy supersede all operational directions below. Historical claims are not fresh acceptance. See the evidence retention map at `.unlazy/t3-resume/local-pad-host-runner/EVIDENCE_RETENTION.md` for intentional omissions and unresolved recovery proof.
+
+# Android process identity reader candidate
+
+Root authored android_snapshot.py and10synthetic tests. Tests pass, no device/adb calls executed. Two complete process-list parses surround per-process UID/status/cmdline/starttime reads; exact installed package UID checks precede/follow. Unknown format, truncated name under ownedUID, failed command, missing package, credential mismatch, PID reuse and observed set churn refuse instead of yielding empty/complete. Only target/test identities are returned. Expected positive distinct UIDs supplied explicitly; no runtime value invented.
+
+BoundedAdbReader is unexecuted and not connected to a launch CLI. It is intended for an owned helper process, never the controller thread; subprocess timeout is2s capped by workerdeadline. MAX_OUTPUT is a post-capture validation bound, NOT a hard streaming-memory bound. Full adapter still needs bounded-output transport, child lifecycle integration and real preflight proving ps -A -w -o PID,UID,NAME visibility/support, package-manager output, /proc access and exact device binding. Snapshot pairs are not atomic: exclusive lease and no install/replacement remain assumptions; before-close recheck belongs to Controller. No claim this synthetic contract establishes actual Android absence or safe termination.
+
+No installed app/model/phone access, build, source/ref/GitHub edits. Existing author runner/tests/receipts preserved unchanged. Independent consequential review and executable adapter integration remain mandatory before physical use.
+
+Superseding implementation update: bounded_command now enforces aggregate stdout/stderr size during reads, max1MiB plus one detecting byte, with command deadline and <=0.5s direct owned-host-child reap reserve. Six real local-child tests passed; combined53tests pass. No devicecalls. Earlier post-capture limitation above describes priorcandidate only. Exact current hashes root-candidate-hashes.json.

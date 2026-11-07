@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Vezuna marketing website and public documentation. Native app tooling remains in the repository root.",
+  "packageManager": "pnpm@12.18.0",
   "engines": {
-    "node": ">=22.23.4 <25 || >=26"
+    "node": ">=24.22.2 <25"
   },
   "scripts": {
     "dev": "astro dev",
@@ -18,14 +19,15 @@
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.5",
     "@astrojs/sitemap": "3.7.4",
-    "astro": "7.4.5",
+    "astro": "7.4.7",
     "rehype-autolink-headings": "^7.1.0",
-    "rehype-slug": "6.0.0"
+    "rehype-slug": "6.0.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
     "@axe-core/playwright": "^4.14.0",
-    "@playwright/test": "1.64.1",
+    "@playwright/test": "1.65.0",
     "pagefind": "1.6.0",
     "typescript": "6.0.3"
   }

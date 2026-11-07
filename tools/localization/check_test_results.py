@@ -6,6 +6,10 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 # Skipped only when tools/release/stage_smoke_model.py has not staged the smoke model; any other skip is a failure.
 ALLOWED_SKIPPED_CLASSES = {"app.vezuna.LocalLlmInstrumentedTest"}
+SMOKE_METHODS = {
+    "loadsVerifiedGgufAndGeneratesOnDevice",
+    "cancelsCollectorAfterPartialAndAllowsNextGeneration",
+}
 
 def summarize(directory: Path):
     totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
@@ -59,17 +63,58 @@ def check_android_host(directory: Path):
     print("ANDROID_HOST_TESTS_PASSED")
 
 
+def check_local_llm_smoke(directory: Path):
+    methods = []
+    reports = set()
+    for report in directory.rglob("TEST-*.xml"):
+        root = ET.parse(report).getroot()
+        suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+        for suite in suites:
+            cases = suite.findall("testcase")
+            smoke = [case for case in cases if case.get("classname") == "app.vezuna.LocalLlmInstrumentedTest"]
+            actual = {
+                "tests": len(cases),
+                "failures": sum(case.find("failure") is not None for case in cases),
+                "errors": sum(case.find("error") is not None for case in cases),
+                "skipped": sum(case.find("skipped") is not None for case in cases),
+            }
+            declared = {key: int(suite.attrib[key]) for key in actual}
+            if actual != declared or any(actual[key] for key in ("failures", "errors", "skipped")):
+                raise ValueError(f"Invalid local LLM smoke outcomes in {report}: declared={declared}, actual={actual}")
+            if not smoke:
+                continue
+            reports.add(report)
+            methods.extend(case.get("name") for case in smoke)
+    # Both methods must succeed in one device report, without duplicates or assumption skips.
+    if len(reports) != 1 or len(methods) != len(SMOKE_METHODS) or set(methods) != SMOKE_METHODS:
+        raise ValueError("Local LLM smoke requires both named methods exactly once in one device report")
+    print(f"LOCAL_LLM_SMOKE_TESTS={len(methods)}")
+    print("LOCAL_LLM_SMOKE_TESTS_PASSED")
+
+
 def main():
     parser = argparse.ArgumentParser()
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--instrumentation", action="store_true")
     modes.add_argument("--android-host", action="store_true")
+    modes.add_argument("--local-llm-smoke", action="store_true")
     args = parser.parse_args()
+    instrumentation = ROOT / "composeApp/build/outputs/androidTest-results/connected"
+    if args.local_llm_smoke or (args.instrumentation and (ROOT / "composeApp/build/generated/modelSmokeAssets/smoke.gguf").is_file()):
+        try:
+            check_local_llm_smoke(instrumentation)
+        except (OSError, ValueError, KeyError, ET.ParseError) as error:
+            parser.exit(1, f"FAIL {error}\n")
+        if args.local_llm_smoke:
+            return
     if args.instrumentation:
-        totals, classes, skipped = summarize(ROOT / "composeApp/build/outputs/androidTest-results/connected")
-        assert "app.vezuna.LocalizationInstrumentedTest" in classes, "Missing locale instrumentation results"
-        assert totals["tests"] > 0 and totals["failures"] == 0 and totals["errors"] == 0, totals
-        assert skipped <= ALLOWED_SKIPPED_CLASSES, f"Unexpected skipped classes: {sorted(skipped - ALLOWED_SKIPPED_CLASSES)}"
+        totals, classes, skipped = summarize(instrumentation)
+        if "app.vezuna.LocalizationInstrumentedTest" not in classes:
+            raise AssertionError("Missing locale instrumentation results")
+        if not (totals["tests"] > 0 and totals["failures"] == 0 and totals["errors"] == 0):
+            raise AssertionError(totals)
+        if not skipped <= ALLOWED_SKIPPED_CLASSES:
+            raise AssertionError(f"Unexpected skipped classes: {sorted(skipped - ALLOWED_SKIPPED_CLASSES)}")
         if skipped:
             print(f"ANDROID_INSTRUMENTATION_SKIPPED={','.join(sorted(skipped))} (stage the smoke model to run it)")
         print(f"ANDROID_INSTRUMENTATION_TESTS={totals['tests']}")
@@ -78,7 +123,8 @@ def main():
         shared, _, _ = summarize(ROOT / "shared/build/test-results/jvmTest")
         android, _, _ = summarize(ROOT / "composeApp/build/test-results/testDebugUnitTest")
         for totals in (shared, android):
-            assert totals["tests"] > 0 and totals["failures"] == 0 and totals["errors"] == 0 and totals["skipped"] == 0, totals
+            if not (totals["tests"] > 0 and totals["failures"] == 0 and totals["errors"] == 0 and totals["skipped"] == 0):
+                raise AssertionError(totals)
         print(f"SHARED_JVM_TESTS={shared['tests']}")
         print(f"ANDROID_UNIT_TESTS={android['tests']}")
         if args.android_host:

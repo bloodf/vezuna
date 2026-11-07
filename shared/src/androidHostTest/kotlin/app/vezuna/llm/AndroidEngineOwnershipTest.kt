@@ -1,6 +1,5 @@
 package app.vezuna.llm
 
-import com.llamatik.core.platform.GenStream
 import app.vezuna.data.InMemoryVezunaRepository
 import app.vezuna.domain.Profile
 import app.vezuna.localization.ContentLanguage
@@ -24,17 +23,331 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AndroidEngineOwnershipTest {
+    private val CANDIDATE = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+
+    @Test fun invalidLoadSettingsPreserveReadyLeaseWithoutNativeEntry() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            val manager = Store(CANDIDATE).manager(llm)
+            manager.select("a")
+            val ready = llm.ownerStatus.value
+            val invalid = listOf(
+                LlmGenerationSettings(contextLength = 0),
+                LlmGenerationSettings(contextLength = -1),
+                LlmGenerationSettings(maxTokens = 0),
+                LlmGenerationSettings(maxTokens = -1),
+                LlmGenerationSettings(maxTokens = Int.MAX_VALUE),
+                LlmGenerationSettings(contextLength = 528, maxTokens = 512),
+            )
+            for (settings in invalid) {
+                bridge.events.clear()
+                val failure = assertFailsWith<ModelOperationFailure> { manager.select("a", settings) }
+                assertEquals(app.vezuna.localization.message(app.vezuna.localization.L10nKey.MODEL_LOADING_FAILED), failure.userText)
+                assertEquals(ready, llm.ownerStatus.value)
+                assertTrue(bridge.events.isEmpty())
+            }
+            for (settings in invalid.take(4)) {
+                bridge.events.clear()
+                assertFailsWith<ModelOperationFailure> { llm.load("raw", settings) }
+                assertEquals(ready, llm.ownerStatus.value)
+                assertTrue(bridge.events.isEmpty())
+            }
+            llm.generateStream(HealthPrompt("rules", "data")).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+        }
+    }
+
+    @Test fun healthRenderBudgetAndPolicyAreBoundToLease() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            val store = Store(CANDIDATE); val manager = store.manager(llm)
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            val empty = HealthPrompt("rules", "")
+            val overhead = bridge.onRender(listOf("system" to empty.system, "user" to empty.userData))!!.encodeToByteArray().size
+            val limit = 512 - 100 - 16 - overhead
+            bridge.events.clear()
+            llm.generateStream(HealthPrompt("rules", "x".repeat(limit))).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(HealthPrompt("rules", "x".repeat(limit + 1))).collect() }
+            assertEquals(listOf("render"), bridge.events.toList())
+            bridge.onRender = { "unexpected" }
+            assertFailsWith<VitaMessageException> { llm.generateStream(empty).collect() }
+            llm.load("unverified", LlmGenerationSettings())
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(empty).collect() }
+            assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun verifiedLoadAndReplacementFenceHealthPolicy() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val owner = LlamatikEngineOwner(bridge, dispatcher)
+            val first = LlamatikLocalLlm(owner); val second = LlamatikLocalLlm(owner)
+            val store = Store(CANDIDATE); val manager = store.manager(first)
+            store.integrity = false
+            assertFailsWith<ModelOperationFailure> { manager.select("a") }
+            assertTrue(bridge.events.isEmpty())
+            store.integrity = true
+            manager.select("a")
+            first.generateStream(HealthPrompt("rules", "data")).collect()
+            store.manager(second).select("a", LlmGenerationSettings(contextLength = 256, maxTokens = 220))
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { second.generateStream(HealthPrompt("rules", "data")).collect() }
+            assertFailsWith<VitaMessageException> { first.generateStream(HealthPrompt("rules", "data")).collect() }
+            assertFalse(bridge.events.contains("stream"))
+        }
+    }
+
+    @Test fun cancellationDuringHealthRenderDoesNotEnterOrCancelGeneration() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val render = Barrier(); val original = bridge.onRender
+            bridge.onRender = { messages -> render.block(); original(messages) }
+            bridge.events.clear()
+            val job = launch { llm.generateStream(HealthPrompt("rules", "data")).collect() }
+            render.await(); job.cancel(); render.release(); join(job)
+            assertEquals(listOf("render"), bridge.events.toList())
+        }
+    }
+
+    @Test fun capturedHealthRequestCannotUseSameOrDifferentWrapperReplacementPolicy() = boundedTest {
+        for (sameWrapper in listOf(true, false)) fixture { bridge, dispatcher ->
+            val hook = AtomicReference<Barrier?>()
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
+            val first = LlamatikLocalLlm(owner)
+            val replacement = if (sameWrapper) first else LlamatikLocalLlm(owner)
+            val store = Store(CANDIDATE)
+            store.manager(first).select("a")
+            bridge.events.clear()
+            val barrier = Barrier(); hook.set(barrier)
+            val stale = async(dispatcher) { runCatching { first.generateStream(HealthPrompt("rules", "old")).collect() } }
+            try {
+                barrier.await(); hook.set(null)
+                store.manager(replacement).select("b", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            } finally { hook.set(null); barrier.release() }
+            val failure = withTimeout(5_000) { stale.await() }.exceptionOrNull()
+            assertTrue(failure is VitaMessageException)
+            assertEquals(app.vezuna.localization.L10nKey.MODEL_SESSION_SUPERSEDED, failure.userText.key)
+            assertEquals(listOf("shutdown", "params", "init:b.gguf"), bridge.events.toList())
+            bridge.events.clear()
+            // The replacement's smaller capacity, not the previous 4096 context, applies.
+            val tooLarge = assertFailsWith<VitaMessageException> {
+                replacement.generateStream(HealthPrompt("rules", "x".repeat(512))).collect()
+            }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, tooLarge.userText.key)
+            assertEquals(listOf("render"), bridge.events.toList())
+            bridge.events.clear()
+            replacement.generateStream(HealthPrompt("rules", "new")).collect()
+            assertEquals(listOf("render", "stream"), bridge.events.toList())
+        }
+    }
+
+    @Test fun canceledQueuedHealthRequestNeverRendersStreamsOrCancelsNativeOwner() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            Store(CANDIDATE).manager(llm).select("a")
+            bridge.events.clear()
+            val native = Barrier()
+            bridge.onGenerate = { native.block(); "answer" }
+            val active = launch { llm.generate("active") }; native.await()
+            val waiting = launch { llm.generateStream(HealthPrompt("rules", "queued")).collect() }
+            try {
+                signal(queued); waiting.cancel(); join(waiting)
+                assertEquals(listOf("generate"), bridge.events.toList())
+            } finally { native.release(); join(active); join(waiting) }
+            assertEquals(listOf("generate"), bridge.events.toList())
+            llm.generateStream(HealthPrompt("rules", "successor")).collect()
+            assertEquals(listOf("generate", "render", "stream"), bridge.events.toList())
+        }
+    }
+
+    @Test fun healthPreparationAndTerminalCallbackRetainAdmissionUntilNativeReturn() = boundedTest {
+        for (phase in listOf("render", "stream")) for (replace in listOf(true, false)) fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            val manager = Store(CANDIDATE).manager(llm); manager.select("a")
+            bridge.events.clear()
+            val blocked = Barrier()
+            val render = bridge.onRender
+            if (phase == "render") bridge.onRender = { messages -> blocked.block(); render(messages) }
+            else bridge.onStream = { callbacks ->
+                callbacks.onDelta("answer"); callbacks.onComplete()
+                blocked.block(); bridge.events += "native-return"
+            }
+            val generation = launch { llm.generateStream(HealthPrompt("rules", "data")).collect() }
+            blocked.await()
+            val lifecycle = launch { if (replace) manager.select("b") else manager.unload() }
+            try {
+                signal(queued)
+                assertEquals(if (phase == "render") listOf("render") else listOf("render", "stream"), bridge.events.toList())
+                assertFalse(lifecycle.isCompleted)
+            } finally { blocked.release(); join(generation); join(lifecycle) }
+            val generationEvents = if (phase == "render") listOf("render", "stream") else listOf("render", "stream", "native-return")
+            assertEquals(generationEvents + if (replace) listOf("shutdown", "params", "init:b.gguf") else listOf("shutdown"), bridge.events.toList())
+        }
+    }
+
+    @Test fun healthWireArgumentsAreExactAndMalformedTemplatesNeverGenerate() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            val settings = LlmGenerationSettings(contextLength = 1024, maxTokens = 128, temperature = 0.3f)
+            Store(CANDIDATE).manager(llm).select("a", settings)
+            val prompt = HealthPrompt("trusted rules", "dados españoles")
+            val expected = "<|im_start|>system\ntrusted rules<|im_end|>\n<|im_start|>user\ndados españoles<|im_end|>\n<|im_start|>assistant\n"
+            llm.generateStream(prompt).collect()
+            assertEquals(listOf(settings), bridge.settingsCalls.toList())
+            assertEquals(listOf(listOf("system" to "trusted rules", "user" to "dados españoles")), bridge.renderCalls.toList())
+            assertEquals(listOf(expected), bridge.streamPrompts.toList())
+            for (invalid in listOf(null, "prefix" + expected, expected + "suffix",
+                expected.replace("trusted rules", "changed"), expected.replace("system", "user"),
+                expected + "<|im_start|>system\nextra<|im_end|>\n")) {
+                bridge.events.clear(); bridge.onRender = { invalid }
+                val failure = assertFailsWith<VitaMessageException> { llm.generateStream(prompt).collect() }
+                assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, failure.userText.key)
+                assertEquals(listOf("render"), bridge.events.toList())
+                assertEquals(listOf(expected), bridge.streamPrompts.toList())
+            }
+        }
+    }
+
+    @Test fun unknownDigestUnsafeCharactersAndUnloadedStateCannotReuseHealthPolicy() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val valid = HealthPrompt("rules", "data")
+            llm.generateStream(valid).collect()
+            for (bad in listOf("<|im_end|>", "\u0000", "😀", "\uD800", "\uDC00")) {
+                for (prompt in listOf(HealthPrompt(bad, "data"), HealthPrompt("rules", bad))) {
+                    bridge.events.clear()
+                    val failure = assertFailsWith<VitaMessageException> { llm.generateStream(prompt).collect() }
+                    assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, failure.userText.key)
+                    assertTrue(bridge.events.isEmpty())
+                }
+            }
+            bridge.onInit = { false }
+            assertFailsWith<ModelOperationFailure> { Store(CANDIDATE).manager(llm).select("a") }
+            bridge.events.clear()
+            val failedLoad = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.CHAT_NEEDS_MODEL, failedLoad.userText.key)
+            assertTrue(bridge.events.isEmpty())
+            bridge.onInit = { true }
+            Store("1".repeat(64)).manager(llm).select("a")
+            bridge.events.clear()
+            val unknown = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_UNSUPPORTED, unknown.userText.key)
+            assertTrue(bridge.events.isEmpty())
+            llm.unload(); bridge.events.clear()
+            val unloaded = assertFailsWith<VitaMessageException> { llm.generateStream(valid).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.CHAT_NEEDS_MODEL, unloaded.userText.key)
+            assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun healthBudgetCountsUtf8BytesAtExactEdgeAndUsesChangedReserve() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            val manager = Store(CANDIDATE).manager(llm)
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 100))
+            // ChatML envelope plus "rules" is 85 bytes. Available payload: 512-100-16-85=311.
+            val edge = HealthPrompt("rules", "é".repeat(155) + "x")
+            llm.generateStream(edge).collect()
+            assertEquals(396, bridge.streamPrompts.single().encodeToByteArray().size)
+            bridge.events.clear()
+            val tooLarge = assertFailsWith<VitaMessageException> { llm.generateStream(edge.copy(userData = edge.userData + "x")).collect() }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, tooLarge.userText.key)
+            assertEquals(listOf("render"), bridge.events.toList())
+            manager.select("a", LlmGenerationSettings(contextLength = 512, maxTokens = 101))
+            bridge.events.clear()
+            assertFailsWith<VitaMessageException> { llm.generateStream(edge).collect() }
+            assertEquals(listOf("render"), bridge.events.toList())
+            llm.generateStream(edge.copy(userData = "é".repeat(155))).collect()
+            assertEquals(395, bridge.streamPrompts.last().encodeToByteArray().size)
+        }
+    }
+
+    @Test fun realBuilderOverflowLeavesControllerConversationEmptyAndQuestionRetained() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            val store = Store(CANDIDATE); store.selected = "a"
+            val manager = store.manager(llm)
+            val repository = InMemoryVezunaRepository()
+            val now = Instant.parse("2026-01-01T00:00:00Z")
+            repository.createProfile(Profile("A", "A", createdAt = now))
+            val controller = AppController(repository, manager, LocalHealthChat(repository, llm) { ContentLanguage.PT })
+            controller.initialize(); controller.switchProfile("A")
+            val data = repository.readProfile("A")
+            val prefix = "ação 😀\u0000"
+            val initial = HealthPromptBuilder.build(data, emptySet(), prefix, ContentLanguage.PT)
+            val envelope = "<|im_start|>system\n${initial.system}<|im_end|>\n<|im_start|>user\n${initial.userData}<|im_end|>\n<|im_start|>assistant\n"
+            // Requested4096 - answer512 - margin16 =3568 bytes, including escaped supplementary/control text.
+            val padding = 3568 - envelope.encodeToByteArray().size
+            assertTrue(padding > 0)
+            val accepted = prefix + "x".repeat(padding)
+            var input = accepted + "x"
+            bridge.events.clear()
+            if (controller.ask(input)) input = "" // Same retained-input contract as AssistantChat.
+            assertEquals(accepted + "x", input)
+            assertEquals(app.vezuna.localization.message(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE), controller.state.value.error)
+            assertNull(controller.state.value.streamingAnswer)
+            assertTrue(repository.readProfile("A").chat.isEmpty())
+            assertEquals(listOf("render"), bridge.events.toList())
+            assertTrue(bridge.streamPrompts.isEmpty())
+            input = accepted
+            if (controller.ask(input)) input = ""
+            assertEquals("", input)
+            assertEquals(3568, bridge.streamPrompts.single().encodeToByteArray().size)
+            val renderedData = bridge.renderCalls.last()[1].second
+            val parsed = kotlinx.serialization.json.Json.parseToJsonElement(renderedData) as kotlinx.serialization.json.JsonObject
+            assertEquals(accepted, (parsed["question"] as kotlinx.serialization.json.JsonPrimitive).content)
+            assertEquals(listOf(accepted, "answer"), repository.readProfile("A").chat.map { it.content })
+        }
+    }
+
+    @Test fun realHealthChatRejectsOversizedFactsWithoutPartialsAndAcceptsAllSelectedFacts() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            Store(CANDIDATE).manager(llm).select("a")
+            val repository = InMemoryVezunaRepository()
+            val now = Instant.parse("2026-01-01T00:00:00Z")
+            repository.createProfile(Profile("A", "A", createdAt = now))
+            val fact = app.vezuna.domain.LabObservation("A", "selected", "r", "HGB", "Hemoglobin", 130.0, "g/L", 130.0, "g/L",
+                app.vezuna.domain.ReferenceRange(120.0, 140.0), now, app.vezuna.domain.ConfirmationStatus.CONFIRMED)
+            val original = repository.readProfile("A").copy(observations = listOf(fact, fact.copy(observationId = "unselected", displayName = "not selected")))
+            val chat = LocalHealthChat(repository, llm) { ContentLanguage.ES }
+            val partials = mutableListOf<String>()
+            val oversized = original.copy(observations = listOf(fact.copy(displayName = "é".repeat(4096))))
+            bridge.events.clear()
+            val failure = assertFailsWith<VitaMessageException> { chat.ask(oversized, setOf("selected"), "¿Qué significa?") { partials += it } }
+            assertEquals(app.vezuna.localization.L10nKey.PROMPT_TOO_LARGE, failure.userText.key)
+            assertTrue(partials.isEmpty()); assertTrue(repository.readProfile("A").chat.isEmpty())
+            assertEquals(listOf("render"), bridge.events.toList())
+            chat.ask(original, setOf("selected"), "¿Qué significa?") { partials += it }
+            val body = kotlinx.serialization.json.Json.parseToJsonElement(bridge.renderCalls.last()[1].second) as kotlinx.serialization.json.JsonObject
+            val facts = body["facts"] as kotlinx.serialization.json.JsonArray
+            assertEquals(1, facts.size)
+            val fields = (facts.single() as kotlinx.serialization.json.JsonObject).mapValues { (_, v) -> (v as kotlinx.serialization.json.JsonPrimitive).content }
+            assertEquals(mapOf("collectedAt" to "2026-01-01T00:00:00Z", "displayName" to "Hemoglobin", "testCode" to "HGB",
+                "reference" to "120–140", "originalValue" to "130", "originalUnit" to "g/L", "normalizedValue" to "130", "normalizedUnit" to "g/L"), fields)
+            assertEquals(listOf("answer"), partials)
+            assertEquals(listOf("¿Qué significa?", "answer"), repository.readProfile("A").chat.map { it.content })
+            assertEquals(fact, original.observations.first())
+        }
+    }
+
     @Test fun injectedAdapterStartsWithoutJni() = boundedTest {
         val calls = mutableListOf<String>()
-        val bridge = object : AndroidLlamaBridge {
+        val bridge = object : LlamatikBridge {
             override fun params(settings: LlmGenerationSettings) { calls += "params" }
             override fun init(path: String): Boolean { calls += "init"; return true }
             override fun generate(prompt: String): String { calls += "generate"; return "answer" }
-            override fun stream(prompt: String, callbacks: GenStream) { callbacks.onComplete() }
+            override fun stream(prompt: String, callbacks: LlamatikStream) { callbacks.onComplete() }
             override fun cancel() { error("Unexpected cancel") }
             override fun shutdown() { calls += "shutdown" }
         }
-        val adapter = LlamatikLocalLlm(AndroidEngineOwner(bridge))
+        val adapter = LlamatikLocalLlm(LlamatikEngineOwner(bridge))
         adapter.load("synthetic.gguf", LlmGenerationSettings())
         assertEquals("answer", adapter.generate("synthetic"))
         adapter.generateStream("synthetic stream").collect()
@@ -51,28 +364,37 @@ class AndroidEngineOwnershipTest {
         fun release() = release.countDown()
         suspend fun await() = withTimeout(5_000) { entered.await() }
     }
-    private class Bridge : AndroidLlamaBridge {
+    private class Bridge : LlamatikBridge {
         val events = CopyOnWriteArrayList<String>()
+        val settingsCalls = CopyOnWriteArrayList<LlmGenerationSettings>()
+        val renderCalls = CopyOnWriteArrayList<List<Pair<String, String>>>()
+        val streamPrompts = CopyOnWriteArrayList<String>()
         var onParams: () -> Unit = {}
         var onInit: () -> Boolean = { true }
         var onShutdown: () -> Unit = {}
         var onGenerate: () -> String = { "answer" }
-        var onStream: (GenStream) -> Unit = { it.onDelta("answer"); it.onComplete() }
+        var onStream: (LlamatikStream) -> Unit = { it.onDelta("answer"); it.onComplete() }
         var onCancel: () -> Unit = {}
-        override fun params(settings: LlmGenerationSettings) { events += "params"; onParams() }
+        var onRender: (List<Pair<String, String>>) -> String? = { messages ->
+            "<|im_start|>system\n${messages[0].second}<|im_end|>\n<|im_start|>user\n${messages[1].second}<|im_end|>\n<|im_start|>assistant\n"
+        }
+        override fun render(messages: List<Pair<String, String>>): String? { events += "render"; renderCalls += messages.toList(); return onRender(messages) }
+        override fun params(settings: LlmGenerationSettings) { events += "params"; settingsCalls += settings; onParams() }
         override fun init(path: String): Boolean { events += "init:$path"; return onInit() }
         override fun shutdown() { events += "shutdown"; onShutdown() }
         override fun generate(prompt: String): String { events += "generate"; return onGenerate() }
-        override fun stream(prompt: String, callbacks: GenStream) { events += "stream"; onStream(callbacks) }
+        override fun stream(prompt: String, callbacks: LlamatikStream) { events += "stream"; streamPrompts += prompt; onStream(callbacks) }
         override fun cancel() { events += "cancel"; onCancel() }
     }
-    private class Store : ModelFileStore {
-        val a = ModelPack("a", "A", "a.gguf", "android-a", "ios-a", 1, 1, 4096, "0".repeat(64))
+    private class Store(sha: String = "0".repeat(64)) : ModelFileStore {
+        val a = ModelPack("a", "A", "a.gguf", "android-a", "ios-a", 1, 1, 4096, sha)
         val b = a.copy(modelId = "b", fileName = "b.gguf", displayName = "B")
         var entries = listOf(InstalledModel(a, "a.gguf", 1), InstalledModel(b, "b.gguf", 1))
         var selected: String? = null
         val events = CopyOnWriteArrayList<String>()
         var save: suspend (String?) -> Unit = { selected = it }
+        var integrity = true
+        var beforeIntegrity: suspend () -> Unit = {}
         var installAction: suspend () -> Unit = {}
         var deleteAction: suspend () -> Unit = {}
         var read: suspend () -> Unit = {}
@@ -81,8 +403,13 @@ class AndroidEngineOwnershipTest {
         override suspend fun saveSelection(modelId: String?) { events += "save:$modelId"; save(modelId) }
         override suspend fun install(model: InstalledModel, sourcePath: String) { events += "install"; installAction() }
         override suspend fun delete(model: InstalledModel) { events += "delete"; deleteAction(); entries = entries.filterNot { it == model }; if (selected == model.pack.modelId) selected = null }
-        override suspend fun verifyIntegrity(model: InstalledModel) = true
-        fun manager(llm: LocalLlm) = InstalledModelManager(ModelCatalog(listOf(a, b)), this, llm)
+        override suspend fun verifyIntegrity(model: InstalledModel): Boolean { beforeIntegrity(); return integrity }
+        var admission = ModelLoadAdmission { _, _ -> }
+        private val capacity = object : DeviceCapacity {
+            override fun totalRamBytes() = Long.MAX_VALUE
+            override fun freeStorageBytes() = Long.MAX_VALUE
+        }
+        fun manager(llm: LocalLlm) = InstalledModelManager(ModelCatalog(listOf(a, b)), this, llm, capacity, admission)
     }
     private suspend fun join(job: Job) = withContext(NonCancellable) { withTimeout(5_000) { job.join() } }
     private suspend fun signal(channel: Channel<Unit>) = withTimeout(5_000) { channel.receive() }
@@ -102,9 +429,61 @@ class AndroidEngineOwnershipTest {
         }
     }
 
+    @Test fun deniedGuardProducesNoEntryReceiptAndKeepsLease() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
+            llm.load("a", LlmGenerationSettings()); val previous = llm.lease(); bridge.events.clear()
+            val request = LifecycleRequest(LifecycleCommand.Replace("b", LlmGenerationSettings(), admission = {
+                throw ModelResourceDenial(app.vezuna.localization.message(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE))
+            }), previous)
+            assertFailsWith<ModelResourceDenial> { llm.applyLifecycle(request) }
+            assertEquals(LifecycleDisposition.NoEntry, request.receipt.disposition)
+            assertNull(request.receipt.lease); assertTrue(previous === llm.lease()); assertTrue(bridge.events.isEmpty())
+        }
+    }
+
+    @Test fun admissionSamplesAfterIntegrityFinishes() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store()
+            val allowed = java.util.concurrent.atomic.AtomicBoolean(true)
+            store.admission = ModelLoadAdmission { _, _ -> if (!allowed.get()) app.vezuna.localization.failMessage(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE) }
+            val manager = store.manager(llm); manager.select("a")
+            val lease = llm.lease(); bridge.events.clear(); store.events.clear()
+            val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+            store.beforeIntegrity = { entered.complete(Unit); release.await() }
+            val replacement = async { runCatching { manager.select("b") } }
+            try { entered.await(); allowed.set(false) } finally { release.complete(Unit) }
+            assertTrue(replacement.await().exceptionOrNull() is ModelResourceDenial)
+            assertTrue(lease === llm.lease()); assertEquals("a", manager.readyModelId())
+            assertTrue(bridge.events.isEmpty()); assertTrue(store.events.isEmpty())
+        }
+    }
+
+    @Test fun queuedReplacementSamplesAfterGenerationReturns() = boundedTest {
+        fixture { bridge, dispatcher ->
+            val queued = Channel<Unit>(Channel.UNLIMITED)
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
+            val llm = LlamatikLocalLlm(owner); val store = Store()
+            val allowed = java.util.concurrent.atomic.AtomicBoolean(true)
+            store.admission = ModelLoadAdmission { _, _ -> if (!allowed.get()) app.vezuna.localization.failMessage(app.vezuna.localization.L10nKey.MODEL_MEMORY_PRESSURE) }
+            val manager = store.manager(llm); manager.select("a")
+            val lease = llm.lease(); bridge.events.clear(); store.events.clear()
+            val native = Barrier(); bridge.onGenerate = { native.block(); "answer" }
+            val generation = launch { llm.generate("hold") }; native.await()
+            val replacement = async { runCatching { manager.select("b") } }
+            try { signal(queued); allowed.set(false) } finally { native.release(); join(generation) }
+            assertTrue(replacement.await().exceptionOrNull() is ModelResourceDenial)
+            assertTrue(lease === llm.lease())
+            assertEquals("a", manager.readyModelId())
+            assertEquals("a", store.selected)
+            assertTrue(store.events.isEmpty())
+            assertEquals(listOf("generate"), bridge.events.toList())
+        }
+    }
+
     @Test fun firstAndSameIdClaimsRevokeOldSessionPermanently() = boundedTest {
         for (id in listOf("a", "b")) fixture { bridge, dispatcher ->
-            val owner = AndroidEngineOwner(bridge, dispatcher)
+            val owner = LlamatikEngineOwner(bridge, dispatcher)
             val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
             val store = Store(); val ma = store.manager(a); val mb = store.manager(b)
             ma.select("a"); bridge.events.clear(); store.events.clear()
@@ -127,7 +506,7 @@ class AndroidEngineOwnershipTest {
     @Test fun canceledQueuedGenerationLoadAndUnloadNeverTouchActiveAttempt() = boundedTest {
         for (kind in listOf("sync", "stream", "load", "unload")) fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED)
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
             val llm = LlamatikLocalLlm(owner); llm.load("a", LlmGenerationSettings())
             val native = Barrier(); bridge.onGenerate = { native.block(); bridge.events += "A-return"; "a" }
             val a = launch { llm.generate("A") }; native.await()
@@ -152,7 +531,7 @@ class AndroidEngineOwnershipTest {
     @Test fun acquiredBeforeCallingCancellationTransfersNoLease() = boundedTest {
         for (command in listOf(LifecycleCommand.Replace("b", LlmGenerationSettings()), LifecycleCommand.Shutdown)) fixture { bridge, dispatcher ->
             val hook = AtomicReference<Barrier?>()
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(acquired = { hook.get()?.block() }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(acquired = { hook.get()?.block() }))
             val a = LlamatikLocalLlm(owner); a.load("a", LlmGenerationSettings())
             val previous = a.lease(); val barrier = Barrier(); hook.set(barrier)
             val request = LifecycleRequest(command, previous)
@@ -168,7 +547,7 @@ class AndroidEngineOwnershipTest {
     @Test fun oldCapturedGenerationCannotAdoptReplacementLease() = boundedTest {
         for (stream in listOf(false, true)) fixture { bridge, dispatcher ->
             val hook = AtomicReference<Barrier?>()
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
             val llm = LlamatikLocalLlm(owner); llm.load("a", LlmGenerationSettings())
             val barrier = Barrier(); hook.set(barrier)
             val stale = async(dispatcher) { runCatching { if (stream) llm.generateStream("old").collect() else llm.generate("old") } }
@@ -186,7 +565,7 @@ class AndroidEngineOwnershipTest {
     @Test fun capturedGenerationRejectsDistinctWrapperClaimForBothStylesAndIds() = boundedTest {
         for (stream in listOf(false, true)) for (id in listOf("a", "b")) fixture { bridge, dispatcher ->
             val hook = AtomicReference<Barrier?>()
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { hook.get()?.block() }))
             val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
             val store = Store(); val ma = store.manager(a); val mb = store.manager(b)
             ma.select("a"); bridge.events.clear()
@@ -211,7 +590,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun lifecycleFailuresRemainUncertainUntilOrdinaryShutdown() = boundedTest {
         for (failure in listOf("params", "false", "init", "shutdown")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); llm.load("a", LlmGenerationSettings())
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); llm.load("a", LlmGenerationSettings())
             bridge.events.clear()
             when (failure) {
                 "params" -> bridge.onParams = { error("synthetic") }
@@ -233,7 +612,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun canceledEnteredLoadAndShutdownReconcileReceiptsAndBusy() = boundedTest {
         for (stage in listOf("init", "shutdown")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("a"); store.events.clear()
             val native = Barrier()
             if (stage == "init") bridge.onInit = { native.block(); true } else bridge.onShutdown = { native.block() }
@@ -250,9 +629,9 @@ class AndroidEngineOwnershipTest {
     @Test fun cancelOnceThrowingAndTerminalCallbacksRetainAdmission() = boundedTest {
         for (terminal in listOf("none", "complete", "error")) fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED); val cancelEntered = CompletableDeferred<Unit>()
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
             val llm = LlamatikLocalLlm(owner); llm.load("a", LlmGenerationSettings())
-            val native = Barrier(); var retained: GenStream? = null
+            val native = Barrier(); var retained: LlamatikStream? = null
             bridge.onCancel = { cancelEntered.complete(Unit); error("synthetic cancel failure") }
             bridge.onStream = { callbacks ->
                 retained = callbacks
@@ -280,7 +659,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun saveFailureRetainsAndroidLoadedAcknowledgementAndUnknownSelection() = boundedTest {
         for (mutation in listOf(false, true)) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("a"); bridge.events.clear()
             store.save = { if (mutation) store.selected = it; error("synthetic save failure") }
             assertFailsWith<ModelOperationFailure> { manager.select("b") }
@@ -296,14 +675,14 @@ class AndroidEngineOwnershipTest {
     @Test fun actualControllerProfileSwitchWaitsForNativeReturnAndDiscardsA() = boundedTest {
         fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED); val canceled = CompletableDeferred<Unit>()
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
-            val store = Store(); store.selected = "a"; val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            val store = Store(CANDIDATE); store.selected = "a"; val manager = store.manager(llm)
             val repository = InMemoryVezunaRepository()
             val now = Instant.parse("2026-01-01T00:00:00Z")
             repository.createProfile(Profile("A", "A", createdAt = now)); repository.createProfile(Profile("B", "B", createdAt = now))
             val controller = AppController(repository, manager, LocalHealthChat(repository, llm) { ContentLanguage.EN })
             controller.initialize(); controller.switchProfile("A")
-            val native = Barrier(); val successor = Barrier(); val retained = AtomicReference<GenStream>()
+            val native = Barrier(); val successor = Barrier(); val retained = AtomicReference<LlamatikStream>()
             bridge.onCancel = { canceled.complete(Unit) }
             var first = true
             bridge.onStream = { cb ->
@@ -348,7 +727,7 @@ class AndroidEngineOwnershipTest {
         for (kind in listOf("load", "unload", "sync", "stream")) {
             val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
             val bridge = Bridge(); val waiting = Channel<Unit>(Channel.UNLIMITED)
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { waiting.trySend(Unit) }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(waiting = { waiting.trySend(Unit) }))
             val llm = LlamatikLocalLlm(owner)
             val parked = Barrier()
             try {
@@ -373,7 +752,7 @@ class AndroidEngineOwnershipTest {
     @Test fun synchronousCancelReachesNativeAndFencesSuccessorThroughCancelReturn() = boundedTest {
         fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED)
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
             llm.load("a", LlmGenerationSettings())
             val native = Barrier(); val cancel = Barrier(); val nativeReturned = CompletableDeferred<Unit>()
             bridge.onGenerate = { native.block(); bridge.events += "A-return"; nativeReturned.complete(Unit); "A" }
@@ -395,7 +774,7 @@ class AndroidEngineOwnershipTest {
     @Test fun acknowledgedCanceledReceiptCannotReviveSupersededManager() = boundedTest {
         fixture { bridge, dispatcher ->
             val afterReturn = AtomicReference<Barrier?>()
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(returned = { afterReturn.getAndSet(null)?.block() }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(returned = { afterReturn.getAndSet(null)?.block() }))
             val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
             val store = Store(); val ma = store.manager(a); val mb = store.manager(b)
             ma.select("a")
@@ -414,7 +793,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun canceledEnteredFailuresPreserveCancellationAndUncertainty() = boundedTest {
         for (stage in listOf("params", "init", "false", "shutdown")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("a"); val barrier = Barrier()
             when (stage) {
                 "params" -> bridge.onParams = { barrier.block(); error("synthetic") }
@@ -438,7 +817,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun unboundShutdownAndGenerationHaveNoNativeEffects() = boundedTest {
         fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher))
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher))
             val request = LifecycleRequest(LifecycleCommand.Shutdown, null)
             llm.applyLifecycle(request)
             assertEquals(LifecycleDisposition.NoEntry, request.receipt.disposition)
@@ -451,7 +830,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun hiddenSaveReturnLeavesUnknownWithoutCompensatingNativeOrStorageEffects() = boundedTest {
         fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("a"); bridge.events.clear(); store.events.clear()
             val saved = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
             store.save = { store.selected = it; saved.complete(Unit); release.await() }
@@ -473,7 +852,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun alreadyEnteredStorageMutationCanFinishAfterSuccessorSave() = boundedTest {
         fixture { bridge, dispatcher ->
-            val owner = AndroidEngineOwner(bridge, dispatcher); val store = Store()
+            val owner = LlamatikEngineOwner(bridge, dispatcher); val store = Store()
             val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
             val ma = store.manager(a); val mb = store.manager(b)
             val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
@@ -497,7 +876,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun fileMutationFailuresRetainRefreshRequirementAndDisableRelevantLoadedFile() = boundedTest {
         for (kind in listOf("install", "delete")) for (outcome in listOf("before", "after", "cancel", "readback")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("a"); bridge.events.clear(); store.events.clear()
             val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
             val effect: suspend () -> Unit = {
@@ -528,7 +907,7 @@ class AndroidEngineOwnershipTest {
     @Test fun canceledQueuedManagerOperationsClearBusyWithoutCancelingActiveGeneration() = boundedTest {
         for (kind in listOf("select", "refresh", "unload")) fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED)
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) })))
             val store = Store(); val manager = store.manager(llm); manager.select("a")
             bridge.events.clear(); store.events.clear()
             val native = Barrier(); bridge.onGenerate = { native.block(); "A" }
@@ -549,7 +928,7 @@ class AndroidEngineOwnershipTest {
     @Test fun newWrapperReplacementWaitsThroughOldStreamActualReturn() = boundedTest {
         fixture { bridge, dispatcher ->
             val queued = Channel<Unit>(Channel.UNLIMITED)
-            val owner = AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
+            val owner = LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(queued = { queued.trySend(Unit) }))
             val a = LlamatikLocalLlm(owner); val b = LlamatikLocalLlm(owner)
             a.load("a", LlmGenerationSettings()); bridge.events.clear()
             val native = Barrier(); bridge.onStream = { native.block(); bridge.events += "A-return" }
@@ -564,7 +943,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun nativeReturnWithoutTerminalAndThrownGenerationReleaseAdmission() = boundedTest {
         fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); llm.load("a", LlmGenerationSettings())
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); llm.load("a", LlmGenerationSettings())
             bridge.onStream = { it.onDelta("chunk") }
             val chunks = mutableListOf<String>(); llm.generateStream("A").collect { chunks += it }
             assertEquals(listOf("chunk"), chunks)
@@ -578,7 +957,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun failedNormalizationAndHiddenClearReturnStayUnknownThenExplicitRefreshObservesNone() = boundedTest {
         for (outcome in listOf("before", "after", "cancel")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             store.selected = "missing"
             val entered = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
             store.save = {
@@ -602,7 +981,7 @@ class AndroidEngineOwnershipTest {
     @Test fun acquiredGenerationCancellationAndAcknowledgedDeleteKeepTruthfulProjections() = boundedTest {
         for (stream in listOf(false, true)) fixture { bridge, dispatcher ->
             val hook = AtomicReference<Barrier?>()
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher, EngineSchedulingHooks(acquired = { hook.get()?.block() })))
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher, EngineSchedulingHooks(acquired = { hook.get()?.block() })))
             val store = Store(); val manager = store.manager(llm); manager.select("a")
             bridge.events.clear()
             val barrier = Barrier(); hook.set(barrier)
@@ -618,7 +997,7 @@ class AndroidEngineOwnershipTest {
 
     @Test fun deleteInternalSelectionClearIsUnknownWithoutAnyExplicitSelectionSave() = boundedTest {
         for (outcome in listOf("before", "after", "cancel", "acknowledged")) fixture { bridge, dispatcher ->
-            val llm = LlamatikLocalLlm(AndroidEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
+            val llm = LlamatikLocalLlm(LlamatikEngineOwner(bridge, dispatcher)); val store = Store(); val manager = store.manager(llm)
             manager.select("b")
             // Another manager changed storage after this manager's last acknowledged observation.
             store.selected = "a"; store.events.clear(); bridge.events.clear()

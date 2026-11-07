@@ -15,8 +15,9 @@ internal sealed interface EngineOwnerStatus {
 }
 internal enum class NativeStage { Shutdown, Load }
 internal enum class LifecycleDisposition { NoEntry, Superseded, ShutdownAcknowledged, LoadAcknowledged, Uncertain }
+internal data class VerifiedModelDigest(val sha256: String)
 internal sealed interface LifecycleCommand {
-    data class Replace(val path: String, val settings: LlmGenerationSettings) : LifecycleCommand
+    data class Replace(val path: String, val settings: LlmGenerationSettings, val verifiedDigest: VerifiedModelDigest? = null, val admission: () -> Unit = {}) : LifecycleCommand
     data object Shutdown : LifecycleCommand
 }
 internal data class LifecycleReceipt(
@@ -39,5 +40,6 @@ internal interface ManagedLlmLifecycle {
 }
 
 /** Only failures classified at an external model-operation boundary are consumed by assistant actions. */
-internal class ModelOperationFailure(val userText: UserText, cause: Throwable? = null) : Exception(null, cause)
+internal open class ModelOperationFailure(val userText: UserText, cause: Throwable? = null) : Exception(null, cause)
+internal class ModelResourceDenial(userText: UserText, cause: Throwable? = null) : ModelOperationFailure(userText, cause)
 internal fun sessionSuperseded(): Nothing = throw ModelOperationFailure(message(L10nKey.MODEL_SESSION_SUPERSEDED))
