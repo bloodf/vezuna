@@ -53,7 +53,7 @@ The app contains a selectable notice reader under **Device**, then **Third-party
 
 The [notice manifest](third_party/notices-manifest.json) pins every input by SHA-256. The [generator](tools/release/build_notices.py) groups identical texts and preserves their bytes inside the generated platform files. Release scripts compare the resolved dependencies with the reviewed inventories, then check the notices in the actual APK, AAB, iOS app, or IPA.
 
-The recorded inventories cover [146 Android artifacts](third_party/android-runtime-inventory.json) and [52 iOS KLIBs](third_party/ios-runtime-inventory.json). Their 100 embedded notice entries reduce to five distinct payloads under `third_party/runtime-notices/`. This checks metadata and preserves supplied notices; it does not independently establish every prebuilt library's source or replace publisher review of SDK agreements.
+The recorded inventories cover [149 Android artifacts](third_party/android-runtime-inventory.json) and [52 iOS KLIBs](third_party/ios-runtime-inventory.json). Their 105 embedded notice entries reduce to six distinct payloads under `third_party/runtime-notices/`. This checks metadata and preserves supplied notices; it does not independently establish every prebuilt library's source or replace publisher review of SDK agreements.
 
 The PDFBox Android artifact also contains Liberation Sans 2.1.5. Its name table declares SIL OFL 1.1 and Google/Red Hat copyright; the [pinned font license and artifact metadata](third_party/liberation-fonts-2.1.5/PROVENANCE.json) are retained. Bouncy Castle's [license text](third_party/bouncycastle-1.72/LICENSE.txt) was reconstructed from the actual JAR's `org.bouncycastle.LICENSE` bytecode without executing it.
 
