@@ -451,7 +451,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
 
     private func performReplay() async {
         do {
-            for response in try pendingResponses.load() {
+            while let response = try pendingResponses.load().first {
                 // The dose event id is deterministic, so a replay of an already recorded action is a no-op.
                 let outcome: Outcome
                 if response.isExpired(now: Date()) { outcome = .drop }
@@ -612,13 +612,22 @@ final class PendingResponseQueue {
     private let lock = NSLock()
     private let open: () throws -> PendingDoseResponseStore
     private let write: (PendingDoseResponseStore, PendingDoseResponse) throws -> Void
+    private let delete: (PendingDoseResponseStore, PendingDoseResponse) throws -> Void
+    private let resolveRoot: () throws -> URL
+    private let listDirectory: (String) throws -> [String]
     private var store: PendingDoseResponseStore?
     private var waiting: [PendingDoseResponse] = []
 
-    init(open: @escaping () throws -> PendingDoseResponseStore = PendingDoseResponseStore.standard,
-         write: @escaping (PendingDoseResponseStore, PendingDoseResponse) throws -> Void = { try $0.append($1) }) {
-        self.open = open
+    init(open: (() throws -> PendingDoseResponseStore)? = nil,
+         resolveRoot: @escaping () throws -> URL = PendingDoseResponseStore.applicationSupport,
+         listDirectory: @escaping (String) throws -> [String] = { try FileManager.default.contentsOfDirectory(atPath: $0) },
+         write: @escaping (PendingDoseResponseStore, PendingDoseResponse) throws -> Void = { try $0.append($1) },
+         delete: @escaping (PendingDoseResponseStore, PendingDoseResponse) throws -> Void = { try $0.remove($1) }) {
+        self.open = open ?? { try PendingDoseResponseStore.standard(root: resolveRoot()) }
+        self.resolveRoot = resolveRoot
+        self.listDirectory = listDirectory
         self.write = write
+        self.delete = delete
     }
 
     func append(_ response: PendingDoseResponse) throws {
@@ -632,7 +641,12 @@ final class PendingResponseQueue {
     func load() throws -> [PendingDoseResponse] {
         lock.lock(); defer { lock.unlock() }
         // A failed write does not prevent reading already durable responses in front of the volatile queue.
-        do { try flush() } catch { if store == nil { throw error } }
+        do { try flush() } catch {
+            if store == nil {
+                guard try directoryIsAbsent() else { throw error }
+                return waiting
+            }
+        }
         let durable = try store!.load()
         return durable + waiting.filter { candidate in
             !durable.contains { $0.notificationIdentifier == candidate.notificationIdentifier && $0.action == candidate.action }
@@ -641,8 +655,12 @@ final class PendingResponseQueue {
 
     func remove(_ response: PendingDoseResponse) throws {
         lock.lock(); defer { lock.unlock() }
-        guard let store else { throw CocoaError(.fileReadUnknown) }
-        if try store.load().contains(response) { try store.remove(response) }
+        guard let store else {
+            guard try directoryIsAbsent() else { throw CocoaError(.fileReadUnknown) }
+            waiting.removeAll { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }
+            return
+        }
+        if try store.load().contains(response) { try delete(store, response) }
         waiting.removeAll { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }
     }
 
@@ -652,6 +670,10 @@ final class PendingResponseQueue {
             try write(store!, response)
             waiting.removeFirst()
         }
+    }
+
+    private func directoryIsAbsent() throws -> Bool {
+        try !listDirectory(resolveRoot().path).contains("VezunaPending")
     }
 }
 
