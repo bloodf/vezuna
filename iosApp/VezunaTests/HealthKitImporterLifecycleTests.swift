@@ -80,3 +80,61 @@ final class HealthKitImporterLifecycleTests: XCTestCase {
         XCTAssertEqual(calls, 2)
     }
 }
+
+extension HealthKitImporterLifecycleTests {
+    func testWeightPagesReadThroughExactBoundaryAndEmptyFinalPage() async throws {
+        let first = HealthKitImporter.Weight(recordId: "a", epochSeconds: 1, kg: 60)
+        let second = HealthKitImporter.Weight(recordId: "b", epochSeconds: 2, kg: 61)
+        var cursors: [Int?] = []
+        let result = try await HealthKitImporter.collectWeightPages(check: {}) { (cursor: Int?) in
+            cursors.append(cursor)
+            switch cursor {
+            case nil: return ([first], [], 1)
+            case 1: return ([second], [], 2)
+            default: return ([], [], 3)
+            }
+        }
+        XCTAssertEqual(result.map(\.recordId), ["a", "b"])
+        XCTAssertEqual(cursors.count, 3)
+        XCTAssertNil(cursors[0])
+        XCTAssertEqual(cursors[2], 2)
+    }
+
+    func testWeightPageCancellationStopsBeforeNextPage() async throws {
+        var cancelled = false
+        var reads = 0
+        do {
+            _ = try await HealthKitImporter.collectWeightPages(check: {
+                if cancelled { throw CancellationError() }
+            }) { (_: Int?) in
+                reads += 1
+                cancelled = true
+                return ([HealthKitImporter.Weight(recordId: "a", epochSeconds: 1, kg: 60)], [], 1)
+            }
+            XCTFail("Cancellation must stop the read")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(reads, 1)
+    }
+
+    func testWeightPageDeletionAndSaveFailureRetryFromBeginning() async throws {
+        let weight = HealthKitImporter.Weight(recordId: "a", epochSeconds: 1, kg: 60)
+        var starts = 0
+        func read() async throws -> [HealthKitImporter.Weight] {
+            try await HealthKitImporter.collectWeightPages(check: {}) { (cursor: Int?) in
+                if cursor == nil { starts += 1; return ([weight], [], 1) }
+                if cursor == 1 { return ([], ["a"], 2) }
+                return ([], [], 3)
+            }
+        }
+        let importer = HealthKitImporter(ingest: { _, completion in completion("save failed") })
+        let values = try await read()
+        XCTAssertTrue(values.isEmpty)
+        do {
+            try await importer.persist(HealthKitImporter.Payload(profileId: "a", generation: 1, zoneId: "UTC", replaceFromEpochSeconds: 0, steps: [], heartRate: [], weights: values))
+            XCTFail("Save must fail")
+        } catch HealthImportError.persistFailed {} catch { XCTFail("Unexpected error: \(error)") }
+        let retry = try await read()
+        XCTAssertTrue(retry.isEmpty)
+        XCTAssertEqual(starts, 2)
+    }
+}
