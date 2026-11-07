@@ -4,7 +4,7 @@
 Validates that a local AI acceptance report satisfies contract boundaries,
 including fixture SHA binding, target settings, device classification, safe
 evidence path containment, and all required operations (partial_cancel, successor,
-restart, offline). Rejects fabricated physical claims, unknown fields, and any
+restart, offline). Checks declared physical identity, without authenticating hardware; rejects inconsistent claims, unknown fields, and any
 contradictory or failing operation claiming PASS.
 
 Standard library only. Never reads health data, private samples, or keystores.
@@ -12,7 +12,7 @@ Standard library only. Never reads health data, private samples, or keystores.
 from dataclasses import dataclass, field
 import hashlib
 import json
-import os
+import math
 from pathlib import Path
 import re
 import sys
@@ -29,6 +29,8 @@ REQUIRED_TOP_LEVEL_KEYS: Set[str] = {
 }
 
 REQUIRED_OPERATIONS: Set[str] = {
+    "load",
+    "generation",
     "partial_cancel",
     "successor",
     "restart",
@@ -80,44 +82,28 @@ def validate_safe_path(rel_path_str: str, root_dir: Path) -> Path:
     if not isinstance(rel_path_str, str) or not rel_path_str.strip():
         raise ReportValidationError("Path reference must be a non-empty string")
 
-    normalized = os.path.normpath(rel_path_str.strip())
-    path_obj = Path(normalized)
-
+    path_obj = Path(rel_path_str)
     if path_obj.is_absolute():
-        raise ReportValidationError(f"Path must be relative to repository root: {rel_path_str}")
+        raise ReportValidationError("Path must be relative to repository root")
+    if ".." in path_obj.parts:
+        raise ReportValidationError("Path traversal detected")
 
-    parts = set(path_obj.parts)
-    if ".." in parts:
-        raise ReportValidationError(f"Path traversal detected in path reference: {rel_path_str}")
+    def check_forbidden(path):
+        if set(path.parts) & FORBIDDEN_PATH_PARTS:
+            raise ReportValidationError("Path references forbidden private or health data segment")
+        if path.suffix.lower() in FORBIDDEN_EXTENSIONS:
+            raise ReportValidationError("Path references forbidden file extension")
 
-    forbidden_intersect = parts.intersection(FORBIDDEN_PATH_PARTS)
-    if forbidden_intersect:
-        raise ReportValidationError(
-            f"Path references forbidden private or health data segment {sorted(forbidden_intersect)}: {rel_path_str}"
-        )
-
-    suffix_lower = path_obj.suffix.lower()
-    if suffix_lower in FORBIDDEN_EXTENSIONS:
-        raise ReportValidationError(
-            f"Path references forbidden file extension {suffix_lower}: {rel_path_str}"
-        )
-
-    resolved = (root_dir / path_obj).resolve()
-    resolved_root = root_dir.resolve()
+    check_forbidden(path_obj)
     try:
-        resolved.relative_to(resolved_root)
-    except ValueError:
-        raise ReportValidationError(f"Path resolves outside repository containment: {rel_path_str}")
-
-    # If the file exists, ensure it is not a symlink escaping root or pointing to forbidden targets
-    if resolved.is_symlink():
-        target = resolved.resolve()
-        try:
-            target.relative_to(resolved_root)
-        except ValueError:
-            raise ReportValidationError(f"Symlink escapes repository containment: {rel_path_str}")
-
-    return path_obj
+        resolved = (root_dir / path_obj).resolve()
+        relative = resolved.relative_to(root_dir.resolve())
+        check_forbidden(relative)
+        if resolved.exists() and not resolved.is_file():
+            raise ReportValidationError("Reference must be a regular file")
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise ReportValidationError("Unsafe or inaccessible path reference") from exc
+    return relative
 
 
 def _compute_sha256(path: Path) -> str:
@@ -163,8 +149,8 @@ def validate_report_data(
             errors.append("'contract.lease_id' must be a non-empty string")
 
         schema_version = contract.get("schema_version")
-        if not schema_version:
-            errors.append("'contract.schema_version' must be specified")
+        if type(schema_version) is not str or schema_version != "1.0":
+            errors.append("'contract.schema_version' must be supported version 1.0")
 
         fixture = contract.get("fixture")
         if not isinstance(fixture, dict):
@@ -193,15 +179,15 @@ def validate_report_data(
                                 errors.append(
                                     f"Fixture size mismatch: declared={fix_size}, actual={full_fix_path.stat().st_size}"
                                 )
-                except ReportValidationError as e:
+                except (ReportValidationError, OSError, ValueError) as e:
                     errors.append(f"Fixture path validation error: {e}")
 
-            if not fix_sha or not isinstance(fix_sha, str) or not SHA256_REGEX.match(fix_sha):
+            if not fix_sha or not isinstance(fix_sha, str) or not SHA256_REGEX.fullmatch(fix_sha):
                 errors.append(
                     f"'contract.fixture.sha256' must be a 64-character lowercase hex string, got {fix_sha!r}"
                 )
 
-            if not isinstance(fix_size, int) or fix_size <= 0:
+            if type(fix_size) is not int or fix_size <= 0:
                 errors.append(f"'contract.fixture.size_bytes' must be a positive integer, got {fix_size!r}")
 
     # 2. Target section
@@ -210,7 +196,7 @@ def validate_report_data(
         errors.append("'target' must be a JSON object")
     else:
         platform = target.get("platform")
-        if platform not in VALID_PLATFORMS:
+        if not isinstance(platform, str) or platform not in VALID_PLATFORMS:
             errors.append(f"'target.platform' must be one of {sorted(VALID_PLATFORMS)}, got {platform!r}")
 
         native_build = target.get("native_build")
@@ -224,11 +210,11 @@ def validate_report_data(
             ctx_len = settings.get("context_length")
             max_tok = settings.get("max_tokens")
             temp = settings.get("temperature")
-            if not isinstance(ctx_len, int) or ctx_len <= 0:
+            if type(ctx_len) is not int or ctx_len <= 0:
                 errors.append(f"'target.settings.context_length' must be positive integer, got {ctx_len!r}")
-            if not isinstance(max_tok, int) or max_tok <= 0:
+            if type(max_tok) is not int or max_tok <= 0:
                 errors.append(f"'target.settings.max_tokens' must be positive integer, got {max_tok!r}")
-            if not isinstance(temp, (int, float)) or temp < 0:
+            if type(temp) not in (int, float) or not math.isfinite(temp) or temp < 0:
                 errors.append(f"'target.settings.temperature' must be non-negative float, got {temp!r}")
 
         device = target.get("device")
@@ -236,7 +222,7 @@ def validate_report_data(
             errors.append("'target.device' must be an object")
         else:
             exec_type = device.get("execution_type")
-            if exec_type not in VALID_EXECUTION_TYPES:
+            if not isinstance(exec_type, str) or exec_type not in VALID_EXECUTION_TYPES:
                 errors.append(
                     f"'target.device.execution_type' must be one of {sorted(VALID_EXECUTION_TYPES)}, got {exec_type!r}"
                 )
@@ -266,24 +252,17 @@ def validate_report_data(
             if not path_str or not isinstance(path_str, str):
                 errors.append(f"Evidence reference item #{idx} missing 'path'")
                 continue
+            exp_sha = item.get("sha256")
+            if not isinstance(exp_sha, str) or not SHA256_REGEX.fullmatch(exp_sha):
+                errors.append(f"Invalid sha256 in evidence #{idx}")
             try:
-                rel_ev_path = validate_safe_path(path_str, root)
+                checked = root / validate_safe_path(path_str, root)
                 if verify_files:
-                    full_ev_path = root / rel_ev_path
-                    if not full_ev_path.exists():
-                        errors.append(f"Referenced evidence file does not exist on disk: {path_str}")
-                    else:
-                        exp_sha = item.get("sha256")
-                        if exp_sha:
-                            if not SHA256_REGEX.match(exp_sha):
-                                errors.append(f"Invalid sha256 in evidence #{idx}: {exp_sha!r}")
-                            elif full_ev_path.is_file():
-                                actual_sha = _compute_sha256(full_ev_path)
-                                if actual_sha != exp_sha:
-                                    errors.append(
-                                        f"Evidence SHA mismatch for {path_str}: declared={exp_sha}, actual={actual_sha}"
-                                    )
-            except ReportValidationError as e:
+                    if not checked.is_file():
+                        errors.append(f"Evidence #{idx} must be a regular file")
+                    elif _compute_sha256(checked) != exp_sha:
+                        errors.append(f"Evidence SHA mismatch for reference #{idx}")
+            except (ReportValidationError, OSError, ValueError) as e:
                 errors.append(f"Evidence reference #{idx} path error: {e}")
 
     # 4. Operations
@@ -303,7 +282,7 @@ def validate_report_data(
                 errors.append(f"Operation {op_name!r} must be an object with 'status'")
                 continue
             status = op_body.get("status")
-            if status not in VALID_OPERATION_STATUSES:
+            if not isinstance(status, str) or status not in VALID_OPERATION_STATUSES:
                 errors.append(
                     f"Operation {op_name!r} has invalid status {status!r}; expected one of {sorted(VALID_OPERATION_STATUSES)}"
                 )
@@ -313,9 +292,57 @@ def validate_report_data(
                 if status == "FAIL":
                     has_failing_op = True
 
+    # Only closed, typed identity objects can be compared with evidence bindings.
+    def fields(obj, allowed, label):
+        if isinstance(obj, dict) and set(obj) - set(allowed):
+            errors.append(f"Unknown nested fields in {label}")
+
+    fields(contract, ("lease_id", "schema_version", "fixture"), "contract")
+    fields(target, ("platform", "native_build", "settings", "device"), "target")
+    if isinstance(contract, dict):
+        fields(contract.get("fixture"), ("path", "sha256", "size_bytes"), "fixture")
+    if isinstance(target, dict):
+        fields(target.get("settings"), ("context_length", "max_tokens", "temperature"), "settings")
+        fields(target.get("device"), ("execution_type", "verified_physical", "device_id"), "device")
+        device = target.get("device")
+        if isinstance(device, dict):
+            device_id = device.get("device_id")
+            if device_id is not None and (not isinstance(device_id, str) or not device_id.strip()):
+                errors.append("device_id must be null or a non-empty string")
+
+    if isinstance(evidence_refs, list):
+        for item in evidence_refs:
+            fields(item, ("path", "sha256", "description", "operation", "contract", "target"), "evidence")
+            if isinstance(item, dict):
+                if "operation" in item and (not isinstance(item["operation"], str) or item["operation"] not in REQUIRED_OPERATIONS):
+                    errors.append("Invalid evidence operation")
+                for key, expected in (("contract", contract), ("target", target)):
+                    if key in item and (type(item[key]) is not dict or json.dumps(item[key], sort_keys=True) != json.dumps(expected, sort_keys=True)):
+                        errors.append(f"Evidence {key} identity mismatch")
+    if isinstance(operations, dict):
+        if set(operations) - REQUIRED_OPERATIONS:
+            errors.append("Unknown operations")
+        for name, body in operations.items():
+            fields(body, ("status", "details"), "operation")
+            if not isinstance(body, dict) or body.get("status") != "PASS":
+                continue
+            device = target.get("device", {}) if isinstance(target, dict) else {}
+            if not isinstance(device, dict) or device.get("execution_type") == "unexecuted":
+                errors.append("Unexecuted operation cannot PASS")
+            if isinstance(device, dict) and device.get("execution_type") == "physical" and (not device.get("verified_physical") or not device.get("device_id")):
+                errors.append("Physical PASS requires declared verified identity")
+            bound = [item for item in evidence_refs if isinstance(item, dict)
+                     and item.get("operation") == name
+                     and type(item.get("contract")) is dict
+                     and type(item.get("target")) is dict
+                     and json.dumps(item["contract"], sort_keys=True) == json.dumps(contract, sort_keys=True)
+                     and json.dumps(item["target"], sort_keys=True) == json.dumps(target, sort_keys=True)] if isinstance(evidence_refs, list) else []
+            if not bound:
+                errors.append(f"PASS operation {name} requires bound evidence")
+
     # 5. Overall status and consistency
     declared_overall = data.get("overall_status")
-    if declared_overall not in VALID_OVERALL_STATUSES:
+    if not isinstance(declared_overall, str) or declared_overall not in VALID_OVERALL_STATUSES:
         errors.append(
             f"'overall_status' must be one of {sorted(VALID_OVERALL_STATUSES)}, got {declared_overall!r}"
         )
@@ -345,20 +372,40 @@ def validate_report_data(
     return ValidationResult(is_valid, effective_status, errors, warnings)
 
 
+def _unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value):
+    raise ValueError("Nonstandard JSON numeric constant")
+
+
 def validate_report_file(
     report_path: Path,
     root_dir: Optional[Path] = None,
     verify_files: bool = False,
 ) -> ValidationResult:
     """Reads and validates an acceptance report JSON file."""
+    root = (root_dir or ROOT).resolve()
+    try:
+        lexical = report_path.absolute().relative_to(root)
+        report_path = root / validate_safe_path(str(lexical), root)
+    except (ValueError, OSError, RuntimeError):
+        return ValidationResult(False, "REFUSED", ["Unsafe report path"])
     if not report_path.is_file():
         return ValidationResult(
             False, "REFUSED", [f"Acceptance report file does not exist: {report_path}"]
         )
 
     try:
-        content = json.loads(report_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
+        content = json.loads(report_path.read_text(encoding="utf-8"),
+                             object_pairs_hook=_unique_object, parse_constant=_reject_constant)
+    except (ValueError, UnicodeError, RecursionError) as err:
         return ValidationResult(
             False, "REFUSED", [f"Malformed JSON in report file {report_path}: {err}"]
         )

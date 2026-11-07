@@ -42,6 +42,8 @@ def _make_valid_report_data() -> dict:
             },
         },
         "operations": {
+            "load": {"status": "NOT_RUN"},
+            "generation": {"status": "NOT_RUN"},
             "partial_cancel": {"status": "NOT_RUN", "details": "Pending admission"},
             "successor": {"status": "NOT_RUN", "details": "Pending admission"},
             "restart": {"status": "NOT_RUN", "details": "Pending admission"},
@@ -202,6 +204,97 @@ class TestReportValidator(unittest.TestCase):
         report_file.write_text(json.dumps(data), encoding="utf-8")
         res2 = validate_report_file(report_file, root_dir=self.root, verify_files=True)
         self.assertTrue(res2.is_valid, msg=f"Errors: {res2.errors}")
+
+
+class TestReviewRegressions(TestReportValidator):
+    def bound_pass(self):
+        import copy
+        import hashlib
+        data = _make_valid_report_data()
+        payload = b"synthetic fixture and evidence"
+        (self.root / "proof.txt").write_bytes(payload)
+        data["contract"]["fixture"] = {"path": "proof.txt", "sha256": hashlib.sha256(payload).hexdigest(), "size_bytes": len(payload)}
+        data["overall_status"] = "PASS"
+        data["evidence_references"] = []
+        for name in REQUIRED_OPERATIONS:
+            data["operations"][name] = {"status": "PASS"}
+            data["evidence_references"].append({"path": "proof.txt", "sha256": hashlib.sha256(payload).hexdigest(), "operation": name, "contract": copy.deepcopy(data["contract"]), "target": copy.deepcopy(data["target"])})
+        return data
+
+    def test_bound_pass_and_cli(self):
+        import subprocess
+        import sys
+        data = self.bound_pass()
+        self.assertTrue(validate_report_data(data, self.root, True).is_valid)
+        report = self.root / "report.json"
+        report.write_text(json.dumps(data))
+        command = [sys.executable, str(Path(__file__).with_name("report_validator.py")), str(report), "--root", str(self.root), "--verify-files"]
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("VALID: PASS", result.stdout)
+        data["evidence_references"] = []
+        report.write_text(json.dumps(data))
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_each_identity_and_operation_binding(self):
+        for key in ("lease_id", "fixture"):
+            data = self.bound_pass()
+            data["evidence_references"][0]["contract"][key] = "different"
+            self.assertFalse(validate_report_data(data, self.root).is_valid)
+        for key in ("platform", "native_build", "device", "settings"):
+            data = self.bound_pass()
+            data["evidence_references"][0]["target"][key] = "different"
+            self.assertFalse(validate_report_data(data, self.root).is_valid)
+        data = self.bound_pass()
+        data["target"]["device"]["execution_type"] = "unexecuted"
+        self.assertFalse(validate_report_data(data, self.root).is_valid)
+        for name in REQUIRED_OPERATIONS:
+            data = self.bound_pass()
+            data["evidence_references"] = [item for item in data["evidence_references"] if item["operation"] != name]
+            self.assertFalse(validate_report_data(data, self.root).is_valid)
+
+    def test_wrong_types_and_numbers(self):
+        paths = [("target", "platform"), ("target", "device", "execution_type"), ("operations", "load", "status"), ("overall_status",), ("evidence_references", 0, "sha256"), ("contract", "schema_version"), ("contract", "fixture", "size_bytes"), ("target", "settings", "context_length"), ("target", "settings", "max_tokens"), ("target", "settings", "temperature")]
+        for path in paths:
+            for value in (True, [], {}, float("nan"), float("inf")):
+                data = self.bound_pass()
+                obj = data
+                for part in path[:-1]:
+                    obj = obj[part]
+                obj[path[-1]] = value
+                with self.subTest(path=path, value=value):
+                    self.assertFalse(validate_report_data(data, self.root).is_valid)
+
+    def test_strict_json_cli(self):
+        import subprocess
+        import sys
+        for text in ('{"overall_status":"FAIL","overall_status":"PASS"}', '{"value":NaN}', '{"value":Infinity}'):
+            report = self.root / "report.json"
+            report.write_text(text)
+            result = subprocess.run([sys.executable, str(Path(__file__).with_name("report_validator.py")), str(report), "--root", str(self.root)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("INVALID", result.stdout)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_symlinks_and_directories_before_hash(self):
+        from unittest.mock import patch
+        for target in ("samples/proof.txt", "safe/key.jks"):
+            dest = self.root / target
+            dest.parent.mkdir(exist_ok=True)
+            dest.write_text("synthetic forbidden test marker")
+            link = self.root / "alias.txt"
+            link.symlink_to(dest)
+            data = _make_valid_report_data()
+            data["contract"]["fixture"]["path"] = "alias.txt"
+            data["evidence_references"] = []
+            with patch("tools.local_ai.report_validator._compute_sha256", side_effect=AssertionError("must not read")):
+                self.assertFalse(validate_report_data(data, self.root, True).is_valid)
+            link.unlink()
+        data = self.bound_pass()
+        data["evidence_references"][0]["path"] = "."
+        self.assertFalse(validate_report_data(data, self.root, True).is_valid)
 
 
 if __name__ == "__main__":
