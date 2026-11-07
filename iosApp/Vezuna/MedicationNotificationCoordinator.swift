@@ -19,23 +19,28 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
 
     private let center: UNUserNotificationCenter
     private let planner: NotificationPlanner
-    private let pendingResponses: PendingDoseResponseStore?
+    private let pendingResponses: PendingResponseQueue
+    private let responseHandler: ((PendingDoseResponse) async -> Outcome)?
     private let defaults: UserDefaults
     private let log = Logger(subsystem: "app.vezuna", category: "reminders")
     private var ready = false
     private let reconcileLock = NSLock()
     private var reconcileTail: Task<Void, Never>?
+    private let replayLock = NSLock()
+    private var replayTail: Task<Void, Never>?
     private var settingsObserver: NSObjectProtocol?
     private var lastHideNames: Bool
 
     init(
         center: UNUserNotificationCenter = .current(),
         calendar: Calendar = .current,
-        pendingResponses: PendingDoseResponseStore? = try? PendingDoseResponseStore.standard(),
+        pendingResponses: PendingResponseQueue = PendingResponseQueue(),
+        responseHandler: ((PendingDoseResponse) async -> Outcome)? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.center = center
         self.pendingResponses = pendingResponses
+        self.responseHandler = responseHandler
         self.defaults = defaults
         self.lastHideNames = defaults.bool(forKey: Self.hideNamesKey)
         self.planner = NotificationPlanner(calendar: calendar)
@@ -436,12 +441,24 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
 
     /// Replays actions saved while the runtime was not ready (for example a cold background launch from an action button).
     private func replayPendingResponses() async {
-        guard let pendingResponses else { return }
+        replayLock.lock()
+        let previous = replayTail
+        let task = Task { await previous?.value; await self.performReplay() }
+        replayTail = task
+        replayLock.unlock()
+        await task.value
+    }
+
+    private func performReplay() async {
         do {
-            for response in try pendingResponses.load() {
+            while let response = try pendingResponses.load().first {
                 // The dose event id is deterministic, so a replay of an already recorded action is a no-op.
-                let outcome = response.isExpired(now: Date()) ? .drop : await handle(response)
-                if outcome != .retry { try pendingResponses.remove(response) }
+                let outcome: Outcome
+                if response.isExpired(now: Date()) { outcome = .drop }
+                else if let responseHandler { outcome = await responseHandler(response) }
+                else { outcome = await handle(response) }
+                if outcome == .retry { break }
+                try pendingResponses.remove(response)
             }
         } catch {
             log.error("Could not replay pending dose responses: \(error.localizedDescription, privacy: .public)")
@@ -573,23 +590,90 @@ extension MedicationNotificationCoordinator: UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let pending = pendingResponse(from: response) else { return }
-        guard ready else {
-            // Persist first: the process may be suspended or killed before the vault is open.
-            persist(pending)
-            return
-        }
-        switch await handle(pending) {
-        case .done: await reconcile()
-        case .retry: persist(pending)
-        case .drop: break
-        }
+        await receiveResponse(pending, runtimeReady: ready)
+        if ready { await reconcile() }
+    }
+
+    func receiveResponse(_ pending: PendingDoseResponse, runtimeReady: Bool) async {
+        persist(pending)
+        if runtimeReady { await replayPendingResponses() }
     }
 
     private func persist(_ response: PendingDoseResponse) {
-        do { try pendingResponses?.append(response) } catch {
+        do { try pendingResponses.append(response) } catch {
             log.error("Could not persist notification response: \(error.localizedDescription, privacy: .public)")
             lastError = error.localizedDescription
         }
+    }
+}
+
+/// Keeps failed writes in memory until the protected store becomes available. They cannot survive process termination.
+final class PendingResponseQueue {
+    private let lock = NSLock()
+    private let open: () throws -> PendingDoseResponseStore
+    private let write: (PendingDoseResponseStore, PendingDoseResponse) throws -> Void
+    private let delete: (PendingDoseResponseStore, PendingDoseResponse) throws -> Void
+    private let resolveRoot: () throws -> URL
+    private let listDirectory: (String) throws -> [String]
+    private var store: PendingDoseResponseStore?
+    private var waiting: [PendingDoseResponse] = []
+
+    init(open: (() throws -> PendingDoseResponseStore)? = nil,
+         resolveRoot: @escaping () throws -> URL = PendingDoseResponseStore.applicationSupport,
+         listDirectory: @escaping (String) throws -> [String] = { try FileManager.default.contentsOfDirectory(atPath: $0) },
+         write: @escaping (PendingDoseResponseStore, PendingDoseResponse) throws -> Void = { try $0.append($1) },
+         delete: @escaping (PendingDoseResponseStore, PendingDoseResponse) throws -> Void = { try $0.remove($1) }) {
+        self.open = open ?? { try PendingDoseResponseStore.standard(root: resolveRoot()) }
+        self.resolveRoot = resolveRoot
+        self.listDirectory = listDirectory
+        self.write = write
+        self.delete = delete
+    }
+
+    func append(_ response: PendingDoseResponse) throws {
+        lock.lock(); defer { lock.unlock() }
+        if !waiting.contains(where: { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }) {
+            waiting.append(response)
+        }
+        try flush()
+    }
+
+    func load() throws -> [PendingDoseResponse] {
+        lock.lock(); defer { lock.unlock() }
+        // A failed write does not prevent reading already durable responses in front of the volatile queue.
+        do { try flush() } catch {
+            if store == nil {
+                guard try directoryIsAbsent() else { throw error }
+                return waiting
+            }
+        }
+        let durable = try store!.load()
+        return durable + waiting.filter { candidate in
+            !durable.contains { $0.notificationIdentifier == candidate.notificationIdentifier && $0.action == candidate.action }
+        }
+    }
+
+    func remove(_ response: PendingDoseResponse) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard let store else {
+            guard try directoryIsAbsent() else { throw CocoaError(.fileReadUnknown) }
+            waiting.removeAll { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }
+            return
+        }
+        if try store.load().contains(response) { try delete(store, response) }
+        waiting.removeAll { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }
+    }
+
+    private func flush() throws {
+        if store == nil { store = try open() }
+        while let response = waiting.first {
+            try write(store!, response)
+            waiting.removeFirst()
+        }
+    }
+
+    private func directoryIsAbsent() throws -> Bool {
+        try !listDirectory(resolveRoot().path).contains("VezunaPending")
     }
 }
 

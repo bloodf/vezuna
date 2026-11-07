@@ -30,8 +30,11 @@ final class PendingDoseResponseStore {
         self.url = url
     }
 
-    static func standard() throws -> PendingDoseResponseStore {
-        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    static func applicationSupport() throws -> URL {
+        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+    }
+
+    static func standard(root: URL) throws -> PendingDoseResponseStore {
         let directory = root.appendingPathComponent("VezunaPending", isDirectory: true)
         try FileManager.default.createDirectory(
             at: directory,
@@ -61,7 +64,8 @@ final class PendingDoseResponseStore {
     }
 
     private func read() throws -> [PendingDoseResponse] {
-        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        let names = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
+        guard names.contains(url.lastPathComponent) else { return [] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         do {
