@@ -64,6 +64,9 @@ object RecordsListing {
 
     fun results(data: ProfileData, filter: LabResultFilter): List<LabObservation> = LabResultList.filter(confirmed(data), filter)
 
+    fun resultGroups(data: ProfileData, filter: LabResultFilter) =
+        LabResultList.groupByReport(results(data, filter), data.reports)
+
     private fun includes(entry: ReportEntry, filter: LabResultFilter, names: List<String>): Boolean {
         if (!filter.isActive) return true
         if (LabResultList.filter(entry.confirmed, filter).isNotEmpty()) return true

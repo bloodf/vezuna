@@ -61,6 +61,26 @@ class RecordsListingTest {
     }
 
     @Test
+    fun resultGroupsApplyFiltersKeepOrphansAndExcludeDrafts() {
+        val original = data.observations.first { it.observationId == "ldl-2026-10" }
+        val withOrphan = data.copy(observations = data.observations + listOf(
+            original.copy(observationId = "orphan", reportId = "missing"),
+            original.copy(observationId = "draft", confirmation = app.vezuna.domain.ConfirmationStatus.UNREVIEWED),
+        ))
+        val filter = LabResultFilter(
+            text = "ldl",
+            from = Instant.parse("2026-07-01T00:00:00Z"),
+            to = Instant.parse("2026-10-31T23:59:59Z"),
+            outOfRangeOnly = true,
+        )
+        val groups = RecordsListing.resultGroups(withOrphan, filter)
+        assertEquals(setOf("report-lipid-oct", "report-jul", "missing"), groups.map { it.reportId }.toSet())
+        assertEquals(setOf("ldl-2026-10", "ldl-2026-07", "orphan"), groups.flatMap { it.observations }.map { it.observationId }.toSet())
+        assertNull(groups.single { it.reportId == "missing" }.report)
+        assertEquals("report-lipid-oct", groups.single { it.reportId == "report-lipid-oct" }.report?.reportId)
+    }
+
+    @Test
     fun groupsConsecutiveCalendarMonths() {
         val months = RecordsListing.byMonth(RecordsListing.reports(data, LabResultFilter(), names)) { it.date }
         assertEquals(listOf(4, 1, 1), months.map { it.second.size })
