@@ -52,6 +52,9 @@ import vezuna.shared.generated.resources.ill_model_download
 @Composable
 internal fun AssistantModels(ctx: RouteContext) {
     val modelState by ctx.controller.modelManager.state.collectAsState()
+    val ownerStatus = ctx.controller.modelManager.ownerStatus?.collectAsState()?.value
+    val readyModelId = ctx.controller.modelManager.readyModelId(ownerStatus)
+    val superseded = ownerStatus == app.vezuna.llm.EngineOwnerStatus.Superseded
     var installingId by remember { mutableStateOf<String?>(null) }
     var installJob by remember { mutableStateOf<Job?>(null) }
     var deleting by remember { mutableStateOf<ModelPack?>(null) }
@@ -63,6 +66,11 @@ internal fun AssistantModels(ctx: RouteContext) {
             Text(vitaText(L10nKey.MODELS_SUBTITLE), style = MaterialTheme.typography.bodyLarge)
             Text(vitaText(L10nKey.MODEL_SECURITY_NOTICE), style = MaterialTheme.typography.bodyLarge)
             modelState.error?.let { ListRow(vitaText(L10nKey.MODEL_ACTION_FAILED), supporting = it.resolve(), leadingIcon = Res.drawable.ic_info) }
+            if (modelState.selection == app.vezuna.llm.SavedModelSelection.Unknown) Text(vitaText(L10nKey.MODEL_SELECTION_UNCONFIRMED))
+            if (superseded) Text(vitaText(L10nKey.MODEL_SESSION_SUPERSEDED))
+            SecondaryButton(vitaText(L10nKey.REFRESH_MODELS), {
+                ctx.scope.launch { consumeModelFailure { ctx.controller.modelManager.refresh() } }
+            }, enabled = !superseded && !modelState.busy && installingId == null)
             modelState.catalogError?.let { ListRow(it.resolve(), leadingIcon = Res.drawable.ic_info) }
             if (modelState.busy || installingId != null) ProgressState(vitaText(if (installingId != null) L10nKey.MODEL_INSTALLING else L10nKey.VERIFYING_OR_LOADING_MODEL))
             if (modelState.catalog.packs.isEmpty() && modelState.catalogError == null) {
@@ -70,7 +78,7 @@ internal fun AssistantModels(ctx: RouteContext) {
             }
             modelState.catalog.packs.forEach { pack ->
                 val installed = modelState.installed.any { it.pack.modelId == pack.modelId }
-                val loaded = modelState.loadedModelId == pack.modelId
+                val loaded = readyModelId == pack.modelId
                 val installing = installingId == pack.modelId
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(VezunaTokens.SpaceMd), verticalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
@@ -98,24 +106,26 @@ internal fun AssistantModels(ctx: RouteContext) {
                                         } finally {
                                             source.release()
                                         }
+                                    } catch (_: app.vezuna.llm.ModelOperationFailure) {
+                                        // The manager already published the expected failure inline.
                                     } catch (cancelled: CancellationException) {
                                         throw cancelled
                                     } finally {
                                         installingId = null
                                     }
                                 }
-                            }, Modifier.fillMaxWidth(), enabled = !modelState.busy && installingId == null, icon = Res.drawable.ic_download)
+                            }, Modifier.fillMaxWidth(), enabled = !superseded && !modelState.busy && installingId == null, icon = Res.drawable.ic_download)
                             !installed -> Text(vitaText(L10nKey.AWAITING_NATIVE_STORE_LOADER), style = MaterialTheme.typography.bodyMedium)
                             else -> Row(horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceSm)) {
-                                if (!loaded) {
+                                if (!loaded || modelState.selection == app.vezuna.llm.SavedModelSelection.Unknown) {
                                     PrimaryButton(
                                         vitaText(if (modelState.selectedModelId == pack.modelId) L10nKey.LOAD_SELECTED_MODEL else L10nKey.SWITCH_MODEL),
-                                        { ctx.scope.launch { ctx.controller.modelManager.select(pack.modelId) } },
+                                        { ctx.scope.launch { consumeModelFailure { ctx.controller.modelManager.select(pack.modelId) } } },
                                         Modifier.weight(1f),
-                                        enabled = !modelState.busy,
+                                        enabled = !superseded && !modelState.busy,
                                     )
                                 }
-                                SecondaryButton(vitaText(L10nKey.DELETE), { deleting = pack }, Modifier.weight(1f), enabled = !modelState.busy, icon = Res.drawable.ic_trash)
+                                SecondaryButton(vitaText(L10nKey.DELETE), { deleting = pack }, Modifier.weight(1f), enabled = !superseded && !modelState.busy, icon = Res.drawable.ic_trash)
                             }
                         }
                     }
@@ -127,9 +137,15 @@ internal fun AssistantModels(ctx: RouteContext) {
                 title = vitaText(L10nKey.DELETE_MODEL_TITLE, pack.displayName),
                 body = vitaText(L10nKey.DELETE_MODEL_BODY),
                 confirmLabel = vitaText(L10nKey.DELETE),
-                onConfirm = { deleting = null; ctx.scope.launch { ctx.controller.modelManager.delete(pack.modelId) } },
+                onConfirm = { deleting = null; ctx.scope.launch { consumeModelFailure { ctx.controller.modelManager.delete(pack.modelId) } } },
                 onDismiss = { deleting = null },
             )
         }
     }
+}
+
+private suspend fun consumeModelFailure(action: suspend () -> Unit) {
+    try { action() }
+    catch (canceled: CancellationException) { throw canceled }
+    catch (_: app.vezuna.llm.ModelOperationFailure) { /* Already published by the manager. */ }
 }

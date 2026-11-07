@@ -189,6 +189,7 @@ private fun RecordsList(
                     if (showResults) 1 else 0,
                     { onShowResults(it == 1) },
                     Modifier.padding(top = VezunaTokens.SpaceSm),
+                    onCategorySurface = true,
                 )
             }
         }

@@ -22,7 +22,8 @@ class RestoreOutcome(val profileIds: List<String>, val allVitalsRestored: Boolea
 /**
  * Restores backup members one by one. A profile that already exists is replaced or stored under fresh IDs ([mode]).
  * Original files carried by the backup are written to [files] before the records that point at them; if a member's
- * records cannot be stored, the files written for it are removed again (files of a replaced profile are never touched).
+ * records definitely have not been stored, the files written for it are removed again. Once a record write starts,
+ * its outcome can be uncertain on failure, so its referenced files are kept.
  * A member whose document IDs collide with another profile's is stored under fresh IDs instead of overwriting that profile's files.
  * Members stored before a failure stay stored.
  */
@@ -70,6 +71,7 @@ suspend fun VezunaRepository.restoreMembers(
         }
         val keptKeys = existing?.takeIf { toStore.profile.profileId == it.profile.profileId }?.vaultKeys().orEmpty()
         val written = mutableListOf<String>()
+        val recordWrite = RestoreRecordWrite()
         try {
             // Remapping keeps document order, so the n-th document of the backup is the n-th document to store.
             val withFiles = toStore.copy(
@@ -80,9 +82,11 @@ suspend fun VezunaRepository.restoreMembers(
                     if (files == null) document else document.copy(source = files.restoreOriginals(document.source, data.vaultDocuments[index].source, member.files, keptKeys, written))
                 },
             )
-            if (!restoreWithVitals(withFiles)) allVitals = false
+            // Rethrow outside the context boundary to preserve the original failure, including cancellation.
+            val result = withContext(recordWrite) { runCatching { restoreWithVitals(withFiles) } }
+            if (!result.getOrThrow()) allVitals = false
         } catch (error: Throwable) {
-            withContext(NonCancellable) { written.forEach { files?.discard(it) } }
+            if (!recordWrite.mayBeStored) withContext(NonCancellable) { written.forEach { files?.discard(it) } }
             throw error
         }
         stored += toStore.profile.profileId

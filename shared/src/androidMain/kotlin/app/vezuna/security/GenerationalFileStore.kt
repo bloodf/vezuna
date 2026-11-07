@@ -12,7 +12,52 @@ import java.nio.file.StandardOpenOption
  * Crash-safe file writes: data goes to `name.tmp`, is fsynced, and only then renamed over `name`.
  * The file it replaces is kept as `name.prev`, so one previous generation always survives.
  */
-class GenerationalFileStore(private val directory: File) {
+class GenerationalFileStore(
+    private val directory: File,
+    private val beforeAcknowledgedStage: (WriteStage) -> Unit = {},
+    private val acknowledgeDirectory: (File) -> Unit = { path -> FileChannel.open(path.toPath(), StandardOpenOption.READ).use { it.force(true) } },
+) {
+    enum class WriteStage { BEFORE_TEMP, BEFORE_ROTATION, AFTER_ROTATION, AFTER_INSTALL }
+
+    /** The first rename already changes recovery state. Any later failure must be treated as uncertain. */
+    fun writeAcknowledged(name: String, bytes: ByteArray): VaultWriteResult {
+        var replacementStarted = false
+        return try {
+            beforeAcknowledgedStage(WriteStage.BEFORE_TEMP)
+            check(directory.mkdirs() || directory.isDirectory) { "Could not create vault directory" }
+            val current = File(directory, name)
+            val temp = File(directory, "$name$TEMP")
+            FileOutputStream(temp).use { out ->
+                out.write(bytes)
+                out.flush()
+                out.fd.sync()
+            }
+            beforeAcknowledgedStage(WriteStage.BEFORE_ROTATION)
+            replacementStarted = true
+            if (current.isFile) check(current.renameTo(File(directory, "$name$PREVIOUS"))) { "Could not keep previous generation" }
+            beforeAcknowledgedStage(WriteStage.AFTER_ROTATION)
+            check(temp.renameTo(current)) { "Could not commit vault write" }
+            beforeAcknowledgedStage(WriteStage.AFTER_INSTALL)
+            acknowledgeDirectory(directory)
+            VaultWriteResult.Acknowledged
+        } catch (error: Exception) {
+            if (replacementStarted) VaultWriteResult.Indeterminate(error) else VaultWriteResult.Rejected(error)
+        }
+    }
+
+    fun acknowledgeCurrent(name: String): VaultWriteResult = try {
+        val file = File(directory, name).takeIf { it.isFile }
+            ?: File(directory, "$name$PREVIOUS").takeIf { it.isFile }
+            ?: error("No visible generation to acknowledge")
+        FileChannel.open(file.toPath(), StandardOpenOption.WRITE).use { it.force(true) }
+        acknowledgeDirectory(directory)
+        VaultWriteResult.Acknowledged
+    } catch (error: Exception) { VaultWriteResult.Indeterminate(error) }
+
+    fun readGeneration(name: String): VaultGeneration? =
+        File(directory, name).takeIf { it.isFile }?.readBytes()?.let { VaultGeneration(it, false) }
+            ?: readPrevious(name)?.let { VaultGeneration(it, true) }
+
     fun write(name: String, bytes: ByteArray) {
         directory.mkdirs()
         val current = File(directory, name)

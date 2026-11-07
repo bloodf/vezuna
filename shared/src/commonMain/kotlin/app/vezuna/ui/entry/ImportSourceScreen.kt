@@ -31,6 +31,7 @@ import kotlinx.coroutines.Job
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -159,7 +160,7 @@ private fun SourceOption(category: Category, icon: DrawableResource, title: Stri
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(VezunaTokens.SpaceMd),
         ) {
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(52.dp).clip(RoundedCornerShape(VezunaTokens.ControlRadius)).background((if (enabled) Color.White else MaterialTheme.colorScheme.surface).copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
                 Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(28.dp))
             }
             Column(Modifier.weight(1f)) {

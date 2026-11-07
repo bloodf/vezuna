@@ -248,6 +248,79 @@ class ProfileOnboardingTest {
     }
 
     @Test
+    fun failedConditionalLinkSaveNeverDispatchesAndCompletionRemainsAvailable() = runTest {
+        val vault = GenerationalMemoryVault()
+        val repository = app.vezuna.data.VaultBackedRepository(vault)
+        repository.load()
+        val c = controller(repository)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        vault.failingWrites += "repository-health-link-v1"
+        var requests = 0
+        requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        assertEquals(0, requests)
+        assertNull(repository.explicitHealthLinkId())
+        assertTrue(repository.peekProfile(id).vitals.isEmpty)
+        assertTrue(c.state.value.error != null)
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
+    }
+
+    @Test
+    fun cancellationDuringConditionalLinkDoesNotDispatchOrPin() = runTest {
+        val repository = InMemoryVezunaRepository()
+        val linking = CompletableDeferred<Unit>()
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): app.vezuna.data.VitalsSyncContext? {
+                linking.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { linking.await() }
+        request.cancel()
+        withTimeout(5_000) { request.join() }
+        assertEquals(0, requests)
+        assertNull(repository.explicitHealthLinkId())
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
+    }
+
+    @Test
+    fun cancellationAfterLinkSaveDoesNotLaunchNativePermission() = runTest {
+        val repository = InMemoryVezunaRepository()
+        var cancelCapture = false
+        val delayed = object : VezunaRepository by repository {
+            override suspend fun captureVitalsSync(zone: TimeZone): app.vezuna.data.VitalsSyncContext {
+                val context = repository.captureVitalsSync(zone)
+                if (cancelCapture) kotlinx.coroutines.currentCoroutineContext().let { it[kotlinx.coroutines.Job]!!.cancel() }
+                return context
+            }
+        }
+        val c = controller(delayed)
+        c.initialize()
+        val id = c.state.value.data!!.profile.profileId
+        cancelCapture = true
+        var requests = 0
+        val request = launch {
+            requestOnboardingOption(c, NativeActions(setOf(NativeAction.HEALTH), performHealth = { requests++ }), NativeAction.HEALTH, id)
+        }
+        withTimeout(5_000) { request.join() }
+        assertTrue(request.isCancelled)
+        assertEquals(id, repository.explicitHealthLinkId())
+        assertEquals(0, requests)
+        assertTrue(repository.peekProfile(id).vitals.isEmpty)
+        c.skipOnboarding()
+        assertFalse(c.state.value.onboarding)
+    }
+
+    @Test
     fun notificationsRequireExplicitActionAndNeverLinkHealth() = runTest {
         val repository = InMemoryVezunaRepository()
         val c = controller(repository)

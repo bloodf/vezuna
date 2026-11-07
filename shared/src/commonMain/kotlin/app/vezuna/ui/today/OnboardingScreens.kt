@@ -62,6 +62,8 @@ import app.vezuna.ui.nav.NativeAction
 import app.vezuna.ui.nav.LocalRouteFocus
 import app.vezuna.ui.vezuna
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.painterResource
 import vezuna.shared.generated.resources.Res
@@ -153,7 +155,10 @@ internal suspend fun requestOnboardingOption(controller: AppController, actions:
         NativeAction.REMINDERS -> actions.perform(action)
         NativeAction.HEALTH -> {
             val perform = actions.performHealth ?: return
-            if (profileId != null) controller.linkOnboardingHealthProfile(profileId)?.let(perform)
+            if (profileId != null) controller.linkOnboardingHealthProfile(profileId)?.let {
+                currentCoroutineContext().ensureActive()
+                perform(it)
+            }
         }
         else -> Unit
     }
@@ -222,7 +227,7 @@ internal fun FirstProfileScreen(ctx: RouteContext, onBack: () -> Unit, onDone: (
                         style = MaterialTheme.typography.displaySmall.cappedScale(),
                         modifier = Modifier.clearOfArt(120.dp).routeFocus().semantics { heading() },
                     )
-                    Text(vitaText(L10nKey.FIRST_PROFILE_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = roles.onHeaderMuted, modifier = Modifier.padding(end = 120.dp, top = VezunaTokens.SpaceSm))
+                    Text(vitaText(L10nKey.FIRST_PROFILE_SUBTITLE), style = MaterialTheme.typography.bodyLarge, color = roles.onHeaderMuted, modifier = Modifier.clearOfArt(120.dp).padding(top = VezunaTokens.SpaceSm))
                 }
             }
         }

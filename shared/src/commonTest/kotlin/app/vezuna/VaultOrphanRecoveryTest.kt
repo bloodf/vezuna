@@ -202,12 +202,19 @@ class VaultOrphanRecoveryTest {
         repository.createProfile(Profile("b", "Bia", createdAt = created))
         repository.deleteProfile("b")
         repository.createProfile(Profile("c", "Cy", createdAt = created))
+        val recordA = vault.current.getValue(recordKey("a")).copyOf()
+        val previousA = vault.previous[recordKey("a")]?.copyOf()
+        val recordC = vault.current.getValue(recordKey("c")).copyOf()
         vault.current["repository-deleted-profiles-v1"] = "garbage".encodeToByteArray()
         vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
 
         val reopened = open()
 
-        assertEquals(listOf("a"), ids(reopened))
+        // Unknown history suppresses listed a as well as unlisted c when the index is only a fallback.
+        assertEquals(emptyList(), ids(reopened))
+        assertContentEquals(recordA, vault.current[recordKey("a")])
+        assertContentEquals(previousA, vault.previous[recordKey("a")])
+        assertContentEquals(recordC, vault.current[recordKey("c")])
         assertNotNull(vault.read(recordKey("c")), "the unlisted record is left alone")
     }
 
@@ -245,12 +252,16 @@ class VaultOrphanRecoveryTest {
         val reopened = open()
         reopened.createProfile(Profile("d", "Dee", createdAt = created))
         reopened.deleteProfile("a") // replaces the unreadable tombstone file with one naming only a
+        val recordD = vault.current.getValue(recordKey("d")).copyOf()
+        val previousD = vault.previous[recordKey("d")]?.copyOf()
         vault.current[INDEX_KEY] = "garbage".encodeToByteArray()
 
         val again = open()
 
         assertTrue(again.openedFromPreviousGeneration.value)
-        assertEquals(listOf("d"), ids(again), "b is not recovered: the earlier tombstones are gone")
+        assertEquals(emptyList(), ids(again), "reset history also hides listed live d in the fallback index")
+        assertContentEquals(recordD, vault.current[recordKey("d")])
+        assertContentEquals(previousD, vault.previous[recordKey("d")])
         assertContentEquals(survivingB, vault.current.getValue(recordKey("b")), "the file is left alone, not deleted")
     }
 

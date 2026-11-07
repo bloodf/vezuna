@@ -61,6 +61,7 @@ struct ContentView: View {
         .background(alignment: .top) { Color.vezunaHeader.frame(height: 0).ignoresSafeArea(edges: .top) }
         .onPreferenceChange(TopInsetKey.self) { topInset = $0 }
         .task {
+            nativeActions.model = model
             IosRuntime.shared.nativeActionHandler = nativeActions
             // The fixture skips configure(), but its export preview still saves and shares through the system sheets.
             if DebugLaunch.fixture { IosRuntime.shared.exportFiles = ComposeExportFiles() }
@@ -70,13 +71,19 @@ struct ContentView: View {
             guard locked else { return }
             var transaction = Transaction()
             transaction.disablesAnimations = true
+            model.requestedHealthImporter?.invalidate()
             withTransaction(transaction) { model.sheet = nil }
         }
         .onAppear { nativeActions.model = model }
-        .sheet(item: $model.sheet, onDismiss: { model.requestedHealthImporter = nil }) { sheet in
+        .sheet(item: $model.sheet, onDismiss: {
+            model.requestedHealthImporter?.invalidate()
+            model.requestedHealthImporter = nil
+        }) { sheet in
             switch sheet {
             case .health:
-                HealthImportView(importer: model.requestedHealthImporter ?? model.healthImporter)
+                HealthImportView(importer: model.healthImporter)
+            case .onboardingHealth:
+                HealthImportView(importer: model.requestedHealthImporter)
             case .license:
                 LicenseView(manager: model.licenseManager)
             case .notices:
@@ -95,8 +102,9 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
     func performHealth(context: VitalsSyncContext) {
         DispatchQueue.main.async { [weak self] in
             guard let model = self?.model, model.healthImporter != nil else { return }
+            model.requestedHealthImporter?.invalidate()
             model.requestedHealthImporter = HealthKitImporter(expected: context)
-            model.sheet = .health
+            model.sheet = .onboardingHealth
         }
     }
 
@@ -119,6 +127,7 @@ final class NativeActionRouter: NSObject, ObservableObject, NativeActionHandler 
         default: sheet = nil
         }
         DispatchQueue.main.async { [weak self] in
+            self?.model?.requestedHealthImporter?.invalidate()
             self?.model?.requestedHealthImporter = nil
             self?.model?.sheet = sheet
         }
