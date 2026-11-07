@@ -90,7 +90,22 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         await task.value
     }
 
+    func requestPermission() async {
+        do {
+            _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            await reconcile()
+        } catch {
+            log.error("Could not request notification permission: \(error.localizedDescription, privacy: .public)")
+            lastError = error.localizedDescription
+        }
+    }
+
     private func performReconcile() async {
+        let authorization = await center.notificationSettings().authorizationStatus
+        IosRuntime.shared.setNotificationAuthorization(
+            allowed: authorization == .authorized || authorization == .provisional || authorization == .ephemeral,
+            denied: authorization == .denied
+        )
         ready = true
         await replayPendingResponses()
         let hidden = hideNames
@@ -110,10 +125,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
                 return
             }
             let settings = await center.notificationSettings()
-            var authorization = settings.authorizationStatus
-            if authorization == .notDetermined {
-                authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
-            }
+            let authorization = settings.authorizationStatus
             let allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
             IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
             guard allowed else {
@@ -188,10 +200,7 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
             let pending = await center.pendingNotificationRequests().filter { $0.identifier.hasPrefix("vezuna.appointment.") }
             var allowed = false
             if !notices.isEmpty || !pending.isEmpty || !plan.aheadIds.isEmpty {
-                var authorization = await center.notificationSettings().authorizationStatus
-                if authorization == .notDetermined && !notices.isEmpty {
-                    authorization = try await center.requestAuthorization(options: [.alert, .sound, .badge]) ? .authorized : .denied
-                }
+                let authorization = await center.notificationSettings().authorizationStatus
                 allowed = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
                 IosRuntime.shared.setNotificationAuthorization(allowed: allowed, denied: authorization == .denied)
             }

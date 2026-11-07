@@ -21,6 +21,7 @@ import app.vezuna.llm.InstalledModelManager
 import app.vezuna.llm.LocalHealthChat
 import app.vezuna.llm.LocalLlm
 import app.vezuna.llm.ModelCatalog
+import app.vezuna.llm.ModelPlatform
 import app.vezuna.llm.loadBundledModelCatalog
 import app.vezuna.llm.ModelPack
 import app.vezuna.llm.ModelPackSource
@@ -184,13 +185,13 @@ interface NativeRepositoryObserver {
 /** Opens a native SwiftUI sheet for a shared More row; [action] is a [NativeAction] name. */
 interface NativeActionHandler {
     fun perform(action: String)
+    fun performHealth(context: app.vezuna.data.VitalsSyncContext)
 }
 
 /** Native screens iOS offers from More (they used to sit in the toolbar menu). */
-private val iosNativeActions = setOf(
-    NativeAction.HEALTH,
-    NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
-)
+private val iosNativeActions get() = setOf(
+    NativeAction.REMINDERS, NativeAction.LICENSE, NativeAction.PRIVACY, NativeAction.NOTICES,
+) + if (IosRuntime.healthAvailable && IosRuntime.nativeActionHandler != null) setOf(NativeAction.HEALTH) else emptySet()
 
 object IosRuntime {
     private val json = Json { encodeDefaults = true }
@@ -208,6 +209,7 @@ object IosRuntime {
     var licenseProvider: NativeLicenseProvider? = null
     var repositoryObserver: NativeRepositoryObserver? = null
     var nativeActionHandler: NativeActionHandler? = null
+    var healthAvailable: Boolean = false
 
     /** Must be installed before the first Compose view controller is made. */
     var deviceAuthenticator: NativeDeviceAuthenticator? = null
@@ -246,13 +248,13 @@ object IosRuntime {
         openNotificationSettings = { nativeActionHandler?.perform("NOTIFICATION_SETTINGS") },
     )
 
-    /** Called by the notification coordinator with the system authorization; "notDetermined" is asked for automatically. */
+    /** Called by the notification coordinator with the system authorization. */
     fun setNotificationAuthorization(allowed: Boolean, denied: Boolean) {
         reminderState.setNotificationAccess(
             when {
                 allowed -> app.vezuna.ui.NotificationAccess.ALLOWED
                 denied -> app.vezuna.ui.NotificationAccess.DENIED
-                else -> app.vezuna.ui.NotificationAccess.UNKNOWN
+                else -> app.vezuna.ui.NotificationAccess.NOT_REQUESTED
             },
         )
     }
@@ -373,14 +375,16 @@ object IosRuntime {
      * The first local day Swift must re-read and the first day of the weight history, as epoch seconds of local midnight.
      * Every sync replaces its window, so there is no anchor to keep in step with the stored data.
      */
-    fun vitalsSyncWindow(completion: (String, Long, String, Long, Long, NativeMessage?) -> Unit) {
+    fun vitalsSyncWindow(expected: app.vezuna.data.VitalsSyncContext?, completion: (String, Long, String, Long, Long, NativeMessage?) -> Unit) {
         if (!initialized) {
             completion("", 0L, "", 0L, 0L, nativeMessage("bridge_storage_not_ready"))
             return
         }
         scope.launch {
             try {
-                val context = repository.captureVitalsSync()
+                val current = repository.captureVitalsSync(expected?.zone ?: TimeZone.currentSystemDefault())
+                check(expected == null || current.profileId == expected.profileId && current.generation == expected.generation) { "Device vitals sync is stale" }
+                val context = expected ?: current
                 val lastSync = context.lastSync
                 val now = currentInstant()
                 val zone = context.zone
@@ -739,11 +743,11 @@ object IosRuntime {
         }
     }
 
-    /** Same bundled catalog file as Android (shared compose resources). */
+    /** Same bundled catalog file as Android (shared compose resources); only iOS-deliverable offers are kept. */
     private suspend fun loadCatalog(): ModelCatalog {
         catalogError = null
         return try {
-            loadBundledModelCatalog()
+            loadBundledModelCatalog(ModelPlatform.IOS)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
@@ -806,7 +810,7 @@ fun makeComposeViewController(route: String?): UIViewController = ComposeUIViewC
         },
         animationsEnabled = !rememberReduceMotion(),
         reminders = IosRuntime.reminderState,
-        nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+        nativeActions = NativeActions(iosNativeActions, performHealth = { IosRuntime.nativeActionHandler?.performHealth(it) }) { IosRuntime.nativeActionHandler?.perform(it.name) },
         startRoute = route?.let(::routeFromName),
     )
     }
@@ -835,7 +839,7 @@ fun makeDesignFixtureViewController(route: String?): UIViewController {
             controller = controller,
             scope = IosRuntime.scope,
             animationsEnabled = !rememberReduceMotion(),
-            nativeActions = NativeActions(iosNativeActions) { IosRuntime.nativeActionHandler?.perform(it.name) },
+            nativeActions = NativeActions(iosNativeActions, performHealth = { IosRuntime.nativeActionHandler?.performHealth(it) }) { IosRuntime.nativeActionHandler?.perform(it.name) },
             startRoute = route?.let(::routeFromName),
         )
     }

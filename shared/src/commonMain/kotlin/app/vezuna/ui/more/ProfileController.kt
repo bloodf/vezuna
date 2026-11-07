@@ -109,14 +109,14 @@ internal class ProfileController(
         core.reloadCurrentProfile()
     }
 
-    /** Ends first-run onboarding, applying the chosen name and birth date when given. A blank name keeps the default. */
-    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?) {
+    /** Saves the first profile; finish ends onboarding. A blank name keeps the default. */
+    suspend fun completeOnboarding(displayName: String, birthDate: LocalDate?, finish: Boolean = true) {
         val current = state.value.data?.profile?.profileId
         val profile = repository.profiles.value.let { all -> all.firstOrNull { it.profileId == current } ?: all.firstOrNull() } ?: return skipOnboarding()
         core.clearMessages()
         if (displayName.isNotBlank() && displayName.trim() != profile.displayName) renameProfile(profile.profileId, displayName)
         if (birthDate != null) setBirthDate(profile.profileId, birthDate)
-        if (state.value.error == null) skipOnboarding()
+        if (finish && state.value.error == null) skipOnboarding()
     }
 
     fun skipOnboarding() {
@@ -145,6 +145,20 @@ internal class ProfileController(
         } else {
             core.reloadCurrentProfile()
         }
+    }
+
+    /** Optional setup never replaces another profile's device link or imports after a profile switch. */
+    suspend fun linkOnboardingHealthProfile(profileId: String): app.vezuna.data.VitalsSyncContext? {
+        if (!state.value.onboarding || !core.isOpen(profileId)) return null
+        var captured: app.vezuna.data.VitalsSyncContext? = null
+        core.operation {
+            val expected = repository.linkOnboardingHealthProfile(profileId, core.timeZone()) ?: return@operation
+            core.reloadCurrentProfile()
+            val current = repository.captureVitalsSync(expected.zone)
+            captured = expected.takeIf { current.profileId == it.profileId && current.generation == it.generation }
+        }
+        if (!state.value.onboarding || core.openingProfileId != null || !core.isOpen(profileId) || state.value.error != null) return null
+        return captured
     }
 
     suspend fun setLinkedHealthProfile(profileId: String) = core.operation {

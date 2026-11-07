@@ -64,9 +64,9 @@ internal fun ColumnScope.LabsOverview(ctx: RouteContext, data: ProfileData, onSh
     val trends = LabTrends.forProfile(data.profile.profileId, data.observations, data.reports, data.documents, trendRange, today)
     if (trends.isEmpty()) {
         CategoryPanel(Category.TRENDS) {
-            EmptyState(Res.drawable.ill_trend_empty, vitaText(L10nKey.NO_CONFIRMED_RESULTS_YET), vitaText(L10nKey.TR_EMPTY_BODY))
+            EmptyState(Res.drawable.ill_trend_empty, vitaText(L10nKey.NO_CONFIRMED_RESULTS_YET), vitaText(L10nKey.TR_EMPTY_BODY), bodyColor = VezunaTokens.OnCategory)
             PrimaryButton(vitaText(L10nKey.TR_REVIEW_IMPORTS), { ctx.navigate(AppScreen.ImportReview) }, Modifier.fillMaxWidth(), container = VezunaTokens.Pine, content = androidx.compose.ui.graphics.Color.White)
-            SecondaryButton(vitaText(L10nKey.TR_TAB_DEVICE), onShowDevice, Modifier.fillMaxWidth())
+            SecondaryButton(vitaText(L10nKey.TR_TAB_DEVICE), onShowDevice, Modifier.fillMaxWidth(), onCategorySurface = true)
         }
         return
     }
@@ -94,7 +94,7 @@ private fun TestCard(trend: TestTrend, onOpen: () -> Unit) {
             MutedText(vitaPlural(L10nKey.TR_RESULT_COUNT, count))
             if (series != null) {
                 val latest = series.comparison.latest!!
-                Text("${labValue(latest.value, latest.valueDecimals)} ${series.unit}".trim(), style = MaterialTheme.typography.headlineMedium.tabular())
+                Text("${labValue(latest.value, latest.plottedDecimals(series.unit))} ${series.unit}".trim(), style = MaterialTheme.typography.headlineMedium.tabular())
                 Text(dateText(latest.date), style = MaterialTheme.typography.bodyMedium)
                 val previous = series.comparison.sincePrevious
                 if (series.comparison.status == ComparisonStatus.COMPARABLE && previous != null) {
@@ -130,7 +130,7 @@ internal fun TrendDetailBody(ctx: RouteContext, data: ProfileData, testCode: Str
             CategoryPanel(Category.TRENDS) {
                 CardHeading(vitaText(L10nKey.TR_UNITS_TITLE))
                 Text(vitaText(L10nKey.TR_UNITS_BODY), style = MaterialTheme.typography.bodyMedium)
-                SegmentedControl(trend.series.map { it.unit }, unitIndex.coerceAtMost(trend.series.lastIndex), { unitIndex = it })
+                SegmentedControl(trend.series.map { it.unit }, unitIndex.coerceAtMost(trend.series.lastIndex), { unitIndex = it }, onCategorySurface = true)
             }
         }
         val series = trend.series.getOrNull(unitIndex.coerceAtMost(trend.series.lastIndex))

@@ -93,7 +93,16 @@ object LabTrends {
                         it.referenceRange, sourceOf(it), Granularity.READING, it.observationId,
                     )
                 }
-                TrendEngine.series("$code|$unitKey", latest.displayName, unit, raw, range, today)
+                val series = TrendEngine.series("$code|$unitKey", latest.displayName, unit, raw, range, today)
+                // Keep comparison arithmetic's normalized precision unchanged. Printed decimals belong to
+                // the original report value, even when the plotted value uses another unit.
+                val decimalsById = group.associate { it.observationId to it.valueDecimals }
+                fun originalPrecision(point: SeriesPoint) = point.copy(valueDecimals = decimalsById[point.id])
+                series.copy(
+                    points = series.points.map(::originalPrecision),
+                    allPoints = series.allPoints.map(::originalPrecision),
+                    comparison = series.comparison.copy(latest = series.comparison.latest?.let(::originalPrecision)),
+                )
             }
             // The unit of the most recent reading comes first.
             .sortedWith(compareByDescending<HistorySeries> { it.allPoints.last().at }.thenBy { it.unit })

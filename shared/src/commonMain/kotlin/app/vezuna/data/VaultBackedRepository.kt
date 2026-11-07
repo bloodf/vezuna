@@ -44,11 +44,18 @@ import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
-import app.vezuna.health.VitalsStore
+import app.vezuna.health.*
+import app.vezuna.domain.AggregateWindow
+import app.vezuna.security.VaultWriteResult
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import app.vezuna.security.CipherEnvelopeCodec
 import app.vezuna.security.SecureVault
 import app.vezuna.security.VaultFailure
 import app.vezuna.security.VaultUnreadableException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -96,6 +103,11 @@ class VaultBackedRepository(
     private val vitalsStore = VitalsStore(vault, json)
     // Vitals live in their own vault files; `records` always carry empty vitals so profile writes never rewrite them.
     private val vitals = mutableMapOf<String, ProfileVitals>()
+    private val blockedVitals = mutableSetOf<String>()
+    private val uncertainVitals = mutableSetOf<String>()
+    private val pendingReplacements = mutableSetOf<String>()
+    private data class PendingVitals(val profileId: String, val oldCommitId: String, val oldRevision: Long, val newRevision: Long)
+    private val pendingVitals = mutableMapOf<String, PendingVitals>()
     // Keys whose corrupt current file was replaced by the previous generation; quarantined before the next write of that key.
     private val pendingQuarantine = mutableSetOf<String>()
     // Index entries whose record is missing; carried forward in the index so their vitals and files are never swept.
@@ -132,7 +144,8 @@ class VaultBackedRepository(
 
     /** Called once by the app before any controller can observe profiles. */
     suspend fun load() = mutex.withLock {
-        if (!initialized) restore()
+        if (!initialized) try { restore() }
+        catch (future: StorageSchemaTooNewException) { throw VaultUnreadableException(VaultFailure.SCHEMA_NEWER, future) }
     }
 
     /**
@@ -150,6 +163,7 @@ class VaultBackedRepository(
         ensureInitialized()
         require(!records.containsKey(profile.profileId)) { "Profile already exists" }
         require(profile.displayName.isNotBlank()) { "Profile name is required" }
+        vitalsStore.assertPreservable(profile.profileId)
         val data = ProfileData(profile = profile)
         skipped.remove(profile.profileId)
         forgetDeleted(profile.profileId)
@@ -163,6 +177,7 @@ class VaultBackedRepository(
 
     override suspend fun readProfile(profileId: String): ProfileData = mutex.withLock {
         ensureInitialized()
+        vitalsStore.assertPreservable(profileId, allowBlocked = true)
         val data = records.getValue(profileId).withVitals()
         if (persistSelection && selectedProfileId != profileId) {
             // A preference write must never block opening a profile.
@@ -181,6 +196,7 @@ class VaultBackedRepository(
 
     override suspend fun peekProfile(profileId: String): ProfileData = mutex.withLock {
         ensureInitialized()
+        vitalsStore.assertPreservable(profileId, allowBlocked = true)
         records.getValue(profileId).withVitals()
     }
 
@@ -263,6 +279,7 @@ class VaultBackedRepository(
         val removed = records[profileId]
         val unavailable = skipped[profileId]
         if (removed == null && unavailable == null) throw IllegalArgumentException("Profile not found")
+        vitalsStore.assertPreservable(profileId, allowBlocked = true)
         // Recorded before anything is removed: a record file that survives a failed delete is then never recovered as an orphan.
         recordDeleted(profileId)
         // Index first: a crash afterwards leaves only unreferenced encrypted files, never a dangling index entry.
@@ -285,6 +302,10 @@ class VaultBackedRepository(
         if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
         records.remove(profileId)
         vitals.remove(profileId)
+        blockedVitals -= profileId
+        uncertainVitals -= profileId
+        pendingReplacements -= profileId
+        vault.delete(replacementKey(profileId))
         if (healthLinkId == profileId) {
             val next = HealthLink.resolve(null, records.values.map { it.profile })
             if (next == null) vault.delete(HEALTH_LINK_KEY) else vault.write(HEALTH_LINK_KEY, next.encodeToByteArray())
@@ -345,17 +366,19 @@ class VaultBackedRepository(
 
     override suspend fun deleteAppointment(profileId: String, appointmentId: String) = mutate(profileId) { it.withoutAppointment(appointmentId) }
 
-    override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
+    override suspend fun restoreProfile(data: ProfileData) { check(restoreProfileAndVitals(data)) { "Profile restored with pending vitals replacement" } }
+
+    private suspend fun restoreProfileLocked(data: ProfileData) {
         ensureInitialized()
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
         // Vitals live in their own file; callers write them through replaceVitals (see restoreWithVitals).
         val stored = data.copy(vitals = ProfileVitals())
         val previous = records[data.profile.profileId]
         forgetDeleted(data.profile.profileId)
-        persist(stored)
+        persist(stored, restoreWrite = kotlin.coroutines.coroutineContext[RestoreRecordWrite])
         if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
-        // The record is durable from here on. Nothing below may throw for a profile that already existed: its index
-        // entry is repaired on the next load, and callers must not roll back files the durable record points at.
+        // The record is durable from here on. Ordinary index failure for an existing profile is repairable on load.
+        // Cancellation still propagates; the restore write boundary prevents rollback of referenced originals.
         try {
             skipped.remove(data.profile.profileId)
             writeIndex(indexWith(data.profile))
@@ -399,35 +422,234 @@ class VaultBackedRepository(
         if (changed) vitalsSyncGeneration += 1
     }
 
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        ensureInitialized()
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) != profileId) return@withLock null
+        persistHealthLink(profileId)
+        VitalsSyncContext(profileId, vitalsSyncGeneration, vitals[profileId]?.lastSync, zone)
+    }
+
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
         ensureInitialized()
         require(records.containsKey(profileId)) { "Profile not found" }
-        vitalsStore.save(profileId, vitals)
-        this.vitals[profileId] = vitals
-        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
+        beginReplacement(profileId)
+        replaceVitalsLocked(profileId, vitals)
     }
+
+    private suspend fun beginReplacement(id: String) {
+        vitalsStore.assertPreservable(id)
+        if (!vault.supportsAcknowledgedWrites) check((vitalsStore.loadStored(id)?.value?.local ?: WeightLocalState()) == WeightLocalState()) {
+            "A backend without acknowledgement cannot replace transactional local state"
+        }
+        val existingIntent = vault.read(replacementKey(id))
+        if (existingIntent != null && !existingIntent.contentEquals(byteArrayOf(1))) throw StorageSchemaTooNewException(Int.MAX_VALUE, 1)
+        if (HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == id) vitalsSyncGeneration += 1
+        pendingReplacements += id
+        if (vault.supportsAcknowledgedWrites) {
+            val outcome = vault.writeAcknowledged(replacementKey(id), byteArrayOf(1))
+            check(outcome == VaultWriteResult.Acknowledged) { "Replacement intent was not acknowledged" }
+        } else vault.write(replacementKey(id), byteArrayOf(1))
+    }
+
+    private suspend fun replaceVitalsLocked(id: String, clinical: ProfileVitals) {
+        val old = vitalsStore.loadStored(id)?.value ?: StoredVitals()
+        val next = StoredVitals(clinical = clinical.copy(lastSync = null), revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        if (vault.supportsAcknowledgedWrites) {
+            val result = vitalsStore.commit(id, next)
+            if (result != VaultWriteResult.Acknowledged) {
+                if (result is VaultWriteResult.Indeterminate) {
+                    blockedVitals += id
+                    uncertainVitals += id
+                }
+                val cause = when (result) {
+                    is VaultWriteResult.Rejected -> result.cause
+                    is VaultWriteResult.Indeterminate -> result.cause
+                    VaultWriteResult.Acknowledged -> null
+                }
+                if (cause is CancellationException) throw cause
+                error("Replacement was not acknowledged")
+            }
+        } else {
+            check(old.local == WeightLocalState()) { "Transactional state requires acknowledged replacement" }
+            try { vitalsStore.saveLegacy(id, next.clinical) }
+            catch (error: Exception) {
+                // Unit writes cannot distinguish rejection from a failure after replacement.
+                blockedVitals += id
+                uncertainVitals += id
+                throw error
+            }
+        }
+        vitals[id] = next.clinical
+        // Intent removal failure leaves the profile blocked, including after restart.
+        vault.delete(replacementKey(id))
+        pendingReplacements -= id
+        blockedVitals -= id
+        uncertainVitals -= id
+    }
+
+    override suspend fun restoreProfileAndVitals(data: ProfileData): Boolean = mutex.withLock {
+        ensureInitialized()
+        require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
+        val id = data.profile.profileId
+        beginReplacement(id)
+        restoreProfileLocked(data)
+        kotlin.coroutines.coroutineContext[RestoreRecordWrite]?.mayBeStored = true
+        try { replaceVitalsLocked(id, data.vitals); true }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+    }
+
+    private fun replacementKey(id: String) = "repository-replacement-intent-$id-v1"
 
     override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
         ensureInitialized()
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile }) ?: throw IllegalStateException("No profile to link")
+        checkVitalsAvailable(id)
         VitalsSyncContext(id, vitalsSyncGeneration, vitals[id]?.lastSync, zone)
     }
 
-    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit = mutex.withLock {
+        currentCoroutineContext().ensureActive()
         ensureInitialized()
+        checkVitalsAvailable(context.profileId)
         val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
         check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
         checkNotNull(id)
-        val updated = DeviceVitals.ingest(vitals[id] ?: ProfileVitals(), batch, now, context.zone)
+        checkVitalsAvailable(id)
+        val updated = conservativeVitals(vitals[id] ?: ProfileVitals(), batch, now, context.zone)
         // Only the vitals file is rewritten, never the profile file; the link is pinned once the data is durable.
-        vitalsStore.save(id, updated)
+        val old = vitalsStore.loadStored(id)?.value ?: StoredVitals()
+        var next = old.copy(clinical = updated, revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        // Existing nonpaging callers cannot propose or advance local state. Unsupported backends retain that legacy contract.
+        val result = if (vault.supportsAcknowledgedWrites) vitalsStore.commit(id, next) else {
+            try { next = vitalsStore.saveLegacy(id, updated) }
+            catch (error: Exception) { blockedVitals += id; uncertainVitals += id; throw error }
+            null
+        }
+        if (result != null && result != VaultWriteResult.Acknowledged) {
+            if (result is VaultWriteResult.Indeterminate) {
+                vitalsSyncGeneration += 1; blockedVitals += id; uncertainVitals += id
+                pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+            }
+            if (result is VaultWriteResult.Indeterminate && result.cause is CancellationException) throw result.cause
+            error("Vitals write was not acknowledged")
+        }
         vitals[id] = updated
+        records[id] = records.getValue(id).copy(vitals = ProfileVitals())
         vitalsSyncGeneration += 1
-        if (healthLinkId != id) persistHealthLink(id)
-        DeviceVitals.storedCount(updated, batch)
+        try { if (healthLinkId != id) persistHealthLink(id) }
+        catch (error: Exception) {
+            blockedVitals += id
+            pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+            throw error
+        }
+        currentCoroutineContext().ensureActive()
+        VitalsSyncCommit(DeviceVitals.storedCount(updated, batch), VitalsSyncContext(id, vitalsSyncGeneration, updated.lastSync, context.zone))
     }
 
-    private fun ProfileData.withVitals() = copy(vitals = this@VaultBackedRepository.vitals[profile.profileId] ?: ProfileVitals())
+    override suspend fun resolveVitalsWrite(operationId: String): Boolean = mutex.withLock {
+        val pending = pendingVitals[operationId] ?: return@withLock false
+        val id = pending.profileId
+        if (id in pendingReplacements) return@withLock false
+        try {
+            if (!vitalsStore.acknowledgeCurrent(id)) return@withLock false
+            val saved = vitalsStore.loadStored(id)?.value ?: return@withLock false
+            val isCandidate = saved.commitId == operationId && saved.revision == pending.newRevision
+            val isOld = saved.commitId == pending.oldCommitId && saved.revision == pending.oldRevision
+            if (!isCandidate && !isOld) return@withLock false
+            val link = vault.read(HEALTH_LINK_KEY)?.decodeToString()?.takeIf { it.isNotBlank() }
+            healthLinkId = link
+            vitals[id] = saved.clinical
+            vitalsSyncGeneration += 1
+            vitalsStore.clearResolvedBlock(id)
+            blockedVitals -= id
+            uncertainVitals -= id
+            pendingVitals.remove(operationId)
+            true
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+    }
+
+    private fun checkVitalsAvailable(id: String) {
+        check(id !in blockedVitals && id !in pendingReplacements) { "Vitals require authoritative recovery or replacement completion" }
+    }
+
+    private suspend fun validateVitals(context: VitalsSyncContext) {
+        ensureInitialized()
+        checkVitalsAvailable(context.profileId)
+        check(HealthLink.resolve(healthLinkId, records.values.map { it.profile }) == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+    }
+
+    override suspend fun readVitalsState(context: VitalsSyncContext): VitalsReadState = mutex.withLock {
+        validateVitals(context)
+        val stored = vitalsStore.loadStored(context.profileId)
+        if (stored?.previous == true) mutableOpenedFromPrevious.value = true
+        VitalsReadState(context, stored?.value?.revision ?: 0, stored?.value?.local ?: WeightLocalState())
+    }
+
+    override suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome = commitVitals(state) { old ->
+        val reduced = WeightChanges.reduce(old.clinical, old.local, page)
+        old.copy(clinical = reduced.vitals, local = reduced.local) to reduced.storedCount
+    }
+
+    override suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome {
+        require(window.zone == state.context.zone) { "Aggregate zone changed" }
+        return commitVitals(state) { old ->
+            val clinical = DeviceVitals.ingestAggregates(old.clinical, window)
+            old.copy(clinical = clinical) to (window.steps.distinctBy { it.date }.count { item -> clinical.steps.any { it.date == item.date } } + window.heartRate.distinctBy { it.start }.count { item -> clinical.heartRateHourly.any { it.start == item.start } }) }
+    }
+
+    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> Pair<StoredVitals, Int>): VitalsWriteOutcome = mutex.withLock {
+        try { validateVitals(state.context) } catch (_: IllegalStateException) { return@withLock VitalsWriteOutcome.Rejected("stale or blocked") }
+        val id = state.context.profileId
+        val old = vitalsStore.loadStored(id)?.value ?: StoredVitals(clinical = vitals[id] ?: ProfileVitals())
+        vitalsSyncGeneration += 1
+        if (old.revision != state.revision) return@withLock VitalsWriteOutcome.Rejected("revision")
+        val folded = try { fold(old) }
+            catch (_: IllegalArgumentException) { return@withLock VitalsWriteOutcome.Rejected("invalid page") }
+        val next = folded.first.copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        val result = vitalsStore.commit(id, next)
+        // No provider reads here. Finish outcome publication even if cancellation arrived during an acknowledged write.
+        val callerContext = currentCoroutineContext()
+        withContext(NonCancellable) {
+            when (result) {
+                is VaultWriteResult.Rejected -> VitalsWriteOutcome.Rejected("storage rejected")
+                is VaultWriteResult.Indeterminate -> {
+                    blockedVitals += id
+                    uncertainVitals += id
+                    pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+                    VitalsWriteOutcome.Indeterminate(next.commitId)
+                }
+                VaultWriteResult.Acknowledged -> {
+                    vitals[id] = next.clinical
+                    records[id] = records.getValue(id).copy(vitals = ProfileVitals())
+                    var usable = true
+                    try { if (healthLinkId != id) persistHealthLink(id) }
+                    catch (_: Exception) {
+                        blockedVitals += id; usable = false
+                        pendingVitals[next.commitId] = PendingVitals(id, old.commitId, old.revision, next.revision)
+                    }
+                    VitalsWriteOutcome.Committed(next.commitId, next.revision, folded.second,
+                        if (usable && callerContext.isActive) VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local) else null)
+                }
+            }
+        }
+    }
+
+    override suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit) = mutex.withLock {
+        ensureInitialized()
+        checkVitalsAvailable(context.profileId)
+        val id = HealthLink.resolve(healthLinkId, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+        action()
+    }
+
+    private fun ProfileData.withVitals(): ProfileData {
+        check(profile.profileId !in uncertainVitals) { "Vitals outcome is uncertain; reload required" }
+        return copy(vitals = this@VaultBackedRepository.vitals[profile.profileId] ?: ProfileVitals())
+    }
 
     private fun ensureInitialized() {
         if (!initialized) error("Repository must be initialized before use")
@@ -493,9 +715,9 @@ class VaultBackedRepository(
 
     // ---- storage ----
 
-    private suspend fun persist(data: ProfileData) {
+    private suspend fun persist(data: ProfileData, restoreWrite: RestoreRecordWrite? = null) {
         val document = StorageSchema.stamp(json.encodeToJsonElement(ProfileData.serializer(), data) as JsonObject)
-        writeDocument(profileKey(data.profile.profileId), profileAssociatedData(data.profile.profileId), document)
+        writeDocument(profileKey(data.profile.profileId), profileAssociatedData(data.profile.profileId), document, restoreWrite)
     }
 
     private suspend fun writeIndex(profiles: List<Profile>) {
@@ -504,7 +726,7 @@ class VaultBackedRepository(
         writeDocument(INDEX_KEY, INDEX_ASSOCIATED_DATA, document)
     }
 
-    private suspend fun writeDocument(key: String, associatedData: String, document: JsonElement) {
+    private suspend fun writeDocument(key: String, associatedData: String, document: JsonElement, restoreWrite: RestoreRecordWrite? = null) {
         if (key in pendingQuarantine) {
             // If this throws the write fails, but the corrupt file is never rotated over the good previous copy.
             vault.quarantineCurrent(key)
@@ -512,13 +734,21 @@ class VaultBackedRepository(
         }
         val plain = json.encodeToString(JsonElement.serializer(), document).encodeToByteArray()
         val envelope = vault.encrypt(plain, associatedData.encodeToByteArray())
-        vault.write(key, CipherEnvelopeCodec.encode(envelope))
+        val encoded = CipherEnvelopeCodec.encode(envelope)
+        // A vault may throw after writing. From this point the record can reference staged originals.
+        restoreWrite?.mayBeStored = true
+        vault.write(key, encoded)
     }
 
     private suspend fun restore() {
+        vitalsStore.assertAllPreservable()
         vitalsSyncGeneration += 1
         records.clear()
         vitals.clear()
+        pendingVitals.clear()
+        blockedVitals.clear()
+        uncertainVitals.clear()
+        pendingReplacements.clear()
         pendingQuarantine.clear()
         skipped.clear()
         mutableOpenedFromPrevious.value = false
@@ -547,8 +777,16 @@ class VaultBackedRepository(
         // A previous-generation index is one write behind: records it does not list are recovered, unless the user deleted them.
         // Captured now: reading a profile record can also fall back to its previous copy and flip the live flag.
         val indexFromPrevious = mutableOpenedFromPrevious.value
-        val extra = if (indexFromPrevious) orphanIds(listed.keys) else emptyList()
+        // Neither a stale index nor surviving clinical bytes can establish that an uncertain profile was not deleted.
+        // Keep the fallback index untouched too: rewriting it would give uncertain entries current authority next launch.
+        val suppressFallback = indexFromPrevious && (deletedProfileIds == null || deletedReset)
+        if (suppressFallback) {
+            selectedProfileId = null
+            healthLinkId = null
+        }
+        val extra = if (indexFromPrevious && !suppressFallback) orphanIds(listed.keys) else emptyList()
         (listed.keys + extra).forEach { id ->
+            if (suppressFallback) return@forEach
             if (id in listed && indexFromPrevious && deletedProfileIds?.contains(id) == true) {
                 // A previous-generation index is a write behind: an id the user deleted may still be listed, with its record
                 // left behind by a delete that did not finish. Leave it deleted; the index is rewritten without it.
@@ -574,18 +812,21 @@ class VaultBackedRepository(
             }
             // The record is authoritative: updateProfile writes it before the index, so a crash can leave the index behind.
             if (data.profile != listed[id]) indexStale = true
-            val stored = vitalsStore.load(id) { warn("Could not read stored vitals (${it::class.simpleName})", null) }
+            if (vault.read(replacementKey(id)) != null) pendingReplacements += id
+            val storedRead = vitalsStore.loadStored(id) { warn("Could not read stored vitals (${it::class.simpleName})", null) }
             // Vitals saved inside the profile record by an earlier build move to their own file.
-            val loaded = stored ?: data.vitals.migrated().takeUnless { it.isEmpty }?.also { vitalsStore.save(id, it) }
+            if (storedRead?.previous == true) mutableOpenedFromPrevious.value = true
+            val loaded = storedRead?.value?.clinical ?: data.vitals.takeUnless { it.isEmpty }
+            // Embedded migration is deferred to the next authorized transaction.
             if (loaded != null) vitals[id] = loaded
-            records[id] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = ProfileVitals())
+            records[id] = data.copy(doseEvents = DoseEvents.collapse(data.doseEvents), vitals = if (storedRead == null) data.vitals else ProfileVitals())
         }
         if (indexStale) writeIndex(records.values.map { it.profile }.sortedBy { it.displayName })
         // A listed, readable profile that is still marked deleted (crash between the tombstone and the index write) is live again.
         deletedProfileIds?.let { deleted -> (records.keys intersect deleted).takeIf { it.isNotEmpty() }?.let { writeDeleted(deleted - it) } }
-        // Vitals stay while their profile record file exists, readable or not, unless the user deleted it; this holds on every launch.
-        val deleted = deletedProfileIds.orEmpty()
-        val keep = vitalsStore.ids().filter { it !in deleted && vault.read(profileKey(it)) != null }
+        // Preserve vitals while any normally addressable record generation survives, readable or not, on every launch.
+        // Keeping encrypted evidence does not make a tombstoned profile eligible for recovery.
+        val keep = vitalsStore.ids().filter { vault.read(profileKey(it)) != null }
         vitalsStore.sweep(records.keys + skipped.keys + unreadableUnlisted + keep)
         if (legacyPresent) {
             try {
@@ -605,13 +846,13 @@ class VaultBackedRepository(
 
     /**
      * Profile ids whose record file exists but which the loaded index does not list. Only reached for a previous-generation
-     * index. Ids with vitals count too, and an id the user deleted never does. When the tombstones cannot be read nothing
-     * new is recovered from record files; the vitals path keeps its earlier behavior.
+     * index. Ids with vitals count too, and an id the user deleted never does. Unknown or reset deletion history
+     * permits no automatic recovery, whether the candidate has clinical data or only a record.
      */
     private suspend fun orphanIds(listed: Set<String>): List<String> {
         val deleted = deletedProfileIds
-        val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted.orEmpty() && vault.read(profileKey(it)) != null }
-        if (deleted == null || deletedReset) return withVitals
+        if (deleted == null || deletedReset) return emptyList()
+        val withVitals = vitalsStore.ids().filter { it !in listed && it !in deleted && vault.read(profileKey(it)) != null }
         val byKey = vault.listKeys().orEmpty().mapNotNull(::profileIdOf)
         val byAssociatedData = vault.storedAssociatedData().orEmpty().mapNotNull { profileIdFromAssociatedData(it) }
         // Candidates only: each one is read through its own key, so a planted or renamed file cannot inject a record.
@@ -708,7 +949,13 @@ class VaultBackedRepository(
      * Null when nothing is stored. A newer schema is never read from the previous generation.
      */
     private suspend fun <T : Any> readDocument(key: String, associatedData: String, parse: (JsonElement) -> T): T? {
-        val current = vault.read(key) ?: return null
+        // Android read() silently serves .prev after current was quarantined. Preserve that provenance for the two
+        // documents that authorize recovery. Single-generation vaults use SecureVault's current-only default.
+        val current = if (key == INDEX_KEY || key == DELETED_KEY) {
+            val generation = vault.readGeneration(key) ?: return null
+            if (generation.previous) mutableOpenedFromPrevious.value = true
+            generation.bytes
+        } else vault.read(key) ?: return null
         return try {
             decode(current, associatedData, parse)
         } catch (error: CancellationException) {

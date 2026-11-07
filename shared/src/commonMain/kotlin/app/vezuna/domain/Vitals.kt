@@ -102,6 +102,15 @@ data class VitalsBatch(
     }
 }
 
+/** A successfully completed aggregate read. This operation cannot carry weights or weight continuation. */
+data class AggregateWindow(
+    val replaceFrom: LocalDate,
+    val steps: List<StepsDay>,
+    val heartRate: List<HeartRateBucket>,
+    val now: Instant,
+    val zone: TimeZone,
+)
+
 /** Device health data belongs to one linked profile (default: the first created); others never receive it. */
 object HealthLink {
     fun resolve(linkedId: String?, profiles: List<Profile>): String? =
@@ -133,6 +142,22 @@ object DeviceVitals {
     const val RAW_DAYS = 31
     const val RETENTION_DAYS = 365
 
+    /** Preserves weights, legacy samples and legacy summaries exactly; never migrates whole vitals. */
+    fun ingestAggregates(stored: ProfileVitals, window: AggregateWindow): ProfileVitals {
+        val through = window.now.toLocalDateTime(window.zone).date
+        require(window.steps.all { it.date >= window.replaceFrom && it.date <= through && StepsDay.ofOrNull(it.date, it.count) != null }) { "Steps outside completed window" }
+        require(window.heartRate.all { it.start <= window.now && it.start.toLocalDateTime(window.zone).date >= window.replaceFrom && HeartRateBucket.ofOrNull(it.start, it.min, it.avg, it.max) != null }) { "Heart rate outside completed window" }
+        val cutoff = window.now - RAW_DAYS.days
+        val steps = (stored.steps.filter { it.date < window.replaceFrom } + window.steps)
+            .associateBy { it.date }.values.toList()
+        // Stored stale hours still roll up if a rebuild replaces a window older than the raw cutoff.
+        // Re-read stale hours are ignored, so a repeated window cannot roll them up twice.
+        val hourly = (stored.heartRateHourly.filter {
+            it.start < cutoff || it.start.toLocalDateTime(window.zone).date < window.replaceFrom
+        } + window.heartRate.filter { it.start >= cutoff }).associateBy { it.start }.values.toList()
+        return retainAggregates(stored.copy(steps = steps, heartRateHourly = hourly, lastSync = window.now), window.now, window.zone)
+    }
+
     fun ingest(stored: ProfileVitals, batch: VitalsBatch, now: Instant, zone: TimeZone): ProfileVitals {
         val current = stored.migrated()
         val from = batch.replaceFrom
@@ -156,6 +181,13 @@ object DeviceVitals {
     }
 
     private fun retain(vitals: ProfileVitals, now: Instant, zone: TimeZone): ProfileVitals {
+        val keepFrom = now.toLocalDateTime(zone).date.minus(RETENTION_DAYS, DateTimeUnit.DAY)
+        return retainAggregates(vitals, now, zone).copy(
+            weights = vitals.weights.filter { it.time.toLocalDateTime(zone).date >= keepFrom }.sortedBy { it.time },
+        )
+    }
+
+    private fun retainAggregates(vitals: ProfileVitals, now: Instant, zone: TimeZone): ProfileVitals {
         val rawCutoff = now - RAW_DAYS.days
         val keepFrom = now.toLocalDateTime(zone).date.minus(RETENTION_DAYS, DateTimeUnit.DAY)
         val (stale, fresh) = vitals.heartRateHourly.partition { it.start < rawCutoff }
@@ -165,7 +197,6 @@ object DeviceVitals {
             steps = vitals.steps.filter { it.date >= keepFrom }.sortedBy { it.date },
             heartRateHourly = fresh.sortedBy { it.start },
             heartRateDaily = daily.filter { it.date >= keepFrom }.sortedBy { it.date },
-            weights = vitals.weights.filter { it.time.toLocalDateTime(zone).date >= keepFrom }.sortedBy { it.time },
         )
     }
 

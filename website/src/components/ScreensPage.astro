@@ -1,0 +1,72 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from './PageHero.astro';
+import Screen from './Screen.astro';
+import { galleryScreens, screensCopy } from '../data/pages';
+import { localizedPath, repositoryUrl, type Alternates, type Locale } from '../lib/i18n';
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = screensCopy[locale];
+const screens = galleryScreens[locale];
+const guide = localizedPath(locale, 'docs/getting-started');
+const alternates: Alternates = {
+  en: '/screens',
+  'pt-br': '/pt-br/screens',
+  es: '/es/screens',
+};
+// Each capture is cropped differently so the gallery shows three different moments of the app
+// instead of the same framing three times.
+const crops = [0.62, 0.56, 0.56];
+---
+<BaseLayout locale={locale} title={copy.meta.title} description={copy.meta.description} path={localizedPath(locale, 'screens')} alternates={alternates}>
+  <main id="main-content">
+    <PageHero eyebrow={copy.hero.eyebrow} title={copy.hero.title} body={copy.hero.body}>
+      <div class="button-row hero-actions">
+        <a class="button button--primary" href={guide}>{copy.cta.primary}</a>
+        <a class="text-link" href={repositoryUrl} rel="external">{copy.cta.secondary}</a>
+      </div>
+    </PageHero>
+
+    <section class="band band--subtle" aria-labelledby="gallery-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="gallery-title">{copy.gallery.title}</h2>
+          <p class="section-lead">{copy.gallery.body}</p>
+        </header>
+        <div class="gallery">
+          {screens.map((screen, index) => (
+            <Screen screen={screen} crop={crops[index] ?? 0.56} />
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--dark" aria-labelledby="limits-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="limits-title">{copy.limits.title}</h2>
+          <p class="section-lead">{copy.limits.body}</p>
+        </header>
+        <ul class="status-list status-list--dark">
+          {copy.limits.items.map((item) => (
+            <li><span class="status-mark" aria-hidden="true"></span><span>{item}</span></li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="screens-cta-title">
+      <div class="wrap">
+        <header class="section-head">
+          <h2 id="screens-cta-title">{copy.cta.title}</h2>
+          <p class="section-lead">{copy.cta.body}</p>
+        </header>
+        <div class="button-row">
+          <a class="button button--primary" href={guide}>{copy.cta.primary}</a>
+          <a class="text-link" href={repositoryUrl} rel="external">{copy.cta.secondary}</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

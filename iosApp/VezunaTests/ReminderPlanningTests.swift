@@ -76,6 +76,34 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertNil(planner.coverageEnd(of: [], after: now))
     }
 
+    func testReplanningAdvancesTheNearestSixtyDoseCoverage() {
+        let planner = NotificationPlanner(calendar: calendar)
+        let meds = [medication("a", profile: "p1", times: ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"])]
+        let secondNow = calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 6))!
+        let first = planner.plan(for: meds, after: now)
+        let second = planner.plan(for: meds, after: secondNow)
+
+        for (plan, startDay, planningTime) in [(first, 1, now), (second, 7, secondNow)] {
+            // Six full days (54 doses), followed by the first six doses on day seven.
+            let expected = (0..<60).map { index in
+                calendar.date(from: DateComponents(year: 2026, month: 11, day: startDay + index / 9, hour: 7 + index % 9))!
+            }
+            let actual = plan.reminders.map(\.scheduledAt)
+            XCTAssertEqual(actual.count, 60)
+            XCTAssertEqual(actual, expected)
+            XCTAssertTrue(plan.truncated)
+            XCTAssertTrue(actual.allSatisfy { $0 > planningTime })
+            XCTAssertEqual(Set(actual).count, actual.count)
+            XCTAssertEqual(planner.coverageEnd(of: plan.reminders, after: planningTime, truncated: plan.truncated), actual.last)
+        }
+
+        XCTAssertEqual(first.reminders.first?.scheduledAt, calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 7)))
+        XCTAssertEqual(first.reminders.last?.scheduledAt, calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 12)))
+        XCTAssertEqual(second.reminders.first?.scheduledAt, calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 7)))
+        XCTAssertEqual(second.reminders.last?.scheduledAt, calendar.date(from: DateComponents(year: 2026, month: 11, day: 13, hour: 12)))
+        XCTAssertGreaterThan(second.reminders.last!.scheduledAt, first.reminders.last!.scheduledAt)
+    }
+
     func testCoverageReachesTheHorizonWhenTheScheduleEndsBeforeIt() {
         let planner = NotificationPlanner(calendar: calendar)
         let meds = [medication("a", profile: "p1", times: ["08:00"], endDate: "2026-11-06")]

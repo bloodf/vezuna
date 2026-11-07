@@ -5,7 +5,7 @@ import VezunaShared
 
 final class AppShellModel: ObservableObject {
     enum Sheet: Identifiable {
-        case health, license, notices, privacy
+        case health, onboardingHealth, license, notices, privacy
         var id: Self { self }
     }
 
@@ -22,6 +22,7 @@ final class AppShellModel: ObservableObject {
     private let backupFiles = ComposeBackupFiles()
     private let exportFiles = ComposeExportFiles()
     private(set) var healthImporter: HealthKitImporter?
+    var requestedHealthImporter: HealthKitImporter?
     private var didConfigure = false
     private var vaultPath: String?
     private var modelPath: String?
@@ -45,6 +46,7 @@ final class AppShellModel: ObservableObject {
             IosRuntime.shared.exportFiles = exportFiles
             IosRuntime.shared.modelPackLoader = modelLoader
             IosRuntime.shared.repositoryObserver = notifications
+            IosRuntime.shared.healthAvailable = HealthKitImporter.supported
             if HealthKitImporter.supported {
                 healthImporter = HealthKitImporter()
             }

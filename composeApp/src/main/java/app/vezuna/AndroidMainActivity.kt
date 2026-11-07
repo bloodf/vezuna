@@ -94,6 +94,7 @@ class AndroidMainActivity : FragmentActivity() {
     private lateinit var sourcePicker: AndroidSourcePicker
     private lateinit var exports: AndroidExportCoordinator
     private lateinit var backupFiles: AndroidBackupFiles
+    private lateinit var pendingHealthRequest: PendingHealthPermissionRequest
     private lateinit var healthPermissions: HealthConnectPermissionFlow
     private val modelLoader: PlayAssetPackLoader get() = session.modelLoader
     private var deviceAuthenticator: AndroidDeviceAuthenticator? = null
@@ -156,8 +157,12 @@ class AndroidMainActivity : FragmentActivity() {
         exports = AndroidExportCoordinator(this)
         backupFiles = AndroidBackupFiles(this, exports)
         installExportPlatform()
+        pendingHealthRequest = PendingHealthPermissionRequest()
         healthPermissions = HealthConnectPermissionFlow(this) { granted ->
-            if (granted) synchronizeHealthConnect() else mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
+            mutableBusy.value = false
+            if (!pendingHealthRequest.consume(granted, ::synchronizeHealthConnect)) {
+                mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_PERMISSION_DENIED)
+            }
         }
         val messageFlow = mutableMessage.asStateFlow()
         val busyFlow = mutableBusy.asStateFlow()
@@ -173,6 +178,7 @@ class AndroidMainActivity : FragmentActivity() {
                     messageFlow = messageFlow,
                     busyFlow = busyFlow,
                     onHealthConnect = ::openHealthConnect,
+                    onboardingHealthAvailable = app.healthConnect.sdkStatus() == HealthConnectClient.SDK_AVAILABLE,
                     onReminders = ::requestReminders,
                     backupFiles = backupFiles.access,
                     reminders = reminders,
@@ -263,10 +269,27 @@ class AndroidMainActivity : FragmentActivity() {
         super.onDestroy()
     }
 
-    private fun openHealthConnect() {
+    private fun openHealthConnect(expected: app.vezuna.data.VitalsSyncContext?) {
+        if (mutableBusy.value) return
         when (app.healthConnect.sdkStatus()) {
-            HealthConnectClient.SDK_AVAILABLE -> lifecycleScope.launch {
-                if (app.healthConnect.hasPermissions()) synchronizeHealthConnect() else healthPermissions.request()
+            HealthConnectClient.SDK_AVAILABLE -> {
+                mutableBusy.value = true
+                lifecycleScope.launch {
+                    try {
+                        val captured = expected ?: app.repository.captureVitalsSync()
+                        if (app.healthConnect.hasPermissions()) {
+                            mutableBusy.value = false
+                            synchronizeHealthConnect(captured)
+                        } else {
+                            pendingHealthRequest.store(captured)
+                            healthPermissions.request()
+                        }
+                    } catch (error: Throwable) {
+                        pendingHealthRequest.consume(false) {}
+                        mutableBusy.value = false
+                        mutableMessage.value = error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)
+                    }
+                }
             }
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
                 mutableMessage.value = nativeMessage(NativeKey.HEALTH_CONNECT_UPDATE_REQUIRED)
@@ -286,14 +309,16 @@ class AndroidMainActivity : FragmentActivity() {
         }
     }
 
-    private fun synchronizeHealthConnect() {
+    private fun synchronizeHealthConnect(expected: app.vezuna.data.VitalsSyncContext) {
         if (mutableBusy.value) return
         mutableBusy.value = true
         lifecycleScope.launch {
             try {
-                val imported = app.healthSync.synchronize()
-                controller.refreshDashboard()
-                mutableMessage.value = nativePlural(NativeKey.HEALTH_CONNECT_IMPORT_COMPLETE, imported)
+                val imported = app.healthSync.synchronizeOutcome(expected)
+                imported.presentHealthConnectOutcome(
+                    refresh = { controller.refreshDashboard() },
+                    publish = { mutableMessage.value = it },
+                )
             } catch (error: Throwable) {
                 mutableMessage.value = error.toNativeText(NativeKey.HEALTH_CONNECT_IMPORT_FAILED)
             } finally {
@@ -339,3 +364,19 @@ class AndroidMainActivity : FragmentActivity() {
 }
 
 private const val HEALTH_CONNECT_PROVIDER = "com.google.android.apps.healthdata"
+
+internal class PendingHealthPermissionRequest {
+    private var pending: app.vezuna.data.VitalsSyncContext? = null
+
+    fun store(context: app.vezuna.data.VitalsSyncContext) {
+        pending = context
+    }
+
+    fun consume(granted: Boolean, synchronize: (app.vezuna.data.VitalsSyncContext) -> Unit): Boolean {
+        val expected = pending
+        pending = null
+        if (!granted || expected == null) return false
+        synchronize(expected)
+        return true
+    }
+}

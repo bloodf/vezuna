@@ -1,6 +1,9 @@
 package app.vezuna.health
 
+import app.vezuna.data.VitalsSyncContext
 import app.vezuna.data.VezunaRepository
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import app.vezuna.domain.VitalsBatch
 import app.vezuna.domain.WeightReading
 import app.vezuna.security.CipherEnvelope
@@ -29,9 +32,9 @@ class LegacyHealthConnectMigration(
     @Serializable
     private data class State(val samples: Map<String, Sample> = emptyMap())
 
-    suspend fun run() {
-        val stored = vault.read(KEY) ?: return
-        val context = repository.captureVitalsSync()
+    suspend fun run(context: VitalsSyncContext): VitalsSyncContext {
+        repository.withValidatedVitalsSync(context) {}
+        val stored = vault.read(KEY) ?: return context
         val weights = try {
             val envelope = json.decodeFromString(CipherEnvelope.serializer(), stored.decodeToString())
             json.decodeFromString(State.serializer(), vault.decrypt(envelope).decodeToString()).samples.values
@@ -43,11 +46,14 @@ class LegacyHealthConnectMigration(
             logger.log(Level.WARNING, "Discarding unreadable legacy Health Connect data", error)
             emptyList()
         }
-        if (weights.isNotEmpty()) {
+        currentCoroutineContext().ensureActive()
+        val successor = if (weights.isNotEmpty()) {
             // Merge only: nothing already stored, including today's data, is replaced.
-            repository.ingestDeviceVitals(context, VitalsBatch(replaceFrom = VitalsBatch.MERGE_ONLY, weights = weights, markSynced = false), clock())
-        }
-        vault.delete(KEY)
+            repository.ingestDeviceVitalsAndCapture(context, VitalsBatch(replaceFrom = VitalsBatch.MERGE_ONLY, weights = weights, markSynced = false), clock()).context
+        } else context
+        // A relink or cancellation after durable ingest preserves the source for a safe retry.
+        repository.withValidatedVitalsSync(successor) { vault.delete(KEY) }
+        return successor
     }
 
     internal companion object {

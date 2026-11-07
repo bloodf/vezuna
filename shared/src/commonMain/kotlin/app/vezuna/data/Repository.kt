@@ -1,5 +1,8 @@
 package app.vezuna.data
 
+import app.vezuna.health.*
+import app.vezuna.domain.AggregateWindow
+
 import app.vezuna.domain.ChatMessage
 import app.vezuna.domain.DeviceVitals
 import app.vezuna.domain.HealthLink
@@ -42,6 +45,8 @@ import app.vezuna.domain.withoutMedication
 import app.vezuna.domain.withoutObservation
 import app.vezuna.domain.withoutReport
 import app.vezuna.domain.withoutSchedule
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +54,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
+
+/** Legacy nonpaging write and same-lock context. This is not a transactional cursor acknowledgement. */
+data class VitalsSyncCommit(val storedCount: Int, val context: VitalsSyncContext)
 
 /** Captured under the repository lock before a platform read; never recapture at commit time. */
 data class VitalsSyncContext(val profileId: String, val generation: Long, val lastSync: Instant?, val zone: TimeZone)
@@ -111,33 +119,48 @@ interface VezunaRepository {
     /** The one profile that receives device vitals; defaults to the first created profile. Null when there are none. */
     suspend fun linkedHealthProfileId(): String?
     suspend fun setLinkedHealthProfile(profileId: String)
+    /** Pins only the already resolved target; never replaces another profile's link. Returns the same-lock sync context. */
+    suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext?
     /** The stored link only, without the oldest-profile default. Falls back to the resolved link (the safe, "keep" answer). */
     suspend fun explicitHealthLinkId(): String? = linkedHealthProfileId()
     /** Atomically captures the resolved link, its generation and the stored sync window. */
     suspend fun captureVitalsSync(zone: TimeZone = TimeZone.currentSystemDefault()): VitalsSyncContext
     /** Rejects stale contexts before any write; returns how many entries were actually stored. */
-    suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int
-    /** Atomically replaces the stored vitals of [profileId] (restore); [ProfileVitals.lastSync] is kept as provided. */
+    suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int =
+        ingestDeviceVitalsAndCapture(context, batch, now).storedCount
+    /** Returns the exact successor under the commit lock, never a freshly recaptured target. */
+    suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit
+    /** Runs source cleanup only while the original/successor context remains current. Action must not reenter this repository. */
+    suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit)
+    /** Resolves storage/bookkeeping only; success never grants a paging successor or native authorization. */
+    suspend fun resolveVitalsWrite(operationId: String): Boolean = false
+    suspend fun readVitalsState(context: VitalsSyncContext): VitalsReadState
+    suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome
+    suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome
+    suspend fun restoreProfileAndVitals(data: ProfileData): Boolean {
+        restoreProfile(data.copy(vitals = ProfileVitals()))
+        kotlin.coroutines.coroutineContext[RestoreRecordWrite]?.mayBeStored = true
+        return try { replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null)); true }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { false }
+    }
+    /** Replaces clinical values and clears aggregate lastSync and all device-local sync/provenance state. */
     suspend fun replaceVitals(profileId: String, vitals: ProfileVitals)
 }
 
+
+/** Tracks whether attachment cleanup is still safe, including writes whose outcome is unknown. */
+internal class RestoreRecordWrite : kotlin.coroutines.AbstractCoroutineContextElement(Key) {
+    companion object Key : kotlin.coroutines.CoroutineContext.Key<RestoreRecordWrite>
+    var mayBeStored = false
+}
 
 /**
  * Restores a backup including its device vitals; the vitals replace whatever the profile had. `lastSync` is cleared so
  * the next device sync reads its full first window. Returns false when the profile was restored but the vitals could not
  * be written (the profile and its records are kept).
  */
-suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean {
-    restoreProfile(data.copy(vitals = ProfileVitals()))
-    return try {
-        replaceVitals(data.profile.profileId, data.vitals.copy(lastSync = null))
-        true
-    } catch (cancelled: kotlinx.coroutines.CancellationException) {
-        throw cancelled
-    } catch (failure: Exception) {
-        false
-    }
-}
+suspend fun VezunaRepository.restoreWithVitals(data: ProfileData): Boolean = restoreProfileAndVitals(data)
 
 /** Volatile implementation used by tests and previews. */
 class InMemoryVezunaRepository : VezunaRepository {
@@ -145,6 +168,7 @@ class InMemoryVezunaRepository : VezunaRepository {
     private var records = mapOf<String, ProfileData>()
     private var healthLink: String? = null
     private var vitalsSyncGeneration = 0L
+    private val storedVitals = mutableMapOf<String, StoredVitals>()
     private val mutableProfiles = MutableStateFlow<List<Profile>>(emptyList())
     override val profiles = mutableProfiles.asStateFlow()
 
@@ -160,6 +184,7 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun deleteProfile(profileId: String) = mutex.withLock {
         require(records.containsKey(profileId)) { "Profile not found" }
         if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
+        storedVitals.remove(profileId)
         val remaining = records - profileId
         if (healthLink == profileId) healthLink = HealthLink.resolve(null, remaining.values.map { it.profile })
         publish(remaining)
@@ -270,7 +295,8 @@ class InMemoryVezunaRepository : VezunaRepository {
     override suspend fun restoreProfile(data: ProfileData) = mutex.withLock {
         require(data.isInternallyConsistent()) { "Backup records are inconsistent" }
         if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
-        publish(records + (data.profile.profileId to data))
+        storedVitals[data.profile.profileId] = StoredVitals(clinical = data.vitals.copy(lastSync = null))
+        publish(records + (data.profile.profileId to data.copy(vitals = data.vitals.copy(lastSync = null))))
     }
 
     override suspend fun linkedHealthProfileId(): String? = mutex.withLock { HealthLink.resolve(healthLink, records.values.map { it.profile }) }
@@ -283,10 +309,17 @@ class InMemoryVezunaRepository : VezunaRepository {
         healthLink = profileId
     }
 
+    override suspend fun linkOnboardingHealthProfile(profileId: String, zone: TimeZone): VitalsSyncContext? = mutex.withLock {
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) != profileId) return@withLock null
+        healthLink = profileId
+        VitalsSyncContext(profileId, vitalsSyncGeneration, records.getValue(profileId).vitals.lastSync, zone)
+    }
+
     override suspend fun replaceVitals(profileId: String, vitals: ProfileVitals) = mutex.withLock {
         val data = records.getValue(profileId)
         if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == profileId) vitalsSyncGeneration += 1
-        publish(records + (profileId to data.copy(vitals = vitals)))
+        storedVitals[profileId] = StoredVitals(clinical = vitals.copy(lastSync = null))
+        publish(records + (profileId to data.copy(vitals = vitals.copy(lastSync = null))))
     }
 
     override suspend fun captureVitalsSync(zone: TimeZone): VitalsSyncContext = mutex.withLock {
@@ -294,16 +327,74 @@ class InMemoryVezunaRepository : VezunaRepository {
         VitalsSyncContext(id, vitalsSyncGeneration, records.getValue(id).vitals.lastSync, zone)
     }
 
-    override suspend fun ingestDeviceVitals(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): Int = mutex.withLock {
+    override suspend fun ingestDeviceVitalsAndCapture(context: VitalsSyncContext, batch: VitalsBatch, now: Instant): VitalsSyncCommit = mutex.withLock {
+        currentCoroutineContext().ensureActive()
         val id = HealthLink.resolve(healthLink, records.values.map { it.profile })
         check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
         checkNotNull(id)
         val data = records.getValue(id)
         healthLink = id
-        val updated = DeviceVitals.ingest(data.vitals, batch, now, context.zone)
+        val updated = conservativeVitals(data.vitals, batch, now, context.zone)
+        val oldStored = storedVitals[id] ?: StoredVitals()
+        storedVitals[id] = oldStored.copy(clinical = updated, revision = oldStored.revision + 1)
         publish(records + (id to data.copy(vitals = updated)))
         vitalsSyncGeneration += 1
-        DeviceVitals.storedCount(updated, batch)
+        VitalsSyncCommit(DeviceVitals.storedCount(updated, batch), VitalsSyncContext(id, vitalsSyncGeneration, updated.lastSync, context.zone))
+    }
+
+    override suspend fun readVitalsState(context: VitalsSyncContext): VitalsReadState = mutex.withLock {
+        validateVitals(context)
+        VitalsReadState(context, storedVitals[context.profileId]?.revision ?: 0, storedVitals[context.profileId]?.local ?: WeightLocalState())
+    }
+
+    private suspend fun validateVitals(context: VitalsSyncContext) {
+        check(HealthLink.resolve(healthLink, records.values.map { it.profile }) == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+    }
+
+    override suspend fun commitWeightPage(state: VitalsReadState, page: WeightPage): VitalsWriteOutcome = commitVitals(state) { old ->
+        val result = WeightChanges.reduce(old.clinical, old.local, page)
+        old.copy(clinical = result.vitals, local = result.local) to result.storedCount
+    }
+
+    override suspend fun commitAggregateWindow(state: VitalsReadState, window: AggregateWindow): VitalsWriteOutcome {
+        require(window.zone == state.context.zone) { "Aggregate zone changed" }
+        return commitVitals(state) { old ->
+            val clinical = DeviceVitals.ingestAggregates(old.clinical, window)
+            old.copy(clinical = clinical) to (window.steps.distinctBy { it.date }.count { item -> clinical.steps.any { it.date == item.date } } + window.heartRate.distinctBy { it.start }.count { item -> clinical.heartRateHourly.any { it.start == item.start } }) }
+    }
+
+    private suspend fun commitVitals(state: VitalsReadState, fold: (StoredVitals) -> Pair<StoredVitals, Int>): VitalsWriteOutcome = mutex.withLock {
+        try { validateVitals(state.context) } catch (_: IllegalStateException) { return@withLock VitalsWriteOutcome.Rejected("stale") }
+        val id = state.context.profileId
+        val old = (storedVitals[id] ?: StoredVitals()).copy(clinical = records.getValue(id).vitals)
+        vitalsSyncGeneration += 1 // Every attempt consumes this generation, including rejected folds.
+        if (state.revision != old.revision) return@withLock VitalsWriteOutcome.Rejected("revision")
+        val folded = try { fold(old) }
+            catch (_: IllegalArgumentException) { return@withLock VitalsWriteOutcome.Rejected("invalid page") }
+        val next = folded.first.copy(revision = old.revision + 1, commitId = kotlin.uuid.Uuid.random().toString())
+        storedVitals[id] = next
+        healthLink = id
+        publish(records + (id to records.getValue(id).copy(vitals = next.clinical)))
+        VitalsWriteOutcome.Committed(next.commitId, next.revision, folded.second,
+            VitalsReadState(VitalsSyncContext(id, vitalsSyncGeneration, next.clinical.lastSync, state.context.zone), next.revision, next.local))
+    }
+
+    override suspend fun restoreProfileAndVitals(data: ProfileData): Boolean = mutex.withLock {
+        require(data.isInternallyConsistent())
+        if (HealthLink.resolve(healthLink, records.values.map { it.profile }) == data.profile.profileId) vitalsSyncGeneration += 1
+        val clinical = data.vitals.copy(lastSync = null)
+        storedVitals[data.profile.profileId] = StoredVitals(clinical = clinical)
+        publish(records + (data.profile.profileId to data.copy(vitals = clinical)))
+        kotlin.coroutines.coroutineContext[RestoreRecordWrite]?.mayBeStored = true
+        true
+    }
+
+    override suspend fun withValidatedVitalsSync(context: VitalsSyncContext, action: suspend () -> Unit) = mutex.withLock {
+        val id = HealthLink.resolve(healthLink, records.values.map { it.profile })
+        check(id == context.profileId && vitalsSyncGeneration == context.generation) { "Device vitals sync is stale" }
+        currentCoroutineContext().ensureActive()
+        action()
     }
 
     private suspend fun mutate(profileId: String, transform: (ProfileData) -> ProfileData) = mutex.withLock {
@@ -318,4 +409,17 @@ class InMemoryVezunaRepository : VezunaRepository {
         records = updated
         mutableProfiles.value = updated.values.map { it.profile }.sortedBy { it.displayName }
     }
+}
+
+/** Compatibility entry for native/legacy payloads: omission never removes weight, and local progress is untouched. */
+internal fun conservativeVitals(stored: ProfileVitals, batch: VitalsBatch, now: Instant, zone: TimeZone): ProfileVitals {
+    val aggregate = if (batch.markSynced) DeviceVitals.ingestAggregates(stored,
+        AggregateWindow(batch.replaceFrom, batch.steps, batch.heartRate, now, zone)) else stored.copy(
+            // Legacy merge data is not a completed provider query and supplies no absence/replacement authority.
+            steps = (stored.steps + batch.steps.filter { app.vezuna.domain.StepsDay.ofOrNull(it.date, it.count) != null }).associateBy { it.date }.values.toList(),
+            heartRateHourly = (stored.heartRateHourly + batch.heartRate.filter { app.vezuna.domain.HeartRateBucket.ofOrNull(it.start, it.min, it.avg, it.max) != null }).associateBy { it.start }.values.toList(),
+        )
+    val known = (stored.weights.map { it.recordId } + stored.samples.map { it.recordId }).toSet()
+    val additions = batch.weights.filter { it.recordId !in known && app.vezuna.domain.WeightReading.ofOrNull(it.recordId, it.time, it.kg) != null }.distinctBy { it.recordId }
+    return aggregate.copy(weights = stored.weights + additions)
 }
