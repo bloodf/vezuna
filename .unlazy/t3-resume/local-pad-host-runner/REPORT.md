@@ -1,3 +1,5 @@
+> Historical snapshot only. Current repository instructions and central policy supersede all operational directions below. Historical claims are not fresh acceptance. See the evidence retention map at `.unlazy/t3-resume/local-pad-host-runner/EVIDENCE_RETENTION.md` for intentional omissions and unresolved recovery proof.
+
 # Experimental localPAD host watchdog
 
 Authoring complete; independent review and all device/runtime gates remain HOLD. This is root-owned ignored experimental code with synthetic verification only. No self-approval or runtime acceptance is claimed.

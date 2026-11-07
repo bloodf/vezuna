@@ -1,3 +1,5 @@
+> Historical snapshot only. Current repository instructions and central policy supersede all operational directions below. Historical claims are not fresh acceptance. See the evidence retention map at `.unlazy/t3-resume/local-pad-host-runner/EVIDENCE_RETENTION.md` for intentional omissions and unresolved recovery proof.
+
 # Android adapter authoring report
 
 Adapter authoring is complete. Independent review, frozen-controller approval, final artifact approval, executable/device preflight and runtime approval remain HOLD. This author does not approve the frozen controller or authorize execution. No real installation, binding, lease or runtime identity is asserted by the synthetic fixtures.

@@ -1,3 +1,5 @@
+> Historical snapshot only. Current repository instructions and central policy supersede all operational directions below. Historical claims are not fresh acceptance. See the evidence retention map at `.unlazy/t3-resume/local-pad-host-runner/EVIDENCE_RETENTION.md` for intentional omissions and unresolved recovery proof.
+
 # Gates: Vezuna product-led redesign
 
 Scope: replace the abstract marketing experience with clear lab, medication, weight, device-health, household, and export workflows in three languages.
