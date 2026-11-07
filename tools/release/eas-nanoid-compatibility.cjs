@@ -1,5 +1,5 @@
 // Run against the installed candidate graph after parent heavy-slot admission:
-// node tools/release/eas-nanoid-compatibility.cjs
+// node tools/release/eas-nanoid-compatibility.cjs [6.0.2|3.3.20]
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -13,6 +13,10 @@ require('node:net').Socket.prototype.connect = denyNetwork;
 require('node:http').request = denyNetwork;
 require('node:https').request = denyNetwork;
 globalThis.fetch = denyNetwork;
+
+const expectedNanoidVersion = process.argv[2] || '6.0.2';
+assert(['6.0.2', '3.3.20'].includes(expectedNanoidVersion), 'Select candidate or explicit baseline');
+assert.equal(process.version, 'v24.22.2', 'Qualification requires the pinned Node platform');
 
 const easPackage = require.resolve('eas-cli/package.json');
 const eas = createRequire(easPackage);
@@ -45,6 +49,7 @@ for (const caller of callers) {
     directory = parent;
   }
   console.log(JSON.stringify({ caller, nanoidPath, nanoidVersion: nanoidPackage.version }));
+  assert.equal(nanoidPackage.version, expectedNanoidVersion, 'Every actual caller must resolve the selected NanoID version');
   // Load the real CommonJS caller, including its actual require("nanoid").
   const loaded = eas(caller);
   assert(loaded && typeof loaded === 'object', `${caller} must load its CommonJS exports`);
@@ -77,6 +82,8 @@ for (const size of [6, 10]) {
   // 1. Dual ESM/CJS resolution check
   const esm = await import(pathToFileURL(eas.resolve('nanoid')).href);
   assert.equal(esm.nanoid, nano.nanoid);
+  // The package export condition named default selects index.js; it is not an ESM default export.
+  if (expectedNanoidVersion === '6.0.2') assert.equal('default' in esm, false);
 
   // 2. iOS AscApiKeyUtils pure naming caller
   const ios = eas('./build/credentials/ios/actions/AscApiKeyUtils.js');
@@ -129,18 +136,23 @@ for (const size of [6, 10]) {
       {
         name: 'team-acc',
         ownerUserActor: { id: 'user-2' },
-        viewerUserPermission2: { effectivePermissions: ['PUBLISH'], permissions: ['PUBLISH'] },
+        viewerUserPermission2: { effectivePermissions: ['PUBLISH'] },
       },
       {
         name: 'personal-acc',
         ownerUserActor: { id: 'user-1' },
-        viewerUserPermission2: { effectivePermissions: ['PUBLISH'], permissions: ['PUBLISH'] },
+        viewerUserPermission2: { effectivePermissions: ['PUBLISH'] },
       },
     ],
   });
   assert(Array.isArray(choices));
   assert.equal(choices.length, 2);
   assert(choices.every(choice => !choice.disabled), 'Synthetic accounts must allow publishing');
+  const deniedChoices = configs.getAccountChoices({
+    id: 'user-1',
+    accounts: [{ name: 'denied', viewerUserPermission2: { effectivePermissions: [], permissions: [] } }],
+  });
+  assert.equal(deniedChoices[0].disabled, true, 'Missing PUBLISH permission must disable the account');
 
   const graph = eas('./build/project/fetchOrCreateProjectIDForWriteToConfigWithConfirmationAsync.js');
   const fsExtra = eas('fs-extra');
@@ -184,7 +196,7 @@ for (const size of [6, 10]) {
     graph.findProjectIdByAccountNameAndSlugNullableAsync = origFindProjectId;
   }
 
-  console.log('EAS_NANOID_CALLER_LOAD_AND_GENERATOR_PASSED');
+  console.log(`EAS_NANOID_CALLER_LOAD_AND_GENERATOR_PASSED nanoid=${expectedNanoidVersion}`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
