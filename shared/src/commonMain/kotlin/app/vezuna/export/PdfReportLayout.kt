@@ -128,6 +128,7 @@ private class ReportPass(private val canvas: PdfCanvas, private val document: Do
                 if (details.isNotEmpty()) y += pen.paragraph(details, left, y, width, BODY, MUTED)
             }
         }
+        y += pen.paragraph("${t.generated} ${DoctorReportFormat.dateTime(document.generatedAt, language)}", left, y, width, BODY, MUTED)
         val bounded = document.scope.selectedFrom != null || document.scope.selectedTo != null
         if (document.scope.labsIncluded || bounded) y += pen.paragraph(period(), left, y, width, BODY)
         DoctorReportFormat.sources(document.resultRows, language)?.let { y += pen.paragraph(it, left, y, width, BODY) }
