@@ -20,11 +20,14 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
     private let center: UNUserNotificationCenter
     private let planner: NotificationPlanner
     private let pendingResponses: PendingResponseQueue
+    private let responseHandler: ((PendingDoseResponse) async -> Outcome)?
     private let defaults: UserDefaults
     private let log = Logger(subsystem: "app.vezuna", category: "reminders")
     private var ready = false
     private let reconcileLock = NSLock()
     private var reconcileTail: Task<Void, Never>?
+    private let replayLock = NSLock()
+    private var replayTail: Task<Void, Never>?
     private var settingsObserver: NSObjectProtocol?
     private var lastHideNames: Bool
 
@@ -32,10 +35,12 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
         center: UNUserNotificationCenter = .current(),
         calendar: Calendar = .current,
         pendingResponses: PendingResponseQueue = PendingResponseQueue(),
+        responseHandler: ((PendingDoseResponse) async -> Outcome)? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.center = center
         self.pendingResponses = pendingResponses
+        self.responseHandler = responseHandler
         self.defaults = defaults
         self.lastHideNames = defaults.bool(forKey: Self.hideNamesKey)
         self.planner = NotificationPlanner(calendar: calendar)
@@ -436,10 +441,22 @@ final class MedicationNotificationCoordinator: NSObject, ObservableObject, Nativ
 
     /// Replays actions saved while the runtime was not ready (for example a cold background launch from an action button).
     private func replayPendingResponses() async {
+        replayLock.lock()
+        let previous = replayTail
+        let task = Task { await previous?.value; await self.performReplay() }
+        replayTail = task
+        replayLock.unlock()
+        await task.value
+    }
+
+    private func performReplay() async {
         do {
             for response in try pendingResponses.load() {
                 // The dose event id is deterministic, so a replay of an already recorded action is a no-op.
-                let outcome = response.isExpired(now: Date()) ? .drop : await handle(response)
+                let outcome: Outcome
+                if response.isExpired(now: Date()) { outcome = .drop }
+                else if let responseHandler { outcome = await responseHandler(response) }
+                else { outcome = await handle(response) }
                 if outcome == .retry { break }
                 try pendingResponses.remove(response)
             }
@@ -573,8 +590,13 @@ extension MedicationNotificationCoordinator: UNUserNotificationCenterDelegate {
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let pending = pendingResponse(from: response) else { return }
-        persist(pending)
+        await receiveResponse(pending, runtimeReady: ready)
         if ready { await reconcile() }
+    }
+
+    func receiveResponse(_ pending: PendingDoseResponse, runtimeReady: Bool) async {
+        persist(pending)
+        if runtimeReady { await replayPendingResponses() }
     }
 
     private func persist(_ response: PendingDoseResponse) {
@@ -609,14 +631,19 @@ final class PendingResponseQueue {
 
     func load() throws -> [PendingDoseResponse] {
         lock.lock(); defer { lock.unlock() }
-        try flush()
-        return try store!.load()
+        // A failed write does not prevent reading already durable responses in front of the volatile queue.
+        do { try flush() } catch { if store == nil { throw error } }
+        let durable = try store!.load()
+        return durable + waiting.filter { candidate in
+            !durable.contains { $0.notificationIdentifier == candidate.notificationIdentifier && $0.action == candidate.action }
+        }
     }
 
     func remove(_ response: PendingDoseResponse) throws {
         lock.lock(); defer { lock.unlock() }
-        try flush()
-        try store!.remove(response)
+        guard let store else { throw CocoaError(.fileReadUnknown) }
+        if try store.load().contains(response) { try store.remove(response) }
+        waiting.removeAll { $0.notificationIdentifier == response.notificationIdentifier && $0.action == response.action }
     }
 
     private func flush() throws {

@@ -239,6 +239,49 @@ final class ReminderPlanningTests: XCTestCase {
         XCTAssertEqual(try PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }).load(), [second])
     }
 
+    func testReadyCoordinatorRecordsBeforeCallbackReturnsWhenPendingWritesFail() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("responses.json")
+        let queue = PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }, write: { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        })
+        var recorded: [String] = []
+        let coordinator = MedicationNotificationCoordinator(pendingResponses: queue, responseHandler: { response in
+            recorded.append(response.action)
+            return .done
+        })
+        let response = PendingDoseResponse(notificationIdentifier: "n", action: MedicationNotificationCoordinator.takenAction, profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date())
+        await coordinator.receiveResponse(response, runtimeReady: true)
+        XCTAssertEqual(recorded, [MedicationNotificationCoordinator.takenAction])
+        XCTAssertTrue(try queue.load().isEmpty)
+        XCTAssertNotNil(coordinator.lastError)
+    }
+
+    func testCoordinatorRetainsFailedActionAndProcessesInOrderAfterRetry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("responses.json")
+        let queue = PendingResponseQueue(open: { PendingDoseResponseStore(url: url) }, write: { _, _ in throw CocoaError(.fileWriteNoPermission) })
+        var shouldRetry = true
+        var attempts: [String] = []
+        let coordinator = MedicationNotificationCoordinator(pendingResponses: queue, responseHandler: { response in
+            attempts.append(response.action)
+            return shouldRetry ? .retry : .done
+        })
+        let first = PendingDoseResponse(notificationIdentifier: "n", action: "taken", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date())
+        let second = PendingDoseResponse(notificationIdentifier: "n", action: "skip", profileId: "p", medicationId: "m", medicationName: "x", scheduleId: "s", scheduledEpochSeconds: 1, receivedAt: Date())
+        await coordinator.receiveResponse(first, runtimeReady: true)
+        await coordinator.receiveResponse(second, runtimeReady: false)
+        XCTAssertEqual(try queue.load().map(\.action), ["taken", "skip"])
+        shouldRetry = false
+        await coordinator.receiveResponse(first, runtimeReady: true)
+        XCTAssertEqual(attempts, ["taken", "taken", "skip"])
+        XCTAssertTrue(try queue.load().isEmpty)
+    }
+
     func testCorruptResponseFileIsSetAsideAndStoreContinues() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
