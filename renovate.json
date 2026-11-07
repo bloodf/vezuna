@@ -13,6 +13,13 @@
     },
     {
       "matchPackageNames": [
+        "minimatch"
+      ],
+      "matchCurrentVersion": "^5.0.0",
+      "allowedVersions": "<6"
+    },
+    {
+      "matchPackageNames": [
         "@oclif/plugin-autocomplete"
       ],
       "allowedVersions": "3.2.40"
