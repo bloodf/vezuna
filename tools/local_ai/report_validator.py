@@ -89,7 +89,7 @@ def validate_safe_path(rel_path_str: str, root_dir: Path) -> Path:
         raise ReportValidationError("Path traversal detected")
 
     def check_forbidden(path):
-        if set(path.parts) & FORBIDDEN_PATH_PARTS:
+        if {part.casefold() for part in path.parts} & FORBIDDEN_PATH_PARTS:
             raise ReportValidationError("Path references forbidden private or health data segment")
         if path.suffix.lower() in FORBIDDEN_EXTENSIONS:
             raise ReportValidationError("Path references forbidden file extension")
@@ -214,7 +214,7 @@ def validate_report_data(
                 errors.append(f"'target.settings.context_length' must be positive integer, got {ctx_len!r}")
             if type(max_tok) is not int or max_tok <= 0:
                 errors.append(f"'target.settings.max_tokens' must be positive integer, got {max_tok!r}")
-            if type(temp) not in (int, float) or not math.isfinite(temp) or temp < 0:
+            if type(temp) not in (int, float) or (abs(temp) > sys.float_info.max or not math.isfinite(temp)) or temp < 0:
                 errors.append(f"'target.settings.temperature' must be non-negative float, got {temp!r}")
 
         device = target.get("device")
@@ -297,6 +297,10 @@ def validate_report_data(
         if isinstance(obj, dict) and set(obj) - set(allowed):
             errors.append(f"Unknown nested fields in {label}")
 
+    def optional_text(obj, key):
+        if isinstance(obj, dict) and key in obj and not isinstance(obj[key], str):
+            errors.append(f"'{key}' must be a string")
+
     fields(contract, ("lease_id", "schema_version", "fixture"), "contract")
     fields(target, ("platform", "native_build", "settings", "device"), "target")
     if isinstance(contract, dict):
@@ -312,6 +316,7 @@ def validate_report_data(
 
     if isinstance(evidence_refs, list):
         for item in evidence_refs:
+            optional_text(item, "description")
             fields(item, ("path", "sha256", "description", "operation", "contract", "target"), "evidence")
             if isinstance(item, dict):
                 if "operation" in item and (not isinstance(item["operation"], str) or item["operation"] not in REQUIRED_OPERATIONS):
@@ -323,6 +328,7 @@ def validate_report_data(
         if set(operations) - REQUIRED_OPERATIONS:
             errors.append("Unknown operations")
         for name, body in operations.items():
+            optional_text(body, "details")
             fields(body, ("status", "details"), "operation")
             if not isinstance(body, dict) or body.get("status") != "PASS":
                 continue

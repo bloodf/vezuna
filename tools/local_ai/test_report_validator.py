@@ -267,6 +267,49 @@ class TestReviewRegressions(TestReportValidator):
                 with self.subTest(path=path, value=value):
                     self.assertFalse(validate_report_data(data, self.root).is_valid)
 
+    def test_review_metadata_and_huge_temperature(self):
+        import subprocess
+        import sys
+        for path in (("target", "settings", "temperature"), ("operations", "load", "details"), ("evidence_references", 0, "description")):
+            for value in (10 ** 400, -(10 ** 400), {"status": "FAIL"}, [], float("inf")):
+                data = self.bound_pass()
+                obj = data
+                for part in path[:-1]:
+                    obj = obj[part]
+                obj[path[-1]] = value
+                self.assertFalse(validate_report_data(data, self.root).is_valid)
+                report = self.root / "report.json"
+                report.write_text(json.dumps(data))
+                result = subprocess.run([sys.executable, str(Path(__file__).with_name("report_validator.py")), str(report), "--root", str(self.root)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("INVALID", result.stdout)
+                self.assertNotIn("Traceback", result.stderr)
+
+    def test_case_aliases_before_any_read(self):
+        from unittest.mock import patch
+        for segment in ("SAMPLES", "Private", "HeAlTh_DaTa"):
+            data = self.bound_pass()
+            with patch("tools.local_ai.report_validator._compute_sha256", side_effect=AssertionError("must not hash")):
+                data["contract"]["fixture"]["path"] = segment + "/proof.txt"
+                data["evidence_references"] = []
+                self.assertFalse(validate_report_data(data, self.root, True).is_valid)
+                data["contract"]["fixture"]["path"] = "proof.txt"
+                data["evidence_references"] = [{"path": segment + "/proof.txt", "sha256": "0" * 64}]
+                # Valid fixture may be hashed; isolate evidence by disabling verification.
+                self.assertFalse(validate_report_data(data, self.root).is_valid)
+            with patch.object(Path, "read_text", side_effect=AssertionError("must not read")):
+                self.assertFalse(validate_report_file(self.root / segment / "report.json", self.root).is_valid)
+
+    def test_unexecuted_with_matching_bindings(self):
+        data = self.bound_pass()
+        data["target"]["device"]["execution_type"] = "unexecuted"
+        for item in data["evidence_references"]:
+            item["target"]["device"]["execution_type"] = "unexecuted"
+        result = validate_report_data(data, self.root)
+        self.assertFalse(result.is_valid)
+        self.assertTrue(any("Unexecuted" in error for error in result.errors))
+        self.assertFalse(any("identity mismatch" in error for error in result.errors))
+
     def test_strict_json_cli(self):
         import subprocess
         import sys
