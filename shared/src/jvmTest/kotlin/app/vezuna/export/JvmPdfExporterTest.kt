@@ -23,6 +23,20 @@ class JvmPdfExporterTest {
     private val canonical = PdfFixtures.pdfBytes(PdfFixtures.document())
 
     @Test
+    fun firstHeaderShowsGeneratedDateAndAgeAndFooterKeepsDate() {
+        val document = PdfFixtures.document()
+        listOf(document, document.copy(birthDate = null, ageYears = null)).forEach { report ->
+            val pages = PdfFixtures.pageTexts(PdfFixtures.pdfBytes(report))
+            val first = pages.first()
+            val generated = "Generated 01 Nov 2026, 12:41 UTC"
+            assertTrue(first.indexOf(generated) in 0 until first.indexOf("Collection period:"))
+            assertEquals(2, Regex(Regex.escape(generated)).findAll(first).count())
+            assertEquals(report.ageYears != null, "Age: 38" in first)
+            pages.drop(1).forEach { assertTrue(generated in it) }
+        }
+    }
+
+    @Test
     fun canonicalHistoryPrintsEveryValueComparisonAndScopeAsText() {
         // Wrapped cells break lines; compare on single-spaced text.
         val text = PdfFixtures.pageTexts(canonical).joinToString(" ").replace(Regex("\\s+"), " ")
