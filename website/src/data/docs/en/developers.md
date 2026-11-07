@@ -31,8 +31,8 @@ The shared Apple framework is `VezunaShared`; the declared app group is `group.a
 - **Python 3** for repository tools
 - Included Gradle wrapper: `./gradlew`
 - **macOS with Xcode** for iOS, deployment target **18.5**
-- **Node 20+** for EAS Submit; root `eas-cli` is pinned to **27.2.0**
-- For the website only, a supported even Node release defined in `website/package.json`
+- **Node 24.22.2 and pnpm 12.18.0** for EAS Submit; root `eas-cli` is pinned to **27.4.1**
+- The website uses the same Node and pnpm versions, pinned in `website/.nvmrc` and `website/package.json`
 
 As checked on 2026-10-31, App Store uploads require the **iOS 26 SDK or later**. This SDK floor is separate from the iOS 18.5 deployment target. Recheck store requirements before uploading.
 
@@ -139,15 +139,15 @@ EXPORT_METHOD=app-store-connect bash scripts/build-ios.sh device-export
 Expo is used **only for EAS Submit**. It uploads an externally built, already signed `.aab` or `.ipa`; it does not build or sign the native app, configure health permissions, or complete store review. Nothing in the repository uploads automatically.
 
 ```sh
-npm install
-npx eas login
+pnpm install
+pnpm exec eas login
 ```
 
 For Google Play:
 
 ```sh
 export GOOGLE_SERVICE_ACCOUNT_KEY_PATH=$HOME/play-service-account.json
-npm run submit:android -- composeApp/build/outputs/bundle/release/composeApp-release.aab
+pnpm run submit:android -- composeApp/build/outputs/bundle/release/composeApp-release.aab
 ```
 
 The **first AAB must be uploaded manually in Play Console**. EAS Submit works from the second version onward. The configured profile uses the `internal` track with `releaseStatus: draft`.
@@ -158,7 +158,7 @@ For App Store Connect:
 export ASC_API_KEY_PATH=$HOME/AuthKey_XXXXXXXXXX.p8
 export ASC_API_KEY_ISSUER_ID=...
 export ASC_API_KEY_ID=XXXXXXXXXX
-npm run submit:ios -- build/ios/export/Vezuna.ipa
+pnpm run submit:ios -- build/ios/export/Vezuna.ipa
 ```
 
 Use an IPA exported with `EXPORT_METHOD=app-store-connect`. Never submit debug APKs, test APKs, private records, or unlicensed model files.
