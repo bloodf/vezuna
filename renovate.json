@@ -2,5 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "node",
+        "actions/node-versions"
+      ],
+      "allowedVersions": "24.22.2"
+    }
   ]
 }
