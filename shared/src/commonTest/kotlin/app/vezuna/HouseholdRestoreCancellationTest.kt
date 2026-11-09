@@ -5,7 +5,6 @@ import app.vezuna.data.VaultSourceFileStore
 import app.vezuna.data.restoreMembers
 import app.vezuna.domain.Profile
 import app.vezuna.domain.ProfileData
-import app.vezuna.domain.ProfileVitals
 import app.vezuna.domain.SourceDocument
 import app.vezuna.security.BackupMember
 import app.vezuna.ui.RestoreMode
@@ -158,23 +157,30 @@ class HouseholdRestoreCancellationTest {
                 val memory = GenerationalMemoryVault()
                 val failure = if (cancel) CancellationException("postwrite") else IllegalStateException("postwrite")
                 var armed = false
+                var reachedWrite = false
                 val vault = object : app.vezuna.security.SecureVault by memory {
                     override suspend fun write(key: String, ciphertext: ByteArray) {
                         memory.write(key, ciphertext)
-                        if (armed && key == "repository-profile-restored-v1") throw failure
+                        if (armed && key == "repository-profile-restored-v1") {
+                            reachedWrite = true
+                            throw failure
+                        }
                     }
                 }
                 val repository = VaultBackedRepository(vault).also { it.load() }
                 val store = VaultSourceFileStore(vault)
-                seedSentinel(repository, store)
+                val sentinel = seedSentinel(repository, store)
                 if (existing) repository.createProfile(member().data.profile)
                 armed = true
                 assertSame(failure, assertFailsWith<Exception> {
                     repository.restoreMembers(listOf(member()), RestoreMode.REPLACE_EXISTING, store) { error("remap") }
                 })
+                assertEquals(true, reachedWrite, "failure must follow the actual profile write")
                 armed = false
                 val reopened = VaultBackedRepository(vault).also { it.load() }
                 assertPages(store, if (existing) reopened.readProfile("restored") else durableUnindexedProfile(memory))
+                assertEquals(sentinel, reopened.readProfile("sentinel"))
+                assertEquals(sentinelBytes.toList(), store.load("sentinel", "sentinel-doc", assertNotNull(sentinel.documents.single().vaultKey))?.toList())
             }
         }
     }
@@ -239,6 +245,46 @@ class HouseholdRestoreCancellationTest {
                 assertEquals(sentinelBytes.toList(), store.load("sentinel", "sentinel-doc", assertNotNull(sentinel.documents.single().vaultKey))?.toList())
             }
         }
+    }
+
+    @Test
+    fun cancellationBeforeReplacementRecordWritePreservesOldPagesAndSentinel() = runTest {
+        val memory = GenerationalMemoryVault()
+        val cancellation = CancellationException("replacement profile encryption")
+        var armed = false
+        var reachedEncryption = false
+        val vault = object : app.vezuna.security.SecureVault by memory {
+            override suspend fun encrypt(plainText: ByteArray, associatedData: ByteArray): app.vezuna.security.CipherEnvelope {
+                if (armed && associatedData.decodeToString() == "Vezuna repository profile v1:restored") {
+                    reachedEncryption = true
+                    throw cancellation
+                }
+                return memory.encrypt(plainText, associatedData)
+            }
+        }
+        val repository = VaultBackedRepository(vault).also { it.load() }
+        val store = VaultSourceFileStore(vault)
+        val sentinel = seedSentinel(repository, store)
+        repository.createProfile(member().data.profile)
+        val oldKey = store.save("restored", "old", sentinelBytes)
+        repository.addDocument(SourceDocument("restored", "old", "old.jpg", "image/jpeg", "old-hash", time, vaultKey = oldKey))
+        val old = repository.readProfile("restored")
+        val keysBefore = memory.current.keys.toSet()
+        armed = true
+
+        assertSame(cancellation, assertFailsWith<CancellationException> {
+            repository.restoreMembers(listOf(member()), RestoreMode.REPLACE_EXISTING, store) { error("unexpected remap") }
+        })
+
+        assertEquals(true, reachedEncryption, "the atomic restore must reach profile encryption")
+        armed = false
+        // Replacement intent remains fail-closed even though the profile write never started.
+        assertEquals(keysBefore, memory.current.keys.toSet() - "repository-replacement-intent-restored-v1")
+        val reopened = VaultBackedRepository(vault).also { it.load() }
+        assertEquals(old, reopened.readProfile("restored"))
+        assertEquals(sentinelBytes.toList(), store.load("restored", "old", oldKey)?.toList())
+        assertEquals(sentinel, reopened.readProfile("sentinel"))
+        assertEquals(sentinelBytes.toList(), store.load("sentinel", "sentinel-doc", assertNotNull(sentinel.documents.single().vaultKey))?.toList())
     }
 
     @Test
