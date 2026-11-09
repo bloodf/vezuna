@@ -1,0 +1,99 @@
+{
+  "tested_head": "36cc605e4f79a5e5c821a9cd1435e154017da92a",
+  "main": "ef84ac7213cdcece57c5d630a5b703246bcf3a1a",
+  "merge_candidate_tree": "b66c1cdd3840cfb3995445ada97093583f5b387c",
+  "input_equivalence": [
+    {
+      "path": "shared/build.gradle.kts",
+      "identical": true,
+      "tested": "100644 blob dd520778cf1b619d12a10401613ff85670ccddf4\tshared/build.gradle.kts",
+      "composition": "100644 blob dd520778cf1b619d12a10401613ff85670ccddf4\tshared/build.gradle.kts"
+    },
+    {
+      "path": "gradle",
+      "identical": true,
+      "tested": "040000 tree d6e496980fd67c7ca321424896ea7e0411f4ac69\tgradle",
+      "composition": "040000 tree d6e496980fd67c7ca321424896ea7e0411f4ac69\tgradle"
+    },
+    {
+      "path": "build.gradle.kts",
+      "identical": true,
+      "tested": "100644 blob 671757278d5b7d256f75b710a9e5a1e575898eb3\tbuild.gradle.kts",
+      "composition": "100644 blob 671757278d5b7d256f75b710a9e5a1e575898eb3\tbuild.gradle.kts"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "identical": true,
+      "tested": "100644 blob 2a4555e4b54c66e422d4c526187167c97e9971f8\tsettings.gradle.kts",
+      "composition": "100644 blob 2a4555e4b54c66e422d4c526187167c97e9971f8\tsettings.gradle.kts"
+    },
+    {
+      "path": "gradle.properties",
+      "identical": true,
+      "tested": "100644 blob 2c8eb07746eb9b9254bd8240da32a1200833adf8\tgradle.properties",
+      "composition": "100644 blob 2c8eb07746eb9b9254bd8240da32a1200833adf8\tgradle.properties"
+    },
+    {
+      "path": "shared/src/jvmMain",
+      "identical": true,
+      "tested": "040000 tree e3040021787072e3f44a30f1f8f74c13326f61bb\tshared/src/jvmMain",
+      "composition": "040000 tree e3040021787072e3f44a30f1f8f74c13326f61bb\tshared/src/jvmMain"
+    },
+    {
+      "path": "shared/src/androidMain",
+      "identical": true,
+      "tested": "040000 tree a4943e82e1ab2718a82ee0e05c7d1803d4720f72\tshared/src/androidMain",
+      "composition": "040000 tree a4943e82e1ab2718a82ee0e05c7d1803d4720f72\tshared/src/androidMain"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/domain",
+      "identical": true,
+      "tested": "040000 tree c160353d3befb00ce4c29a24684d6146a03d9c29\tshared/src/commonMain/kotlin/app/vezuna/domain",
+      "composition": "040000 tree c160353d3befb00ce4c29a24684d6146a03d9c29\tshared/src/commonMain/kotlin/app/vezuna/domain"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/data",
+      "identical": true,
+      "tested": "040000 tree 66bf0fe2fcdfd3f73965690b80b5ad5b03fa292e\tshared/src/commonMain/kotlin/app/vezuna/data",
+      "composition": "040000 tree 66bf0fe2fcdfd3f73965690b80b5ad5b03fa292e\tshared/src/commonMain/kotlin/app/vezuna/data"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/importer",
+      "identical": true,
+      "tested": "040000 tree 625618f38a226152d86efdabd4503bccf5eef4db\tshared/src/commonMain/kotlin/app/vezuna/importer",
+      "composition": "040000 tree 625618f38a226152d86efdabd4503bccf5eef4db\tshared/src/commonMain/kotlin/app/vezuna/importer"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/export",
+      "identical": true,
+      "tested": "040000 tree 62d9b550c0c43b4014cafb6f0a06f90cba868c93\tshared/src/commonMain/kotlin/app/vezuna/export",
+      "composition": "040000 tree 62d9b550c0c43b4014cafb6f0a06f90cba868c93\tshared/src/commonMain/kotlin/app/vezuna/export"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/health",
+      "identical": true,
+      "tested": "040000 tree 350904707fef57667891d15c69464f23fbe17ccb\tshared/src/commonMain/kotlin/app/vezuna/health",
+      "composition": "040000 tree 350904707fef57667891d15c69464f23fbe17ccb\tshared/src/commonMain/kotlin/app/vezuna/health"
+    },
+    {
+      "path": "shared/src/commonMain/kotlin/app/vezuna/security",
+      "identical": true,
+      "tested": "040000 tree d093a007ec22648f498a9cbac67418f68642a327\tshared/src/commonMain/kotlin/app/vezuna/security",
+      "composition": "040000 tree d093a007ec22648f498a9cbac67418f68642a327\tshared/src/commonMain/kotlin/app/vezuna/security"
+    }
+  ],
+  "other_changes": [
+    ".github/workflows/ci.yml",
+    "composeApp/src/androidTest/java/app/vezuna/llm/AndroidModelLoadAdmissionTest.kt",
+    "composeApp/src/main/java/app/vezuna/llm/AndroidDeviceCapacity.kt",
+    "composeApp/src/main/java/app/vezuna/llm/PlayAssetPackLoader.kt",
+    "composeApp/src/test/java/app/vezuna/PlayAssetPackLoaderTest.kt",
+    "iosApp/SharedBridge/IosModelFileStore.kt",
+    "shared/src/commonMain/kotlin/app/vezuna/llm/DeviceCapacity.kt",
+    "shared/src/commonTest/kotlin/app/vezuna/DeviceVitalsSyncOutcomeTest.kt",
+    "shared/src/commonTest/kotlin/app/vezuna/ModelLoadAdmissionTest.kt",
+    "shared/src/commonTest/kotlin/app/vezuna/TestAccessDeniedException.kt",
+    "shared/src/commonTest/kotlin/app/vezuna/WeightPagingTest.kt",
+    "shared/src/commonTest/kotlin/app/vezuna/WeightPersistenceTest.kt"
+  ]
+}
