@@ -21,32 +21,18 @@ class AndroidDeviceCapacity(context: Context) : DeviceCapacity {
     }
 }
 
-/** A budget is valid only for the complete artifact, settings and native build identity. */
-data class AndroidLoadPolicyKey(
-    val sha256: String,
-    val sizeBytes: Long,
-    val settings: LlmGenerationSettings,
-    val nativeBuild: String,
-)
-
 class AndroidModelLoadAdmission(
     context: Context,
-    private val nativeBuild: String,
-    private val budgets: Map<AndroidLoadPolicyKey, Long> = emptyMap(),
+    nativeBuild: String,
+    budgets: Map<ModelLoadPolicyKey, Long> = emptyMap(),
 ) : ModelLoadAdmission {
     private val appContext = context.applicationContext
-    private val approvedBudgets = budgets.toMap()
-
-    override fun requireFits(pack: ModelPack, settings: LlmGenerationSettings) {
-        val budget = approvedBudgets[AndroidLoadPolicyKey(pack.sha256, pack.sizeBytes, settings, nativeBuild)]
-            ?.takeIf { it > 0 } ?: failMessage(L10nKey.MODEL_LOAD_POLICY_UNAVAILABLE)
-        val info = try {
-            val manager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-                ?: failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE)
-            ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
-        } catch (canceled: kotlinx.coroutines.CancellationException) { throw canceled }
-        catch (failure: app.vezuna.localization.VitaMessageException) { throw failure }
-        catch (_: Exception) { failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE) }
-        requireLoadMemory(pack, LoadMemorySnapshot(info.totalMem, info.availMem, info.lowMemory, info.threshold), budget)
+    private val admission = BudgetedModelLoadAdmission(nativeBuild, budgets) {
+        val manager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            ?: failMessage(L10nKey.MODEL_CAPACITY_UNAVAILABLE)
+        val info = ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
+        LoadMemorySnapshot(info.totalMem, info.availMem, info.lowMemory, info.threshold)
     }
+
+    override fun requireFits(pack: ModelPack, settings: LlmGenerationSettings) = admission.requireFits(pack, settings)
 }
