@@ -1,0 +1,33 @@
+Issue107 / PR221 completed
+Current owner lease a2c6e44e-9369-4a3d-b510-d959857a0453; codex-3/gpt-6.1-sol medium.
+
+Shared coverage already had Kover 0.9.11 and an 80% combined line coverage gate. This change configures :shared:koverLog to print package line coverage with the 80% target. The bound, filters and exclusions remain unchanged; the label does not add per-package enforcement. Refs #107, bounded shared reporting slice only.
+
+Official Cortex execution PASS on source head 36cc605e4f79a5e5c821a9cd1435e154017da92a, tree 95917122e8a4c0d740b4bb6519f7e2959edbc882, completed 2026-11-07 19:07:37 UTC, exit 0. Gradle wrapper 9.9.0, JDK17, shared SDK/cache. Command:
+
+    ./gradlew --no-daemon --max-workers=2 --console=plain :shared:koverLog :shared:koverXmlReport :shared:koverHtmlReport :shared:koverVerify
+
+38 tasks: 37 executed, 1 from cache. JVM tests: 962 across 123 suites, zero failures/errors/skips. Android host tests: 914 across 106 suites, zero failures/errors/skips. These are separate platform executions, not 1,876 unique tests. Report generation and KoverVerify passed with the original 80% bound.
+
+| Package | Covered lines | Missed lines | Line coverage |
+| --- | ---: | ---: | ---: |
+| app.vezuna.data | 784 | 66 | 92.2353% |
+| app.vezuna.security | 403 | 27 | 93.7209% |
+| app.vezuna.domain.trends | 170 | 1 | 99.4152% |
+| app.vezuna.importer | 193 | 15 | 92.7885% |
+| app.vezuna.domain | 1061 | 8 | 99.2516% |
+| app.vezuna.export | 2157 | 49 | 97.7788% |
+| app.vezuna.health | 374 | 16 | 95.8974% |
+
+Scope is JVM bytecode and supported Android host tests, including common code compiled for those targets. Kover built-in Gradle DSL does not measure iosArm64/iosSimulatorArm64 Kotlin/Native binaries/tests or Android device instrumentation. No hardware/E2E/inference acceptance claimed.
+
+Independent exact-head source review APPROVED with no findings at 36cc605. git diff --check passed. The source DSL and relevant coverage production packages, JVM/Android source sets, version catalog and build inputs are identical in the merge composition with main ef84ac7213cdcece57c5d630a5b703246bcf3a1a. Changes since execution affect CI, platform LLM code outside the coverage filters, and tests. The test helper substitutes a common exception for a JVM-only exception without changing assertions or covered production code; LLM test additions remain outside filters. This preserves the affected reporting/verification evidence; it does not claim all newer unit tests were executed on the composed tree. No redundant source review or unrelated APK/lint build run.
+
+Live rulesets returned no rules and main has no branch protection; no unresolved review threads. Optional hosted checks remain queued, with one android failure at the pre-existing brand check: old product name in docs/RELEASING.md. That document has the same blob at the base, tested head and current main. No check status is overridden or reported green.
+
+Linux evidence: /home/cortexos/.local/share/t3-cortexos/worktrees/vezuna/t3-05211888/.unlazy/pr221-kover/{report,receipt,source-before.json,source-after.json,java.log,wrapper.log.gz,reports.tar.gz}. Parent verified native completion, unchanged tracked source identity, wrapper reaped and scratch cleanup; shared cache preserved; executor slot and lease released once. Local owner evidence: artifact.unlazy/issue107-owner/report and composition.json. Source review: /Users/heitor/.t3/worktrees/vezuna/t3-1f953b23/.unlazy/pr221-review/{report,receipt}.
+
+MERGED normally with --match-head-commit at 2026-11-07T19:12:43Z.
+Merge commit 1be6d0a608b98949aa0245f71cca3993b9b7caa6; tree b66c1cdd3840cfb3995445ada97093583f5b387c matches prospective composition exactly. Parents ef84ac7213cdcece57c5d630a5b703246bcf3a1a and36cc605e4f79a5e5c821a9cd1435e154017da92a. Verified via live gh metadata and fetched origin/main.
+Gates G1/G2/G3/G4 met for bounded reporting slice. Full issue107 not closed. E2E/hardware/inference deferred.
+Cleanup: no local processes/slots/delegates/watch created, no worktrees/branches deleted, artifacts retained. Remote cleanup/releases supplied and verified by parent; no duplicate release. Parent releases current owner lease after this native terminal.
