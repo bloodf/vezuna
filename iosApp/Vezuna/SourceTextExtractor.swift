@@ -28,7 +28,14 @@ enum SourceTextExtractor {
     private static func extractPDF(_ data: Data, progress: (Int, Int) -> Void) async throws -> ExtractedSourceText {
         guard let document = PDFDocument(data: data) else { throw ImportError.unreadablePDF }
         guard document.pageCount <= maxPDFPages else { throw ImportError.tooManyPages }
-        let embedded = (0..<document.pageCount).map { document.page(at: $0)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" }
+        var embedded: [String] = []
+        for index in 0..<document.pageCount {
+            try Task.checkCancellation()
+            progress(index + 1, document.pageCount)
+            try Task.checkCancellation()
+            embedded.append(document.page(at: index)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+        }
+        try Task.checkCancellation()
         if embedded.contains(where: { !$0.isEmpty }) {
             return ExtractedSourceText(pages: embedded, ocrConfidence: nil, usedOfflineOCR: false)
         }
@@ -36,7 +43,6 @@ enum SourceTextExtractor {
         var confidences: [Float] = []
         for index in 0..<document.pageCount {
             try Task.checkCancellation()
-            progress(index + 1, document.pageCount)
             guard let page = document.page(at: index) else { continue }
             let bounds = page.bounds(for: .mediaBox).integral
             guard bounds.width > 0, bounds.height > 0 else { continue }
@@ -55,6 +61,7 @@ enum SourceTextExtractor {
             pages.append(result.text)
             if let confidence = result.confidence { confidences.append(confidence) }
         }
+        try Task.checkCancellation()
         let mean = confidences.isEmpty ? nil : confidences.reduce(0, +) / Float(confidences.count)
         return ExtractedSourceText(pages: pages, ocrConfidence: mean, usedOfflineOCR: true)
     }
