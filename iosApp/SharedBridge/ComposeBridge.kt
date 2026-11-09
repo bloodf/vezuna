@@ -715,7 +715,7 @@ object IosRuntime {
         ocrConfidence: Float?,
     ): PickedSource {
         val candidates = pageTexts.flatMap { app.vezuna.importer.parseExtractedCandidates(it, ocrConfidence) }
-            .distinctBy { listOf(it.testCode, it.rawValue, it.rawUnit, it.collectedAt) }
+            .distinctBy { listOf(it.testCode, it.displayName, it.rawValue, it.rawUnit, it.referenceRange, it.collectedAt) }
         val header = app.vezuna.importer.parseReportHeader(pageTexts.joinToString("\n\n"))
         if (initialized) {
             controller.importSession.publish(
