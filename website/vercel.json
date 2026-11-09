@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": { "**": false, "main": true }
+  },
+  "ignoreCommand": "node scripts/vercel-ignore.mjs",
   "framework": "astro",
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
