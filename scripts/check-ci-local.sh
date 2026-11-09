@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local counterpart of .github/workflows/ci.yml. See docs/LOCAL_CI.md.
+# Local counterpart of .github/workflows/manual-ci.yml. See docs/LOCAL_CI.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
