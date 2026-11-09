@@ -38,6 +38,7 @@ import app.vezuna.localization.L10nKey
 import app.vezuna.localization.vitaText
 import app.vezuna.ui.AppScreen
 import app.vezuna.ui.Category
+import app.vezuna.ui.ReminderPrivacySetting
 import app.vezuna.ui.VezunaTokens
 import app.vezuna.ui.components.FocusedTaskScaffold
 import app.vezuna.ui.components.GroupedRows
@@ -257,6 +258,7 @@ internal fun MoreRows(ctx: RouteContext) {
         ListRow(vitaText(L10nKey.MORE_APPEARANCE), onClick = { nav(AppScreen.Appearance) }, supporting = vitaText(L10nKey.MORE_APPEARANCE_SUB), leadingIcon = Res.drawable.ic_moon, category = Category.RECORDS)
         ListRow(vitaText(L10nKey.MORE_LANGUAGE), onClick = { nav(AppScreen.Language) }, supporting = vitaText(L10nKey.MORE_LANGUAGE_SUB), leadingIcon = Res.drawable.ic_language, category = Category.RECORDS)
     }
+    ctx.reminders?.let { ReminderPrivacySetting(it) }
     GroupedRows {
         ListRow(vitaText(L10nKey.MORE_HELP), onClick = { nav(AppScreen.Help) }, supporting = vitaText(L10nKey.MORE_HELP_SUB), leadingIcon = Res.drawable.ic_help, category = Category.RECORDS)
         ListRow(vitaText(L10nKey.MORE_ABOUT), onClick = { nav(AppScreen.About) }, supporting = vitaText(L10nKey.MORE_ABOUT_SUB), leadingIcon = Res.drawable.ic_info, category = Category.RECORDS)
