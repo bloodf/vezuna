@@ -178,6 +178,15 @@ internal class AndroidEngineOwner(
                                 throw ModelOperationFailure(message(L10nKey.MODEL_LOADING_FAILED))
                             }
                         }
+                    }
+                    // Sample while holding admission, without holding the control monitor.
+                    (request.command as? LifecycleCommand.Replace)?.admission?.invoke()
+                    synchronized(control) {
+                        if (wrapper.ownerStatus.value == EngineOwnerStatus.Superseded ||
+                            request.expectedLease != null && (holder !== wrapper || request.expectedLease !== lease)) {
+                            receipt = receipt.copy(disposition = LifecycleDisposition.Superseded)
+                            sessionSuperseded()
+                        }
                         // Cancellation and the first Calling/claim transition are one control interval.
                         calling(attempt)
                         if (request.command is LifecycleCommand.Replace) {
