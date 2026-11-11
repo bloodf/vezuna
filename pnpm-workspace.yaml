@@ -1,5 +1,3 @@
-# This standalone project depends only on EAS CLI. Apply its security pins
-# throughout that dependency tree, as the former nested npm overrides did.
 overrides:
   '@oclif/plugin-autocomplete': 3.2.40
   ajv: 8.20.0
@@ -7,7 +5,7 @@ overrides:
   nanoid: 6.0.2
   minimatch@5: 5.1.9
   node-forge: 1.4.3
-  tar: 7.5.22
+  tar: 7.5.23
   yaml: 2.9.1
 
 # Neither optional DTrace native compilation nor protobuf's advisory check is needed.
