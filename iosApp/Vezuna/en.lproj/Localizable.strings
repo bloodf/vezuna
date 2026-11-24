@@ -49,7 +49,7 @@
 "model_catalog_invalid" = "Model catalog is invalid";
 
 "third_party_notices" = "Third-party notices";
-"third_party_notices_unavailable" = "Notices could not be opened. Contact heitor.ramon@gmail.com for a copy.";
+"third_party_notices_unavailable" = "Notices could not be opened. Contact contact@example.org for a copy.";
 
 "privacy_policy" = "Privacy policy";
 "privacy_policy_unavailable" = "The privacy policy could not be loaded.";

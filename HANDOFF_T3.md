@@ -36,7 +36,7 @@ The owner now wants this handoff used to **resume in T3 Code from that point**. 
 
 ```text
 GitHub: bloodf/vezuna
-Root: /Users/heitor/Developer/github.com/bloodf/vezuna
+Root: $HOME/Developer/github.com/bloodf/vezuna
 Verified main HEAD: ca90147
 Main status at last inspection: clean, tracking origin/main
 ```
@@ -44,11 +44,11 @@ Main status at last inspection: clean, tracking origin/main
 Read these authoritative local instructions:
 
 ```text
-/Users/heitor/.claude/CLAUDE.md
+$HOME/.claude/CLAUDE.md
 Repository CLAUDE.md / AGENTS.md, if present
-/Users/heitor/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-backlog-workflow.md
-/Users/heitor/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-local-verification.md
-/Users/heitor/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-development-skills.md
+$HOME/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-backlog-workflow.md
+$HOME/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-local-verification.md
+$HOME/.claude/projects/-Users-heitor-Developer-github-com-bloodf-vezuna/memory/vezuna-development-skills.md
 ```
 
 This handoff file itself is newly written in the repository root; account for it when checking status. Fetch remote before relying on the snapshot. Treat memory and agent reports as claims to verify.

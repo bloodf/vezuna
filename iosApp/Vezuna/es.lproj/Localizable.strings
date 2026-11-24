@@ -49,7 +49,7 @@
 "model_catalog_invalid" = "El catálogo de modelos no es válido";
 
 "third_party_notices" = "Avisos de terceros";
-"third_party_notices_unavailable" = "No se pudieron abrir los avisos. Solicita una copia en heitor.ramon@gmail.com.";
+"third_party_notices_unavailable" = "No se pudieron abrir los avisos. Solicita una copia en contact@example.org.";
 
 "privacy_policy" = "Política de privacidad";
 "privacy_policy_unavailable" = "No se pudo cargar la política de privacidad.";

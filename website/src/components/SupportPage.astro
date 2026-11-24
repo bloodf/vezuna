@@ -6,7 +6,7 @@ import { issuesUrl, localizedPath, securityUrl, supportAlternates, type Locale }
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const copy = supportCopy[locale];
-const supportEmail = 'heitor.ramon@gmail.com';
+const supportEmail = 'contact@example.org';
 ---
 <BaseLayout locale={locale} title={copy.title} description={copy.intro} path={localizedPath(locale, 'support')} alternates={supportAlternates}>
   <main class="page wrap" id="main-content">
