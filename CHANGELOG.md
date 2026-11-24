@@ -25,6 +25,7 @@ Current state of the working tree (`versionName` 1.0, `versionCode` 1):
 
 ### Changed
 
+- Group filtered confirmed lab results by report in the Records results view.
 - PDF reports show their export date in the first-page header as well as the footer.
 - Android model and controller state now lives in an Activity ViewModel, surviving configuration changes (in-flight controller work keeps running through rotation) and unloading the native model when the session is cleared.
 - Android OCR instrumentation test now uses only the synthetic image in `composeApp/src/androidTest/assets/` and a PDF generated at run time from fictional text. The PDF test checks page count and extracted text only; it does not assert whether text came from embedded PDF text or the OCR fallback. The test no longer reads private reports, and the `androidTest` asset sources for `samples/lab-reports` and `build/qa/ui` were removed from `composeApp/build.gradle.kts`.

@@ -72,7 +72,7 @@ import vezuna.shared.generated.resources.ill_records
 /** Two readable panes (list about 360dp, detail about 400dp) need this much content width (image 142). */
 private val TwoPaneWidth = 760.dp
 
-/** Records root (images 014-018, 142): search, filters, reports or results by month, review queue entry. */
+/** Records root (images 014-018, 142): search, filters, reports by month or results by report, review queue entry. */
 @Composable
 internal fun RecordsScreen(ctx: RouteContext) = RootScaffold(ctx, vitaText(L10nKey.NAV_RECORDS)) {
     val data = ctx.state.data ?: return@RootScaffold
@@ -207,8 +207,26 @@ private fun RecordsList(
                 }
             }
         } else if (showResults) {
-            monthSections(RecordsListing.byMonth(results) { it.collectedAt }) { observation ->
-                ResultListRow(observation, data) { ctx.navigate(AppScreen.ResultDetail(observation.observationId)) }
+            RecordsListing.resultGroups(data, filter).forEach { group ->
+                item {
+                    GroupedRows {
+                        val report = group.report
+                        if (report != null) {
+                            ListRow(
+                                title = reportDisplayName(report, data, manualName),
+                                supporting = formatUiDate(group.observations.first().collectedAt),
+                                leadingIcon = if (report.isManual) Res.drawable.ic_edit else Res.drawable.ic_records,
+                                category = Category.RECORDS,
+                                onClick = { onOpenReport(report.reportId) },
+                            )
+                        } else {
+                            ListRow(vitaText(L10nKey.REPORT_DETAIL_UNAVAILABLE))
+                        }
+                        group.observations.forEach { observation ->
+                            ResultListRow(observation, data) { ctx.navigate(AppScreen.ResultDetail(observation.observationId)) }
+                        }
+                    }
+                }
             }
         } else {
             monthSections(RecordsListing.byMonth(reports) { it.date }) { entry ->
