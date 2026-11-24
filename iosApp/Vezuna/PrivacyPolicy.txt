@@ -4,7 +4,7 @@ Updated November 1, 2026
 
 Publisher and contact
 
-Vezuna is published by Heitor Ribeiro. For privacy questions or support, contact heitor.ramon@gmail.com. This policy covers the Vezuna Android and iPhone apps and https://vezuna.app, including its documentation.
+Vezuna is published by Heitor Ribeiro. For privacy questions or support, contact contact@example.org. This policy covers the Vezuna Android and iPhone apps and https://vezuna.app, including its documentation.
 
 Your records
 
@@ -54,7 +54,7 @@ Vercel hosts the website and may process IP addresses, approximate location deri
 
 Contact and requests
 
-If you email the publisher, the email provider and publisher receive the address, message, and attachments you send for the purpose of responding. Do not send medical records, vaults, backups, passwords, or signing keys. Ask privacy questions or request access, correction, or deletion of your correspondence at heitor.ramon@gmail.com. Local app records must be managed on your device because the publisher has no copy of them.
+If you email the publisher, the email provider and publisher receive the address, message, and attachments you send for the purpose of responding. Do not send medical records, vaults, backups, passwords, or signing keys. Ask privacy questions or request access, correction, or deletion of your correspondence at contact@example.org. Local app records must be managed on your device because the publisher has no copy of them.
 
 Policy changes
 

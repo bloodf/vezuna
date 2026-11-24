@@ -40,7 +40,7 @@ User documentation must explain profiles, synthetic first-use examples, importin
 
 Developer documentation must cover the repository structure, native setup and builds, synthetic testing, localization and branding, model provenance and delivery, contributions, and release submission. iOS requires 18.5 or later. Expo is used only to submit externally built signed AAB/IPA files. Use the current source for all commands and platform versions. Explain that changing the application ID creates a separate installation and does not transfer an earlier sandbox or Android Keystore keys.
 
-Create `/support` with verified support options. The owner confirmed `heitor.ramon@gmail.com` as the public support/privacy email on October 31, 2026. The intended store price is US$9.99, but it has not yet been saved or made available in either store. Keep any price copy clearly prospective until release availability is verified.
+Create `/support` with verified support options. The owner confirmed `contact@example.org` as the public support/privacy email on October 31, 2026. The intended store price is US$9.99, but it has not yet been saved or made available in either store. Keep any price copy clearly prospective until release availability is verified.
 
 Prepare `/privacy` from implementation evidence, separating app behavior from website hosting behavior. The repository's `PRIVACY.md` is technical documentation. Publisher legal identity and retention commitments still need owner review before presenting a policy as final. Never publish fictional contact information or an unfinished legal template.
 

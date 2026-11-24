@@ -63,7 +63,7 @@ class PrivacyPolicyInstrumentedTest {
     private fun assertPolicyVisible() {
         assertTrue(device.wait(Until.hasObject(By.text("Vezuna privacy policy")), 10_000))
         assertTrue(device.hasObject(By.textContains("Vezuna is published by Heitor Ribeiro")))
-        assertTrue(device.hasObject(By.textContains("heitor.ramon@gmail.com")))
+        assertTrue(device.hasObject(By.textContains("contact@example.org")))
         assertTrue(context.assets.open("PrivacyPolicy.txt").bufferedReader().use { it.readText() }
             .contains("Vezuna reads heart rate, steps, and weight"))
     }

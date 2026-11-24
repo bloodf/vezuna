@@ -2,14 +2,14 @@
 
 > [!NOTE]
 > **Historical Plan Preserved for Context Only**
-> This original candidate plan (`132d15f`) is preserved for architectural history and comparison. It is **superseded** by the revised plan at [`.unlazy/t3-resume/weight-healthkit-plan-v2.md`](file:///Users/heitor/.t3/worktrees/vezuna/t3-15edeefa/.unlazy/t3-resume/weight-healthkit-plan-v2.md) (merged via PR #187).
+> This original candidate plan (`132d15f`) is preserved for architectural history and comparison. It is **superseded** by the revised plan at [`.unlazy/t3-resume/weight-healthkit-plan-v2.md`](file://$HOME/.t3/worktrees/vezuna/t3-15edeefa/.unlazy/t3-resume/weight-healthkit-plan-v2.md) (merged via PR #187).
 > The proposed index-only downgrade fence (`StorageSchema 5` index barrier) was rejected/withdrawn and is not active; current `main` implements the private encrypted `StoredVitals` storage envelope (`vitalsFormat = 1`) without repository schema or backup version bumps, and separates provenance from authorization contexts. Refer to `weight-healthkit-plan-v2.md` and current `main` code for authoritative contracts.
 
 Refs #62, #59, #63. Design candidate only. Independent consequential review is pending. No implementation, build, test execution, device boot, merge, push, or issue comment is authorized by this document.
 
 ## Scope and evidence boundary
 
-Inspected 2026-11-04 in the T3-prepared worktree `/Users/heitor/.t3/worktrees/vezuna/t3-971ba905`, clean starting HEAD `ca90147520dacd224776edeaeb5653656ccb2cc5`. `git fetch origin` succeeded; `origin/main` remained that SHA. All proposed interfaces below are sketches, not existing APIs. Parent owns dispatch, integration, review, and release decisions.
+Inspected 2026-11-04 in the T3-prepared worktree `$HOME/.t3/worktrees/vezuna/t3-971ba905`, clean starting HEAD `ca90147520dacd224776edeaeb5653656ccb2cc5`. `git fetch origin` succeeded; `origin/main` remained that SHA. All proposed interfaces below are sketches, not existing APIs. Parent owns dispatch, integration, review, and release decisions.
 
 Read HANDOFF_T3.md, .unlazy/t3-resume/PLAN.md and gates/leaf-3.md from the original checkout, global CLAUDE.md and its RTK.md include, all three named project workflow instruction files, and docs/DEVELOPMENT.md. No repository CLAUDE.md or AGENTS.md was found in the prepared tree. Applied installed architect grounding/sketch discipline, technical-writing, unslop, ADHD output guidance, and unlazy acceptance accounting. User prohibition overrides their delegation, implementation, and extra-ledger workflows. Only this file is owned; parent gate files remain untouched.
 
@@ -41,7 +41,7 @@ Paths and line numbers in this table refer to starting HEAD unless marked preser
 
 ### Preserved #93 interface inspection
 
-Read-only inspection of `/Users/heitor/Developer/github.com/bloodf/vezuna/.worktrees/onboarding-options` found HEAD `9dd10a3b2353b4d46b441ca51d146bfbaa0a8e7f` and the preserved 19 modified files. These are a dirty snapshot, not an approved integration contract. No preserved files were changed.
+Read-only inspection of `$HOME/Developer/github.com/bloodf/vezuna/.worktrees/onboarding-options` found HEAD `9dd10a3b2353b4d46b441ca51d146bfbaa0a8e7f` and the preserved 19 modified files. These are a dirty snapshot, not an approved integration contract. No preserved files were changed.
 
 - Repository.kt:116 adds `linkOnboardingHealthProfile(profileId, zone): VitalsSyncContext?` under the repository mutex. Preserve same-lock approval and the one linked profile.
 - DeviceVitalsSync.kt:39 accepts `synchronize(expected: VitalsSyncContext? = null)`, validates expected profile/generation before read, and retains captured zone. Never replace it with post-authorization recapture.
