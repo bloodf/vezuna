@@ -3,7 +3,7 @@
   "private": true,
   "description": "Pins EAS CLI used only to submit prebuilt native Android/iOS binaries. Vezuna itself is Kotlin Multiplatform + Xcode, not React Native.",
   "license": "MIT",
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@12.23.0",
   "engines": {
     "node": ">=24.22.2 <25"
   },
