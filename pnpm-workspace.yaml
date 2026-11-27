@@ -7,7 +7,7 @@ overrides:
   nanoid: 6.0.2
   minimatch@5: 5.1.9
   node-forge: 1.4.3
-  tar: 7.5.22
+  tar: 7.5.24
   yaml: 2.9.1
 
 # Neither optional DTrace native compilation nor protobuf's advisory check is needed.
